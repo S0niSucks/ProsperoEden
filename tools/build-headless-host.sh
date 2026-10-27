@@ -91,6 +91,7 @@ python3 -B "$root/tools/check-execute-program.py"
 python3 -B "$root/tools/check-system-font-mod.py"
 python3 -B "$root/tools/check-loader-message.py"
 python3 -B "$root/tools/check-wallpaper-paths.py"
+python3 -B "$root/tools/launcher/strings.py" check
 python3 -B "$root/tools/check-gc-scan.py"
 "$scratch/build/bin/eden-scalar-check"
 "$scratch/build/bin/eden-memory-check"

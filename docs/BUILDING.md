@@ -99,6 +99,38 @@ commercial games, controllers or frame rates. Native packaging still requires th
 toolchain described below. Use a fresh named volume if switching to an unrelated source tree;
 the runner deliberately does not delete files from an existing volume.
 
+### Docker native PS5 build (including Windows)
+
+The release image extends the host image with the CI release tools: LLVM 21,
+Meson 1.10.1 and the pinned SPIR-V LLVM translator. No WSL toolchain installation is needed.
+Build both images, then use a **separate** Linux volume for the PS5 dependencies and outputs:
+
+```powershell
+docker build -t prosperoeden-host -f tools/docker/host.Dockerfile tools/docker
+docker build -t prosperoeden-release -f tools/docker/release.Dockerfile tools
+docker run --rm --name prosperoeden-release-build --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-release-work,target=/work -e EDEN_BUILD_JOBS=4 -e RADV_BUILD_JOBS=4 prosperoeden-release
+```
+
+This runs `make release`, including `make prepare`, `make package`, the native source checks,
+and package checks. Dependencies, FFmpeg, the clean-room runtime and RADV are built inside
+Docker. Native compilation can take considerably longer than the host tests. Leave the
+checkout unchanged during the copy at startup; rerun after source changes. Rebuild the image
+when its Dockerfile, CI setup script or runner changes. A nonzero exit is not a usable release.
+
+The output remains in the volume at `/work/ProsperoEden/dist`. To copy it to the repository's
+ignored `.local/docker-release/` without another build:
+
+```powershell
+New-Item -ItemType Directory -Force .local/docker-release | Out-Null
+docker create --name prosperoeden-release-export --mount type=volume,source=prosperoeden-release-work,target=/work prosperoeden-release
+docker cp prosperoeden-release-export:/work/ProsperoEden/dist/. .local/docker-release/
+docker rm prosperoeden-release-export
+```
+
+The container exposes no ports or Docker socket, deploys nothing, and does not need the
+host suite's relaxed seccomp/ASLR options. A successful native build and intact ZIP still
+do **not** validate console boot, firmware compatibility, gameplay, performance or suspend/resume.
+
 Every input is pinned in `tools/deps.json` and fetched by `make deps` (`tools/deps.py`) only when
 it is missing: archives are checked against their SHA-256/SHA-512 before use and git
 repositories are fetched at their pinned commit. Nothing that already exists is modified, so a
