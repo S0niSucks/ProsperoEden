@@ -569,7 +569,7 @@ int Launcher::dialog_rows(Modal modal) const
     case Modal::accessibility:
         return 3;
     case Modal::appearance:
-        return 3; // theme, launcher and wallpaper
+        return 4; // theme, launcher, wallpaper and library view
     case Modal::wallpaper:
         return 1 + static_cast<int>(wallpaper_files_.size()); // "None" and the images
     case Modal::theme:
@@ -599,9 +599,10 @@ float Launcher::dialog_row_top(Modal modal, int row) const
     {
     case Modal::audio:
     case Modal::accessibility:
-    case Modal::appearance:
     case Modal::theme:
         return 370.0f + 102.0f * static_cast<float>(row);
+    case Modal::appearance:
+        return 346.0f + 88.0f * static_cast<float>(row);
     case Modal::accent: // six of its rows show; the list scrolls to the others
         return kVideoRowsTop + kAccentRowPitch * static_cast<float>(row) - accent_rows_.scroll();
     case Modal::performance: // four of its rows show; the list scrolls to the others
@@ -671,6 +672,17 @@ void Launcher::press_dialog(Key key)
         return;
     if (modal_ == Modal::appearance)
     {
+        if (option_ == 3)
+        {
+            const std::string had = prefs_.library_view;
+            prefs_.library_view = had == "cover-flow" ? "grid" : "cover-flow";
+            const bool saved = save_preferences(true);
+            if (!saved) prefs_.library_view = had;
+            cover_flow_.snap(library_.selected);
+            sync_grid(true);
+            cue(saved ? Cue::saved : Cue::error);
+            return;
+        }
         if (!activate)
             return;
         if (option_ == 0)
@@ -1050,7 +1062,7 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
     const int last = scrolls ? rows_view.last_row() : rows - 1;
     if (scrolls)
         list.push_clip({window.x - 24.0f, window.y - 6.0f, window.w + 48.0f, window.h + 12.0f});
-    const float row_h = modal == Modal::accent ? kAccentRowHeight : 94.0f;
+    const float row_h = modal == Modal::accent ? kAccentRowHeight : modal == Modal::appearance ? 80.0f : 94.0f;
     for (int row = first; row <= last; ++row)
     {
         list.push_opacity(scrolls ? rows_view.row_alpha(row, row_h) : 1.0f);
@@ -1285,24 +1297,30 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
     }
     case Modal::appearance:
     {
-        static constexpr const char *kNames[] = {TR("Theme"), TR("Launcher"), TR("Wallpaper")};
+        static constexpr const char *kNames[] = {TR("Theme"), TR("Launcher"), TR("Wallpaper"), TR("Library view")};
         const std::string wallpaper_name =
             prefs_.wallpaper.empty() ? std::string{tr("None")} : prefs_.wallpaper;
         for (int row = 0; row < rows; ++row)
         {
+            if (row == 3)
+            {
+                label(row, tr(kNames[row]), choice(row, prefs_.library_view == "cover-flow" ? tr("Cover Flow") : tr("Grid")));
+                continue;
+            }
             const float shown =
                 row == 0 ? text_shrink(c, th().name, 1292.0f,
-                                       baseline(dialog_row_top(modal, row), 94.0f, th().size_small),
+                                       baseline(dialog_row_top(modal, row), row_h, th().size_small),
                                        th().size_small, th().meta, 320.0f, Align::right) :
                 row == 2 ? text_shrink(c, wallpaper_name, 1292.0f,
-                                       baseline(dialog_row_top(modal, row), 94.0f, th().size_small),
+                                        baseline(dialog_row_top(modal, row), row_h, th().size_small),
                                        th().size_small, th().meta, 320.0f, Align::right) :
                            0.0f;
             label(row, tr(kNames[row]), shown);
         }
         const char *about = option_ == 0    ? tr("Choose the colours and appearance of this menu.") :
-                            option_ == 1    ? tr("Use another home screen, library and menu layout.") :
-                                              tr("Show an image of your own behind the menu.");
+                             option_ == 1    ? tr("Use another home screen, library and menu layout.") :
+                             option_ == 2    ? tr("Show an image of your own behind the menu.") :
+                                               tr("Browse covers in a grid or in perspective with Cover Flow.");
         text_block(c, about, 592.0f, baseline(700.0f, 30.0f, th().size_small), th().size_small,
                    30.0f, th().meta, 736.0f, 2, kShrink);
         break;
@@ -1456,9 +1474,18 @@ void Launcher::draw_dialog(Canvas &c, Modal modal, float open)
     }
     else if (modal == Modal::appearance)
     {
-        static constexpr Hint kOpen[] = {
-            {Pad::updown, TR("Select")}, {Pad::cross, TR("Open")}, {Pad::circle, TR("Back")}};
-        draw_hints(c, kOpen, 3, 592.0f, foot, th().copy, 736.0f);
+        if (option_ == 3)
+        {
+            static constexpr Hint kChange[] = {
+                {Pad::updown, TR("Select")}, {Pad::leftright, TR("Change")}, {Pad::circle, TR("Back")}};
+            draw_menu_hints(c, kChange, 3, 592.0f, foot, th().copy, 736.0f);
+        }
+        else
+        {
+            static constexpr Hint kOpen[] = {
+                {Pad::updown, TR("Select")}, {Pad::cross, TR("Open")}, {Pad::circle, TR("Back")}};
+            draw_menu_hints(c, kOpen, 3, 592.0f, foot, th().copy, 736.0f);
+        }
     }
     else if (modal == Modal::theme || modal == Modal::wallpaper)
     {

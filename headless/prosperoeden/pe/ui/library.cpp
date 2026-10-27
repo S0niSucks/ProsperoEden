@@ -31,6 +31,8 @@ constexpr float kGridTop = 152.0f;
 constexpr float kGridBottom = 972.0f;
 constexpr float kGridWidth = kCellPitchX * (kColumns - 1) + kCover;
 constexpr Rect kDetail{1304.0f, 136.0f, 520.0f, 836.0f};
+// Kept in a .cpp so the incumbent translation extractor also sees the stage's new fallback.
+constexpr const char *kCoverUnavailable = TR("Cover unavailable");
 
 // A game's settings: a page of three parts beside the rail.
 constexpr Rect kKinds{layout::kLeft, 160.0f, 400.0f, 792.0f};
@@ -83,6 +85,8 @@ std::string changes_text(int changes)
 }
 
 } // namespace
+
+#include "pe/ui/cover_flow.inc"
 
 void Launcher::start_scan()
 {
@@ -154,6 +158,7 @@ void Launcher::apply_games(std::vector<Game> games)
             if (games_[static_cast<std::size_t>(i)].file == selected)
                 index = i;
         library_.reset(static_cast<int>(games_.size()), index);
+        cover_flow_.snap(library_.selected);
         refresh_selected_game();
         mode_.snap(selected_docked_ ? 0.0f : 1.0f);
     }
@@ -232,6 +237,7 @@ bool Launcher::drop_missing_games()
         if (games_[static_cast<std::size_t>(i)].file == selected)
             index = i;
     library_.reset(static_cast<int>(games_.size()), index);
+    cover_flow_.snap(library_.selected);
     refresh_selected_game();
     return true;
 }
@@ -310,7 +316,7 @@ void Launcher::enter_library()
         finish_scan(true);
     }
     library_.wrap = false;
-    library_.reset(static_cast<int>(games_.size()), 0);
+    library_.reset(static_cast<int>(games_.size()), prefs_.library_view == "cover-flow" ? library_.selected : 0);
     refresh_selected_game();
     sync_grid(true);
     detail_.snap(1.0f);
@@ -319,6 +325,8 @@ void Launcher::enter_library()
 
 void Launcher::refresh_selected_game()
 {
+    if (prefs_.library_view == "cover-flow")
+        textures_.discard_pending_covers();
     const std::uint64_t id =
         games_.empty() ? 0 : games_[static_cast<std::size_t>(library_.selected)].title_id;
     selected_docked_ = id == 0 || services_.docked(id);
@@ -350,6 +358,9 @@ void Launcher::sync_grid(bool snap)
     grid_x_.target = static_cast<float>(count > 0 ? library_.selected % kColumns : 0) * kCellPitchX;
     grid_y_.target = static_cast<float>(row) * kCellPitchY;
     // The highlight glides only where it can be seen doing it.
+    if (snap || (screen_ != Screen::library && !(screen_ == Screen::home && th().top_nav && home_on_grid_)) ||
+        transition_.running)
+        cover_flow_.snap(library_.selected);
     if (snap || screen_ != Screen::library || transition_.running)
     {
         grid_x_.snap(grid_x_.target);
@@ -395,6 +406,8 @@ void Launcher::press_library(Key key)
     {
         if (count == 0)
             return;
+        if (prefs_.library_view == "cover-flow")
+            return; // a single browsing axis; Up/Down must not silently skip games
         int next = library_.selected + (key == Key::down ? kColumns : -kColumns);
         // Down onto a place the last row does not have: its last game.
         if (next >= count && library_.selected / kColumns < (count - 1) / kColumns)
@@ -404,11 +417,22 @@ void Launcher::press_library(Key key)
         return;
     }
     case Key::left:
+        if (prefs_.library_view == "cover-flow")
+        {
+            if (count == 0 || library_.selected == 0) return focus_rail();
+            go(library_.selected - 1);
+            return;
+        }
         if (count == 0 || library_.selected % kColumns == 0)
             return focus_rail();
         go(library_.selected - 1);
         return;
     case Key::right:
+        if (prefs_.library_view == "cover-flow")
+        {
+            if (library_.selected + 1 < count) go(library_.selected + 1);
+            return;
+        }
         if (count > 0 && library_.selected % kColumns != kColumns - 1 && library_.selected + 1 < count)
             go(library_.selected + 1);
         return;
@@ -481,6 +505,13 @@ void Launcher::press_library(Key key)
         launch_from_ = {layout::kLeft + static_cast<float>(library_.selected % kColumns) * kCellPitchX,
                         kGridTop + static_cast<float>(library_.selected / kColumns) * kCellPitchY - grid_rows_.scroll(),
                         kCover, kCover};
+        if (prefs_.library_view == "cover-flow")
+        {
+            const Rect stage = th().top_nav ? Rect{layout::kPanelLeft, layout::kPanelTop, layout::kPanelWidth,
+                                                   layout::kPanelBottom - layout::kPanelTop} :
+                                             Rect{layout::kLeft, kGridTop, kGridWidth, kGridBottom - kGridTop};
+            launch_from_ = cover_flow::project(static_cast<float>(library_.selected) - cover_flow_.position, stage).bounds;
+        }
         launch(game->file, game->name, game->cover);
         return;
     default:
@@ -510,6 +541,8 @@ void Launcher::draw_library(Canvas &c)
                  kPanelLeft + kPanelWidth * 0.5f, baseline(400.0f, 38.0f, t.size_text), t.size_text,
                  t.copy, Align::center);
         }
+        else if (prefs_.library_view == "cover-flow")
+            draw_cover_flow(c, {kPanelLeft, kPanelTop, kPanelWidth, kPanelBottom - kPanelTop});
         else
         {
             list.push_clip({kPanelLeft - 16.0f, kPanelTop - 8.0f, kPanelWidth + 32.0f,
@@ -577,6 +610,8 @@ void Launcher::draw_library(Canvas &c)
         text_shrink(c, games_loaded_ || !(home_.setup_ready || home_.homebrew_ready) ? tr("No ROM files found.") : tr("Reading..."), cx,
                     baseline(540.0f, 38.0f, t.size_text), t.size_text, t.copy, kGridWidth, Align::center);
     }
+    else if (prefs_.library_view == "cover-flow")
+        draw_cover_flow(c, {left, kGridTop, kGridWidth, kGridBottom - kGridTop});
     else
     {
         // The window is wider than its covers so the highlight's light is not cut at the sides.

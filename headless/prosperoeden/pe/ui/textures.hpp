@@ -88,6 +88,9 @@ class Textures
 
     // The cover drawn `size` virtual pixels wide. Queues it on first use.
     Cover cover(const std::string &path, float size);
+    // A fast-moving Cover Flow selection no longer needs the previous window's queued art.
+    // Loaded textures remain in the existing LRU; queued covers own no GL resources or worker.
+    void discard_pending_covers();
     // Loads up to `budget` queued covers and ages the loaded ones.
     void pump(float dt, int budget = 2);
     // Output pixels per virtual pixel: picks how much detail a cover needs.

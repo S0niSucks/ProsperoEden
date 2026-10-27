@@ -1162,6 +1162,7 @@ pe::ui::Preferences EdenServices::preferences() {
     result.high_contrast = saved.high_contrast;
     result.reduce_motion = saved.reduce_motion;
     result.theme = saved.theme;
+    result.library_view = saved.library_view;
     result.accent = saved.accent;
     result.wallpaper = saved.wallpaper;
     result.update_notices = saved.update_notices;
@@ -1213,6 +1214,7 @@ bool EdenServices::set_preferences(const pe::ui::Preferences& preferences) {
     value.high_contrast = preferences.high_contrast;
     value.reduce_motion = preferences.reduce_motion;
     value.theme = preferences.theme;
+    value.library_view = preferences.library_view;
     value.accent = preferences.accent;
     value.wallpaper = preferences.wallpaper;
     value.update_notices = preferences.update_notices;

@@ -380,6 +380,7 @@ void Launcher::update(float dt)
         rail_active_[index].update(dt, 14.0f);
     }
     library_.update(dt);
+    cover_flow_.update(dt, library_.selected, static_cast<int>(games_.size()), look().reduce_motion);
     grid_rows_.update(dt);
     grid_x_.update(dt, t.cursor_spring);
     grid_y_.update(dt, t.cursor_spring);

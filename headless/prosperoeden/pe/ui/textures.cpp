@@ -210,6 +210,17 @@ Cover Textures::cover(const std::string &path, float size)
     return {it->second.texture, it->second.age, it->second.loaded && it->second.texture == 0};
 }
 
+void Textures::discard_pending_covers()
+{
+    for (const auto &key : queue_)
+    {
+        const auto it = covers_.find(key);
+        if (it != covers_.end() && !it->second.loaded)
+            covers_.erase(it);
+    }
+    queue_.clear();
+}
+
 void Textures::pump(float dt, int budget)
 {
     ++frame_;

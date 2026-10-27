@@ -85,6 +85,18 @@ void Launcher::press_home(Key key)
 
     if (minimal && home_on_grid_)
     {
+        if (prefs_.library_view == "cover-flow")
+        {
+            if (key == Key::circle || (key == Key::left && library_.selected == 0))
+            {
+                home_on_grid_ = false;
+                cue(Cue::focus);
+                return;
+            }
+            press_library(key);
+            if (modal_ == Modal::game) game_from_home_ = true;
+            return;
+        }
         const auto go = [&](int next)
         {
             library_.selected = next;

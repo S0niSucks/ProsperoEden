@@ -46,6 +46,15 @@ struct Rect
     float h = 0.0f;
 };
 
+// Screen-space projection of a plane rotated about its vertical axis. w is camera
+// distance / focal length, retained for perspective-correct texture interpolation.
+struct PerspectiveQuad
+{
+    float left_x, left_top, left_bottom;
+    float right_x, right_top, right_bottom;
+    float left_w, right_w;
+};
+
 // Shape modes understood by the batch shader (keep in sync with gl_batch.cpp).
 enum class Shape : std::uint8_t
 {
@@ -57,6 +66,8 @@ enum class Shape : std::uint8_t
     triangle = 5,       // isosceles triangle pointing up inside the rect
     rounded_rect_h = 7, // rounded_rect with a left-to-right gradient
     rounded_image = 8,  // image clipped to a rounded rect
+    perspective_image = 9,
+    perspective_fill = 10,
 };
 
 // One instanced quad; field order matches the vertex attributes.
@@ -117,6 +128,8 @@ class DrawList
     // The image clipped to a rounded rectangle (covers, frosted panels).
     void rounded_image(std::uint32_t texture, const Rect &r, const Rect &uv, float radius,
                        Color tint);
+    // texture == 0 draws an opaque/tinted fallback plane, without sampling a texture.
+    void perspective_image(std::uint32_t texture, const PerspectiveQuad &quad, Color tint);
 
     // ---- text ----
     // font_texture is the GL texture holding font's atlas. Returns the advance.

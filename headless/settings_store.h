@@ -159,6 +159,7 @@ struct Preferences {
     bool large_text = false;             // Settings > Accessibility: the launcher's look
     bool high_contrast = false;
     bool reduce_motion = false;
+    std::string library_view = "grid";   // Settings > Appearance: grid or cover-flow
     std::string theme = "canopy";        // Settings > Theme: the launcher's look, by its id
     std::string accent;                   // Settings > Theme > Colour: accent preset id ("": theme's own)
     ButtonMapping mapping = kDefaultMapping;  // Settings > Controls > Button mapping
@@ -450,6 +451,8 @@ inline Preferences LoadPreferences(const std::string& file = SettingsFile()) {
     if (menu_volume >= 0 && menu_volume <= 100) result.menu_volume = menu_volume;
     // A theme's id is a short plain word; anything else reads as the default.
     const std::string theme = Settings::String(document, Json::json_pointer("/launcher/theme"));
+    if (Settings::String(document, Json::json_pointer("/launcher/library_view")) == "cover-flow")
+        result.library_view = "cover-flow"; // absent, unknown or wrong types keep the standard grid
     if (!theme.empty() && theme.size() <= 32 &&
         std::all_of(theme.begin(), theme.end(), [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'; }))
         result.theme = theme;
@@ -518,6 +521,7 @@ inline bool SavePreferences(const Preferences& value, const std::string& file = 
         value.hud_corner < 0 || value.hud_corner >= int(std::size(kHudCornerKeys)) ||
         !ValidHudFields(value.hud_fields) || !ValidMapping(value.mapping) ||
         !ValidMenuBinding(value.menu_bind) || !ValidWallpaperName(value.wallpaper) ||
+        (value.library_view != "grid" && value.library_view != "cover-flow") ||
         !ValidPostProcessing(value.post_processing)) return false;
     Settings::Json document = Settings::Load(file);
     document["version"] = 1;
@@ -555,6 +559,7 @@ inline bool SavePreferences(const Preferences& value, const std::string& file = 
     document["accessibility"]["high_contrast"] = value.high_contrast;
     document["accessibility"]["reduce_motion"] = value.reduce_motion;
     document["launcher"]["theme"] = value.theme;
+    document["launcher"]["library_view"] = value.library_view;
     document["launcher"]["wallpaper"] = value.wallpaper;
     if (document["launcher"].contains("wallpaper_blur"))
         document["launcher"].erase("wallpaper_blur"); // a switch this build no longer has

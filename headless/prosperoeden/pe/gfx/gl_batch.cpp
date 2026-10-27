@@ -40,6 +40,20 @@ void main()
 {
     vec2 corner = kCorners[gl_VertexID];
     int shape = int(a_params.w + 0.5);
+    if (shape == 9 || shape == 10)
+    {
+        vec2 top = mix(a_rect.xy, a_rect.zw, corner.x);
+        vec2 bottom = mix(a_border.xy, a_border.zw, corner.x);
+        vec2 virt = mix(top, bottom, corner.y);
+        float w = mix(a_params.x, a_params.y, corner.x);
+        vec2 ndc = (virt * u_viewport.x + u_viewport.yz) / u_surface * 2.0 - 1.0;
+        gl_Position = vec4(ndc.x * w, -ndc.y * w, 0.0, w);
+        v_virtual = virt; v_local = vec2(0.0); v_half = vec2(0.0);
+        v_st = corner; v_uv = corner;
+        v_top = a_top; v_bottom = a_bottom; v_border = vec4(0.0);
+        v_params = a_params; v_extra = a_extra;
+        return;
+    }
     vec2 size = a_rect.zw;
     // Grow shapes by their softness plus one output pixel for anti-aliasing;
     // glyph and image quads map texels exactly and are not grown.
@@ -128,7 +142,11 @@ void main()
         float d = round_box(v_local, v_half, radius);
         color = vec4(fill.rgb, fill.a * (1.0 - smoothstep(-v_params.z, v_params.z, d)));
     }
-    else if (shape == 3)
+    else if (shape == 10)
+    {
+        color = fill;
+    }
+    else if (shape == 3 || shape == 9)
     {
         color = texture(u_texture, v_uv) * fill;
     }

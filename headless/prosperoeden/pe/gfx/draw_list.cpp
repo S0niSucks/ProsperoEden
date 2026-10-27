@@ -187,6 +187,21 @@ void DrawList::rounded_image(std::uint32_t texture, const Rect &r, const Rect &u
     set4(i.extra, uv.x, uv.y, uv.x + uv.w, uv.y + uv.h);
 }
 
+void DrawList::perspective_image(std::uint32_t texture, const PerspectiveQuad &q, Color tint)
+{
+    if (q.left_w <= 0.0f || q.right_w <= 0.0f)
+        return;
+    Instance &i = append(texture);
+    set4(i.rect, apply_x(q.left_x), apply_y(q.left_top), apply_x(q.right_x), apply_y(q.right_top));
+    // Projected shapes use the otherwise unused border field for their bottom corners.
+    set4(i.border_color, apply_x(q.left_x), apply_y(q.left_bottom), apply_x(q.right_x), apply_y(q.right_bottom));
+    set_color(i.color_top, tint);
+    set_color(i.color_bottom, tint);
+    set4(i.params, q.left_w, q.right_w, 0.0f,
+         static_cast<float>(texture ? Shape::perspective_image : Shape::perspective_fill));
+    set4(i.extra, 0.0f, 0.0f, 1.0f, 1.0f);
+}
+
 float DrawList::text(const Font &font, std::uint32_t font_texture, std::string_view text, float x,
                      float baseline, const TextStyle &style)
 {

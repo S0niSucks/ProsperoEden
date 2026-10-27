@@ -7,6 +7,7 @@
 #include "pe/audio/sounds.hpp"
 #include "pe/ui/qr_code.hpp"
 #include "pe/ui/widgets.hpp"
+#include "pe/ui/cover_flow.hpp"
 
 #include <array>
 #include <future>
@@ -219,6 +220,7 @@ class Launcher
     void enter_library();
     void press_library(Key key);
     void draw_library(Canvas &c);
+    void draw_cover_flow(Canvas &c, const Rect &stage);
     void refresh_selected_game();
     void press_game(Key key);
     // A game's settings as a page of three parts: its kinds of setting at the left, the one chosen
@@ -490,6 +492,7 @@ class Launcher
     std::future<std::vector<Game>> scan_; // the list being read
     bool games_loaded_ = false;
     ListView library_;
+    cover_flow::Motion cover_flow_;
     bool selected_docked_ = true;
     tween::Spring mode_;   // 0 docked .. 1 handheld
     tween::Spring mods_switch_; // the selected game's Mods switch: 0 off .. 1 on

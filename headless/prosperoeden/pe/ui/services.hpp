@@ -358,6 +358,7 @@ struct Preferences
     int menu_volume = 70; // launcher sounds, 0-100
     std::string theme = "canopy"; // the launcher's look (theme.hpp); one this build lacks reads as the first
     std::string accent;           // Settings > Colour: one of the theme's accent presets ("": its own colours)
+    std::string library_view = "grid"; // builtin Library presentation; Lua packs may also read it
     // Accessibility: how the launcher itself is shown (theme.hpp, Look).
     bool large_text = false;
     bool high_contrast = false;
