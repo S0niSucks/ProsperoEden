@@ -2,6 +2,7 @@
 #include "pro_controller.h"
 
 #if defined(PS5_NATIVE)
+#include "monotonic_clock.h"
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -28,15 +29,12 @@ typedef struct {
     uint8_t packets[2][64];
     char node[64];
     unsigned scans;
+    unsigned clock_errors;
+    uint64_t last_clock_ms;
 } native_usb;
 static native_usb usb = {.fd = -1};
 static pe_pro_session session;
 
-static uint64_t milliseconds(void) {
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
-}
 static int failed(native_usb *u, const char *operation) {
     fprintf(stderr, "EDEN_PRO_USB operation=%s node=%s errno=%d\n", operation, u->node, errno);
     return -1;
@@ -45,8 +43,10 @@ static int start_transfer(native_usb *u, unsigned index, unsigned length);
 /* Normal teardown only: give the neutral rumble a bounded chance to leave the
  * USB queue before UNINIT cancels it. No sleeping or draining during Poll. */
 static void drain_output(native_usb *u) {
-    const uint64_t until = milliseconds() + 20;
-    for (unsigned i = 0; u->busy[1] && i < 20 && milliseconds() < until; ++i) {
+    uint64_t start, now;
+    if (!pe_pro_monotonic_ms(&start)) return;
+    for (unsigned i = 0; u->busy[1] && i < 20; ++i) {
+        if (!pe_pro_monotonic_ms(&now) || now < start || now - start >= 20) break;
         struct usb_fs_complete complete = {0};
         if (ioctl(u->fd, USB_FS_COMPLETE, &complete) == 0) {
             if (complete.ep_index >= 2) break;
@@ -216,6 +216,8 @@ bool pe_pro_usb_start(void) {
         !S_ISREG(info.st_mode) || info.st_size != 0) return false;
     usb.enabled = true;
     usb.scans = 0;
+    usb.clock_errors = 0;
+    usb.last_clock_ms = 0;
     const pe_pro_transport io = {&usb, native_open, native_read, native_write, native_close};
     pe_pro_session_init(&session, io);
     fprintf(stderr, "EDEN_PRO_USB enabled transport=FreeBSD-USB-FS hardware-qualified=no\n");
@@ -224,7 +226,17 @@ bool pe_pro_usb_start(void) {
 bool pe_pro_usb_poll(pe_pro_state *out) {
     if (!usb.enabled) return false;
     const bool before = session.state.connected;
-    pe_pro_session_poll(&session, milliseconds());
+    uint64_t now;
+    if (!pe_pro_monotonic_ms(&now) || now < usb.last_clock_ms) {
+        /* Never give the session an invented epoch or stale connected input.
+         * Stop transfers and neutralize; a later valid clock can reconnect. */
+        pe_pro_session_stop(&session);
+        if (++usb.clock_errors <= 3 || usb.clock_errors % 60 == 0)
+            fprintf(stderr, "EDEN_PRO_USB operation=monotonic-clock failure=%u\n", usb.clock_errors);
+    } else {
+        usb.last_clock_ms = now;
+        pe_pro_session_poll(&session, now);
+    }
     if (before != session.state.connected)
         fprintf(stderr, "EDEN_PRO_USB connected=%d stick_cal=%d motion=%d rumble=%d retry_ms=%u\n",
                 session.state.connected, session.cal.sticks_calibrated,

@@ -61,6 +61,16 @@ imported into a PS5 app. No MissionControl code or binary is used here.
   player simultaneously; fallback reports are drained, not replayed on removal.
   Source transitions release held keys and shortcuts.
   Raw USB does not allocate players 2–4, which retain the signed-in-user route.
+- Launcher player 1 reserves the initial user even when `scePadOpen` fails at
+  USB-only startup. Native handles retry with 1–30 s capped exponential backoff;
+  three consecutive read/read-state failures close an invalid handle and retry
+  without moving the user to another player. Only successful reads reset this
+  backoff. Other users keep their own slots and sign-out cleanup. With USB off,
+  initialization still requires a native controller handle.
+- Launcher and native USB clock reads reject syscall errors, malformed values,
+  overflow and regressions. Failures release input and stop feedback/transfers
+  rather than use an uninitialized or fabricated timestamp; a valid clock allows
+  recovery. Teardown draining retains its iteration cap even if the clock stalls.
 
 ## Opt in for an attended console test
 
@@ -157,9 +167,12 @@ It runs ASan+UBSan checks over synthetic, explicitly non-recorded fixtures:
 - complete setup, matched/mismatched SPI replies, optional-feedback NACKs,
   essential timeout/retry budget, stale/malformed input, disconnect/reconnect,
   neutralization, stop rumble, rate limit and capped discovery backoff;
-- real launcher C input loop with mocked transports: USB-only init, held-key
-  release, reconnect/source switching, controller mask, timed rumble, oversized
-  SDK sample counts, error neutralization and DualSense fallback;
+- real launcher C input loop with mocked transports: USB-only startup followed
+  by late DualSense arrival, continuous fallback draining, USB removal to native
+  player 1, no duplicate player bits, other-user sign-out, 1–30 s open/reopen
+  backoff, repeated invalid-handle recovery, source-transition key/rumble cleanup,
+  timed USB/native rumble, bounded SDK sample counts, USB-disabled behavior and
+  recovery after failed/malformed/regressing clock reads;
 - 100,000 deterministic bounded random report/descriptor/calibration inputs.
 
 With `PS5_PAYLOAD_SDK` set, it also compiles the protocol, actual USB transport
