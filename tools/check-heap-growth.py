@@ -181,8 +181,18 @@ static int refuse_range;
 static atomic_size_t committed_bytes;
 void *eden_heap_reserve(size_t size) {
     if (refuse_range) return NULL;
-    void *address = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-    return address == MAP_FAILED ? NULL : address;
+    // sceKernelReserveVirtualRange guarantees 2 MiB alignment; Linux mmap only guarantees a
+    // system page. Reserve extra address space and trim it, keeping the console contract even
+    // under high-entropy ASLR (and without assuming anonymous mappings use huge pages).
+    const size_t alignment = (size_t)2 << 20;
+    void *mapping = mmap(NULL, size + alignment, PROT_NONE,
+                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (mapping == MAP_FAILED) return NULL;
+    uintptr_t aligned = ((uintptr_t)mapping + alignment - 1) & ~(uintptr_t)(alignment - 1);
+    size_t prefix = aligned - (uintptr_t)mapping;
+    if (prefix) assert(munmap(mapping, prefix) == 0);
+    assert(munmap((void *)(aligned + size), alignment - prefix) == 0);
+    return (void *)aligned;
 }
 int eden_heap_commit(void *address, size_t size) {
     assert(((uintptr_t)address & 0x1fffff) == 0 && (size & 0x1fffff) == 0);

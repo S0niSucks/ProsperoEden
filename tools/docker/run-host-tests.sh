@@ -9,4 +9,5 @@ rsync -a --exclude=/.git --exclude=/.deps --exclude=/.local --exclude=/build \
     --exclude=/dist --exclude=/results /checkout/ /work/ProsperoEden/
 cd /work/ProsperoEden
 python3 -B tools/deps.py fetch eden fmt compiler-rt
+bash tools/check-elevation-client.sh
 bash tools/build-headless-host.sh

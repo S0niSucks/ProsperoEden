@@ -81,7 +81,7 @@ docker run --rm --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint se
 ```
 
 The runner copies source into the volume, fetches only the hash-pinned Eden/fmt/compiler-rt inputs
-needed by the host suite, and runs `tools/build-headless-host.sh`. Dependency downloads, generated
+needed by the host suite, and runs the elevation-client checks and `tools/build-headless-host.sh`. Dependency downloads, generated
 fixtures and build outputs stay in Docker, not in the Windows checkout. The image provides CMake
 3.31.10, Clang 18, GCC and host development libraries. Rebuild the image when its Dockerfile changes.
 
@@ -93,8 +93,8 @@ The disposable container drops all capabilities and exposes no ports or Docker s
 `docker run` can build without these options, but may fail at the sanitizer's startup; that is
 not a passing concurrency check.
 
-This is **not** a PS5 release image and does not run `make test`'s separate elevation-helper test
-or the opt-in real-server RomM suite. Host tests do not validate PS5 firmware, GPU drivers,
+This is **not** a PS5 release image and does not run the opt-in real-server RomM suite.
+Host tests do not validate PS5 firmware, GPU drivers,
 commercial games, controllers or frame rates. Native packaging still requires the release
 toolchain described below. Use a fresh named volume if switching to an unrelated source tree;
 the runner deliberately does not delete files from an existing volume.
