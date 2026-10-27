@@ -2,6 +2,24 @@
   "about": "Pinned inputs of the ProsperoEden build. `make deps` (tools/deps.py) fetches every missing item and leaves existing checkouts and files untouched. Paths are relative to this repository; ../ means next to it, the layout the build expects.",
   "items": [
     {
+      "name": "libsmb2",
+      "about": "libsmb2 6.3 security release, LGPL-2.1-or-later client; NTLMSSP/signing without Kerberos or GSSAPI",
+      "kind": "archive",
+      "url": "https://codeload.github.com/sahlberg/libsmb2/tar.gz/refs/tags/libsmb2-6.3",
+      "sha256": "5011003fd091513f897e1ebbb8e1a40af634386df7199716348b7f77569a2790",
+      "extract": ".deps",
+      "creates": ".deps/libsmb2-libsmb2-6.3/CMakeLists.txt"
+    },
+    {
+      "name": "libnfs",
+      "about": "libnfs 8.0.0, LGPL-2.1-or-later client plus BSD protocol code; NFSv3 read-only AUTH_SYS without TLS/Kerberos",
+      "kind": "archive",
+      "url": "https://codeload.github.com/sahlberg/libnfs/tar.gz/refs/tags/libnfs-8.0.0",
+      "sha256": "bc91216e927a85142b5de611c7f711558e02119a7daad67620ea631634038350",
+      "extract": ".deps",
+      "creates": ".deps/libnfs-libnfs-8.0.0/CMakeLists.txt"
+    },
+    {
       "name": "eden",
       "about": "Eden emulator source at the pinned commit (GitHub mirror archive)",
       "kind": "archive",
