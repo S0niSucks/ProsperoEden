@@ -204,7 +204,15 @@ incremental build coverage to newer probe/service edits. Concurrent legacy jobs 
 same build volume are a possible cause, not a confirmed compiler defect. Docker runners now
 refuse a busy volume, verified against deliberately held locks for host/native/preview.
 Port-dependent objects were explicitly invalidated for host/native recovery runs
-`sh_17f8ee1c4001e29O13pI2US2mN` / `sh_17f8ee1ec001Zf9nzTqqubihCm`, still pending.
+`sh_17f8ee1c4001e29O13pI2US2mN` / `sh_17f8ee1ec001Zf9nzTqqubihCm`. The native run
+subsequently **passed** all 738 build steps, source/link/import/inventory checks and packaging.
+Its source snapshot precedes the independent encrypted-container fixtures and team work;
+the host recovery result is still pending. Evidence, fixed runner, invalidation list, source
+snapshot, package and matching symbols are preserved in
+`.local/docker-release/cheat-fresh-objects-native-20261027/`. ZIP SHA-256:
+`dac5e83ec81289a129d148530d28f863b79ff5ce6dd2fc3fc3b7cec7cbcd63d7`;
+symbol ELF SHA-256: `5df516231a42f8688b824988fbf7db61945d1910314085880b655575c5e6cb62`.
+This remains an intermediate v1.005.000 package, not the completed v1.006.000 or PS5 evidence.
 
 The first per-copy local-mod probe failed because the host core was still using the upstream
 BIS factory while the console uses `GameFolderMods::Root`. CMake now derives that identical

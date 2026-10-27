@@ -24,6 +24,12 @@ The coordinator owns cheat-manager completion, cross-feature conflict resolution
 review, the overall changelog/changeset and release qualification. A worker's completion report
 is not an automatic feature acceptance or proof of console compatibility.
 
+All seven workers were dispatched from checkpoint **`953effe`**, each on
+`team/<workstream>-1006000` under `.local/agent-worktrees/` (workstream directories:
+`usb-backup`, `network-vfs`, `nextendo`, `scene-themes`, `cover-flow`, `amiibo-sync`,
+`pro-controller`). The coordinator remains on `integrate/upstream-prs-2026-10-27`.
+Private session identifiers and dispatch records are in `.local/agent-team-20261027.json`.
+
 ## Shared constraints
 
 - Preserve **ProsperoEden** identity and the functioning base. No TGS or Nightshade rebranding.

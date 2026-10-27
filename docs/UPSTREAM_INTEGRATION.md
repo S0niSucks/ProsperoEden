@@ -518,7 +518,14 @@ qualification of every integrated patch or of #284.
   at link. To avoid concurrent volume jobs, all three Docker runners now reject a busy lock
   (three forced-lock negative tests passed). New recovery runs explicitly invalidated
   port-dependent objects before rebuilding: host `sh_17f8ee1c4001e29O13pI2US2mN` and native
-  `sh_17f8ee1ec001Zf9nzTqqubihCm`, pending.
+  `sh_17f8ee1ec001Zf9nzTqqubihCm`. The native recovery subsequently passed all 738
+  build steps and source/link/import/inventory/package checks. Preserved in
+  `.local/docker-release/cheat-fresh-objects-native-20261027/`: ZIP SHA-256
+  `dac5e83ec81289a129d148530d28f863b79ff5ce6dd2fc3fc3b7cec7cbcd63d7`, matching
+  symbol ELF `5df516231a42f8688b824988fbf7db61945d1910314085880b655575c5e6cb62`, eboot
+  `d4fdd9bf514cb1acce8ff3e371edf1d8d94be6233ed22b78a9e1064bd89b8fa9`.
+  The host result remains pending. This does not include later encrypted fixtures or any
+  team implementation, is not PS5-qualified, and retains the intermediate v1.005.000 version.
 - Per-copy local-update selection passed the isolated probe until its local-mod assertion.
   The host still used the upstream BIS resolver; CMake now derives the same game-folder
   resolver on host and console, keeping only the firmware-root extension native-specific.
