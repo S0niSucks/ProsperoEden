@@ -2446,3 +2446,23 @@ msgstr "もう一度Xを押すとチートを無効のままインストール�
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "確認を開始できませんでした。ローカルのゲームを選んで再試行してください。"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "ライブラリー表示"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "グリッド"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "カバー画像をグリッドまたはCover Flowの立体表示で閲覧します。"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "カバー画像がありません"

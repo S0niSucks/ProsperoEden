@@ -2446,3 +2446,23 @@ msgstr "Nhấn X lần nữa để cài các mã này ở trạng thái tắt. C
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "Không thể bắt đầu tìm. Chọn trò chơi cục bộ rồi thử lại."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "Chế độ xem thư viện"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "Lưới"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "Duyệt ảnh bìa theo lưới hoặc theo phối cảnh bằng Cover Flow."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "Không có ảnh bìa"

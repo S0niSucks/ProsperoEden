@@ -2446,3 +2446,23 @@ msgstr "Apasă din nou X pentru a instala codurile dezactivate. Fișierele exist
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "Căutarea nu a putut porni. Alege un joc local și încearcă din nou."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "Vizualizare bibliotecă"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "Grilă"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "Răsfoiește coperțile într-o grilă sau în perspectivă cu Cover Flow."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "Copertă indisponibilă"

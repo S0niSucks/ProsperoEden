@@ -2446,3 +2446,23 @@ msgstr "再次按X將安裝這些金手指並保持關閉。現有檔案會保�
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "無法開始查詢。請選擇本機遊戲後重試。"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "遊戲庫檢視"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "網格"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "以網格或 Cover Flow 透視檢視瀏覽封面。"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "無法取得封面"

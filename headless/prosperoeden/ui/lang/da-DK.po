@@ -2446,3 +2446,23 @@ msgstr "Tryk på X igen for at installere disse snydekoder deaktiveret. Eksister
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "Søgningen kunne ikke starte. Vælg et lokalt spil, og prøv igen."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "Biblioteksvisning"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "Gitter"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "Gennemse omslag i et gitter eller i perspektiv med Cover Flow."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "Omslag ikke tilgængeligt"

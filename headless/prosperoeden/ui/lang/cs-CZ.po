@@ -2446,3 +2446,23 @@ msgstr "Dalším stiskem X nainstalujete cheaty vypnuté. Stávající soubory s
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "Hledání se nepodařilo spustit. Vyberte místní hru a zkuste to znovu."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "Zobrazení knihovny"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "Mřížka"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "Procházejte obaly v mřížce nebo v perspektivním zobrazení Cover Flow."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "Obal není k dispozici"

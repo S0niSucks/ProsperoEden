@@ -150,7 +150,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #122 Achilles Survivor | PS5: current title/update crash or loading trace needed |
 | #128 In-game cheat toggle | Implemented session-only quick strip and timing-owner mailbox; parser/VM/concurrency checks in progress, actual PS5 games unverified |
 | #129 The Stretchers | PS5: startup trace and current build required |
-| #133 Cover Flow | Feature: no 3D library layout added |
+| #133 Cover Flow | Implemented selectable perspective library view; Grid remains default. Integrated host/controller/render checks passed at 720p/1080p; PS5 qualification remains. See `COVER_FLOW.md` |
 | #148 Monster Hunter Generations Ultimate | PS5: current-version reproduction needed |
 | #149 Separate ROM/update folders | Implemented `games_folder` in the settings file (ROMs and updates together); independent picker and PS5 USB checks remain |
 | #150 Luigi's Mansion 3 | PS5: exact scene and graphics/guest logs needed |

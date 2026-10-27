@@ -27,7 +27,7 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 - **Session-only live cheats.** **Left touchpad click + Square** opens the command strip;
   Up/Down switches to cheats, Left/Right selects and Cross toggles. Changes reach only
   the current session's loaded cheat VM; disabling a cheat does not undo earlier memory
-  writes. Downloading/managing a remote cheat database is still pending.
+  writes. Remote catalog lookup/installation is a separate explicit launcher workflow below.
 - **Upstream work retained.** The 17 open PR heads cover hooks, compressed containers,
   nested library/history/forwarders, newest updates, title-scoped mods, audio overflow,
   guest-write accounting, ExecuteProgram, HUD and Swedish texts. Selected follow-ups add
@@ -37,7 +37,12 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   offline cache and no-clobber managed installation are implemented; downloaded single codes
   and masters default to off. **Game settings > Cheats** now has explicit check/cache/install
   actions, confirmation, progress and cancellation, also exposed to Lua launchers. The new
-  wiring still needs its integrated preview/native checks and console qualification.
+  workflow passed focused built-in/Lua preview checks and fresh-object native packaging;
+  final integrated regression and console qualification remain outstanding.
+- **Cover Flow library.** **Settings > Appearance > Library view** selects a bounded,
+  perspective-rendered cover browser or the existing default Grid. Selection, game options
+  and launch checks retain their established paths; reduced motion, missing artwork and
+  large libraries have focused host coverage. Console performance remains unqualified.
 
 ### Reliability and diagnostics
 
@@ -54,9 +59,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 ### Remaining work and test limits
 
-Cheat database launcher integration, Nextendo, SMB/NFS streaming, Cover Flow, USB backup/restore,
-external/scene themes and physical Switch Pro Controller support remain in scope, not
-implemented by this changeset. In-launcher online Amiibo synchronization is also pending.
+Nextendo, SMB/NFS streaming, USB backup/restore, external/scene themes and physical Switch
+Pro Controller support remain under team implementation/review, not accepted as complete
+by this changeset. In-launcher online Amiibo synchronization is also pending. The integrated
+cheat workflow and Cover Flow still need final combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate
 from host tests. Adaptive polling PR #284 requires PS5 A/B; the supplied Galaxy crashes
 still require the documented cold-start and launch/return retests. Nothing was pushed

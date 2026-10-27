@@ -191,6 +191,10 @@ msgstr ""
 msgid "Browse"
 msgstr ""
 
+#: pe/ui/settings.cpp
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Browse the public directory and choose a room."
 msgstr ""
@@ -446,6 +450,14 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Could not start the connection or save its settings."
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Cover Flow"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Cover unavailable"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -871,6 +883,10 @@ msgstr ""
 msgid "Graphics backend initialization failed. Try another backend in Settings; see stderr.log and eden_log.txt for driver details."
 msgstr ""
 
+#: pe/ui/settings.cpp
+msgid "Grid"
+msgstr ""
+
 #. Console mode: the console as if held in the hands. Keep it short (about 9 letters).
 #: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/shell.cpp
 msgid "Handheld"
@@ -1075,6 +1091,10 @@ msgstr ""
 
 #: pe/ui/library.cpp, pe/ui/shell.cpp
 msgid "Library"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Library view"
 msgstr ""
 
 #: pe/ui/pairing.cpp

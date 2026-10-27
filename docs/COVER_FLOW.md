@@ -128,7 +128,8 @@ renderer frames, not mockups. Art and game metadata come solely from the existin
 Bounded in-thread finish review: an initial batched inspection and one final confirmation
 across both resolutions, Grid, setting, Slate and accessibility states. Perspective edges,
 occlusion, selected outline, text hierarchy and controller hints are legible; no material
-feature visual defect remains. No independent reviewer was spawned, per the user's constraint.
+feature visual defect remains. The workstream was instructed not to subdelegate; no additional
+independent reviewer was spawned within it.
 
 Host GL success does **not** establish PS5 GPU-driver compatibility, physical-controller
 transport, console performance, or rest-mode texture lifetime; those remain console
@@ -144,6 +145,13 @@ header pluralization is unchanged and outside this presentation feature.
 - `Cover unavailable`
 
 No POT or language catalogs were edited in this workstream.
+
+Coordinator integration: all five msgids now have translations in all 30 catalogs;
+`strings.py check` reports 581 texts and zero problems, without new length warnings.
+The integrated focused regression passed at both resolutions after cherry-pick `63b5c97`.
+The verified 752-file source snapshot, raw log and captures are preserved under
+`.local/docker-release/cover-flow-integrated-20261027/` (run
+`sh_17fb458ed001cnUb8V89g1PhE5`). This does not qualify the PS5 GPU/runtime.
 
 ## Shared-file integration notes
 

@@ -2446,3 +2446,23 @@ msgstr "Πατήστε ξανά X για εγκατάσταση ανενεργώ
 #. Cheat database: explicit opt-in; installed codes stay disabled until selected.
 msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr "Η αναζήτηση δεν ξεκίνησε. Επιλέξτε τοπικό παιχνίδι και δοκιμάστε ξανά."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Library view"
+msgstr "Προβολή βιβλιοθήκης"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover Flow"
+msgstr "Cover Flow"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Grid"
+msgstr "Πλέγμα"
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Browse covers in a grid or in perspective with Cover Flow."
+msgstr "Περιηγηθείτε στα εξώφυλλα σε πλέγμα ή σε προοπτική με το Cover Flow."
+
+#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
+msgid "Cover unavailable"
+msgstr "Εξώφυλλο μη διαθέσιμο"

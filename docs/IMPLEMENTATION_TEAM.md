@@ -30,6 +30,25 @@ All seven workers were dispatched from checkpoint **`953effe`**, each on
 `pro-controller`). The coordinator remains on `integrate/upstream-prs-2026-10-27`.
 Private session identifiers and dispatch records are in `.local/agent-team-20261027.json`.
 
+## Review/integration ledger
+
+| Workstream | Current evidence / disposition |
+|---|---|
+| Cover Flow | Worker `903c233` reviewed and cherry-picked as `63b5c97`. Integrated focused controller/Lua/render regression passed at 720p/1080p (`sh_17fb458ed001cnUb8V89g1PhE5`), with 18 captures reporting no GL errors. Five new msgids translated in all 30 catalogs: 581 texts, zero problems and no additional length warnings. PS5 remains unqualified. |
+| Physical Pro Controller | Initial wired-USB commit `b2073bd` and recovery follow-up `f3c02ec` await integration. Review found primary DualSense recovery/user-slot duplication after USB-only startup; follow-up addresses this with actual launcher-loop regression. Bluetooth and physical execution are not established. |
+| Scene themes | `b01f254` / `6a1bf96` are an **unaccepted partial increment**, not integrated. Worker is continuing complete linked frontend/updater validation, reference screens and console-native import/actual layout conversion. Offline lite conversion is not full #239 acceptance. |
+| Amiibo sync | Worker `f596678` delivered real C++ worker/HTTPS, safe publication and builtin/Lua confirmation. Worker reports normal/ASan/UBSan/TSan plus TLS and 25 UI assertions; coordinator review/integration pending. |
+| Nextendo | Worker `9faebc0` delivered experimental profile/session, guest routing and launcher controls. Review pending; OAuth registration, reviewed BAAS contract/operator routes and real networking remain blocked, not qualified online play. |
+| USB backup/restore, SMB/NFS | Await worker delivery; no acceptance or new compatibility claim. |
+
+Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
+refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
+Synthetic BKTR also passed in a separate coordinator-owned fixture worktree; integration pending.
+The saved fresh-object host linked successfully but stopped at a guest-idle timing assertion.
+Isolated idle checks and all remaining saved-snapshot tests passed separately, including actual
+NFC/live-cheat factories, memory/JIT/device checks and three NRO launch/exit cycles. This is not
+a single uninterrupted full-suite pass. See `CHEAT_DATABASE.md`.
+
 ## Shared constraints
 
 - Preserve **ProsperoEden** identity and the functioning base. No TGS or Nightshade rebranding.
