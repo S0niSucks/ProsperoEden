@@ -50,6 +50,37 @@ Isolated idle checks and all remaining saved-snapshot tests passed separately, i
 NFC/live-cheat factories, memory/JIT/device checks and three NRO launch/exit cycles. This is not
 a single uninterrupted full-suite pass. See `CHEAT_DATABASE.md`.
 
+## Cross-feature storage/launch gate (integration acceptance, not completed evidence)
+
+The initial workers started from one baseline; clean cherry-picks alone do not compose their
+lifetimes. Before the combined release tests, the coordinator must verify these interactions:
+
+- USB backup/restore closes admission before it drains app-data writers. Join workers **without
+  holding `bridge_`**, then drain the bridge; a queued metadata scan must recheck the USB gate
+  after acquiring it. A staged restore keeps the gate closed until cold-start application.
+- Amiibo sync must refuse admission during the USB session and be cancelled/joined before a
+  snapshot. Reopening its admission after a cancelled/completed backup must not reopen a
+  committed game launch. The catalog worker's held paths cannot be changed under a run.
+- Nextendo/OAuth account writers, profile changes, SMB credential editing and scene import must
+  either be drained before backup admission or block that admission until their action finishes.
+  Read-only network sessions are not themselves storage writers; library metadata/cover/history
+  publication still uses the shared gate. Do not hold an owner mutex while waiting for a worker
+  that needs that same mutex.
+- Launcher-pack checked-at writes, installation/rollback and scene-pack publication must remain
+  excluded throughout a USB snapshot, including late completion of an earlier asynchronous job.
+- `config/nextendo/` and `config/network-shares.json` (including supported filesystem aliases)
+  must not enter backup inventory, progress, hashes or restored payloads. Nextendo's PID/token
+  and SMB passwords are credentials. Unknown hidden/staging names in the Nextendo subtree stay
+  excluded without opening them; no secret-scanning heuristic substitutes for this path policy.
+- Launch must refuse any pending storage/import/account transaction; teardown joins all owners
+  before metadata, Lua, renderer or emulated-session objects disappear. Cancellation is not
+  completion and cannot prematurely clear a launch barrier.
+
+Focused integrated lifecycle tests must exercise the actual composed service methods, not only
+independent fake collaborators. The final whole-host/preview/native snapshot is built **after**
+all accepted feature commits and these guards are integrated. These requirements do not turn
+host/SDK results into PS5 hardware, filesystem, server or gameplay qualification.
+
 ## Shared constraints
 
 - Preserve **ProsperoEden** identity and the functioning base. No TGS or Nightshade rebranding.
