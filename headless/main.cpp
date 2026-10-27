@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <exception>
 #include "assets_dir.h"
+#include "usb_backup.h"
 #include "forwarded_launch.h"
 #include "gpu_failure.h"
 #include "guest_fault.h"
@@ -330,6 +331,14 @@ int main(int argc, char** argv) {
         if (getegid() != getgid() && setegid(getgid()) != 0)
             Eden::Report("filesystem access", "Could not match the effective group; RADV's disk cache stays off");
         if (Eden::FilesystemAccess()) {
+            // A restore never replaces active state. Finish/resume it before any data readers
+            // or writers (including migration) start. An unsafe transaction blocks startup.
+            std::string restore_error;
+            if (!Eden::UsbBackup::ApplyPending(Eden::kDataDir, restore_error)) {
+                Eden::BootTrace::Line("USB restore blocked startup: %s", restore_error.c_str());
+                std::fprintf(stderr, "USB restore blocked startup: %s\n", restore_error.c_str());
+                return 2;
+            }
             MigrateSandboxData();
             MoveGameFilesOutOfTheApp();
         }

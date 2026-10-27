@@ -74,6 +74,11 @@ public:
     std::string saved_games_folder() override;
     bool set_games_folder(const std::string& directory) override;
     int filesystem_access() override;
+    bool begin_usb_backup() override;
+    Eden::UsbBackup::Status usb_backup_status() override;
+    bool usb_backup_action(const std::string&, const std::string&) override;
+    void cancel_usb_backup() override;
+    void end_usb_backup() override;
 
     std::vector<pe::ui::Profile> profiles() override;
     std::string profile_key(int index) override;
@@ -155,6 +160,12 @@ private:
     std::mutex bridge_; // Eden's metadata reader keeps state between calls: one caller at a time
     Eden::CheatManager cheat_manager_;
     bool launch_committed_ = false;
+    std::atomic<bool> usb_active_{false}, usb_stop_{false};
+    std::mutex usb_lock_;
+    std::thread usb_thread_;
+    Eden::UsbBackup::Status usb_;
+    bool usb_remote_resume_ = false;
+    void ResumeUsbJobs();
     Eden::CheatManagerRequest CheatRequest(const pe::ui::Game& game);
     // Each game's own folder in roms/ by its title ID, as the Library last found it (issue 168).
     Eden::Mods::Places ModPlaces(std::uint64_t title_id);

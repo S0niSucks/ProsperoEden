@@ -18,7 +18,7 @@
 namespace pe::ui
 {
 
-inline constexpr int kSettingsCategories = 14;
+inline constexpr int kSettingsCategories = 15;
 
 // Every screen of the launcher as one state machine. The frontend feeds it
 // pressed buttons and frame time, draws its list and plays its cues; it ends
@@ -107,6 +107,7 @@ class Launcher
         wallpaper,    // Settings > Appearance > Wallpaper: the image behind the screens
         accent,       // Settings > Colour: the accent preset
         cheats,       // a game's cheats, opened from its settings
+        usb_backup,   // Settings > USB backup: protected backup/restore session
     };
     // The update dialog's steps: the offer, installing, stopping it, closing for the helper to
     // finish, and a failure.
@@ -286,6 +287,15 @@ class Launcher
     void open_hud();
     void press_hud(Key key);
     void draw_hud(Canvas &c, float open);
+    void open_usb_backup();
+    void press_usb_backup(Key key);
+    void poll_usb_backup();
+    void draw_usb_backup(Canvas &c, float open);
+    Eden::UsbBackup::Status usb_backup_;
+    std::string usb_page_;
+    bool usb_restore_ = false;
+    int usb_choice_ = 0;
+    ListView usb_rows_;
 
     // ---- a newer release of the app (update.cpp) ----
     // Takes the update check's answer when it comes, and opens the dialog once the menu is free.

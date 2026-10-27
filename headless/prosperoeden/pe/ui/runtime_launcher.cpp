@@ -275,6 +275,7 @@ struct RuntimeLauncher::Impl {
         p.font_texture = batch.create_font_texture(p.font); if (!p.font_texture) throw std::runtime_error("Launcher font upload failed");
     }
     bool select(const std::string& id, bool save = true) {
+        if(services.usb_backup_status().active) { last_error="Finish the pending operation before changing launchers"; return false; }
         if(save && updates_page) { last_error="Close launcher updates before changing launchers";return false; }
         if(save && pack_updates->busy() && pack_updates->status("").value("phase","")=="checking") pack_updates->cancel();
         else if(save && pack_updates->busy()) { last_error="Finish the launcher update before changing launchers"; return false; }
@@ -659,7 +660,10 @@ struct RuntimeLauncher::Impl {
         text(std::string(faces[binding[0]])+": confirm    "+faces[binding[1]]+": back / cancel    "+faces[binding[2]]+": rollback    "+faces[binding[3]]+": check    Options: automatic checks",1000,22);
     }
     void update(float dt) {
-        time+=dt; poll+=dt; catalog_poll+=dt; update_packs(dt);
+        time+=dt; poll+=dt; catalog_poll+=dt;
+        // A cancelled pack check can finish after switching to built-in. Its poll persists
+        // checked-at settings: defer that write (and any new pack job) during a USB snapshot.
+        if(!services.usb_backup_status().active) update_packs(dt);
         if(pack && catalog_poll>=2.0f) { catalog_poll=0; const auto sources=services.sources(); if(sources.generation!=source_generation) { source_generation=sources.generation; refresh(); } }
         if(scan.valid() && scan.wait_for(std::chrono::seconds(0))==std::future_status::ready) { try { catalog.replace(scan.get()); } catch(const std::exception& e) {last_error=e.what();} }
         if(directory.valid() && directory.wait_for(std::chrono::seconds(0))==std::future_status::ready) { try {room_directory=directory.get();}catch(const std::exception& e){room_directory.error=e.what();} }
@@ -718,6 +722,7 @@ RuntimeLauncher::RuntimeLauncher(Services& s, Textures& t, const Fonts& f, gfx::
 RuntimeLauncher::~RuntimeLauncher()=default;
 void RuntimeLauncher::press(Key key) {
     auto& h=*impl_;
+    if(h.services.usb_backup_status().active) { if(h.builtin) h.builtin->press(key); return; }
     if(h.updates_page || h.commit_started) {
         if(h.custom_update_view) {
             if(!h.commit_started && !h.pack_updates->replacing()) h.call_update_view("updater_input",{{"key",key_name(key)}},true);
@@ -735,6 +740,7 @@ int RuntimeLauncher::menu_volume()const{return impl_->cached_preferences.menu_vo
 int RuntimeLauncher::output()const{return impl_->cached_preferences.output;}
 bool RuntimeLauncher::done()const{
     const auto& h=*impl_;
+    if(h.services.usb_backup_status().active) return false;
     const bool finished=h.exit_update || !h.selected.empty() || (h.builtin && h.builtin->done());
     if(!finished || h.commit_started) return false;
     if(h.pack_updates->busy()) {
@@ -748,7 +754,7 @@ void RuntimeLauncher::set_font_texture(std::uint32_t t){impl_->fonts.texture=t;i
 void RuntimeLauncher::release_pack_textures(){if(impl_->retained_update_view)impl_->abandon_update_view("Display resources changed during update");impl_->release_textures();}
 bool RuntimeLauncher::reload_pack_textures(){try{if(impl_->pack)impl_->load_textures(*impl_->pack);return true;}catch(const std::exception& e){impl_->last_error=e.what();impl_->fallback();return false;}}
 bool RuntimeLauncher::select(std::string_view id){return impl_->select(std::string(id));}
-void RuntimeLauncher::open_picker(){impl_->discover();impl_->picker=true;impl_->picker_row=0;}
+void RuntimeLauncher::open_picker(){if(impl_->services.usb_backup_status().active)return;impl_->discover();impl_->picker=true;impl_->picker_row=0;}
 const std::string& RuntimeLauncher::active_id()const{return impl_->active;}
 const std::string& RuntimeLauncher::error()const{return impl_->last_error;}
 bool RuntimeLauncher::script_active()const{return impl_->pack!=nullptr;}

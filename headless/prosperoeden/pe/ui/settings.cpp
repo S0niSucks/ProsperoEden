@@ -35,17 +35,18 @@ enum Category
     kAppearance,
     kColour,
     kGames,
+    kUsbBackup,
     kCategoryCount,
 };
 static_assert(kCategoryCount == kSettingsCategories);
 constexpr const char *kCategories[kCategoryCount] = {
     TR("Profiles"), TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"), TR("Accessibility"),
     TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("Save sync"), TR("Language"), TR("Appearance"),
-    TR("Colour"), TR("ROMs and updates")};
+    TR("Colour"), TR("ROMs and updates"), TR("USB backup")};
 constexpr Icon kIcons[kCategoryCount] = {
     Icon::profile, Icon::video, Icon::performance, Icon::audio, Icon::controls, Icon::accessibility,
     Icon::diagnostics, Icon::files, Icon::downloads, Icon::sync, Icon::language, Icon::theme,
-    Icon::theme, Icon::files};
+    Icon::theme, Icon::files, Icon::sync};
 constexpr int kTileColumns = 4;
 constexpr int kTileRows = 4;
 constexpr float kTileGap = 20.0f;
@@ -268,6 +269,9 @@ void Launcher::press_settings(Key key)
         press_ = 1.0f;
         switch (at)
         {
+        case kUsbBackup:
+            open_usb_backup();
+            break;
         case kFiles:
             open(Screen::files, true);
             enter_files();
@@ -331,6 +335,7 @@ void Launcher::press_settings(Key key)
     default:
         return;
     }
+    at = std::clamp(at, 0, kCategoryCount - 1);
     if (at != before)
     {
         section_.value = 0.0f;
@@ -375,6 +380,7 @@ void Launcher::draw_settings(Canvas &c)
         accent_index() < 0 ? std::string{tr("Default")} :
             std::string{accent_presets()[static_cast<std::size_t>(accent_index())].name},
         short_path(services_.games_folder(), 28),
+        tr("Back up or restore app data"),
     };
     if (t.list_settings)
     {
@@ -490,6 +496,9 @@ void Launcher::draw_settings(Canvas &c)
             break;
         case kSaveSync:
             about = tr("Each profile's save data on a server of its own, synced before and after a game.");
+            break;
+        case kUsbBackup:
+            about = tr("Settings, profiles and all saves on a USB drive. ROMs and caches are left out.");
             break;
         case kLanguage:
             about = tr("The language games use when they offer it.");

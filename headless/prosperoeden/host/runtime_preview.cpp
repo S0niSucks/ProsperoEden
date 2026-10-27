@@ -100,6 +100,8 @@ int main(int argc,char**argv) {
             else if(command=="update-ready"){services.update_steps=600;tick(2);}
             else if(command=="sync"){services.save_sync_on=arg!="off";services.save_sync_conflict=arg=="conflict";services.save_sync_fails=arg=="failed";}
             else if(command=="cheat-mode"){services.cheat_mode=arg;}
+            else if(command=="usb-mode"){services.usb_mode=arg;}
+            else if(command=="usb-state"){const auto s=services.usb_backup_status();std::cout<<"USB "<<nlohmann::json({{"phase",s.phase},{"active",s.active},{"busy",s.busy},{"restart",s.restart},{"required",s.estimate.required},{"available",s.estimate.available},{"backups",services.usb_backups},{"restores",services.usb_restores},{"cancels",services.usb_cancels},{"launch_allowed",services.can_launch_game()}}).dump()<<std::endl;}
             else if(command=="cheat-complete"){services.cheat_polls=40;}
             else if(command=="mods-empty"){services.has_mods=false;}
             else if(command=="cheat-state"){const auto s=services.cheat_database();std::cout<<"CHEAT "<<nlohmann::json({{"phase",s.phase},{"busy",s.busy},{"offline",s.offline},{"checks",services.cheat_checks},{"installs",services.cheat_installs},{"enabled",services.downloaded_chosen},{"names",s.names},{"other_builds",s.other_builds}}).dump()<<std::endl;}

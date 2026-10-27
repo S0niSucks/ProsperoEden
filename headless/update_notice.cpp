@@ -2,6 +2,7 @@
 #include "update_notice.h"
 
 #include <cstdio>
+#include <condition_variable>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -33,11 +34,19 @@ constexpr std::size_t kStackSize = 1024 * 1024;
 
 std::mutex lock;
 bool started = false;
+bool checking = false;
+std::condition_variable checked;
 bool found = false;  // an offer nobody has been told about yet
 self_update_check_result answer = SELF_UPDATE_UNKNOWN;
 self_update_offer offer{};
 self_update_job job{};  // zero until the first Begin, as the kit asks
 bool begun = false;
+
+void CheckFinished() {
+    const std::lock_guard guard(lock);
+    checking = false;
+    checked.notify_all();
+}
 
 const char* ResultName(self_update_check_result result) {
     static const char* const names[] = {"available", "up-to-date", "unknown", "untrusted", "not-installable"};
@@ -105,6 +114,7 @@ void* Check(void*) {
         offer = result;
         found = true;
     }
+    CheckFinished();
     return nullptr;
 }
 
@@ -127,15 +137,23 @@ void Start() {
         const std::lock_guard guard(lock);
         if (started) return;
         started = true;
+        checking = true;
     }
     pthread_attr_t attributes;
-    if (pthread_attr_init(&attributes) != 0) return;
+    if (pthread_attr_init(&attributes) != 0) { CheckFinished(); return; }
     pthread_attr_setstacksize(&attributes, kStackSize);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
     pthread_t thread;
-    if (pthread_create(&thread, &attributes, Check, nullptr) != 0)
+    if (pthread_create(&thread, &attributes, Check, nullptr) != 0) {
         Report("update check", "The thread could not start");
+        CheckFinished();
+    }
     pthread_attr_destroy(&attributes);
+}
+
+void WaitForCheck() {
+    std::unique_lock guard(lock);
+    checked.wait(guard, [] { return !checking; });
 }
 
 bool Take(Offer* out) {

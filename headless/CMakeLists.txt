@@ -3513,7 +3513,8 @@ target_link_libraries(eden-metadata PUBLIC core stb)
 target_compile_options(eden-metadata PRIVATE -fno-rtti -Wall -Wextra -Werror -Wno-unused-parameter)
 # Public JSON transport/cache/install only. HTTP is supplied by the existing curl object.
 add_library(eden-cheat-database STATIC "${EDEN_PORT_DIR}/cheat_catalog.cpp"
-    "${EDEN_PORT_DIR}/cheat_download.cpp" "${EDEN_PORT_DIR}/cheat_store.cpp" "${EDEN_PORT_DIR}/cheat_manager.cpp")
+    "${EDEN_PORT_DIR}/cheat_download.cpp" "${EDEN_PORT_DIR}/cheat_store.cpp" "${EDEN_PORT_DIR}/cheat_manager.cpp"
+    "${EDEN_PORT_DIR}/usb_backup.cpp")
 target_include_directories(eden-cheat-database PRIVATE "${EDEN_PORT_DIR}" "${OPENSSL_INCLUDE_DIR}")
 target_link_libraries(eden-cheat-database PRIVATE common)
 target_compile_options(eden-cheat-database PRIVATE -fno-rtti -Wall -Wextra -Werror)
@@ -3666,6 +3667,7 @@ endif()
                 "${launcher_dir}/pe/ui/launcher.cpp"
                 "${launcher_dir}/pe/ui/library.cpp"
                 "${launcher_dir}/pe/ui/settings.cpp"
+                "${launcher_dir}/pe/ui/usb_backup.cpp"
                 "${launcher_dir}/pe/ui/shell.cpp"
                 "${launcher_dir}/pe/ui/textures.cpp"
                 "${launcher_dir}/pe/ui/theme.cpp"

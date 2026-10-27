@@ -16,6 +16,7 @@
 #include "../../../multiplayer_directory.h"
 #include "../../../game_files.h"
 #include "../../../cheat_manager_status.h"
+#include "../../../usb_backup.h"
 
 namespace pe::ui
 {
@@ -595,6 +596,15 @@ class Services
     // Empty restores following Game files, without moving or deleting any files.
     virtual bool set_games_folder(const std::string&) { return false; }
     virtual int filesystem_access() = 0; // 0: the whole filesystem
+
+    // One protected Settings session. Beginning pauses and joins app storage jobs; closing
+    // resumes them unless a cold-start restore is pending. Slow work never runs on the UI thread.
+    virtual bool begin_usb_backup() { return false; }
+    virtual Eden::UsbBackup::Status usb_backup_status() { return {}; }
+    // inspect, list, inspect_restore, backup or restore; paths must come from the current offers.
+    virtual bool usb_backup_action(const std::string&, const std::string&) { return false; }
+    virtual void cancel_usb_backup() {}
+    virtual void end_usb_backup() {}
 
     // ---- save transfer: a game's save in from, or out to, a folder (not in every build) ----
     // ---- profiles: who is playing ----

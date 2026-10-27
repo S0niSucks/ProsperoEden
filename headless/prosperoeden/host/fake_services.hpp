@@ -60,11 +60,20 @@ class FakeServices : public ui::Services
     }
     void leave_room() override { room = {}; }
     bool can_launch_game() override {
-        return !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
+        return !usb_job.active && !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
     }
     // Synthetic manager for preview/controller tests. Never opens a network connection or
     // writes codes; the real job/cache/filesystem operations are tested separately in Docker.
     ui::CheatDatabase cheat_job;
+    // Synthetic USB service only for controller/render tests. Real filesystem tests are separate.
+    Eden::UsbBackup::Status usb_job;
+    std::string usb_mode, usb_action;
+    int usb_polls = 0, usb_backups = 0, usb_restores = 0, usb_cancels = 0;
+    bool begin_usb_backup() override;
+    Eden::UsbBackup::Status usb_backup_status() override;
+    bool usb_backup_action(const std::string&, const std::string&) override;
+    void cancel_usb_backup() override;
+    void end_usb_backup() override { if (!usb_job.busy && !usb_job.restart) usb_job = {}; }
     std::string cheat_mode;
     int cheat_polls = 0, cheat_checks = 0, cheat_installs = 0;
     std::uint64_t downloaded_title = 0, cheat_pending_title = 0;

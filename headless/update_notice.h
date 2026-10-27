@@ -17,6 +17,9 @@
 namespace Eden::UpdateNotice {
 // Starts the check on a thread of its own; only the first call of a launch does anything.
 void Start();
+// Wait for the once-per-launch check, including its catalog-sequence write, without holding
+// the launcher's metadata bridge. Storage snapshots call this on their worker after gating Begin.
+void WaitForCheck();
 
 struct Offer {
     bool installable = false;  // the release can be installed by the app itself

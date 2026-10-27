@@ -237,6 +237,8 @@ void Launcher::press(Key key)
     popup_.clear();
     if (modal_ == Modal::game)
         return press_game(key);
+    if (modal_ == Modal::usb_backup)
+        return press_usb_backup(key);
     if (modal_ == Modal::mods)
         return press_mods(key);
     if (modal_ == Modal::cheats)
@@ -337,11 +339,14 @@ void Launcher::update(float dt)
             textures_.clear_game_backdrop();
     }
     textures_.pump(dt);
-    finish_scan(false);
-    poll_sources(dt);
-    poll_save_sync(dt);
-    poll_pairing(dt);
-    refresh_sync_setup(dt);
+    if (modal_ != Modal::usb_backup) finish_scan(false);
+    poll_usb_backup();
+    if (modal_ != Modal::usb_backup) {
+        poll_sources(dt);
+        poll_save_sync(dt);
+        poll_pairing(dt);
+        refresh_sync_setup(dt);
+    }
     update_multiplayer();
     update_game_options();
     update_cheat_database();
@@ -388,6 +393,7 @@ void Launcher::update(float dt)
                            (modal_ == Modal::mapping && mapping_for_game_) ? 1.0f : 0.0f;
     pane_.update(dt, 18.0f);
     settings_.update(dt);
+    usb_rows_.update(dt);
     files_.update(dt);
     language_.update(dt);
     video_rows_.update(dt);
@@ -799,6 +805,8 @@ void Launcher::draw(gfx::DrawList &list)
             draw_pairing(c, opened);
         else if (modal_shown_ == Modal::sources)
             draw_sources(c, opened);
+        else if (modal_shown_ == Modal::usb_backup)
+            draw_usb_backup(c, opened);
         else
             draw_dialog(c, modal_shown_, opened);
     }
