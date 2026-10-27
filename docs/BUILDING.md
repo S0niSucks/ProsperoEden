@@ -117,7 +117,8 @@ Docker. Native compilation can take considerably longer than the host tests. Lea
 checkout unchanged during the copy at startup; rerun after source changes. Rebuild the image
 when its Dockerfile, CI setup script or runner changes. A nonzero exit is not a usable release.
 
-The output remains in the volume at `/work/ProsperoEden/dist`. To copy it to the repository's
+The build log remains at `/work/release-build.log`, including when `make` fails; the runner
+preserves the failure exit code. The output remains at `/work/ProsperoEden/dist`. To copy it to the repository's
 ignored `.local/docker-release/` without another build:
 
 ```powershell

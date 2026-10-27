@@ -56,6 +56,38 @@ container adapter. `tools/check-execute-program.py` compiles the actual callback
 fragments and exercises program zero, first-request wins, cancellation, previous-program
 metadata, and multiple handovers without spending a repeat/soak cycle.
 
+## Follow-up implementation
+
+Reviewed individual changes from [Oliv3rmoon/Nightshade](https://github.com/Oliv3rmoon/Nightshade),
+another public fork by the author of several integrated PRs. The fork was **not** merged wholesale:
+no rebranding, version bump, release notes or unrelated driver/heap changes were imported.
+Selected commits were cherry-picked with `-x`, retaining their authorship and original IDs:
+
+| Original commits | Work integrated | Remaining qualification |
+|---|---|---|
+| `b6c568a`, `fa6be98` | Independent `games_folder` for `roms/` and `updates/`; pause downloads if the drive is absent | Configuration-file setting, not an independent folder picker; USB and download behavior on PS5 |
+| `74c2365`, `9869653` | Shared-font mods from `mods/<archive ID>/romfs/` or a named mod below it; BFTTF and shared-memory checks | Actual Vietnamese font and game on PS5 |
+| `675c0df`, `b3f7d61`, `33e89d7`, `f839bff` | Reopen failed controller handles, retain stale player slots and back off retries | Rest mode, home menu and real controllers on PS5; no GPU-resume fix claimed |
+| `cbc26a6` | Decode loader failures and identify missing key generations in the launcher/log | Better diagnostics, not replacement keys or a game-compatibility fix |
+| `4494c89` | Missing frame-generation strings in 29 catalogs | Catalog checker passes; existing length warnings and unverified console-font glyphs remain |
+
+Local follow-up work:
+
+- Combined independent game paths with NSZ/XCZ filtering, moved forwarders, nested history,
+  loading covers and `library.json`; updated the regression checks rather than dropping them.
+- Bound shared-font file allocations **before** reading; a 1 GiB sparse input, truncated files
+  and bad headers are rejected in the host check.
+- Implemented #263: portable `wallpapers/` in the game files folder, or the console-wide
+  `wallpapers_folder` setting. Existing local wallpapers remain the fallback. Host tests cover
+  missing drives, invalid paths, filesystem-access denial and profile isolation of the image choice.
+- Implemented the NRO library/path portion of #242 using the existing core loader: case-insensitive
+  discovery, nested paths, counts, history and moved forwarders. NROs use file-name metadata for
+  now; the launcher's setup check still applies. Added a three-cycle real loader/JIT/guest-exit
+  fixture check, separate from extension/path tests and from PS5 homebrew compatibility.
+- Added the catalog checker to host and native source checks, so missing translations fail builds.
+- Added the Docker native-build image and runner, reusing the CI tool versions and a separate
+  Linux volume. These do not install a toolchain in WSL or deploy to a console.
+
 ## Closed, unmerged PRs
 
 These heads are available locally, but closed alternatives and unfinished prototypes are not
@@ -87,7 +119,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #42 Chinese font detection | PS5: retest current elevation/font access on FW 9.20; older font-access fix is already in main |
 | #46 Breath of the Wild FPS | PS5: same warmed scene, settings, frame times and logs; not a generic clock-fix claim |
 | #48 Jamboree cookie-cutter freeze | PS5: reproduce minigame and collect GPU/guest logs |
-| #50 Separate game files and emulator data | Feature: existing data separation does not provide independent/multiple ROM, key and firmware roots |
+| #50 Separate game files and emulator data | Implemented `games_folder` setting for ROMs/updates apart from keys/firmware and internal caches/saves; independent picker and PS5 qualification remain |
 | #52 Xenoblade Chronicles 3 console freeze | PS5: guest/GPU hang evidence needed |
 | #56 Amiibo files | Feature: file selection and NFC presentation are not implemented here |
 | #59 Pokémon Z-A flicker | PS5: graphics capture and backend comparison needed |
@@ -102,7 +134,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #86 Tears of the Kingdom crashes | PS5: exact crash, settings and mod isolation needed |
 | #89 Nextendo | Feature: guest networking/account services and external interoperability are not implemented |
 | #93 Graphics memory exhaustion | PS5: memory trace at default resolution and failing settings needed |
-| #97 Rest-mode freeze | PS5: controller reopen is only a lead from another fork; GPU/resume lifetime unverified |
+| #97 Rest-mode freeze | Partial candidate: controller reopen/backoff integrated with mock coverage; GPU/resume lifetime and PS5 reproduction remain |
 | #99 Out-of-memory crash | PS5: distinguish host heap, graphics allocation and guest memory before changing limits |
 | #107 Just Dance controls | PS5: required controller type/accessory and applet behavior needed |
 | #109 Crash after game start | PS5: current build, title/update and logs needed |
@@ -117,13 +149,13 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #129 The Stretchers | PS5: startup trace and current build required |
 | #133 Cover Flow | Feature: no 3D library layout added |
 | #148 Monster Hunter Generations Ultimate | PS5: current-version reproduction needed |
-| #149 Separate ROM/update folders | Feature: related to #50; independently configurable roots not added |
+| #149 Separate ROM/update folders | Implemented `games_folder` in the settings file (ROMs and updates together); independent picker and PS5 USB checks remain |
 | #150 Luigi's Mansion 3 | PS5: exact scene and graphics/guest logs needed |
 | #157 USB data backup | Feature: no bulk backup/restore implementation added |
 | #173 External/custom theme engine | Feature: investigation and existing launcher packs are not full acceptance evidence |
 | #195 Metroid Prime 4 | PS5: exact failure and current-version evidence needed |
 | #202 Switch Pro Controller | Feature: PS5 driver/input support and hardware tests required; MissionControl is not directly portable |
-| #206 Castlevania Belmont's Curse | PS5: startup failure, key generation and firmware requirements needed |
+| #206 Castlevania Belmont's Curse | Improved missing-key diagnostics integrated; PS5 startup/key-generation evidence still required |
 | #219 Cheat GUI / Arceus cheats | Feature: GUI request remains; verify build-ID/file matching separately |
 | #222 Title 0100D71004694000 | PS5: current-version game report and logs required |
 | #224 Kirby Return to Dream Land Deluxe | PS5: reproduce the specific game problem; no blanket Kirby claim |
@@ -135,23 +167,23 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #236 Luigi's Mansion 3 floor 10 | PS5: save/scene and GPU/memory trace required |
 | #238 Abort 2010-0212 | PS5: identify malformed/failing CMIF reply; no guessed service-success patch |
 | #239 Scene themes / Themezer | Feature: large scene/import system remains unimplemented |
-| #242 NRO and NSZ | Partial candidate #285: NSZ/XCZ added; NRO library/launcher support is not included |
+| #242 NRO and NSZ | NSZ/XCZ plus NRO library/launcher paths implemented; embedded NRO metadata, key-free setup and recursive `switch/` import not added, actual homebrew on PS5 unverified |
 | #246 Memory write / GPU / heap / app restart | Partial candidate #296: repeated successful write-fault promotions only; remaining three parts unresolved |
-| #248 Shared system-font mods | Feature: #288 title scoping does not itself add a shared-font archive loader |
+| #248 Shared system-font mods | Implemented shared archive-font override, validation and bounded reads; actual translation/font/game on PS5 still unverified |
 | #260 Kirby and the Forgotten Land regression | Candidate #275: deterministic timing reproduction; same-scene PS5 A/B still needed |
 | #262 Astral Chain | PS5: specific current-version reproduction and trace required |
-| #263 Wallpapers on USB | Feature: no wallpaper path preference or USB lookup added |
+| #263 Wallpapers on USB | Implemented portable folder lookup and `wallpapers_folder` setting; host path/profile checks pass, PS5 display unverified |
 | #264 Empty home after nesting games | Candidate #286: full relative game path retained; host path/history check available |
 | #265 Crypt Custodian loading hang | PS5: identify waiting guest thread/service from current logs |
 | #268 Post-processing canonical EPERM | Candidate #274/#276: nonthrowing canonicalization and fallback tested with real filesystem errors on host |
-| #269 Freeze after PS home menu | PS5: input-handle recovery and actual GPU/app state need reproduction |
+| #269 Freeze after PS home menu | Partial candidate: input-handle recovery integrated; actual GPU/app state and console reproduction remain |
 | #271 Super Mario Galaxy crash | PS5: #298 is a possible handover lead, not a demonstrated crash fix |
 | #273 Tears of the Kingdom textures / UltraCam | PS5: isolate mod, memory pressure and texture invalidation |
 | #277 Switch Sports console hang | PS5: stalled GPU submission/fence requires console/driver evidence |
 | #278 60 FPS patch slows game | Candidate #275 only for counter-paced timing; mod version and real frame pacing still required |
-| #279 Castlevania Belmont's Curse boot | PS5: correlate with #206, retaining independent title/build evidence |
+| #279 Castlevania Belmont's Curse boot | Improved missing-key diagnostics; correlate with #206 while retaining independent PS5 title/build evidence |
 | #280 App not mounted, FW 9.00 | PS5/install: confirm folder layout and ShadowMountPlus logs; no unproven SDK rollback |
-| #295 Minecraft / error 21 | Keys/configuration: missing key-area-key generation is not fixed by bypassing decryption errors |
+| #295 Minecraft / error 21 | Improved missing-key diagnostics; no bypass of decryption errors or claim that required keys were supplied |
 | #297 Recent games / shader rebuilds | Partial candidate #286 for history; repeated shader compilation needs separate cache investigation |
 | #300 Project maintenance status | Maintainer communication, not a code defect an integration branch can resolve |
 | #301 Metroid Dread write fault | Possible #296 match (guest write, trap 12/error 0x7); requires >30-minute console retest, with mods isolated |
@@ -206,3 +238,29 @@ See [BUILDING.md](BUILDING.md#docker-host-tests-including-windows) for the repro
 runner. Before promoting this branch, build the native package and
 perform the console comparisons requested by #284, #275, #285 and #298 as well as the issue
 reproductions above. Do not close composite issues for one corrected symptom.
+
+## Follow-up validation — in progress
+
+- The first follow-up full host suite passed, including shared-font anchors, missing-key
+  diagnostics and the new controller reopen/backoff fixtures. Evidence is retained in
+  `.local/upstream-audit/followup-host-suite.log`. This run predates the local wallpaper,
+  bounded-font and NRO additions; a final full-suite run with those changes is in progress.
+- Current focused checks pass: portable/explicit wallpaper folders and profile settings;
+  bounded font reads (including the sparse 1 GiB negative input); settings/history; nested
+  game counts with NSZ/XCZ and NRO; moved NRO forwarders; 555 texts in all 30 catalogs.
+  Catalog glyphs requiring unavailable console fonts remain explicitly unchecked.
+- `tools/check-headless-nro.sh` passed a real Eden loader/JIT/guest-exit run for three NRO
+  fixture cycles, with the receipt checker's negative controls. Evidence:
+  Docker volume `prosperoeden-integration-20261027`,
+  `/work/ProsperoEden/results/nro-host-20261027-184608.mglAbz`.
+  The first smoke runner attempt read the wrong receipt path; it was corrected to extract
+  the host stdout receipt while retaining all lines except the one known JIT diagnostic.
+- Docker release image construction and toolchain checks passed: LLVM 18/21, Meson 1.10.1,
+  CMake 3.31.10 and the pinned SPIR-V translator. A mocked `make` failure confirms that the
+  runner preserves exit status 37 and saves the log; this is not a package-build pass.
+- Native `make release` has been started in Docker, using its own Linux volume. Its observed
+  preparation built FFmpeg and reproduced the clean-room runtime hashes. Native/package/release
+  success is **not yet established**. The first build snapshot also predates the final path,
+  wallpaper and NRO changes, so a current-source rerun is required before accepting artifacts.
+- No console was accessed. No issue was closed or branch pushed. Outstanding features and
+  console-only failures in the triage remain work, not implied fixes from a passing build.
