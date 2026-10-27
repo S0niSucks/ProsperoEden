@@ -22,7 +22,7 @@ for source in "$root"/third_party/lua/*.c; do
 done
 "$cxx" -std=c++20 -O2 -Wall -Wextra -Werror -I"$source_dir" -I"$root/third_party" \
     -I"$root/third_party/miniz" -I"$root/third_party/lua" \
-    "$source_dir/pe/ui/launcher_updates.cpp" "$root/tools/launcher/test-launcher-updates.cpp" \
+    "$source_dir/pe/ui/launcher_updates.cpp" "$source_dir/pe/audio/wav.cpp" "$root/tools/launcher/test-launcher-updates.cpp" \
     "${objects[@]}" -lcrypto -lcurl -pthread -o "$build/test-updates"
 python3 -B "$root/tools/launcher/test-launcher-updates.py" "$build/test-updates"
 for name in update_check self_update_sha256; do

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "pe/ui/launcher_updates.hpp"
 #include "pe/ui/runtime_filesystem.hpp"
+#include "pe/ui/scene/package.hpp"
 #include "../../../remote/http.h"
 #include <miniz.h>
 #include <openssl/evp.h>
@@ -276,6 +277,15 @@ void validate_pack(const std::string& folder, const Json& expected, const Host& 
         for (const auto* key : {"version", "host_contract", "api"}) require(m.at(key) == expected.at(key), "Downloaded manifest differs from update feed");
         require(m.value("required_capabilities", Json::array()) == expected.value("required_capabilities", Json::array()), "Downloaded capabilities differ from update feed");
         require(m.at("updates").at("feed") == installed.at("updates").at("feed"), "Downloaded launcher changed its update source");
+    }
+    if(m.contains("scene")) {
+        require(!m.contains("entry") && !m.contains("loading_scene"), "Scene packs cannot contain executable entrypoints");
+        require(m.value("assets",Json::object()).empty() && m.value("sounds",std::string{}).empty(), "Scene resources belong in theme.json");
+        const auto required=m.value("required_capabilities",Json::array());
+        require(std::find(required.begin(),required.end(),"themes.scene.v1")!=required.end(), "Scene capability must be declared");
+        const auto package=scene::load(folder,m.at("scene"));
+        require(package.model.id==m.at("id").get<std::string>(), "Scene ID does not match launcher");
+        return;
     }
     require(m.at("assets").is_object() && m.at("assets").size() <= 32, "Invalid image resources");
     for (const auto& asset : m.at("assets")) fs::check(fs::resource_path(folder, asset.get<std::string>()), fs::Kind::file);

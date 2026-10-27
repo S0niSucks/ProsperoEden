@@ -1,0 +1,12 @@
+{
+  "focus":"builtin",
+  "input":{"back":{"screen":"home"}},
+  "nodes":[
+    {"id":"base","type":"rect","w":1920,"h":1080,"color":395530},
+    {"id":"title","type":"text","x":200,"y":150,"w":1400,"size":48,"text":"Settings"},
+    {"id":"explanation","type":"text","x":200,"y":250,"w":1450,"size":28,"text":"All application settings remain available in the built-in launcher."},
+    {"id":"builtin","type":"focus","x":200,"y":340,"w":1450,"h":90,"activate":{"action":"launcher.select","args":{"id":"builtin"}},"nav":{"down":"picker"},"children":[{"id":"builtin-label","type":"text","x":24,"y":58,"w":1300,"size":30,"text":"Open built-in launcher"}]},
+    {"id":"picker","type":"focus","x":200,"y":470,"w":1450,"h":90,"activate":{"action":"launcher.picker"},"nav":{"up":"builtin"},"children":[{"id":"picker-label","type":"text","x":24,"y":58,"w":1300,"size":30,"text":"Choose launcher"}]},
+    {"id":"back","type":"text","x":200,"y":1000,"w":1400,"text":"Back: library"}
+  ]
+}

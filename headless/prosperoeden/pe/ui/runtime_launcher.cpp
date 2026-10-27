@@ -6,6 +6,8 @@
 #include "pe/ui/launcher_updates.hpp"
 #include "pe/ui/runtime_filesystem.hpp"
 #include "pe/ui/launch_commit.hpp"
+#include "pe/ui/scene/package.hpp"
+#include "pe/ui/scene/player.hpp"
 #include "pe/audio/wav.hpp"
 #include "pe/core/file.hpp"
 #include "pe/core/log.hpp"
@@ -32,7 +34,7 @@ namespace {
 constexpr std::size_t kScriptBytes = 2 * 1024 * 1024;
 constexpr std::size_t kVmBytes = 16 * 1024 * 1024;
 constexpr int kInstructions = 300000;
-const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1", "cheats.catalog.v1", "amiibo.catalog.v1"};
+const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1", "cheats.catalog.v1", "amiibo.catalog.v1", "themes.scene.v1"};
 bool identifier(std::string_view text) {
     return !text.empty() && text.size() <= 48 && std::all_of(text.begin(), text.end(), [](char c) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
@@ -132,6 +134,10 @@ struct RuntimeLauncher::Impl {
         std::map<std::string, std::unique_ptr<audio::DecodedWav>> recordings;
         std::map<std::string, audio::Clip> clips;
         std::unique_ptr<RuntimeLoadingScene> loading;
+        std::unique_ptr<scene::Package> scene_resources;
+        std::unique_ptr<scene::Player> scene_player;
+        std::string scene_music;
+        float scene_music_left{};
         std::uint64_t audio_fence{};
         ~Pack() { if (host) { for(const auto& [id,texture]:textures) host->batch.delete_texture(texture); host->batch.delete_texture(font_texture); } if (lua) { lua_sethook(lua, nullptr, 0, 0); lua_close(lua); } }
     };
@@ -157,6 +163,7 @@ struct RuntimeLauncher::Impl {
     Json keyboard_status = { {"ready",false} }, launch = {{"stage","idle"}}, offer;
     std::string launch_file, launch_profile; bool sync_started{}, first_start{}, picker{}, exit_update{};
     int picker_row{}, draw_commands{}; float time{}, poll{}, catalog_poll{}; std::uint64_t source_generation{}; gfx::DrawList* drawing{};
+    #include "pe/ui/scene/runtime.inc"
     Impl(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure)
         : cached_preferences(s.preferences()), services(s), covers(t), fonts(f), batch(b), mixer(m), data_root(std::move(root)), first_start(first) {
         configure_font=std::move(configure);
@@ -222,6 +229,7 @@ struct RuntimeLauncher::Impl {
         lua_call(lua,1,0);return 0;
     }
     bool call(Pack& p, const char* method, const Json& argument = Json::object(), bool required = false) {
+        if(p.scene_player) return call_scene(p,method,argument);
         const int base = lua_gettop(p.lua);
         Invocation invocation{&p,method,&argument,required};
         p.instructions = kInstructions; lua_sethook(p.lua, hook, LUA_MASKCOUNT, 1000);
@@ -263,6 +271,7 @@ struct RuntimeLauncher::Impl {
         for (auto& p : retired) release(*p);
     }
     void load_textures(Pack& p) {
+        if(p.scene_resources) { load_scene_textures(p); return; }
         std::size_t decoded = 0;
         for (auto it = p.manifest.at("assets").begin(); it != p.manifest.at("assets").end(); ++it) {
             if (p.textures.size() >= 32) throw std::runtime_error("Too many pack images");
@@ -297,6 +306,9 @@ struct RuntimeLauncher::Impl {
                 p.manifest = read_json(pack_path(p.folder,"manifest.json"));
                 if (p.manifest.at("id") != id || p.manifest.at("schema") != 1 || p.manifest.at("api").at("major") != 1 || (p.manifest.at("api").value("min_minor",0) < 0 || p.manifest.at("api").value("min_minor",0) > 1) || p.manifest.value("host_contract","")!="launcher-v1.0") throw std::runtime_error("Launcher API is incompatible");
                 for (const auto& capability : p.manifest.value("required_capabilities", Json::array())) if (!kCapabilities.contains(capability.get<std::string>())) throw std::runtime_error("Required launcher capability is unavailable");
+                if(p.manifest.contains("scene")) {
+                    prepare_scene(p);
+                } else {
                 std::string blob; if (!pe::read_file(pack_path(p.folder,p.manifest.at("font")), &blob, 16 * 1024 * 1024) || !p.font.load(blob)) throw std::runtime_error("Invalid launcher font");
                 if(configure_font) configure_font(p.font);
                 try { p.state = read_json(data_root + "/config/launcher-state/" + id + ".json",131072); } catch (...) {}
@@ -325,10 +337,12 @@ struct RuntimeLauncher::Impl {
                 if (loaded != LUA_OK || lua_pcall(p.lua,0,1,0) != LUA_OK || !lua_istable(p.lua,-1)) throw std::runtime_error(lua_tostring(p.lua,-1) ? lua_tostring(p.lua,-1) : "Launcher must return its callback table");
                 lua_sethook(p.lua,nullptr,0,0); p.module = luaL_ref(p.lua,LUA_REGISTRYINDEX);
                 if (!call(p,"init",{{"state",p.state},{"first_start",first_start},{"api_major",1},{"api_minor",1}},true)) throw std::runtime_error(last_error);
+                }
             }
             if (save && !write_json(data_root + "/config/launcher.json",{{"schema",1},{"selected",id}})) throw std::runtime_error("Could not save launcher selection");
             if (pack) { call(*pack,"shutdown"); write_json(data_root+"/config/launcher-state/"+pack->id+".json",pack->state); release_textures(); pack->audio_fence=mixer?mixer->stop_all_fenced():0; retired.push_back(std::move(pack)); }
             builtin.reset(); pack = std::move(candidate); active = id; picker = false; next_id.clear();
+            scene_confirmation=nullptr; scene_notice.clear(); scene_launch=false;
             if (pack) { pack->live = true; if(catalog.empty()) refresh(); } else { catalog.release_cached_views(); use_theme(services.preferences().theme); builtin = std::make_unique<Launcher>(services,covers,fonts,first_start); if(offer.is_object() && offer.contains("version")) builtin->accept_update_offer(offer.get<UpdateOffer>()); }
             if(save) { last_error.clear(); auto_checked=false; }
             std::fprintf(stderr,"PE_LAUNCHER_SELECTED id=%s\n",id.c_str()); return true;
@@ -718,13 +732,14 @@ struct RuntimeLauncher::Impl {
         if(pack) {
             if(poll_services) { UpdateOffer found; if(services.take_update(&found)) offer=found; }
             if(!call(*pack,"update",{{"dt",std::min(dt,0.05f)},{"time",time}})) fallback();
+            if(pack && pack->scene_player) update_scene_launch(*pack);
             if(!next_id.empty()) { const auto next=next_id; next_id.clear(); select(next); }
         } else if(builtin) builtin->update(dt);
     }
     void draw(gfx::DrawList& list) {
         if (amiibo_confirmation) { draw_amiibo_confirmation(list); return; }
         if(updates_page || commit_started) { if(!draw_update_view(list)) draw_updates(list); return; }
-        if(pack) { drawing=&list; draw_commands=0; const bool ok=call(*pack,"draw",{{"time",time}},true); drawing=nullptr; if(!ok) {list.clear(); fallback(); if(builtin) builtin->draw(list);} else batch.sync_font_texture(pack->font_texture,pack->font); }
+        if(pack) { drawing=&list; draw_commands=0; const bool ok=call(*pack,"draw",{{"time",time}},true); drawing=nullptr; if(!ok) {list.clear(); fallback(); if(builtin) builtin->draw(list);} else { if(pack->font_texture) batch.sync_font_texture(pack->font_texture,pack->font); if(pack->scene_player) draw_scene_dialog(list); } }
         else if(builtin) builtin->draw(list);
         if(picker) {
             list.reset_state();

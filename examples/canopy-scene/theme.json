@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "id": "canopy-scene",
+  "name": "Canopy scene",
+  "entry": "home",
+  "images": {},
+  "audio": {},
+  "animations": {"arrival": "animations/arrival.json"},
+  "screens": {"home": "screens/home.json", "profiles": "screens/profiles.json", "settings": "screens/settings.json"}
+}

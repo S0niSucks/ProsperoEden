@@ -9,6 +9,7 @@ Pack* update_view() {
     return pack && pack->id==updates_id?pack.get():nullptr;
 }
 bool has_update_view(Pack& p) {
+    if(!p.lua) return false;
     const int base=lua_gettop(p.lua);
     lua_rawgeti(p.lua,LUA_REGISTRYINDEX,p.module);
     bool complete=true;

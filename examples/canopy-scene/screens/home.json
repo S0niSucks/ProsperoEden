@@ -1,0 +1,27 @@
+{
+  "focus":"games",
+  "transition":0.2,
+  "animations":["arrival"],
+  "input":{
+    "back":{"screen":"settings"},
+    "secondary":{"screen":"profiles"},
+    "settings":{"screen":"settings"}
+  },
+  "nodes":[
+    {"id":"base","type":"rect","w":1920,"h":1080,"color":395530},
+    {"id":"ambient","type":"particles","w":1920,"h":1080,"count":20,"radius":2,"alpha":0.18,"color":11131747,"speed":8},
+    {"id":"rail","type":"rect","w":240,"h":1080,"color":726803},
+    {"id":"brand","type":"text","x":38,"y":96,"w":175,"size":26,"text":"ProsperoEden","color":16776431},
+    {"id":"home-link","type":"focus","x":30,"y":215,"w":178,"h":70,"activate":{"screen":"home"},"nav":{"right":"games","down":"profile-link"},"children":[{"id":"home-label","type":"text","x":20,"y":45,"w":145,"size":26,"text":"Library"}]},
+    {"id":"profile-link","type":"focus","x":30,"y":315,"w":178,"h":70,"activate":{"screen":"profiles"},"nav":{"up":"home-link","down":"settings-link","right":"games"},"children":[{"id":"profile-label","type":"text","x":20,"y":45,"w":145,"size":26,"text":"Profiles"}]},
+    {"id":"settings-link","type":"focus","x":30,"y":415,"w":178,"h":70,"activate":{"screen":"settings"},"nav":{"up":"profile-link","right":"games"},"children":[{"id":"settings-label","type":"text","x":20,"y":45,"w":145,"size":26,"text":"Settings"}]},
+    {"id":"title","type":"text","x":300,"y":130,"w":1300,"size":58,"text":"Library","color":16776431},
+    {"id":"clock","type":"text","x":1750,"y":108,"w":140,"align":"right","size":26,"bind":"/status/clock"},
+    {"id":"selected-name","type":"text","x":300,"y":210,"w":1450,"size":32,"bind":"/selected/name","color":11131747},
+    {"id":"games","type":"grid","x":300,"y":260,"w":1510,"h":720,"columns":5,"rows":2,"cell_w":275,"cell_h":325,"gap":26,"radius":18,"source":"/library/games","empty":"Your library is empty. Add games in the built-in launcher.","nav":{"left":"home-link"},"activate":{"action":"launch.request","args":{"game":{"$bind":"/selected/handle"}}},"children":[
+      {"id":"game-cover","type":"cover","w":275,"h":275,"bind":"/item/handle"},
+      {"id":"game-name","type":"text","x":0,"y":315,"w":270,"size":24,"bind":"/item/name"}
+    ]},
+    {"id":"hints","type":"text","x":300,"y":1030,"w":1450,"size":24,"text":"Options: choose launcher · Back: settings"}
+  ]
+}
