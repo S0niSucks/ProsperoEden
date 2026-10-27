@@ -3,18 +3,27 @@
 headless/CMakeLists.txt writes) with Eden's pinned PhysicalCore::Interrupt, and of the kernel
 spin lock (headless/kernel_spin_lock.h).
 
-Usage: check-guest-idle.py PINNED_PHYSICAL_CORE_CPP
+Usage: check-guest-idle.py PINNED_PHYSICAL_CORE_CPP [--generated GENERATED_PHYSICAL_CORE_CPP]
+       [--idle-only] [--sanitizer all|none|address|thread]
 
 It checks the polling rule, that no wake-up is lost, that the time counted as polling is what
 the core spent polling (the overlay leaves it out of the core's load), that a core which waits long stops polling
 and one that is handed work often keeps polling, and the lock under ThreadSanitizer. It does not
 measure a game's frame rate on the console.
 """
+import argparse
+import hashlib
 from pathlib import Path
-import subprocess, sys, tempfile
+import subprocess, tempfile
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('pinned', type=Path)
+parser.add_argument('--generated', type=Path, help='also verify the saved build uses these exact bodies')
+parser.add_argument('--idle-only', action='store_true', help='skip the unrelated kernel spin lock check')
+parser.add_argument('--sanitizer', choices=('all', 'none', 'address', 'thread'), default='all')
+args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-pinned = Path(sys.argv[1]).read_text()
+pinned = args.pinned.read_text()
 cmake = (root / 'headless/CMakeLists.txt').read_text()
 idle = cmake.split('string(REPLACE "${idle_old}" [=[', 1)[1].split(']=] physical_core_source', 1)[0]
 interrupts = pinned[pinned.index('void PhysicalCore::Interrupt() {'):pinned.index('\n} // namespace Kernel')]
@@ -25,6 +34,24 @@ for name in ('interrupt_old', 'clear_old'):
     after = unquote(cmake.split('string(REPLACE "${' + name + '}"\n    "', 1)[1].split('"\n', 1)[0])
     assert interrupts.count(before) == 1, name
     interrupts = interrupts.replace(before, after)
+
+# Check the actual saved generated source, not just an assumed CMake expansion.
+if args.generated:
+    generated = args.generated.read_text()
+    actual_idle = generated[generated.index('void PhysicalCore::Idle() {'):generated.index('\nbool PhysicalCore::IsInterrupted()')]
+    actual_interrupts = generated[generated.index('void PhysicalCore::Interrupt() {'):generated.index('\n} // namespace Kernel')]
+    assert actual_idle.strip() == idle.strip(), 'Generated Idle differs from the tested CMake body'
+    assert actual_interrupts.strip() == interrupts.strip(), 'Generated Interrupt/ClearInterrupt differ'
+for path in (Path(__file__), args.pinned, root / 'headless/CMakeLists.txt', root / 'headless/performance.h', args.generated):
+    if path:
+        print('SOURCE', hashlib.sha256(path.read_bytes()).hexdigest(), path, flush=True)
+
+# Test-only, nonblocking observation immediately AFTER Idle captures its actual start timestamp.
+# A signal before calling Idle would have the same scheduling hole as the original kick.
+# Wakeups leaves the hook disabled: its before/during/after-entry races remain unsynchronized.
+entry_line = '    const long long start = ::Eden::Performance::NowNs();'
+assert idle.count(entry_line) == 1
+timed_idle = idle.replace(entry_line, entry_line + '\n    ObserveIdleEntry(start);')
 
 clock = r'''
 #include <chrono>
@@ -45,6 +72,7 @@ idle_code = r'''
 #include <cassert>
 #include <condition_variable>
 #include <cstdio>
+#include <limits>
 #include <mutex>
 #include <semaphore>
 #include <thread>
@@ -68,7 +96,11 @@ private:
     Interface* m_arm_interface{};
     Thread* m_current_thread{};
 };
-''' + idle + '\n' + interrupts + r'''
+static thread_local std::atomic<long long>* idle_entry = nullptr;
+static void ObserveIdleEntry(long long start) {
+    if (idle_entry) idle_entry->store(start, std::memory_order_release);
+}
+''' + timed_idle + '\n' + interrupts + r'''
 static long long ThreadCpuNs() {
     timespec now{};
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &now);
@@ -166,18 +198,47 @@ static void Wakeups() {
     parked.join();
 }
 
-// One core is interrupted gaps[i % size] after each wait begins, `rounds` times. Returns the
-// waiting thread's CPU time; slept[i] says whether wait i went to sleep.
+enum class Handshake { idle_entry, legacy_kick };
+struct WaitEvidence {
+    long long intended_min = std::numeric_limits<long long>::max(), intended_max = 0;
+    long long observed_min = std::numeric_limits<long long>::max(), observed_max = 0;
+    long long entry_lag_max = 0;
+    unsigned preraised = 0;
+};
+static void Until(long long deadline) {
+    while (P::NowNs() < deadline) Eden::CpuRelax();
+}
+static long long Entered(const std::atomic<long long>& entry) {
+    const long long deadline = P::NowNs() + 2'000'000'000LL;
+    long long start;
+    while ((start = entry.load(std::memory_order_acquire)) == 0) {
+        assert(P::NowNs() < deadline);
+        Eden::CpuRelax();
+    }
+    return start;
+}
+
+// Arm each interval against the timestamp captured INSIDE the actual Idle body. The hook
+// does not park the worker or move the runtime timestamp. Record raised-start separately
+// from the requested gap: a slow producer can still overshoot, and that must be visible.
+// late_round gates one entry until the old producer deadline has passed (deterministic scheduler
+// delay). legacy_kick is retained ONLY to prove that the old timing assertion then fails.
+// Returns worker CPU time; slept[i] retains the original Cost/Spin assertion inputs.
 static long long Waiting(std::vector<std::chrono::microseconds> gaps, unsigned rounds,
-                         std::vector<bool>& slept) {
+                         std::vector<bool>& slept, Handshake handshake = Handshake::idle_entry,
+                         int late_round = -1, WaitEvidence* evidence = nullptr) {
     PhysicalCore core{2};
-    std::binary_semaphore kick{0}, done{0};
+    std::binary_semaphore kick{0}, done{0}, delayed_entry{0};
+    std::atomic<long long> entry{0};
+    WaitEvidence result;
     long long cpu = 0;
     slept.assign(rounds, false);
     std::thread worker([&] {
+        idle_entry = &entry;
         const long long begin = ThreadCpuNs();
         for (unsigned i = 0; i < rounds; ++i) {
             kick.acquire();
+            if (static_cast<int>(i) == late_round) delayed_entry.acquire();
             core.Idle();
             done.release();
         }
@@ -186,15 +247,65 @@ static long long Waiting(std::vector<std::chrono::microseconds> gaps, unsigned r
     for (unsigned i = 0; i < rounds; ++i) {
         const auto sleeps = P::guest_idle[2].sleeps.load();
         core.ClearInterrupt();
+        entry.store(0, std::memory_order_relaxed);
+        const long long kicked = P::NowNs();
         kick.release();
-        const auto until = std::chrono::steady_clock::now() + gaps[i % gaps.size()];
-        while (std::chrono::steady_clock::now() < until) Eden::CpuRelax();
+        const long long armed = P::NowNs();             // Original timer starts after kick.release().
+        const long long intended = std::chrono::duration_cast<std::chrono::nanoseconds>(gaps[i % gaps.size()]).count();
+        const bool delayed = static_cast<int>(i) == late_round;
+        if (delayed && handshake == Handshake::idle_entry) {
+            Until(armed + intended);
+            delayed_entry.release();
+        }
+        const long long start = handshake == Handshake::idle_entry ? Entered(entry) : 0;
+        Until((handshake == Handshake::idle_entry ? start : armed) + intended);
         core.Interrupt();
+        if (delayed && handshake == Handshake::legacy_kick) delayed_entry.release();
         assert(done.try_acquire_for(2s));
         slept[i] = P::guest_idle[2].sleeps.load() != sleeps;
+        const long long actual_start = entry.load(std::memory_order_acquire);
+        const long long raised = P::RaisedNs(2);
+        assert(actual_start != 0);
+        const long long observed = std::max(0LL, raised - actual_start);
+        if (handshake == Handshake::idle_entry) assert(observed >= intended);
+        result.intended_min = std::min(result.intended_min, intended);
+        result.intended_max = std::max(result.intended_max, intended);
+        result.observed_min = std::min(result.observed_min, observed);
+        result.observed_max = std::max(result.observed_max, observed);
+        result.entry_lag_max = std::max(result.entry_lag_max, actual_start - kicked);
+        result.preraised += raised <= actual_start;
     }
     worker.join();
+    if (evidence) *evidence = result;
+    std::printf("waits=%u handshake=%s late-round=%d intended=[%.2f,%.2f] us "
+                "observed=[%.2f,%.2f] us preraised=%u entry-lag-max=%.2f us CPU=%.2f ms\n",
+                rounds, handshake == Handshake::idle_entry ? "idle-entry" : "legacy-kick", late_round,
+                result.intended_min / 1e3, result.intended_max / 1e3,
+                result.observed_min / 1e3, result.observed_max / 1e3, result.preraised,
+                result.entry_lag_max / 1e3, cpu / 1e6);
     return cpu;
+}
+
+static void LateWorkerRegression() {
+    constexpr unsigned rounds = P::kIdleLongRun + 8;
+    constexpr int late_round = rounds / 2;
+    std::vector<bool> slept;
+    WaitEvidence legacy, synchronized;
+    Reset();
+    P::idle_poll_ns[2] = 500'000;
+    (void)Waiting({4ms}, rounds, slept, Handshake::legacy_kick, late_round, &legacy);
+    // Just ONE pre-raised interrupt breaks the run of long waits. The original Cost
+    // assertion (budget == 0) is FALSE even if every other round really waited 4 ms.
+    assert(legacy.preraised >= 1 && legacy.observed_min == 0);
+    assert(P::IdlePollBudget(2) == 500'000 && P::idle_long_run[2] < P::kIdleLongRun);
+    std::printf("late worker, old handshake: unchanged budget==0 criterion FAILS (budget %lld ns)\n",
+                P::IdlePollBudget(2));
+    Reset();
+    P::idle_poll_ns[2] = 500'000;
+    (void)Waiting({4ms}, rounds, slept, Handshake::idle_entry, late_round, &synchronized);
+    assert(synchronized.preraised == 0 && synchronized.observed_min >= 4'000'000);
+    assert(P::IdlePollBudget(2) == 0);
+    std::puts("late worker: PASS old handshake fails, actual-Idle-entry handshake stops polling");
 }
 static unsigned Count(const std::vector<bool>& slept, unsigned from = 0, unsigned step = 1) {
     unsigned count = 0;
@@ -267,8 +378,10 @@ static void Spin() {
 }
 
 int main(int argc, char**) {
+    std::setbuf(stdout, nullptr);                       // Keep interval evidence if an assert aborts.
     Policy();
     Wakeups();
+    LateWorkerRegression();
     if (argc == 1) {                                  // Timing: not under ThreadSanitizer.
         Cost();
         Spin();
@@ -320,11 +433,17 @@ with tempfile.TemporaryDirectory() as tmp:
     (Path(tmp) / 'common' / 'cpu_features.h').write_text(clock)
     flags = ['c++', '-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
              '-I' + tmp, '-I' + str(root / 'headless'), '-x', 'c++', '-']
-    runs = (('idle', idle_code, 'address,undefined', []), ('idle-tsan', idle_code, 'thread', ['--no-timing']),
-            ('lock', lock_code, 'thread', []))
+    runs = []
+    if args.sanitizer in ('all', 'none', 'address'):
+        runs.append(('idle', idle_code, '' if args.sanitizer == 'none' else 'address,undefined', []))
+    if args.sanitizer in ('all', 'thread'):
+        runs.append(('idle-tsan', idle_code, 'thread', ['--no-timing']))
+        if not args.idle_only:
+            runs.append(('lock', lock_code, 'thread', []))
     for name, code, sanitizer, arguments in runs:
         exe = Path(tmp) / name
-        subprocess.run(flags + ['-fsanitize=' + sanitizer, '-o', str(exe)], input=code, text=True, check=True)
+        instrumentation = ['-fsanitize=' + sanitizer] if sanitizer else []
+        subprocess.run(flags + instrumentation + ['-o', str(exe)], input=code, text=True, check=True)
         subprocess.run([str(exe)] + arguments, check=True, timeout=180)
-print('Guest idle: PASS polling rule, no lost wake-ups (ASan/UBSan and TSan), long waits stop polling, '
-      'handoffs keep it alone and between long waits; kernel spin lock under ThreadSanitizer')
+print('Guest idle: PASS selected checks; sanitizer=' + args.sanitizer +
+      ', kernel spin lock=' + ('included' if args.sanitizer in ('all', 'thread') and not args.idle_only else 'not run'))

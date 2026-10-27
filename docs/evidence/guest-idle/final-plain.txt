@@ -1,0 +1,26 @@
+SOURCE f7b2f6a44b13ae75672d57f1b402f533b274b88059498d9a347b8f875786039a /input/tools/check-guest-idle.py
+SOURCE 1d22acc6e17a4b2f4e0963854f400f366f505748fd9aa6fc0361766f11299ca6 /pinned/ps5-eden-headless.2YUJmY/source/src/core/hle/kernel/physical_core.cpp
+SOURCE 1800985a2d35bceff42c18cab62bad2937b155a2c9178fcd97f03889e3bb46ae /input/headless/CMakeLists.txt
+SOURCE deec34def175f133a7806a421fa30b8ca08f621d238c084f96fad5f5786d6c25 /input/headless/performance.h
+SOURCE 8a49d76b5cbe4e94ac0c75faffec84b8a003faf9df0139e67dd1278e432fc7bd /pinned/ps5-eden-headless.2YUJmY/build/headless/physical_core.cpp
+waits=40 handshake=legacy-kick late-round=20 intended=[4000.00,4000.00] us observed=[0.00,7918.65] us preraised=1 entry-lag-max=5769.68 us CPU=21.84 ms
+late worker, old handshake: unchanged budget==0 criterion FAILS (budget 500000 ns)
+waits=40 handshake=idle-entry late-round=20 intended=[4000.00,4000.00] us observed=[4000.11,4002.35] us preraised=0 entry-lag-max=4116.64 us CPU=19.99 ms
+late worker: PASS old handshake fails, actual-Idle-entry handshake stops polling
+waits=60 handshake=idle-entry late-round=-1 intended=[4000.00,4000.00] us observed=[4000.13,5758.20] us preraised=0 entry-lag-max=9952.18 us CPU=36.16 ms
+waits=60 handshake=idle-entry late-round=-1 intended=[4000.00,4000.00] us observed=[4000.12,4028.37] us preraised=0 entry-lag-max=3423.29 us CPU=3.53 ms
+4 ms waits: fixed 500 us poll 36.16 ms CPU, adaptive 3.53 ms CPU (poll now 0 ns)
+waits=40 handshake=idle-entry late-round=-1 intended=[4000.00,4000.00] us observed=[4000.19,7573.80] us preraised=0 entry-lag-max=82.78 us CPU=19.84 ms
+4 ms waits after polling fully: poll now 0 ns after 40 waits
+waits=400 handshake=idle-entry late-round=-1 intended=[100.00,3000.00] us observed=[100.09,3968.73] us preraised=0 entry-lag-max=8981.66 us CPU=152.04 ms
+100/150 us handoffs between 3 ms waits: 19 of 140 handoffs slept after warm-up (poll now 500000 ns)
+waits=400 handshake=idle-entry late-round=-1 intended=[50.00,50.00] us observed=[50.08,79.96] us preraised=0 entry-lag-max=121.96 us CPU=20.84 ms
+50 us handoffs: 1 of 400 waits slept (poll now 100382 ns)
+waits=400 handshake=idle-entry late-round=-1 intended=[50.00,50.00] us observed=[50.04,118.09] us preraised=0 entry-lag-max=3303.68 us CPU=5.79 ms
+50 us handoffs without polling: 400 of 400 waits slept
+waits=400 handshake=idle-entry late-round=-1 intended=[50.00,50.00] us observed=[50.09,82.30] us preraised=0 entry-lag-max=64.67 us CPU=21.56 ms
+50 us handoffs: 21.56 ms CPU, 20.67 ms of it polling
+waits=60 handshake=idle-entry late-round=-1 intended=[4000.00,4000.00] us observed=[4000.22,7796.31] us preraised=0 entry-lag-max=4063.81 us CPU=34.13 ms
+4 ms waits, 500 us poll: 34.13 ms CPU, 30.22 ms polling
+idle: PASS
+Guest idle: PASS selected checks; sanitizer=none, kernel spin lock=not run
