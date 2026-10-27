@@ -1625,8 +1625,7 @@ eden_patch(content_source [=[        if (extension == "nsp") {
             ProcessXCI(file);
 ]=])
 foreach(ncz_patched IN ITEMS "file_sys/submission_package.cpp|nsp_source" "file_sys/card_image.cpp|xci_source"
-                             "loader/loader.cpp|loader_source" "loader/nsp.cpp|nsp_loader_source"
-                             "file_sys/registered_cache.cpp|content_source")
+                             "loader/loader.cpp|loader_source" "loader/nsp.cpp|nsp_loader_source")
     string(REPLACE "|" ";" ncz_parts "${ncz_patched}")
     list(GET ncz_parts 0 ncz_relative)
     list(GET ncz_parts 1 ncz_variable)
@@ -1637,6 +1636,36 @@ foreach(ncz_patched IN ITEMS "file_sys/submission_package.cpp|nsp_source" "file_
     list(APPEND core_sources "${PORT_BUILD_DIR}/ncz-${ncz_name}.cpp")
 endforeach()
 list(APPEND core_sources "${EDEN_PORT_DIR}/ncz.cpp")
+set_property(TARGET core PROPERTY SOURCES "${core_sources}")
+
+# A game with several updates beside it (in updates/ or in its game folder) runs the newest: the
+# patch manager takes its code and data by version (ListUpdateVersions, newest first). Eden kept
+# the rest of the update by the file it scanned last, which the folder's order decides: the game's
+# version and its control data (its save data sizes, its DLC, its version string) could come from
+# an older update than its code. They come from the newest too (issue 281).
+# Extend the same derivative as the NSZ/XCZ adapter above, rather than replacing its patches.
+eden_patch(content_source [=[            entries[{title_id, content_type, title_type}] = file;
+
+            if (title_type == TitleType::Update) {
+                versions[title_id] = version;
+                UpsertExternalVersionEntry(multi_version_entries, title_id, version, version_string,
+                                           content_type, file);
+            }
+]=] [=[            if (title_type == TitleType::Update) {
+                UpsertExternalVersionEntry(multi_version_entries, title_id, version, version_string,
+                                           content_type, file);
+                // An older update than one already found stays listed, but is not the update.
+                if (const auto known = versions.find(title_id); known != versions.end() && known->second > version)
+                    return;
+                versions[title_id] = version;
+            }
+
+            entries[{title_id, content_type, title_type}] = file;
+]=])
+write_derived("${PORT_BUILD_DIR}/registered_cache.cpp"
+    "#include \"${EDEN_PORT_DIR}/ncz_vfs.h\"\n${content_source}")
+list(REMOVE_ITEM core_sources file_sys/registered_cache.cpp)
+list(APPEND core_sources "${PORT_BUILD_DIR}/registered_cache.cpp")
 set_property(TARGET core PROPERTY SOURCES "${core_sources}")
 
 # Mods (headless/mods.h). Eden's .pchtxt reader takes every line as a record or a flag: the
