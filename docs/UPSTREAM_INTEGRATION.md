@@ -268,9 +268,16 @@ reproductions above. Do not close composite issues for one corrected symptom.
 - Docker release image construction and toolchain checks passed: LLVM 18/21, Meson 1.10.1,
   CMake 3.31.10 and the pinned SPIR-V translator. A mocked `make` failure confirms that the
   runner preserves exit status 37 and saves the log; this is not a package-build pass.
-- Native `make release` has been started in Docker, using its own Linux volume. Its observed
-  preparation built FFmpeg and reproduced the clean-room runtime hashes. Native/package/release
-  success is **not yet established**. The first build snapshot also predates the final path,
-  wallpaper and NRO changes, so a current-source rerun is required before accepting artifacts.
+- First native run: preparation built FFmpeg, reproduced the clean-room runtime hashes and
+  built the isolated RADV dependencies. All **1,704 native Ninja steps completed and linked**
+  `eden-headless`. Generated timing, sparse/multiplayer-header, audio and failed-load checks
+  passed. It then stopped in the old `check-recent-games.py` from that initial snapshot:
+  the test still looked for `AssetsPath`, while the independent-folder integration uses
+  `GamesPath`. The current-source check was already corrected in `c9cf898` and passes on host.
+  Evidence: `.local/upstream-audit/native-first-build.log`.
+- A current-source Docker rerun (through `9ef8012`) is in progress using the native build cache,
+  now including the wallpaper, bounded-font and NRO additions and updated regression checks.
+  Package/release success is **not yet established**; the first linked binary is not accepted
+  as the current integration package.
 - No console was accessed. No issue was closed or branch pushed. Outstanding features and
   console-only failures in the triage remain work, not implied fixes from a passing build.
