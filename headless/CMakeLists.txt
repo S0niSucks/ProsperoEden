@@ -2574,13 +2574,17 @@ endforeach()
 string(REPLACE "${amiibo_read}" "    const Eden::AmiiboFile nfc_file{filename};" amiibo_source "${amiibo_source}")
 string(REPLACE "${amiibo_write}" "    const Eden::AmiiboFile nfc_file{file_path, true};" amiibo_source "${amiibo_source}")
 write_derived("${PORT_BUILD_DIR}/virtual_amiibo.cpp" "#include \"${EDEN_PORT_DIR}/amiibo_file.h\"\n${amiibo_source}")
+add_library(eden-pro-controller STATIC "${EDEN_PORT_DIR}/pro_controller/pro_controller.c"
+    "${EDEN_PORT_DIR}/pro_controller/pro_controller_usb.c")
+target_compile_definitions(eden-pro-controller PRIVATE $<$<BOOL:${PS5_NATIVE}>:PS5_NATIVE=1>)
+target_include_directories(eden-pro-controller PUBLIC "${EDEN_PORT_DIR}")
 add_library(eden-pad STATIC "${EDEN_PORT_DIR}/pad.cpp" "${EDEN_PORT_DIR}/pad_haptics.cpp"
     "${PROJECT_SOURCE_DIR}/src/input_common/input_engine.cpp"
     "${PROJECT_SOURCE_DIR}/src/input_common/input_poller.cpp"
     "${PROJECT_SOURCE_DIR}/src/input_common/drivers/virtual_gamepad.cpp"
     "${PORT_BUILD_DIR}/virtual_amiibo.cpp")
 target_include_directories(eden-pad PUBLIC "${EDEN_PORT_DIR}" "${pad_contract}" "${audio_contract}" "${PROJECT_SOURCE_DIR}/src")
-target_link_libraries(eden-pad PUBLIC common)
+target_link_libraries(eden-pad PUBLIC common eden-pro-controller)
 target_compile_options(eden-pad PRIVATE -fno-rtti $<$<BOOL:${PS5_NATIVE}>:-femulated-tls>)
 add_library(eden-amiibo-catalog STATIC "${EDEN_PORT_DIR}/amiibo_catalog.cpp" "${EDEN_PORT_DIR}/quick_picture.cpp")
 target_include_directories(eden-amiibo-catalog PUBLIC "${EDEN_PORT_DIR}")

@@ -8,6 +8,7 @@
 #include "common/logging.h"
 #include "gameplay_test.h"
 #include "file_amiibo.h"
+#include "pro_controller/pro_controller.h"
 #include "input_common/input_poller.h"
 #include <utility>
 
@@ -86,6 +87,7 @@ Common::Input::DriverResult PadEngine::SetVibration(const PadIdentifier& identif
     // The handheld controller (index 8) is played on player 1's DualSense.
     const std::size_t player = identifier.port == 8 ? 0 : identifier.port;
     if (player >= kPlayers) return Common::Input::DriverResult::InvalidParameters;
+    if (!IsVibrationEnabled(identifier)) return Common::Input::DriverResult::NotSupported;
     std::scoped_lock lock(rumble_mutex);
     auto& sides = rumble[player];
     (identifier.pad == 2 ? sides.right : sides.left) = vibration;
@@ -151,7 +153,8 @@ Pad::~Pad() {
     Common::Input::UnregisterOutputFactory("virtual_amiibo");
 }
 bool Pad::Open() {
-    if (slots[0].handle >= 0) return true;
+    if (slots[0].handle >= 0 || pro_usb_enabled) return true;
+    pro_usb_enabled = pe_pro_usb_start();
     owns_user_service = sceUserServiceInitialize(nullptr) == 0;
     int user = -1;
     // Player 1 is the application user, as for the title-aware launch controller.
@@ -160,7 +163,14 @@ bool Pad::Open() {
         return false;
     }
     OpenSlot(0, user);
-    if (slots[0].handle < 0) { Close(); return false; }
+    if (slots[0].handle < 0 && !pro_usb_enabled) { Close(); return false; }
+    if (slots[0].handle < 0) {
+        // Reserve the foreground user's slot while USB supplies input. Keep
+        // retrying DualSense as the recovery path, without assigning it twice.
+        slots[0].user = user;
+        slots[0].stale = true;
+        slots[0].polls_to_reopen = kPollsPerScan;
+    }
     int initial_user = -1;
     const int initial_result = sceUserServiceGetInitialUser(&initial_user);
     LOG_INFO(Input, "EDEN_PAD_USERS foreground={} initial={} initial_rc={}", user, initial_user, initial_result);
@@ -274,6 +284,9 @@ void Pad::Rescan() {
     }
 }
 void Pad::Close() {
+    pe_pro_usb_stop();
+    pro_usb_enabled = pro_usb_active = false;
+    engine->SetVibrationAvailable(0, true);
     engine->ResetControllers();
     u64 haptic_outputs = 0, haptic_errors = 0, haptic_fallbacks = 0;
     for (std::size_t player = 0; player < kMaxPlayers; ++player) {
@@ -315,7 +328,7 @@ bool Pad::Poll() {
         while (GameplayTest::Take(sample)) Consume(0, {&sample, 1});
         return true;
     }
-    if ((slots[0].handle >= 0 || slots[0].stale) && ++polls_since_scan >= kPollsPerScan) {
+    if ((slots[0].handle >= 0 || slots[0].stale || pro_usb_enabled) && ++polls_since_scan >= kPollsPerScan) {
         polls_since_scan = 0;
         Rescan();
     }
@@ -328,15 +341,44 @@ bool Pad::Poll() {
     last_poll = now;
     ++polls;
     bool primary = false;
+    pe_pro_state pro_state{};
+    const bool pro_active = pe_pro_usb_poll(&pro_state);
+    if (pro_active != pro_usb_active) {
+        // Source transitions release shortcuts, motion and every held guest button.
+        const auto neutral = ps5::pad::neutral_data();
+        Consume(0, {&neutral, 1});
+        engine->SetMotionAtRest(0);
+        if (slots[0].haptics) slots[0].haptics->Submit({});
+        pro_usb_active = pro_active;
+        engine->SetVibrationAvailable(0, !pro_active || pro_state.vibration);
+        connection_changes |= 1u;
+        if (pro_active) connected_players |= 1u;
+        else if (slots[0].handle < 0) connected_players &= ~1u;
+    }
+    if (pro_active) {
+        engine->SetVibrationAvailable(0, pro_state.vibration);
+        if (!pro_state.motion) {
+            engine->SetMotionAtRest(0);
+            slots[0].last_motion_us = 0;
+        }
+        PadEngine::Rumble rumble;
+        if (engine->TakeRumble(0, rumble)) pe_pro_usb_rumble(rumble.large, rumble.small);
+        ps5::pad::Data sample;
+        static_assert(sizeof(sample) == 120);
+        pe_pro_pad_sample(&pro_state, reinterpret_cast<std::uint8_t*>(&sample));
+        Consume(0, {&sample, 1});
+        primary = true;
+    }
     std::array<ps5::pad::Data, ps5::pad::kMaxSamples> samples{};
     for (std::size_t player = 0; player < kMaxPlayers; ++player) {
+        const bool overridden = player == 0 && pro_active;
         const int handle = slots[player].handle;
         if (handle < 0) {
             if (slots[player].stale && --slots[player].polls_to_reopen == 0) ReopenSlot(player);
             continue;
         }
         PadEngine::Rumble rumble;
-        if (engine->TakeRumble(player, rumble)) {
+        if (!overridden && engine->TakeRumble(player, rumble)) {
             const HapticLevels levels{.large = rumble.large,
                                       .small = rumble.small,
                                       .large_amplitude = rumble.large_amplitude,
@@ -362,7 +404,7 @@ bool Pad::Poll() {
             // again later while they go on (ReopenSlot).
             if (--slot.polls_to_reopen == 0) ReopenSlot(player);
             const auto neutral = ps5::pad::neutral_data();
-            Consume(player, {&neutral, 1});
+            if (!overridden) Consume(player, {&neutral, 1});
             continue;
         }
         if (slots[player].errors_in_a_row != 0) {
@@ -378,7 +420,9 @@ bool Pad::Poll() {
             intercepted_samples += (samples[i].buttons & ps5::pad::kButtonIntercepted) != 0;
             circle_samples += ps5::pad::is_usable(samples[i]) && (samples[i].buttons & ps5::pad::kButtonCircle);
         }
-        Consume(player, {samples.data(), static_cast<std::size_t>(count)});
+        // Still drain the fallback controller: old DualSense reports must not
+        // replay as phantom input when USB leaves. Only the selected source feeds Eden.
+        if (!overridden) Consume(player, {samples.data(), static_cast<std::size_t>(count)});
         slots[player].haptics->RetryTick();
         const auto haptic_stats = slots[player].haptics->GetStats();
         auto& last_haptic_stats = slots[player].last_haptic_stats;

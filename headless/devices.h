@@ -43,7 +43,15 @@ public:
     void ResetControllers();
     Common::Input::DriverResult SetVibration(const PadIdentifier& identifier,
                                              const Common::Input::VibrationStatus& vibration) override;
-    bool IsVibrationEnabled(const PadIdentifier&) override { return true; }
+    bool IsVibrationEnabled(const PadIdentifier& identifier) override {
+        const auto player = identifier.port == 8 ? 0 : identifier.port;
+        return player < kPlayers && (vibration_players.load() & (1u << player)) != 0;
+    }
+    void SetVibrationAvailable(std::size_t player, bool available) {
+        if (player >= kPlayers) return;
+        if (available) vibration_players.fetch_or(1u << player);
+        else vibration_players.fetch_and(~(1u << player));
+    }
     // Per-player DualSense levels when changed: motor bytes plus the perceptual amplitudes
     // (same curve) and HD frequencies the audio-haptics path plays.
     struct Rumble {
@@ -63,6 +71,7 @@ private:
         bool changed = false;
     };
     std::mutex rumble_mutex;
+    std::atomic<unsigned> vibration_players{(1u << kPlayers) - 1};
     std::array<Sides, kPlayers> rumble{};
 };
 
@@ -140,6 +149,8 @@ private:
     std::array<Slot, kMaxPlayers> slots{};
     std::array<std::atomic<Grip>, kMaxPlayers> grips{};
     bool owns_user_service = false;
+    bool pro_usb_enabled = false;
+    bool pro_usb_active = false;
     std::atomic<bool> return_to_menu = false;
     std::atomic<bool> hud_toggle = false;
     std::atomic<bool> quick_menu_toggle = false;

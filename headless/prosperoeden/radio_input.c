@@ -1,4 +1,5 @@
 #include "radio_input.h"
+#include "../pro_controller/pro_controller.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -80,6 +81,8 @@ static int32_t player_user[MAX_PLAYERS] = {-1, -1, -1, -1};
 static int32_t player_handle[MAX_PLAYERS] = {-1, -1, -1, -1};
 static unsigned connected_players;
 static uint64_t user_scan_at;
+static bool pro_usb_enabled;
+static bool pro_usb_active;
 
 static uint64_t monotonic_milliseconds(void)
 {
@@ -231,6 +234,8 @@ void radio_input_development_sample(const void * sample)
 
 bool radio_input_init(void)
 {
+    pro_usb_enabled = pe_pro_usb_start();
+    pro_usb_active = false;
     const int user_init = sceUserServiceInitialize(NULL);
     owns_user_service = user_init == 0;
 
@@ -240,7 +245,7 @@ bool radio_input_init(void)
         return false;
     }
     pad_handle = scePadOpen(user_id, 0, 0, NULL);
-    if(pad_handle < 0) {
+    if(pad_handle < 0 && !pro_usb_enabled) {
         radio_input_shutdown();
         return false;
     }
@@ -266,6 +271,12 @@ static void pulse_stop(void)
 
 void radio_input_pulse(unsigned percent)
 {
+    if(pro_usb_active) {
+        if(percent > 100) percent = 100;
+        pe_pro_usb_rumble((uint8_t)(255u * percent / 100u), 0);
+        pulse_ends_at = monotonic_milliseconds() + PULSE_MILLISECONDS;
+        return;
+    }
     if(pad_handle < 0 || percent == 0) return;
     if(percent > 100) percent = 100;
     /* The two-motor mode the games use (headless/pad.cpp): 2 is the compatible mode. */
@@ -277,11 +288,36 @@ void radio_input_pulse(unsigned percent)
 
 void radio_input_poll(void)
 {
-    if(pad_handle < 0) return;
-    if(pulse_ends_at != 0 && monotonic_milliseconds() >= pulse_ends_at) pulse_stop();
-    const int count = scePadRead(pad_handle, samples, PAD_SAMPLE_CAPACITY);
-    for(int i = 0; i < count; ++i) process_sample(samples[i]);
+    if(pad_handle < 0 && !pro_usb_enabled) return;
+    pe_pro_state pro_state;
+    const bool active = pe_pro_usb_poll(&pro_state);
+    if(active != pro_usb_active) {
+        unsigned char neutral[PAD_SAMPLE_SIZE];
+        pe_pro_pad_sample(NULL, neutral);
+        process_sample(neutral);
+        pulse_stop();
+        pro_usb_active = active;
+    }
+    if(pulse_ends_at != 0 && monotonic_milliseconds() >= pulse_ends_at) {
+        pe_pro_usb_rumble(0, 0);
+        pulse_stop();
+    }
+    /* Drain the fallback queue even while USB owns input, never replay it later. */
+    const int count = pad_handle >= 0 ? scePadRead(pad_handle, samples, PAD_SAMPLE_CAPACITY) : 0;
+    if(active) {
+        unsigned char sample[PAD_SAMPLE_SIZE];
+        pe_pro_pad_sample(&pro_state, sample);
+        process_sample(sample);
+    } else if(pad_handle >= 0) {
+        if(count < 0 || count > PAD_SAMPLE_CAPACITY) {
+            unsigned char neutral[PAD_SAMPLE_SIZE];
+            pe_pro_pad_sample(NULL, neutral);
+            process_sample(neutral);
+        } else for(int i = 0; i < count; ++i) process_sample(samples[i]);
+    }
+    connected_players &= ~1U;
     poll_players();
+    if(active) connected_players |= 1U;
     if(analog_key >= 0) {
         const uint64_t now = monotonic_milliseconds();
         if(now >= analog_repeat_at) {
@@ -329,6 +365,8 @@ bool radio_input_pressed(radio_input_key_t key)
 
 void radio_input_shutdown(void)
 {
+    pe_pro_usb_stop();
+    pro_usb_enabled = pro_usb_active = false;
     pulse_stop();
     for(unsigned player = 1; player < MAX_PLAYERS; ++player) close_player(player);
     close_player(0);
