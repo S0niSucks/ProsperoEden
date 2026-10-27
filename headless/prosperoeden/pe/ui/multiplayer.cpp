@@ -32,6 +32,9 @@ bool Launcher::in_multiplayer() const {
 
 void Launcher::press_multiplayer(Key key) {
     if (key == Key::circle) {
+        nextendo_stop_ = true;
+        nextendo_unlink_confirm_ = false;
+        nextendo_import_confirm_ = false;
         room_edit_stop_ = true;
         room_directory_stop_ = true;
         room_directory_refresh_ = false;
@@ -41,6 +44,7 @@ void Launcher::press_multiplayer(Key key) {
         else { room_page_ = RoomPage::choice; room_row_ = 0; message_.clear(); cue(Cue::back); }
         return;
     }
+    if (room_page_ == RoomPage::nextendo) return press_nextendo(key);
     if (room_edit_.valid()) return;
     if (key == Key::square) {
         services_.leave_room();
@@ -50,12 +54,18 @@ void Launcher::press_multiplayer(Key key) {
     if (room_page_ == RoomPage::choice) {
         if (key == Key::left) return focus_rail();
         if (key == Key::up || key == Key::down) {
-            const int next = key == Key::down ? 1 : 0;
+            const int next = std::clamp(room_row_ + (key == Key::down ? 1 : -1), 0, 2);
             if (next != room_row_) { room_row_ = next; cue(Cue::focus); }
         }
         if (key == Key::cross || key == Key::right) {
             press_ = 1.0f;
-            room_page_ = room_row_ == 0 ? RoomPage::public_rooms : RoomPage::private_room;
+            room_page_ = room_row_ == 0 ? RoomPage::public_rooms :
+                room_row_ == 1 ? RoomPage::private_room : RoomPage::nextendo;
+            if (room_page_ == RoomPage::nextendo) {
+                nextendo_status_ = services_.nextendo_status();
+                nextendo_unlink_confirm_ = false;
+                nextendo_import_confirm_ = false;
+            }
             room_row_ = 0;
             room_connection_ = services_.room_connection();
             if (room_page_ == RoomPage::public_rooms) {
@@ -148,6 +158,11 @@ void Launcher::press_multiplayer(Key key) {
 }
 
 void Launcher::update_multiplayer() {
+    if (nextendo_request_.valid() &&
+        nextendo_request_.wait_for(std::chrono::seconds{0}) == std::future_status::ready) {
+        try { nextendo_status_ = nextendo_request_.get(); }
+        catch (const std::exception&) { nextendo_status_.error = "Nextendo action failed. Retry or unlink the session."; }
+    }
     if (room_directory_request_.valid() &&
         room_directory_request_.wait_for(std::chrono::seconds{0}) == std::future_status::ready) {
         Eden::Multiplayer::RoomDirectory result;
@@ -326,8 +341,9 @@ void Launcher::draw_room_panel(Canvas& c, const Rect& pane) {
     if (connected) {
         // The room's members, a few at a time.
         const int total = static_cast<int>(room_status_.members.size());
-        const int first = room_page_ == RoomPage::choice ? 0 : std::clamp(room_row_, 0, std::max(0, total - kVisibleRoomMembers));
-        for (int row = 0; row < kVisibleRoomMembers && first + row < total; ++row) {
+        const int visible = std::clamp(static_cast<int>((pane.h - 260.0f) / 66.0f), 1, kVisibleRoomMembers);
+        const int first = room_page_ == RoomPage::choice ? 0 : std::clamp(room_row_, 0, std::max(0, total - visible));
+        for (int row = 0; row < visible && first + row < total; ++row) {
             const std::string& member = room_status_.members[first + row];
             const float top = pane.y + 188.0f + 66.0f * row;
             c.list.circle(x + 24, top + 28, 24, gfx::mix(t.accent_deep, t.row, 0.5f));
@@ -335,8 +351,8 @@ void Launcher::draw_room_panel(Canvas& c, const Rect& pane) {
             text_fit(c, member, x + 68, baseline(top, 56, t.size_text), t.size_text, t.body, width - 68);
             c.list.rounded_rect({x, top + 61, width, 1}, 0, t.rule.with_alpha(0.4f));
         }
-        if (total > kVisibleRoomMembers)
-            text_fit(c, std::to_string(first + 1) + " - " + std::to_string(std::min(first + kVisibleRoomMembers, total)) +
+        if (total > visible)
+            text_fit(c, std::to_string(first + 1) + " - " + std::to_string(std::min(first + visible, total)) +
                 " / " + std::to_string(total), x + width, baseline(pane.y + pane.h - 64, 30, t.size_small),
                 t.size_small, t.copy, width, Align::right);
         return;
@@ -348,6 +364,7 @@ void Launcher::draw_room_panel(Canvas& c, const Rect& pane) {
 }
 
 void Launcher::draw_multiplayer(Canvas& c) {
+    if (room_page_ == RoomPage::nextendo) return draw_nextendo(c);
     const Theme& t = th();
     const char* states[]{TR("Offline"), TR("Connecting..."), TR("Connected"), TR("Leaving..."), TR("Connection failed")};
     draw_frame(c, tr(room_page_ == RoomPage::choice ? TR("Multiplayer") :
@@ -361,11 +378,11 @@ void Launcher::draw_multiplayer(Canvas& c) {
         if (room_page_ == RoomPage::choice)
         {
             kicker(c, tr("MULTIPLAYER"), kPanelLeft, baseline(80.0f, 30.0f, t.size_small), t.accent_pale, kPanelWidth);
-            const Rect shifted_room{kPanelLeft, 400.0f, kPanelWidth, 580.0f};
+            const Rect shifted_room{kPanelLeft, 540.0f, kPanelWidth, 440.0f};
             draw_room_panel(c, shifted_room);
-            const char *labels[]{TR("Public rooms"), TR("Private room")};
-            const Icon icons[]{Icon::multiplayer, Icon::lock};
-            for (int i = 0; i < 2; ++i)
+            const char *labels[]{TR("Public rooms"), TR("Private room"), TR("Nextendo (experimental)")};
+            const Icon icons[]{Icon::multiplayer, Icon::lock, Icon::profile};
+            for (int i = 0; i < 3; ++i)
             {
                 const Rect row{kPanelLeft, 120.0f + static_cast<float>(i) * 140.0f, kPanelWidth, 120.0f};
                 const float f = !rail_focus_ && room_row_ == i ? 1.0f : 0.0f;
@@ -437,11 +454,12 @@ void Launcher::draw_multiplayer(Canvas& c) {
     const float x = kPane.x;
     const bool own = !rail_focus_;
     if (room_page_ == RoomPage::choice) {
-        const char* labels[]{TR("Public rooms"), TR("Private room")};
+        const char* labels[]{TR("Public rooms"), TR("Private room"), TR("Nextendo (experimental)")};
         const char* descriptions[]{TR("Browse the public directory and choose a room."),
-                                   TR("Connect using a room address, port and password.")};
-        const Icon icons[]{Icon::multiplayer, Icon::lock};
-        for (int i = 0; i < 2; ++i) {
+                                   TR("Connect using a room address, port and password."),
+                                   TR("Link a community account. Separate from local rooms; off by default.")};
+        const Icon icons[]{Icon::multiplayer, Icon::lock, Icon::profile};
+        for (int i = 0; i < 3; ++i) {
             const Rect row{x, kPane.y + i * 196.0f, kPane.w, 172};
             const float f = own && room_row_ == i ? 1.0f : 0.0f;
             const float scale = 1.0f + (0.015f * f - 0.02f * press_ * f) * motion();
@@ -514,4 +532,5 @@ void Launcher::draw_multiplayer(Canvas& c) {
                                    {Pad::circle, TR("Back")}};
     draw_menu_hints(c, kHints, 3, layout::kLeft, layout::kFooter, t.copy, layout::kWidth);
 }
+#include "nextendo.inc"
 } // namespace pe::ui

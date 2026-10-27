@@ -9,6 +9,7 @@
 #include <curl/curl.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef REMOTE_HTTP_HOST
@@ -137,8 +138,23 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
     (void)curl_easy_setopt(t.easy, CURLOPT_LOW_SPEED_TIME, (long)remote_http_stall_seconds);
     if (request->authorization != NULL && request->authorization[0] != '\0')
     {
-        (void)snprintf(line, sizeof(line), "Authorization: %s", request->authorization);
-        headers = curl_slist_append(headers, line);
+        const size_t prefix = sizeof("Authorization: ") - 1;
+        const size_t length = strlen(request->authorization);
+        char *authorization = length <= SIZE_MAX - prefix - 1 ? malloc(prefix + length + 1) : NULL;
+        if (authorization != NULL)
+        {
+            memcpy(authorization, "Authorization: ", prefix);
+            memcpy(authorization + prefix, request->authorization, length + 1);
+            headers = curl_slist_append(headers, authorization); /* curl copies the complete header */
+            free(authorization);
+        }
+        if (headers == NULL)
+        {
+            curl_easy_cleanup(t.easy);
+            result->curl_code = (int)CURLE_OUT_OF_MEMORY;
+            (void)snprintf(result->error, sizeof(result->error), "The authorization header could not be prepared");
+            return -1;
+        }
     }
     headers = curl_slist_append(headers, "Accept: application/json, */*");
     if (request->api_version != NULL)

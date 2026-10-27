@@ -14,6 +14,7 @@
 #include <optional>
 #include "../../../multiplayer.h"
 #include "../../../multiplayer_directory.h"
+#include "../../../nextendo_status.h"
 #include "../../../game_files.h"
 #include "../../../cheat_manager_status.h"
 #include "../../../usb_backup.h"
@@ -829,6 +830,9 @@ class Services
     }
 
     virtual Eden::Multiplayer::Snapshot room_status() { return {}; }
+    virtual Eden::Nextendo::Status nextendo_status() { return {}; }
+    virtual Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&)
+    { return {false, false, false, 0, "Nextendo is unavailable in this frontend."}; }
     virtual Eden::Multiplayer::RoomDirectory public_rooms(const std::atomic<bool>&)
     { return {{}, "Public rooms are unavailable."}; }
     virtual Eden::Multiplayer::Connection room_connection() { return {}; }

@@ -16,11 +16,13 @@
 #include <sstream>
 #include <thread>
 #include <map>
+#include <mutex>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
 class RuntimePreviewServices : public pe::host::FakeServices {
 public:
+    #include "nextendo_preview.inc"
     using FakeServices::FakeServices;
     nlohmann::json launches=nlohmann::json::array();
     void will_play(const std::string& file) override {
@@ -108,6 +110,8 @@ int main(int argc,char**argv) {
             else if(command=="mods-empty"){services.has_mods=false;}
             else if(command=="cheat-state"){const auto s=services.cheat_database();std::cout<<"CHEAT "<<nlohmann::json({{"phase",s.phase},{"busy",s.busy},{"offline",s.offline},{"checks",services.cheat_checks},{"installs",services.cheat_installs},{"enabled",services.downloaded_chosen},{"names",s.names},{"other_builds",s.other_builds}}).dump()<<std::endl;}
             else if(command=="room"){services.room.phase=arg=="connected"?Eden::Multiplayer::Phase::Connected:arg=="connecting"?Eden::Multiplayer::Phase::Connecting:Eden::Multiplayer::Phase::Idle;tick(30);}
+            else if(command=="nextendo-mode"){std::lock_guard lock(services.nextendo_lock);services.nextendo_mode=arg;}
+            else if(command=="nextendo-state"){std::lock_guard lock(services.nextendo_lock);const auto& s=services.nextendo;std::cout<<"NEXTENDO "<<nlohmann::json({{"linked",s.linked},{"enabled",s.enabled},{"checked",s.checked},{"calls",services.nextendo_calls},{"unlinks",services.nextendo_unlinks},{"error",s.error}}).dump()<<std::endl;}
             else if(command=="recreate"){
                 launcher.release_pack_textures();textures.release();batch.delete_texture(texture);batch.release();
                 if(!batch.init())return 10;texture=batch.create_font_texture(font);launcher.set_font_texture(texture);textures.load_art(assets);launcher.reload_pack_textures();tick(90);

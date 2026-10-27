@@ -367,7 +367,14 @@ class Launcher
     void refresh_public_rooms();
     void draw_public_rooms(Canvas& c, const Rect& pane);
     void draw_room_panel(Canvas& c, const Rect& pane);
-    enum class RoomPage { choice, private_room, public_rooms };
+    void press_nextendo(Key key);
+    void draw_nextendo(Canvas& c);
+    Eden::Nextendo::Status nextendo_status_;
+    std::atomic<bool> nextendo_stop_{false};
+    std::future<Eden::Nextendo::Status> nextendo_request_;
+    bool nextendo_unlink_confirm_ = false;
+    bool nextendo_import_confirm_ = false;
+    enum class RoomPage { choice, private_room, public_rooms, nextendo };
     RoomPage room_page_ = RoomPage::choice;
     Eden::Multiplayer::RoomDirectory room_directory_;
     std::atomic<bool> room_directory_stop_{false};

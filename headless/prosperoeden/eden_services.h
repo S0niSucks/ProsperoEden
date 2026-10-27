@@ -25,6 +25,8 @@ public:
     explicit EdenServices(std::string launch_error, Eden::Multiplayer::RoomClient& rooms);
     // Downloads from the download sources stop while a game runs (the menu is gone then).
     ~EdenServices() override;
+    Eden::Nextendo::Status nextendo_status() override;
+    Eden::Nextendo::Status nextendo_action(const std::string& profile, Eden::Nextendo::Action action, const std::atomic<bool>& stop) override;
 
     pe::ui::Home home() override;
     std::string clock() override;
@@ -209,4 +211,5 @@ private:
     pe::ui::PairingStatus pair_;
     std::chrono::steady_clock::time_point pair_until_;
     std::atomic<bool> pair_stop_{false};
+    std::atomic<bool> nextendo_busy_{false};
 };

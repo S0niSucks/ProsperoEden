@@ -74,6 +74,10 @@ target_include_directories(video_core BEFORE PRIVATE "${PORT_BUILD_DIR}/pipeline
 set(MULTIPLAYER_SOURCE "${PROJECT_SOURCE_DIR}")
 set(MULTIPLAYER_OUTPUT "${PORT_BUILD_DIR}/multiplayer")
 include("${EDEN_PORT_DIR}/multiplayer_packets.cmake")
+set(NEXTENDO_SOURCE "${PROJECT_SOURCE_DIR}")
+set(NEXTENDO_OUTPUT "${PORT_BUILD_DIR}/nextendo")
+include("${EDEN_PORT_DIR}/nextendo.cmake")
+include("${EDEN_PORT_DIR}/nextendo_native.cmake")
 # Keep successful JIT invariant checks inline; preserve upstream failure handling.
 # Use a private include root so other core/renderer targets retain their headers.
 file(READ "${PROJECT_SOURCE_DIR}/src/common/assert.h" jit_assert_header)
@@ -3302,6 +3306,7 @@ void Initialize() {
     string(REPLACE "    ASSERT(write(interrupt_pipe_fd[1], &value, sizeof(value)) == 1);" "${native_interrupt}" network_source "${network_source}")
     string(REPLACE "ssize_t ret = read(interrupt_pipe_fd[0], &value, sizeof(value));" "ssize_t ret = recv(interrupt_pipe_fd[0], &value, sizeof(value), MSG_DONTWAIT);" network_source "${network_source}")
     string(PREPEND network_source "#include <cstdio>\n#include <stdexcept>\n")
+    nextendo_native_network(network_source)
     write_derived("${PORT_BUILD_DIR}/network.cpp" "${network_source}")
     list(APPEND core_sources "${PORT_BUILD_DIR}/network.cpp")
     # Reuse the getifaddrs path instead of newer BSD route-format helpers.
@@ -3646,6 +3651,7 @@ endif()
         target_include_directories(eden-headless PRIVATE "${launcher_dir}" "${PORT_ROOT}/third_party")
         if(EDEN_PS5_OPENGL)
             set(launcher_sources
+                "${EDEN_PORT_DIR}/nextendo_http.cpp"
                 "${EDEN_PORT_DIR}/multiplayer_directory.cpp"
                 "${launcher_dir}/frontend.cpp"
                 "${launcher_dir}/eden_services.cpp"

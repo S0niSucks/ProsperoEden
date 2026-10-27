@@ -11,6 +11,8 @@
 #include "metadata_bridge.h"
 #include "mods.h"
 #include "profiles.h"
+#include "nextendo.h"
+#include "nextendo_http.h"
 #include "update_notice.h"
 #include "game_name.h"
 #include "game_files.h"
@@ -602,7 +604,7 @@ bool EdenServices::connect_public_room(const Eden::Multiplayer::Connection& conn
 void EdenServices::leave_room() { rooms_.Leave(); }
 bool EdenServices::can_launch_game() {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
     const auto phase = rooms_.GetSnapshot().phase;
     return phase == Eden::Multiplayer::Phase::Idle || phase == Eden::Multiplayer::Phase::Connected;
 }
@@ -623,6 +625,8 @@ std::optional<std::string> EdenServices::room_text(int field, const std::string&
     if (answer.outcome != Eden::TextOutcome::accepted) return std::nullopt;
     return Common::UTF16ToUTF8(answer.text);
 }
+
+#include "nextendo_services.inc"
 
 std::optional<std::int64_t> EdenServices::ask_seed(std::int64_t current, const std::atomic<bool>& stop) {
     Eden::TextRequest request;
@@ -986,6 +990,7 @@ std::string EdenServices::profile_key(int index) {
 bool EdenServices::choose_profile(int index) {
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
+    if (nextendo_busy_.load()) return false;
     if (rooms_.GetSnapshot().phase != Eden::Multiplayer::Phase::Idle) return false;
     const auto who = Eden::Profiles::Resolve(user_);
     if (index < 0 || index >= static_cast<int>(who.profiles.size())) return false;
@@ -1049,6 +1054,10 @@ bool EdenServices::remove_profile(int index) {
     if (list.size() < 2 || index < 0 || index >= static_cast<int>(list.size()) || index == who.current) return false;
     const std::string name = list[static_cast<std::size_t>(index)].name;
     const auto gone = list[static_cast<std::size_t>(index)];
+    // Credentials must not survive removal of their profile. Save data still stays as before.
+    const std::atomic<bool> no_stop{false};
+    if (!Eden::Nextendo::Store(Eden::ConfigDir() + "/nextendo").Apply(
+            gone.Key(), Eden::Nextendo::Action::unlink, no_stop).error.empty()) return false;
     list.erase(list.begin() + index);
     if (!Eden::Profiles::Write(list)) return false;
     (void)Eden::Profiles::Forget(gone);

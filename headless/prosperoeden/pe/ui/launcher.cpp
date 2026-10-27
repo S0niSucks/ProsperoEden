@@ -60,6 +60,8 @@ Launcher::Launcher(Services &services, Textures &textures, const Fonts &fonts, b
 
 Launcher::~Launcher()
 {
+    nextendo_stop_ = true;
+    if (nextendo_request_.valid()) nextendo_request_.wait();
     room_directory_stop_ = true;
     if (room_directory_request_.valid()) room_directory_request_.wait();
     room_edit_stop_ = true;

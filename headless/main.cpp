@@ -140,6 +140,7 @@ extern "C" unsigned long long eden_dmb_dropped, eden_checkbit_fused;
 #include "mihawkgen_bridge.h"
 #endif
 #include "profiles.h"
+#include "nextendo.h"
 #include "stop_limit.h"
 namespace Common {
 bool SparseTablesAvailable() noexcept; // src/memory_pages.cpp
@@ -662,6 +663,11 @@ int main(int argc, char** argv) {
         launch_error.clear();
         if (!rooms.BeginGame()) throw std::runtime_error("Join a room successfully or leave it before starting a game.");
         SCOPE_EXIT { rooms.EndGame(); };
+        const auto nextendo_profile = Eden::Profiles::SettingsValue(Eden::Settings::LoadWhole(Eden::SettingsFile()), "/profiles/current");
+        if (!Eden::Nextendo::BeginGame(Eden::Nextendo::Store(Eden::ConfigDir() + "/nextendo"),
+                nextendo_profile, rooms.GetSnapshot().phase == Eden::Multiplayer::Phase::Connected, launch_error))
+            throw std::runtime_error(launch_error);
+        SCOPE_EXIT { Eden::Nextendo::EndGame(); };
 #ifdef EDEN_DEV_VULKAN
         Eden::Performance::vulkan_cost_enabled = std::filesystem::exists(Eden::AppFile("cost-run.txt"));
         if (Eden::Performance::vulkan_cost_enabled) Eden::Performance::timers_on = true;  // a cost run
