@@ -19,6 +19,26 @@ Appearance > Wallpaper**: the list is read each time the dialog opens. An
 image already in use is loaded again when the settings are saved, so a replaced file takes
 effect without restarting.
 
+### USB / portable folders
+
+To manage wallpapers on a computer without FTP, put a `wallpapers/` folder in the
+**Settings > Game files** folder (beside `keys/`, `firmware/` and `roms/`). If it exists
+when the app starts, it is used instead of `/data/prosperoeden/wallpapers`. The dialog
+shows the folder actually in use. Files are read in place, not copied to the console.
+
+For another location, set `"wallpapers_folder"` in
+`/data/prosperoeden/config/prosperoeden.json` and reopen the app:
+
+```json
+{ "game_files": "/data/prosperoeden", "wallpapers_folder": "/mnt/usb0/assets/wallpapers" }
+```
+
+This setting is shared by all profiles; each profile still chooses its own image.
+An explicit folder takes priority, even if its drive is unavailable (the theme's art
+then shows). Remove the setting to return to automatic selection. Relative paths and
+paths containing `..` are ignored. Without a portable folder or an explicit setting,
+the existing console folder remains in use.
+
 ## Formats
 
 PNG and JPEG are what a photo or a screenshot usually is; BMP, GIF (its first picture), TGA

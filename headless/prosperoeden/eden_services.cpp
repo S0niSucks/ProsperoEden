@@ -12,6 +12,7 @@
 #include "update_notice.h"
 #include "game_name.h"
 #include "game_files.h"
+#include "wallpaper_paths.h"
 #include "library_file.h"
 #include "native_directory.h"
 #include "reshade_folder.h"
@@ -1277,10 +1278,10 @@ bool EdenServices::folders(const std::string& directory, std::vector<std::string
 
 std::vector<std::string> EdenServices::wallpapers() {
     bool ok = false;
-    return ListEntries(Eden::WallpapersDir(), false, ok);
+    return ListEntries(Eden::LauncherWallpapersDir(), false, ok);
 }
 
-std::string EdenServices::wallpapers_folder() { return Eden::WallpapersDir(); }
+std::string EdenServices::wallpapers_folder() { return Eden::LauncherWallpapersDir(); }
 
 pe::ui::FolderInfo EdenServices::folder_info(const std::string& directory) {
     pe::ui::FolderInfo info;

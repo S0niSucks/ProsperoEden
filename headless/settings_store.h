@@ -21,6 +21,7 @@
 //                      "speed_limit": "100" },
 //     "game_files": "/mnt/ext1/eden",
 //     "games_folder": "/mnt/usb0/games",   (roms/ and updates/ apart from game_files; file only)
+//     "wallpapers_folder": "/mnt/usb0/eden/wallpapers",   (optional; file only)
 //     "library": { "last_game": "Game [id].nsp", "recent": ["Game [id].nsp"] },
 //     "games": { "0100000000010000": { "console_mode": "handheld", "renderer": "opengl",
 //                                      "resolution": "0.75x", "upscaling_filter": "fsr",
@@ -312,7 +313,7 @@ inline Json LoadWhole(const std::string& file) {
 // them where they always were, at the top of the file; every other profile has the same layout
 // under "profile_settings"/<its ID>. What belongs to the console and not to a person stays at the
 // top for everyone: the game files folder and the profiles themselves.
-inline constexpr const char* kSharedKeys[] = {"version", "game_files", "games_folder", "profiles", "profile_settings"};
+inline constexpr const char* kSharedKeys[] = {"version", "game_files", "games_folder", "wallpapers_folder", "profiles", "profile_settings"};
 
 // Where the chosen profile's settings are in the whole file; empty for the top of the file.
 inline std::string ProfileAt(const Json& whole) {
@@ -357,6 +358,7 @@ inline bool Write(const Json& document, const std::string& file) {
     // The game files folder is the console's: a profile that changes it changes it for everyone.
     if (document.contains("game_files")) whole["game_files"] = document["game_files"];
     if (document.contains("games_folder")) whole["games_folder"] = document["games_folder"];
+    if (document.contains("wallpapers_folder")) whole["wallpapers_folder"] = document["wallpapers_folder"];
     return WriteWhole(whole, file);
 }
 
@@ -1058,6 +1060,12 @@ inline std::string LoadSavedAssetsDir(const std::string& file = SettingsFile()) 
 // settings file only ("games_folder"); empty when none is saved.
 inline std::string LoadSavedGamesDir(const std::string& file = SettingsFile()) {
     const std::string value = Settings::String(Settings::Load(file), Settings::Json::json_pointer("/games_folder"));
+    return ValidAssetsDir(value) ? value : std::string{};
+}
+
+// Console-wide wallpaper location; an unavailable drive is not silently replaced by another folder.
+inline std::string LoadSavedWallpapersDir(const std::string& file = SettingsFile()) {
+    const std::string value = Settings::String(Settings::Load(file), Settings::Json::json_pointer("/wallpapers_folder"));
     return ValidAssetsDir(value) ? value : std::string{};
 }
 
