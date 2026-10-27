@@ -140,7 +140,7 @@ Run only in the existing Docker image, using this workstream's private volume:
 
 ```powershell
 docker run --rm --name prosperoeden-team-amiibo-sync-suite --cpus=2 --memory=3g --pids-limit=256 `
-  --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch `
+  --network=none --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch `
   --mount type=bind,source=D:/leonardommello/PS5/ProsperoEden/.local/agent-worktrees/amiibo-sync,target=/checkout,readonly `
   --mount type=volume,source=prosperoeden-team-amiibo-sync-20261027,target=/tmp --workdir /checkout `
   prosperoeden-host:features x86_64 -R bash /checkout/tools/docker/run-amiibo-sync-tests.sh
@@ -149,7 +149,8 @@ docker run --rm --name prosperoeden-team-amiibo-sync-suite --cpus=2 --memory=3g 
 The TSan startup workaround follows `docs/BUILDING.md`: use the relaxed syscall filter only
 with this trusted checkout, no extra capabilities, and its private volume. Docker's ordinary
 seccomp/ASLR combination can intermittently prevent TSan initialization; that is not a passing
-test. The standalone backend check needs only loopback networking and can use `--network=none`.
+test. The complete focused suite needs only private loopback networking; it passes with
+`--network=none` and the existing image/private-volume dependencies.
 
 - `tools/check-amiibo-sync.py`: standalone actual C++ worker/transport/format code, synthetic
   PNG/catalog fixtures, confirmation gate, offline/cancel/failure/no-clobber, staging cleanup,
@@ -199,6 +200,21 @@ Observed on 27 October 2026 with `prosperoeden-host:features` image
   ignored `.local/amiibo-sync-evidence/`. They are host evidence, not bundled application art.
 - The existing `tools/check-cheat-download.py` normal/ASan/UBSan and real-TLS manager checks
   also passed against the changed shared HTTP transport (default redirect behavior retained).
+
+### Review follow-up verification
+
+Implementation commit `18fcf117d51fbbc91bb12bfef4505c78d6bc7b81` was verified with the complete
+focused runner above on 27 October 2026, in the same image and private volume, with no external
+network access. All worker/catalog-reader checks, the new production-method admission/race
+checks and the existing cheat-manager regressions passed normally, under TSan and under
+ASan/UBSan. Private loopback TLS passed again. Builtin/Lua controller + Mesa checks passed
+**26 assertions** at 720p/1080p, including the expanded union's Lua paging boundary.
+
+The final suite log is retained in the assigned worktree's ignored
+`.local/amiibo-sync-evidence/review-offline-admission-20261027.log`; the updated UI JSON report
+and screenshots remain in the private volume at `/tmp/amiibo-ui-results`. Admission tests
+compile production method definitions but simulate surrounding console/core services; UI
+tests simulate their service. Neither is evidence of an integrated PS5 run.
 
 No full emulator/native build is run by this workstream. PS5 CA/HTTP behavior, POSIX imports,
 FAT/exFAT support for descriptor operations/hard links/advisory locks/directory fsync, disk-full
