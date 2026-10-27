@@ -37,6 +37,7 @@
 #include "devices.h"
 #include "diagnostics.h"
 #include "hud.h"
+#include "quick_menu.h"
 #include "loading_art.h"
 #include "display_refresh.h"
 #include "guest_clock.h"
@@ -1175,7 +1176,8 @@ int main(int argc, char** argv) {
                 const std::string roms = Eden::GamesPath("roms/");
                 const std::string_view path{guest};
                 if (path.starts_with(roms))
-                    if (const auto slash = path.find('/', roms.size()); slash != std::string_view::npos) {
+                    if (const auto slash = Eden::IsHomebrewFile(path) ? path.find_last_of('/') : path.find('/', roms.size());
+                        slash != std::string_view::npos && slash >= roms.size()) {
                         Eden::Mods::SessionGameFolder() = std::string{path.substr(0, slash)};
                         // Its mods and cheats are this title's alone (Mods::GameFolderFor).
                         Eden::Mods::SessionTitle() = game_title;
@@ -1635,6 +1637,8 @@ int main(int argc, char** argv) {
                     while (!stop.stop_requested()) {
                         pad->Poll();
                         (void)pad->TakeHudToggle();
+                        (void)pad->TakeQuickMenuToggle();
+                        (void)pad->TakeQuickMenuButtons();
 #if defined(EDEN_DEV_PROFILE) || defined(EDEN_DEV_ROM_ID)
                         // The runner's stand-in for the press: its input commands are read only
                         // once the game runs.
@@ -1877,6 +1881,8 @@ int main(int argc, char** argv) {
                 [[maybe_unused]] double session_seconds = 0;  // guest-fault relaunch (PS5 only)
                 std::jthread input_worker;
                 if (pad) input_worker = std::jthread([&](std::stop_token stop) {
+                    Eden::QuickMenu quick_menu(pad->Amiibo(), Eden::AssetsPath("amiibo"));
+                    pad->SetQuickMenuOpen(false);
 #ifdef EDEN_DEV_PROFILE
                     // The timed input replay drives the profile's own title (EDEN_DEV_PROFILE_TITLE);
                     // other development titles take runner commands (compat-input.txt).
@@ -1980,6 +1986,9 @@ int main(int argc, char** argv) {
 #else
                         (void)pad->TakeHudToggle();
 #endif
+                        if (pad->TakeQuickMenuToggle()) quick_menu.Toggle();
+                        quick_menu.Press(pad->TakeQuickMenuButtons());
+                        pad->SetQuickMenuOpen(quick_menu.Open());
                         bool room_lost = false;
 #ifdef PS5_NATIVE
                         room_lost = rooms.GameConnectionLost();
@@ -2123,6 +2132,7 @@ int main(int argc, char** argv) {
                 }
                 input_worker.request_stop();
                 if (input_worker.joinable()) input_worker.join();
+                if (pad) pad->SetQuickMenuOpen(false);
                 if (pad) {
                     const auto neutral = ps5::pad::neutral_data();
                     pad->Consume({&neutral, 1});

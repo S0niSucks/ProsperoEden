@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Στόχος παραγωγής καρέ"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM και ενημερώσεις"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Επιλέξτε roms/ και updates/ χωρίς μετακίνηση κλειδιών, υλικολογισμικού ή αποθηκεύσεων."
+
 msgid "Frame generation"
 msgstr "Δημιουργία καρέ"
 

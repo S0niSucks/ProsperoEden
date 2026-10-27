@@ -17,6 +17,7 @@
 #include "ps5_pad.hpp"
 
 namespace Eden {
+class FileAmiibo;
 // The PS5 controllers as the "virtual_gamepad" input engine that Eden binds every guest
 // controller to (buttons, sticks, motion), plus DualSense rumble: Eden's controllers send each
 // player's vibration here (hid_core output params, headless/CMakeLists.txt), one device per side.
@@ -78,6 +79,10 @@ public:
     bool Poll();
     bool TakeReturnToMenu() { return return_to_menu.exchange(false); }
     bool TakeHudToggle() { return hud_toggle.exchange(false); }
+    bool TakeQuickMenuToggle() { return quick_menu_toggle.exchange(false); }
+    unsigned TakeQuickMenuButtons() { return quick_menu_buttons.exchange(0); }
+    void SetQuickMenuOpen(bool open) { quick_menu_open = open; }
+    FileAmiibo& Amiibo() { return *amiibo; }
     // Players with a controller (bit per player), and those whose controller came or went.
     unsigned ConnectedPlayers() const { return connected_players.load(); }
     unsigned TakeConnectionChanges() { return connection_changes.exchange(0); }
@@ -110,6 +115,7 @@ private:
         u64 last_motion_us = 0;
         // The touchpad as a game button (the guest's Minus unless mapped otherwise), see Consume.
         bool touch_chord = false;  // this press was part of a shortcut
+        bool quick_release = false; // close/open never leaks held menu buttons to the guest
         bool select_held = false;  // a long press: its button stays down until the release
         unsigned touch_polls = 0;  // polls the touchpad has been down
         unsigned select_pulse = 0; // polls left of a tap's press
@@ -127,6 +133,7 @@ private:
     void ReopenSlot(std::size_t player);
     void CloseSlot(std::size_t player);
     std::shared_ptr<PadEngine> engine;
+    std::shared_ptr<FileAmiibo> amiibo;
     float deadzone;
     float trigger_threshold;
     ButtonMapping mapping = kDefaultMapping;
@@ -135,6 +142,9 @@ private:
     bool owns_user_service = false;
     std::atomic<bool> return_to_menu = false;
     std::atomic<bool> hud_toggle = false;
+    std::atomic<bool> quick_menu_toggle = false;
+    std::atomic<unsigned> quick_menu_buttons = 0;
+    bool quick_menu_open = false;
     std::atomic<unsigned> connected_players = 0;
     std::atomic<unsigned> connection_changes = 0;
     unsigned polls_since_scan = 0;

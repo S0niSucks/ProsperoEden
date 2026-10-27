@@ -7,6 +7,7 @@
 #include "common/input.h"
 #include "common/logging.h"
 #include "gameplay_test.h"
+#include "file_amiibo.h"
 #include "input_common/input_poller.h"
 #include <utility>
 
@@ -130,7 +131,7 @@ bool PadEngine::TakeRumble(std::size_t player, Rumble& out) {
 }
 
 Pad::Pad(float deadzone_, float threshold)
-    : engine{std::make_shared<PadEngine>("virtual_gamepad")},
+    : engine{std::make_shared<PadEngine>("virtual_gamepad")}, amiibo{std::make_shared<FileAmiibo>()},
       deadzone{deadzone_}, trigger_threshold{threshold} {
     if (!std::isfinite(deadzone) || deadzone < 0 || deadzone >= 1 ||
         !std::isfinite(threshold) || threshold <= 0 || threshold > 1)
@@ -139,11 +140,15 @@ Pad::Pad(float deadzone_, float threshold)
         std::make_shared<InputCommon::InputFactory>(engine));
     Common::Input::RegisterOutputFactory("virtual_gamepad",
         std::make_shared<InputCommon::OutputFactory>(engine));
+    Common::Input::RegisterInputFactory("virtual_amiibo", std::make_shared<InputCommon::InputFactory>(amiibo));
+    Common::Input::RegisterOutputFactory("virtual_amiibo", std::make_shared<InputCommon::OutputFactory>(amiibo));
 }
 Pad::~Pad() {
     Close();
     Common::Input::UnregisterInputFactory("virtual_gamepad");
     Common::Input::UnregisterOutputFactory("virtual_gamepad");
+    Common::Input::UnregisterInputFactory("virtual_amiibo");
+    Common::Input::UnregisterOutputFactory("virtual_amiibo");
 }
 bool Pad::Open() {
     if (slots[0].handle >= 0) return true;
@@ -463,15 +468,18 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
         // Only the Select (left) side owns shortcuts; the right side remains game input.
         constexpr ButtonMask menu_chord = kButtonTouchPad | kButtonL1;
         constexpr ButtonMask hud_chord = kButtonTouchPad | kButtonR1;
+        constexpr ButtonMask quick_chord = kButtonTouchPad | kButtonSquare;
         const bool menu = !slot.touch_right && (pressed & menu_chord) == menu_chord;
         const bool hud = !slot.touch_right && (pressed & hud_chord) == hud_chord;
+        const bool quick = player == 0 && !slot.touch_right && (pressed & quick_chord) == quick_chord;
+        if (quick && (last_buttons & quick_chord) != quick_chord) quick_menu_toggle = true;
         if (menu && (last_buttons & menu_chord) != menu_chord)
             return_to_menu = true;
         if (hud && (last_buttons & hud_chord) != hud_chord)
             hud_toggle = true;
-        if (menu || hud)
+        if (menu || hud || quick)
             sample.buttons &= ~(kButtonTouchPad | kButtonL1 | kButtonR1);
-        if (menu || hud) {
+        if (menu || hud || quick) {
             slot.touch_chord = true;
             slot.select_held = false;
         }
@@ -483,6 +491,18 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
             // A controller that went away neither tapped nor holds anything.
             slot.select_pulse = 0;
             slot.select_held = false;
+        }
+        // Only player 1 controls the strip. Neutralize every player's buttons, sticks and motion
+        // while it is open, including the sample which opened it and the held close button.
+        const bool capture = quick_menu_open || quick || slot.quick_release;
+        if (capture) {
+            if (player == 0 && quick_menu_open && !quick)
+                quick_menu_buttons.fetch_or(pressed & ~last_buttons);
+            slot.quick_release = quick_menu_open || quick || pressed != 0 || sample.triggers.l2 || sample.triggers.r2;
+            slot.select_pulse = 0;
+            slot.select_held = false;
+            slot.touch_chord = true;
+            sample = neutral_data(raw.timestamp_us);
         }
         last_buttons = pressed;
         // Do not emit a D-pad edge before remapping it: callbacks can observe transient presses.
@@ -568,7 +588,7 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
         // Motion: acceleration in G and angular velocity in rad/s, mapped to Eden's axes and units
         // the way its SDL driver maps a DualSense.
         auto& last_motion = slots[player].last_motion_us;
-        if (!is_usable(raw)) {
+        if (!is_usable(raw) || capture) {
             // Away (disconnected, or input taken by the system): stop, rather than keep turning.
             if (last_motion) engine->SetMotionAtRest(player);
             last_motion = 0;
@@ -594,11 +614,11 @@ void Pad::Consume(std::size_t player, std::span<const ps5::pad::Data> samples) {
         }
     }
     // Once per poll: a touchpad held long enough becomes a held press, and a tap's press runs out.
-    if ((last_buttons & kButtonTouchPad) != 0 && !slot.touch_chord && !slot.select_held &&
+    if (!quick_menu_open && !slot.quick_release && (last_buttons & kButtonTouchPad) != 0 && !slot.touch_chord && !slot.select_held &&
         ++slot.touch_polls >= kSelectHoldPolls)
         slot.select_held = true;
     if (slot.select_pulse > 0) --slot.select_pulse;
-    set_touch(last_buttons, last_left, last_right);
-    set_menu(last_buttons, last_left, last_right);
+    set_touch(quick_menu_open || slot.quick_release ? 0 : last_buttons, last_left, last_right);
+    set_menu(quick_menu_open || slot.quick_release ? 0 : last_buttons, last_left, last_right);
 }
 }

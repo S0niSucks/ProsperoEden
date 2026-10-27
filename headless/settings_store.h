@@ -20,7 +20,7 @@
 //                      "skip_invalidation": false, "compact_memory": false, "memory_layout": "4Gb",
 //                      "speed_limit": "100" },
 //     "game_files": "/mnt/ext1/eden",
-//     "games_folder": "/mnt/usb0/games",   (roms/ and updates/ apart from game_files; file only)
+//     "games_folder": "/mnt/usb0/games",   (roms/ and updates/ apart from game_files)
 //     "wallpapers_folder": "/mnt/usb0/eden/wallpapers",   (optional; file only)
 //     "library": { "last_game": "Game [id].nsp", "recent": ["Game [id].nsp"] },
 //     "games": { "0100000000010000": { "console_mode": "handheld", "renderer": "opengl",
@@ -190,12 +190,14 @@ inline int KeyIndex(const std::string& value, const char* const* keys, int count
 
 // A game's file as the Library names it: its path in the game files folder's roms/, either its
 // name ("Game.nsp"; .xci, .nsz, .xcz and .nro too) or a game folder and its name ("Game/Game.nsp", the
-// game's update and DLC beside it). Readable characters, one folder at most, never a hidden
+// game's update and DLC beside it), or a bounded homebrew tree under switch/. Readable characters,
+// containers one folder at most, never a hidden
 // folder, "." or "..".
 inline bool ValidRomPath(std::string_view name) {
     if (name.size() < 5 || name.size() > 511) return false;
     for (unsigned char c : name)
         if (c < 32 || c == 127 || c == '\\') return false;
+    if (name.starts_with("switch/")) return ValidHomebrewPath(name);
     if (const auto slash = name.find('/'); slash != std::string_view::npos) {
         if (slash == 0 || name[0] == '.' || name.find('/', slash + 1) != std::string_view::npos) return false;
         if (slash > 255 || name.size() - slash - 1 < 5 || name.size() - slash - 1 > 255) return false;
@@ -1056,8 +1058,8 @@ inline std::string LoadSavedAssetsDir(const std::string& file = SettingsFile()) 
 }
 
 // The saved games folder: the folder whose roms/ and updates/ hold the games when they are kept
-// apart from keys, firmware and mods (on a USB drive, Swordpdf/ProsperoEden#50, #149). Set in the
-// settings file only ("games_folder"); empty when none is saved.
+// apart from keys, firmware and mods (on a USB drive, Swordpdf/ProsperoEden#50, #149).
+// Empty when none is saved, in which case it follows the game files folder.
 inline std::string LoadSavedGamesDir(const std::string& file = SettingsFile()) {
     const std::string value = Settings::String(Settings::Load(file), Settings::Json::json_pointer("/games_folder"));
     return ValidAssetsDir(value) ? value : std::string{};
@@ -1074,6 +1076,15 @@ inline bool SaveAssetsDir(std::string_view directory, const std::string& file = 
     Settings::Json document = Settings::Load(file);
     document["version"] = 1;
     document["game_files"] = std::string(directory);
+    return Settings::Write(document, file);
+}
+
+inline bool SaveGamesDir(std::string_view directory, const std::string& file = SettingsFile()) {
+    if (!directory.empty() && !ValidAssetsDir(directory)) return false;
+    Settings::Json document = Settings::Load(file);
+    document["version"] = 1;
+    if (directory.empty()) document.erase("games_folder");
+    else document["games_folder"] = std::string(directory);
     return Settings::Write(document, file);
 }
 

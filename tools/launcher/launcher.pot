@@ -281,6 +281,10 @@ msgstr ""
 msgid "Choose a theme or change the launcher layout."
 msgstr ""
 
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Choose the colours and appearance of this menu."
 msgstr ""
@@ -697,6 +701,10 @@ msgid "FPS overlay"
 msgstr ""
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
+msgid "Frame gen method"
+msgstr ""
+
+#: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Frame gen multiplier"
 msgstr ""
 
@@ -710,6 +718,10 @@ msgstr ""
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Frame generation needs Lossless.dll, from Lossless Scaling, in the lossless folder."
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Frame generation needs MihawkGen weights (network.fgw)."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -1560,6 +1572,10 @@ msgstr ""
 
 #: eden_services.cpp, pe/ui/launcher.cpp
 msgid "ROM missing from the game files folder"
+msgstr ""
+
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
+msgid "ROMs and updates"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp

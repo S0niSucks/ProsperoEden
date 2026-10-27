@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Kare üretimi hedefi"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM'lar ve güncellemeler"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Anahtarları, yazılımı veya kayıtları taşımadan roms/ ve updates/ klasörlerini seçin."
+
 msgid "Frame generation"
 msgstr "Kare oluşturma"
 

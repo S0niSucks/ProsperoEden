@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Doel framegeneratie"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM's en updates"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Kies roms/ en updates/ zonder sleutels, firmware of opgeslagen spellen te verplaatsen."
+
 msgid "Frame generation"
 msgstr "Framegeneratie"
 

@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Docelowa liczba klatek"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM-y i aktualizacje"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Wybierz roms/ i updates/ bez przenoszenia kluczy, firmware ani zapisów gier."
+
 msgid "Frame generation"
 msgstr "Generowanie klatek"
 

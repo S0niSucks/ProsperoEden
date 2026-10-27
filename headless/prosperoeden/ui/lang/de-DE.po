@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Ziel der Bildgenerierung"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROMs und Updates"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "roms/ und updates/ wählen, ohne Schlüssel, Firmware oder Spielstände zu verschieben."
+
 msgid "Frame generation"
 msgstr "Frame-Generierung"
 

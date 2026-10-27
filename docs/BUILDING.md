@@ -10,7 +10,7 @@ The first run fetches every dependency at its pinned revision, builds the RADV d
 Eden for the PS5, and writes the release files to `dist/`:
 
 - `ProsperoEden-vX.Y.Z.zip`: the `PPSA99008` folder to copy to `/data/homebrew/PPSA99008`;
-- `SHA256SUMS` (the ZIP's checksum) and `release-notes.md`.
+- `SHA256SUMS` (ZIP and build-manifest checksums), `build-identity.json` and `release-notes.md`.
 
 The app package includes an exact-title one-shot helper built from the pinned upstream
 [PS5-Lapy-JB-Daemon](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon) source. Its generated
@@ -98,6 +98,21 @@ Host tests do not validate PS5 firmware, GPU drivers,
 commercial games, controllers or frame rates. Native packaging still requires the release
 toolchain described below. Use a fresh named volume if switching to an unrelated source tree;
 the runner deliberately does not delete files from an existing volume.
+
+For optional offscreen OpenGL/Vulkan HUD-photo checks, extend that image with Linux
+Mesa lavapipe and validation layers. Only the evidence folder is writable:
+
+```powershell
+docker build -t prosperoeden-graphics -f tools/docker/graphics.Dockerfile tools/docker
+New-Item -ItemType Directory -Force .local/graphics-evidence | Out-Null
+docker run --rm --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount "type=bind,source=$($PWD.Path)/.local/graphics-evidence,target=/evidence" prosperoeden-graphics bash /checkout/tools/docker/run-graphics-tests.sh
+```
+
+These tests execute the OpenGL HUD method and the Vulkan draw include/compiled shaders,
+using generated colored-pixel fixtures at 720p/1080p. They check orientation, transparency,
+selection changes and missing-picture fallback, and fail on Vulkan validation errors.
+They are not a substitute for PS5 driver, GPU-object lifetime or gameplay qualification.
+The PNG decoder's byte/pixel/allocation and concurrency checks run in the main host suite.
 
 ### Docker native PS5 build (including Windows)
 
@@ -193,6 +208,13 @@ The tools that made them are in `tools/launcher`:
   the shader both renderers use (`headless/loading_scene.glsl`) and a cover of your choice.
 - `preview.sh` draws every launcher screen on a PC (Mesa's software renderer, sample games) to
   PNG files or a video, with the same code, shaders and font as on the console.
+- `python3 -B tools/check-quick-overlay.py OUTPUT_DIR` compiles the actual OpenGL HUD method
+  with the baked font on Mesa and writes the Amiibo/cheat/empty-state strips at 720p and 1080p.
+  It checks shader errors, visible glyphs and the chip's bounds. Run it inside the host Docker
+  image, which supplies EGL/OpenGL development files; it is renderer-fixture evidence, not gameplay.
+- The host suite also builds the file NFC driver/factories and live-cheat parser/VM tests.
+  NFC driver/factories and the live mailbox have dedicated ASan/UBSan and TSan runs. Cheat
+  toggles are handed to the timing owner; the tests do not rely on the pinned racy direct reload.
 - `strings.py` keeps the translations: `extract` writes the template (`launcher.pot`) from the
   text in the code, `new <tag>` starts a catalog in `headless/prosperoeden/ui/lang`, and `check`
   fails on missing or stale text, changed placeholders and characters the font does not have.
@@ -237,6 +259,11 @@ python3 tools/symbolize-crash.py crash-20261001-121314.txt build/symbols/Prosper
 The second argument is the unstripped executable of the build that wrote the report:
 `build/headless-native/llvm-pie.elf` right after a build. `make release` copies it to
 `build/symbols/ProsperoEden-vX.Y.Z.elf`; keep that file with the release, it is not published.
+New packages stamp a build identity into that ELF before conversion to eboot. The boot trace
+and crash report record it, and the symbolizer refuses missing/mismatched identities or code
+sizes rather than printing misleading names. Preserve `dist/build-identity.json` and its
+checksums with the symbols; it also records the packaged eboot hash. Legacy reports without
+an identity stay as raw offsets. See [Crash validation](CRASH_VALIDATION.md).
 
 `make test` checks the report on the host (`tools/check-crash-report.py`). A development build
 crashes on request, to try it on a console: write `segv`, `thread`, `abort` or `throw` to

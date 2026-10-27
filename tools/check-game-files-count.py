@@ -16,6 +16,8 @@ root = Path(__file__).resolve().parents[1]
 services = (root / 'headless/prosperoeden/eden_services.cpp').read_text()
 start = services.index('int CountGames(const std::string& roms) {')
 count = services[start:services.index('\n}\n', start) + 3]
+start = services.index('std::vector<std::string> HomebrewFiles(')
+homebrew = services[start:services.index('\n}\n', start) + 3]
 assert 'info.games = CountGames(JoinPath(directory, "roms"));' in services
 store = (root / 'headless/settings_store.h').read_text()
 start = store.index('inline bool ValidRomPath(std::string_view name) {')
@@ -31,7 +33,13 @@ code = r'''
 #include <string>
 #include <string_view>
 #include <vector>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <cerrno>
 #include "game_files.h"
+// Model the console's denied lstat without weakening link rejection.
+extern "C" int lstat(const char*, struct stat*) noexcept { errno = EPERM; return -1; }
 namespace fs = std::filesystem;
 namespace Eden {
 ''' + valid + r'''
@@ -47,7 +55,7 @@ std::vector<std::string> ListEntries(const std::string& path, bool folders, bool
     return names;
 }
 std::string JoinPath(const std::string& directory, const std::string& name) { return directory + "/" + name; }
-''' + count + r'''
+''' + homebrew + count + r'''
 static void Touch(const fs::path& file) {
     fs::create_directories(file.parent_path());
     std::ofstream(file) << "x";
@@ -91,6 +99,21 @@ int main(int, char** argv) {
     assert(Eden::ValidRomPath("Tools/Demo.nro"));
     assert(!Eden::ValidRomPath("../Demo.nro") && !Eden::ValidRomPath("a/b/Demo.nro"));
     assert(!Eden::IsPackageFile("Demo.nro") && !Eden::IsCardImageFile("Demo.nro"));
+    Touch(roms / "switch" / "Demo.nro");
+    Touch(roms / "switch" / "Tools" / "Nested" / "Demo.NRO");
+    Touch(roms / "switch" / "Tools" / "Other.NRO");
+    Touch(roms / "switch" / "Tools" / "Nested" / "Game.nsp");
+    Touch(roms / "switch" / ".hidden" / "Demo.nro");
+    fs::create_directory_symlink(roms / "switch", roms / "switch" / "cycle");
+    fs::create_symlink(roms / "Homebrew.NRO", roms / "switch" / "alias.nro");
+    assert(HomebrewFiles(roms.string()).size() == 3);
+    assert(CountGames(roms.string()) == 12);
+    assert(Eden::ValidRomPath("switch/Tools/Nested/Demo.NRO"));
+    assert(Eden::ValidRomPath("switch/a/b/c/d/e/f/g/h/Demo.nro"));
+    for (const char* path : {"switch//Demo.nro", "switch/../Demo.nro", "switch/.hidden/Demo.nro",
+                             "switch/Tools/Nested/Game.nsp", "switch/a:b/Demo.nro", "switch/a:b.nro",
+                             "switch/.hidden.nro", "switch/a/b/c/d/e/f/g/h/i/Demo.nro"})
+        assert(!Eden::ValidRomPath(path));
     std::puts("game files count: PASS");
 }
 '''

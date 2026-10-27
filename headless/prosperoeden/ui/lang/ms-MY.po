@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Sasaran Frame Gen"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM dan kemas kini"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Pilih roms/ dan updates/ tanpa memindahkan kunci, perisian tegar atau data simpanan."
+
 msgid "Frame generation"
 msgstr "Penjanaan bingkai"
 

@@ -48,9 +48,9 @@ Launcher::Launcher(Services &services, Textures &textures, const Fonts &fonts, b
     home_springs_[0].snap(1.0f);
     rail_active_[0].snap(1.0f);
     settings_.wrap = false;
-    settings_.visible = th().list_settings ? 10 : 13;
+    settings_.visible = th().list_settings ? 10 : kSettingsCategories;
     settings_.pitch = th().list_settings ? 84.0f : 88.0f;
-    settings_.reset(13, 0);
+    settings_.reset(kSettingsCategories, 0);
     section_.snap(1.0f);
     detail_.snap(1.0f);
     cue(home_.launch_failed ? Cue::notify : first_start ? Cue::welcome : Cue::resume);
@@ -170,6 +170,12 @@ bool Launcher::save_preferences(bool quiet)
 
 void Launcher::launch(const std::string &file, const std::string &title, const std::string &cover)
 {
+    if (!ready_for_game(home_, file))
+    {
+        say(services_.setup_details(), true);
+        cue(Cue::error);
+        return;
+    }
     // A game whose file was taken away since the menu showed it is not started: it leaves the
     // menu instead.
     if (!services_.game_exists(file))

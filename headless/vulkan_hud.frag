@@ -2,12 +2,24 @@
 #version 450
 #extension GL_GOOGLE_include_directive : enable
 layout(push_constant) uniform Text { uint glyphs[28]; uint width; uint x; uint y; uint loading; } text;
-// The loading screen's picture (loading_art.h); the overlay does not read it.
+// The pass binds the loading cover or, only for the photo draw, the selected Amiibo thumbnail.
 layout(set = 0, binding = 0) uniform sampler2D loading_art;
 layout(location = 0) out vec4 color;
 #include "loading_text.glsl"
 #include "loading_scene.glsl"
 void main() {
+    if ((text.loading & 0x84000000u) == 0x84000000u) {
+        vec2 box = vec2(float(text.width));
+        vec2 local = gl_FragCoord.xy - vec2(float(text.x), float(text.y));
+        vec4 panel = hud_panel(local, box);
+        float pad = float(text.width) * (12.0 / 224.0);
+        vec2 uv = (local - vec2(pad)) / (box - vec2(2.0 * pad));
+        vec4 image = vec4(0.0);
+        if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0))))
+            image = texture(loading_art, uv);
+        color = vec4(mix(panel.rgb, image.rgb, image.a), mix(panel.a, 1.0, image.a));
+        return;
+    }
     // Vulkan push-constant arrays require dynamically uniform indices. Load
     // each word at a constant index before the per-pixel local-array lookup.
     uint glyphs[28] = uint[28](

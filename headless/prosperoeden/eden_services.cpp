@@ -167,6 +167,42 @@ int CountFiles(const std::string& directory, std::initializer_list<const char*> 
     return ok ? count : -1;
 }
 
+// Homebrew copied as a switch/ tree. Bounded traversal, no symlinks or hidden folders; paths stay
+// relative to roms/ so history, covers, forwarders and library.json use the same stable names.
+std::vector<std::string> HomebrewFiles(const std::string& roms) {
+    std::vector<std::string> files, pending{"switch"};
+    const auto readable_type = [](const std::string& path, bool folder) {
+        // lstat is denied on some native mounts even when the file is readable. O_NOFOLLOW
+        // rejects links without that call; fstat describes the descriptor we actually opened.
+        const int fd = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | (folder ? O_DIRECTORY : 0));
+        if (fd < 0) return false;
+        struct stat info {};
+        const bool valid = fstat(fd, &info) == 0 && (folder ? S_ISDIR(info.st_mode) : S_ISREG(info.st_mode));
+        close(fd);
+        return valid;
+    };
+    unsigned examined = 0;
+    while (!pending.empty() && examined < 16384) {
+        const std::string folder = std::move(pending.back());
+        pending.pop_back();
+        if (!readable_type(JoinPath(roms, folder), true)) continue;
+        bool ok = false;
+        for (const auto& name : ListEntries(JoinPath(roms, folder), false, ok)) {
+            if (++examined > 16384) break;
+            const std::string file = folder + "/" + name;
+            if (Eden::ValidHomebrewPath(file) && readable_type(JoinPath(roms, file), false)) files.push_back(file);
+        }
+        for (const auto& name : ListEntries(JoinPath(roms, folder), true, ok)) {
+            if (++examined > 16384) break;
+            const std::string next = folder + "/" + name;
+            // The sentinel validates depth and every directory component using the same rules.
+            if (Eden::ValidHomebrewPath(next + "/_.nro")) pending.push_back(next);
+        }
+    }
+    std::sort(files.begin(), files.end());
+    return files;
+}
+
 // Game containers and game folders one level down, each one game with its update and DLC beside
 // it; -1 when the folder cannot be read. Counting only roms/ missed games in their own folders.
 int CountGames(const std::string& roms) {
@@ -178,14 +214,14 @@ int CountGames(const std::string& roms) {
     if (!ok) return -1;
     bool listed = false;
     for (const std::string& folder : ListEntries(roms, true, listed)) {
-        if (folder.empty() || folder[0] == '.') continue;
+        if (folder.empty() || folder[0] == '.' || folder == "switch") continue;
         bool read = false;
         const auto files = ListEntries(JoinPath(roms, folder), false, read);
         count += std::any_of(files.begin(), files.end(), [&](const std::string& name) {
             return rom(name) && Eden::ValidRomPath(folder + "/" + name);
         });
     }
-    return count;
+    return count + static_cast<int>(HomebrewFiles(roms).size());
 }
 
 // A title from the file's name: without its extension and the tags dumps carry
@@ -317,20 +353,22 @@ std::vector<std::string> GameFiles() {
     for (const std::string& name : ListEntries(roms, false, ok))
         if (rom(name) && Eden::ValidRomPath(name)) files.push_back(name);
     for (const std::string& folder : ListEntries(roms, true, ok)) {
-        if (folder.empty() || folder[0] == '.') continue;
+        if (folder.empty() || folder[0] == '.' || folder == "switch") continue;
         bool listed = false;
         for (const std::string& name : ListEntries(JoinPath(roms, folder), false, listed)) {
             const std::string file = folder + "/" + name;
-            if (rom(name) && Eden::ValidRomPath(file) && !AddOnInGameFolder(JoinPath(roms, file)))
+            if (rom(name) && Eden::ValidRomPath(file) &&
+                (Eden::IsHomebrewFile(file) || !AddOnInGameFolder(JoinPath(roms, file))))
                 files.push_back(file);
         }
     }
+    for (auto& file : HomebrewFiles(roms)) files.push_back(std::move(file));
     return files;
 }
 
 // The game folder of a game in one (the path of its folder in roms/), else empty.
 std::string GameFolderOf(const std::string& file) {
-    const auto slash = file.find('/');
+    const auto slash = Eden::IsHomebrewFile(file) ? file.find_last_of('/') : file.find('/');
     return slash == std::string::npos ? std::string{} : Eden::GamesPath("roms/" + file.substr(0, slash));
 }
 
@@ -645,6 +683,7 @@ pe::ui::Home EdenServices::home() {
     const std::lock_guard lock(bridge_);
     pe::ui::Home home;
     home.setup_ready = setup_.empty() && Eden::FilesystemAccess();
+    home.homebrew_ready = Eden::FilesystemAccess();
     if (!Eden::FilesystemAccess()) {
         // No data is kept anywhere else (storage_paths.h): say so, and start nothing.
         home.status = fill(tr("ProsperoEden could not get access to the console's storage, so it cannot read your settings, saves and games. Nothing was changed. Close ProsperoEden and open it again. (Code {0})"),
@@ -682,7 +721,7 @@ pe::ui::Home EdenServices::home() {
         std::string title = GameTitle(home.last_file);
         std::string cover = CoverPath(home.last_file);
         bool has_cover = Eden::FileExists(cover);
-        if (home.last_exists && home.setup_ready && !has_cover) {
+        if (home.last_exists && pe::ui::ready_for_game(home, home.last_file) && !has_cover) {
             cover = EnsureCover(home.last_file, &title);
             has_cover = !cover.empty();
         }
@@ -694,9 +733,10 @@ pe::ui::Home EdenServices::home() {
     }
     // The last game's update and DLC and the language it will use; when it does not offer the
     // chosen one, the caption says so.
-    if (home.setup_ready && home.last_exists) {
-        eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
-                         Eden::AssetsPath("keys").c_str());
+    if (home.last_exists && pe::ui::ready_for_game(home, home.last_file)) {
+        if (home.setup_ready)
+            eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
+                             Eden::AssetsPath("keys").c_str());
         const uint64_t title_id = eden_game_title_id(last_path.c_str());
         const GameLanguage language = LanguageFor(last_path, title_id, Eden::PreferencesFor(title_id).language);
         home.last_title_id = title_id;
@@ -754,8 +794,9 @@ std::vector<pe::ui::Game> EdenServices::games() {
     (void)mkdir(Eden::CoversDir().c_str(), 0777);
     // Without a roms folder there are still the download sources' games.
     const std::vector<std::string> files = GameFiles();
-    eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
-                     Eden::AssetsPath("keys").c_str());
+    if (setup_.empty())
+        eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
+                         Eden::AssetsPath("keys").c_str());
     // The download sources' games, each title once: one that is on the console can be downloaded
     // again, and is deleted from the console in its settings.
     const std::vector<Eden::Remote::Title> titles = Titles();
@@ -780,7 +821,7 @@ std::vector<pe::ui::Game> EdenServices::games() {
         game.size = SizeLabel(static_cast<double>(info.st_size));
         game.file = file;
         // A game whose data cannot be read is still listed, by its file name.
-        try {
+        if (setup_.empty() || Eden::IsHomebrewFile(file)) try {
             char title[513]{};
             // The cover is replaced in one step: the menu may be loading the old one right now.
             const std::string cover = CoverPath(file);
@@ -861,7 +902,11 @@ std::vector<pe::ui::Game> EdenServices::games() {
     return games;
 }
 
-std::string EdenServices::game_path(const std::string& file) { return Eden::GamesPath("roms/" + file); }
+std::string EdenServices::game_path(const std::string& file) {
+    if (!Eden::FilesystemAccess() || !Eden::ValidRomPath(file) ||
+        (!setup_.empty() && !Eden::IsHomebrewFile(file))) return {};
+    return Eden::GamesPath("roms/" + file);
+}
 
 bool EdenServices::take_update(pe::ui::UpdateOffer* offer) {
     Eden::UpdateNotice::Offer found;
@@ -1294,6 +1339,12 @@ pe::ui::FolderInfo EdenServices::folder_info(const std::string& directory) {
 std::string EdenServices::files_folder() { return Eden::AssetsDir(); }
 std::string EdenServices::saved_files_folder() { return Eden::LoadSavedAssetsDir(); }
 std::string EdenServices::games_folder() { return Eden::GamesDir(); }
+std::string EdenServices::saved_games_folder() { return Eden::LoadSavedGamesDir(); }
+bool EdenServices::set_games_folder(const std::string& directory) {
+    const bool saved = Eden::SaveGamesDir(directory);
+    if (!saved) Eden::Report("settings", "Could not write the independent games folder");
+    return saved;
+}
 std::string EdenServices::default_files_folder() { return Eden::kDefaultAssetsDir; }
 
 bool EdenServices::set_files_folder(const std::string& directory) {

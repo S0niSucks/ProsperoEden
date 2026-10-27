@@ -20,6 +20,7 @@ test -x "$builder"
 (cd "$template/runtime" && sha256sum --check --strict libc.prx.sha256)
 mkdir -p "$out" "$app/sce_sys" "$app/sce_module"
 cp "$scratch/native-local/bin/eden-headless" "$out/llvm-pie.elf"
+python3 -B "$root/tools/build_identity.py" stamp "$out/llvm-pie.elf"
 cp "$scratch/native-local/bin/eden-headless.map" "$out/link.map"
 cp "$scratch/native-local/CMakeCache.txt" "$out/CMakeCache.txt"
 stub_flags=(--stub-dir "$scratch/sdk/target/lib")

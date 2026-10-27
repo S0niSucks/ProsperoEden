@@ -222,6 +222,7 @@ ui::Home FakeServices::home()
 {
     ui::Home home;
     home.setup_ready = setup_ready;
+    home.homebrew_ready = homebrew_ready;
     if (!setup_ready)
         home.status = fill(tr("Setup required: {0} Open Settings, Game files to choose the folder that "
                               "holds your keys, firmware and roms folders (or add the files to {1}), "

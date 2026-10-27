@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include "diagnostics.h"
+#include "build_identity.h"
 
 extern "C" int sysctlbyname(const char* name, void* old, size_t* old_length, const void* value, size_t length);
 
@@ -109,6 +110,9 @@ inline void Begin(const char* version, const char* build) {
     detail::File() = open("/download0/boot-trace.txt", O_WRONLY | O_CREAT | O_TRUNC, 0666);
     Line("diagnostic build %s (%s), firmware sdk_version %s0x%08x, pid %d, uid %d/%d", version, build,
          known ? "" : "unknown ", sdk, static_cast<int>(getpid()), static_cast<int>(getuid()), static_cast<int>(geteuid()));
+    char identity[65];
+    Eden::ReadBuildIdentity(identity);
+    Line("build identity: %s", identity);
 }
 
 // The logs folder exists: the trace moves there and stays open, synced after every line.

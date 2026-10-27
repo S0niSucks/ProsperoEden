@@ -24,6 +24,8 @@ class FakeServices : public ui::Services
 
     // What the preview varies between pictures.
     bool setup_ready = true;
+    bool homebrew_ready = true;
+    bool homebrew_sample = false;
     std::string launch_error;
     std::string crash_report; // the previous run's crash report, when it left one
     bool has_history = true;
@@ -214,6 +216,14 @@ class FakeServices : public ui::Services
     }
     std::vector<ui::Game> games() override
     {
+        if (homebrew_sample) {
+            ui::Game game = games_.front();
+            game.file = "switch/Tools/Demo.NRO";
+            game.name = "Homebrew fixture";
+            game.format = "NRO";
+            game.title_id = 0;
+            return {game};
+        }
         std::vector<ui::Game> present;
         for (const ui::Game &game : games_)
             if (game_exists(game.file))
@@ -234,6 +244,7 @@ class FakeServices : public ui::Services
     }
     std::string game_path(const std::string &file) override
     {
+        if (!homebrew_ready || (!setup_ready && !Eden::IsHomebrewFile(file))) return {};
         return "/games/roms/" + file;
     }
     bool docked(std::uint64_t title_id) override;
@@ -294,6 +305,13 @@ class FakeServices : public ui::Services
     bool set_files_folder(const std::string &directory) override
     {
         saved_folder_ = directory;
+        return true;
+    }
+    std::string saved_games_directory;
+    std::string saved_games_folder() override { return saved_games_directory; }
+    bool set_games_folder(const std::string &directory) override
+    {
+        saved_games_directory = directory;
         return true;
     }
     int filesystem_access() override

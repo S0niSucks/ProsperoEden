@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "هدف توليد الإطارات"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ملفات ROM والتحديثات"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "اختر roms/ وupdates/ دون نقل المفاتيح أو البرنامج الثابت أو ملفات الحفظ."
+
 msgid "Frame generation"
 msgstr "توليد الإطارات"
 

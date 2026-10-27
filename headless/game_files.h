@@ -23,6 +23,22 @@ inline bool IsCardImageFile(std::string_view name) {
     return EndsWithNoCase(name, ".xci") || EndsWithNoCase(name, ".xcz");
 }
 inline bool IsHomebrewFile(std::string_view name) { return EndsWithNoCase(name, ".nro"); }
+// A copied Switch homebrew tree stays intact below roms/switch/. No flattening or moving files.
+inline bool ValidHomebrewPath(std::string_view name) {
+    if (!name.starts_with("switch/") || !IsHomebrewFile(name) || name.size() > 511) return false;
+    unsigned depth = 0;
+    for (std::size_t at = 0; at < name.size();) {
+        const auto slash = name.find('/', at);
+        const auto end = slash == std::string_view::npos ? name.size() : slash;
+        const auto part = name.substr(at, end - at);
+        if (part.empty() || part.front() == '.' || part.size() > 255 || ++depth > 10) return false;
+        for (unsigned char c : part)
+            if (c < 32 || c == 127 || c == '\\' || c == ':') return false;
+        if (slash == std::string_view::npos) return true;
+        at = slash + 1;
+    }
+    return false;
+}
 inline bool IsGameFile(std::string_view name) {
     return IsPackageFile(name) || IsCardImageFile(name) || IsHomebrewFile(name);
 }

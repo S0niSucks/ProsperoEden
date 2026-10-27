@@ -471,7 +471,7 @@ bool SparseTablesAvailable() noexcept {
 namespace {
 // A sparse range of `size` bytes: every slot reads as zeroes until CommitSparsePage gives it a
 // block of its own. Null when the size is too small for one or the platform refuses.
-const char* sparse_refused = "";  // why the last sparse range was refused, for the log
+thread_local const char* sparse_refused = "";  // why this thread's last sparse range was refused
 void* NewSparseRange(std::size_t size, bool guest) {
     sparse_refused = "";
     const std::size_t span = (size + SparseSlot - 1) / SparseSlot * SparseSlot;
@@ -528,11 +528,22 @@ void* AllocateSparsePages(std::size_t size) noexcept {
     if (void* const address = NewSparseRange(size, false)) return address;
     if (size >= 2 * SparseSlot && SparseAvailable()) {
         // The platform took the check's two slots but not this table: it is dense, as before.
-        char line[96];
-        const int length = std::snprintf(line, sizeof(line), "EDEN_SPARSE_TABLES dense bytes=%zu\n", size);
+        char line[160];
+        const int length = std::snprintf(line, sizeof(line), "EDEN_SPARSE_TABLES dense bytes=%zu step=%s\n",
+                                         size, *sparse_refused ? sparse_refused : "unknown");
         if (length > 0) Report(line);
     }
-    return AllocateMemoryPages(size);
+    void* const dense = AllocateMemoryPages(size);
+    if (!dense) {
+        const int allocation_errno = errno;
+        char line[192];
+        const int length = std::snprintf(line, sizeof(line),
+            "EDEN_SPARSE_TABLES refused bytes=%zu sparse_step=%s dense_errno=%d\n",
+            size, *sparse_refused ? sparse_refused : "unknown", allocation_errno);
+        if (length > 0) Report(line);
+        errno = allocation_errno;
+    }
+    return dense;
 }
 
 void FreeSparsePages(void* base, std::size_t size) noexcept {

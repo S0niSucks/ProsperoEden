@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Mål for billedgenerering"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM-filer og opdateringer"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Vælg roms/ og updates/ uden at flytte nøgler, firmware eller gemte spil."
+
 msgid "Frame generation"
 msgstr "Framegenerering"
 

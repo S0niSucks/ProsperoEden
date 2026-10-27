@@ -17,6 +17,8 @@
 namespace pe::ui
 {
 
+inline constexpr int kSettingsCategories = 14;
+
 // Every screen of the launcher as one state machine. The frontend feeds it
 // pressed buttons and frame time, draws its list and plays its cues; it ends
 // when a game is chosen (and the closing animation has run).
@@ -369,7 +371,7 @@ class Launcher
     void draw_pairing(Canvas &c, float open);
 
     // ---- game files, language, about (browse.cpp) ----
-    void enter_files();
+    void enter_files(bool games_only = false);
     bool browse_to(const std::string &directory);
     void press_files(Key key);
     void draw_files(Canvas &c);
@@ -508,7 +510,7 @@ class Launcher
     // settings and dialogs
     Preferences prefs_;
     ListView settings_;
-    std::array<tween::Spring, 13> settings_springs_{}; // the highlight on each tile
+    std::array<tween::Spring, kSettingsCategories> settings_springs_{}; // the highlight on each tile
     tween::Spring section_;
     int option_ = 0;
     tween::Spring option_cursor_; // highlight position in pixels
@@ -548,6 +550,7 @@ class Launcher
     int profile_remove_ = -1;       // the row Square was pressed on once (asked twice)
 
     // game files
+    bool browse_games_ = false;
     std::string browse_dir_;
     std::vector<std::string> browse_entries_; // ".." first unless at "/", then subfolders
     ListView files_;

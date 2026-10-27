@@ -253,6 +253,7 @@ public:
             Cleanup(eglMakeCurrent(display, surface, surface, hud_context), "HUD cleanup current");
             glDeleteProgram(hud_program);
             glDeleteVertexArrays(1, &hud_vao);
+            glDeleteTextures(1, &hud_picture_texture);
             glDeleteProgram(loading_program);
             glDeleteVertexArrays(1, &loading_vao);
             glDeleteTextures(1, &loading_texture);
@@ -350,7 +351,9 @@ public:
             last_stats = now;
         }
         // Nothing is measured or written while the overlay is off.
-        if (hud_enabled.load(std::memory_order_relaxed)) {
+        const auto commands = QuickOverlay::Read();
+        if (commands.text[0]) DrawHud(commands.text.data(), false, true, commands.image);
+        else if (hud_enabled.load(std::memory_order_relaxed)) {
             const auto text = FormatHudText(clock, speed_percent, "OGL", MachineNow(), RoomPingMilliseconds(),
                                             static_cast<uint32_t>(hud_fields.load(std::memory_order_relaxed)));
             DrawHud(text.data(), false);
@@ -458,7 +461,8 @@ private:
         glFlush();
         return true;
     }
-    void DrawHud(const char* text, bool startup) {
+    void DrawHud(const char* text, bool startup, bool quick = false,
+                 const std::shared_ptr<const QuickPicture>& picture = {}) {
         if (!window_owner) return;
         // A separate context on this same thread isolates guest GL state and queries.
         Check(eglMakeCurrent(display, surface, surface, hud_context), "HUD current");
@@ -471,10 +475,19 @@ private:
             const std::string fragment =
                 std::string("#version 330 core\nuniform uint glyphs[28]; uniform vec2 at;"
                             " uniform vec2 box; uniform vec2 box_at;"
-                            " uniform float cap; uniform int startup; uniform bool colors;"
+                             " uniform float cap; uniform int startup; uniform bool colors;"
+                             " uniform bool picture_mode; uniform sampler2D hud_picture; uniform float picture_pad;"
                             " out vec4 color;\n") +
                 kLoadingTextGlsl +
-                "void main(){\n"
+                 "void main(){\n"
+                 "if (picture_mode) {"
+                 " vec2 local = gl_FragCoord.xy - box_at;"
+                 " vec4 panel = hud_panel(vec2(local.x, box.y - local.y), box);"
+                 " vec2 uv = (local - vec2(picture_pad)) / (box - vec2(2.0 * picture_pad));"
+                 " vec4 image = vec4(0.0);"
+                 " if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0))))"
+                 " image = texture(hud_picture, vec2(uv.x, 1.0 - uv.y));"
+                 " color = vec4(mix(panel.rgb, image.rgb, image.a), mix(panel.a, 1.0, image.a)); return; }\n"
                 "Pick pick = Pick(-1, 0, vec2(0.0), 1.0);\n"
                 "hud_pick(pick, glyphs, gl_FragCoord.xy, at, cap);\n"
                 "float cover = pick_cover(pick);\n"
@@ -512,17 +525,18 @@ private:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glUseProgram(hud_program);
         glBindVertexArray(hud_vao);
+        glUniform1i(glGetUniformLocation(hud_program, "picture_mode"), 0);
         // The overlay's box, laid out for a picture 1080 rows high and scaled to the surface's.
         // It covers only what it holds, so the picture underneath shows around it.
         const float scale = static_cast<float>(height) / 1080.0f;
         const auto units = [scale](float value) { return static_cast<int>(std::lround(value * scale)); };
         // The chip's scale, from the size the session named: 1x, 1.5x or 2x (hud.h).
-        const float hud_scale = 1.0f + 0.5f * static_cast<float>(hud_size.load(std::memory_order_relaxed));
+        const float hud_scale = 1.0f + 0.5f * static_cast<float>(quick ? QuickHudSize(text) : hud_size.load(std::memory_order_relaxed));
         const int box_w = startup ? width :
             units(HudTextWidth(text, kHudCapUnits * hud_scale) + 2 * kHudPadUnits * hud_scale);
         const int box_h = startup ? height : units(kHudBoxUnits * hud_scale);
         // Against whichever corner was named, at the same distance in from each of its two edges.
-        const int corner = hud_corner.load(std::memory_order_relaxed);
+        const int corner = quick ? 0 : hud_corner.load(std::memory_order_relaxed);
         const int box_x = startup ? 0 :
             (corner == 1 || corner == 3 ? width - box_w - units(kHudBoxX) : units(kHudBoxX));
         const int box_y = startup ? 0 :
@@ -552,7 +566,7 @@ private:
                       snapshot.glyphs.data());
         glUniform1i(glGetUniformLocation(hud_program, "startup"), startup ? 1 : 0);
         glUniform1i(glGetUniformLocation(hud_program, "colors"),
-                    !startup && hud_colors.load(std::memory_order_relaxed) ? 1 : 0);
+                    !startup && !quick && hud_colors.load(std::memory_order_relaxed) ? 1 : 0);
         if (startup)
             glDisable(GL_BLEND);
         else {
@@ -560,6 +574,35 @@ private:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
         glDrawArrays(GL_TRIANGLES, 0, 3);
+        if (quick && picture) {
+            if (hud_picture != picture) {
+                if (!hud_picture_texture) glGenTextures(1, &hud_picture_texture);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, hud_picture_texture);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, QuickPicture::kSide, QuickPicture::kSide,
+                             0, GL_RGBA, GL_UNSIGNED_BYTE, picture->rgba.data());
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                hud_picture = picture;
+            }
+            const int side = units(QuickPicture::kBox);
+            const int top = box_y + box_h + units(QuickPicture::kGap);
+            if (box_x + side <= width && top + side <= height) {
+                glViewport(box_x, height - top - side, side, side);
+                glUniform1i(glGetUniformLocation(hud_program, "picture_mode"), 1);
+                glUniform2f(glGetUniformLocation(hud_program, "box"), float(side), float(side));
+                glUniform2f(glGetUniformLocation(hud_program, "box_at"), float(box_x), float(height - top - side));
+                glUniform1f(glGetUniformLocation(hud_program, "picture_pad"), float(units(QuickPicture::kPad)));
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, hud_picture_texture);
+                glUniform1i(glGetUniformLocation(hud_program, "hud_picture"), 0);
+                glDrawArrays(GL_TRIANGLES, 0, 3);
+            }
+        } else hud_picture.reset();
         glFlush();
     }
     unsigned presented_frames{}, loading_frames{};
@@ -576,6 +619,8 @@ private:
 #endif
     EGLContext hud_context{EGL_NO_CONTEXT};
     GLuint hud_program{}, hud_vao{};
+    GLuint hud_picture_texture{};
+    std::shared_ptr<const QuickPicture> hud_picture;
     EGLDisplay display;
     EGLSurface surface;
     EGLContext context{EGL_NO_CONTEXT};
@@ -602,7 +647,16 @@ void ToggleHud() {
     preferences.hud = enabled;
     if (!SavePreferences(preferences)) Report("settings", "Could not save HUD preference");
 }
-HudSnapshot GetVulkanHud() {
+HudSnapshot GetVulkanHud(QuickOverlay::Snapshot* quick) {
+    if (quick) *quick = {};
+    if (!vulkan_loading) {
+        auto commands = QuickOverlay::Read();
+        if (commands.text[0]) {
+            const auto hud = MakeQuickHudSnapshot(commands.text.data());
+            if (quick) *quick = std::move(commands);
+            return hud;
+        }
+    }
     return vulkan_loading || hud_enabled.load(std::memory_order_relaxed) ? vulkan_hud : HudSnapshot{};
 }
 // idle: the GPU thread has no game commands waiting (hud.h, LoadingPace).

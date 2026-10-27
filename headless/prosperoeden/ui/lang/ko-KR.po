@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "프레임 생성 목표"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM 및 업데이트"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "키, 펌웨어, 저장 데이터를 옮기지 않고 roms/ 및 updates/를 선택합니다."
+
 msgid "Frame generation"
 msgstr "프레임 생성"
 

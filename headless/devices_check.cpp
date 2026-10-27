@@ -286,6 +286,26 @@ void CheckPad() {
         // A shortcut is never a press of Minus, however long its keys take to come up.
         for (int i = 0; i < 80; ++i) { consume(); CHECK(none_pressed()); }
 
+        sample.buttons = kButtonTouchPad | kButtonSquare; consume();
+        CHECK(pad.TakeQuickMenuToggle()); CHECK(!pad.TakeQuickMenuToggle()); CHECK(none_pressed());
+        pad.SetQuickMenuOpen(true);
+        consume(); CHECK(!pad.TakeQuickMenuToggle()); CHECK(pad.TakeQuickMenuButtons() == 0);
+        sample.buttons = 0; consume();
+        sample.buttons = kButtonCross | kButtonRight; sample.left_stick = {255, 0};
+        sample.triggers = {255, 255}; consume();
+        CHECK(pad.TakeQuickMenuButtons() == (kButtonCross | kButtonRight));
+        CHECK(none_pressed()); CHECK(pad.Engine().GetAxis({}, 0) == 0);
+        consume(); CHECK(pad.TakeQuickMenuButtons() == 0);
+        // Other players cannot drive the menu and their controls are neutral too.
+        pad.Consume(1, {&sample, 1}); CHECK(pad.TakeQuickMenuButtons() == 0);
+        CHECK(!pad.Engine().GetButton({.port = 1}, 1));
+        sample.buttons = kButtonCircle; consume(); CHECK(pad.TakeQuickMenuButtons() == kButtonCircle);
+        pad.SetQuickMenuOpen(false);
+        consume(); CHECK(none_pressed()); // do not send the close press to the game
+        sample.buttons = 0; sample.triggers = {}; sample.left_stick = {128, 128}; consume();
+        sample.buttons = kButtonCircle; consume(); CHECK(pad.Engine().GetButton({}, 0));
+        sample.buttons = 0; consume(); CHECK(none_pressed());
+
         // The touchpad as Minus (the usual mapping): a tap presses it (11) on release, for about 100 ms...
         sample.buttons = kButtonTouchPad; consume(); CHECK(none_pressed());
         for (int i = 0; i < 20; ++i) { consume(); CHECK(none_pressed()); }

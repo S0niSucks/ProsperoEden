@@ -14,6 +14,7 @@
 #include <optional>
 #include "../../../multiplayer.h"
 #include "../../../multiplayer_directory.h"
+#include "../../../game_files.h"
 
 namespace pe::ui
 {
@@ -67,7 +68,7 @@ struct UpdateStatus
 struct Game
 {
     std::string name;
-    std::string format; // "NSP" or "XCI"
+    std::string format; // "NSP", "XCI", "NSZ", "XCZ" or "NRO"
     std::string size;   // "1.2 GB"
     std::string file;   // its name in the games folder
     std::string cover;  // image path; empty without cover art
@@ -255,7 +256,13 @@ struct Home
     int last_mods_on = 0;
     std::vector<Recent> recents; // at most eight
     std::string system_status;
+    bool homebrew_ready = false; // storage is accessible; unencrypted NROs need no keys/firmware
 };
+
+inline bool ready_for_game(const Home& home, const std::string& file)
+{
+    return home.setup_ready || (home.homebrew_ready && Eden::IsHomebrewFile(file));
+}
 
 // Button mapping: which DualSense button presses each of the game's buttons, on every controller.
 // The game's buttons: A B X Y L R ZL ZR + - and the two stick presses; the DualSense buttons:
@@ -581,6 +588,9 @@ class Services
     // Where roms/ and updates/ are: the game files folder unless the settings file keeps the
     // games apart ("games_folder").
     virtual std::string games_folder() { return files_folder(); }
+    virtual std::string saved_games_folder() { return {}; }
+    // Empty restores following Game files, without moving or deleting any files.
+    virtual bool set_games_folder(const std::string&) { return false; }
     virtual int filesystem_access() = 0; // 0: the whole filesystem
 
     // ---- save transfer: a game's save in from, or out to, a folder (not in every build) ----

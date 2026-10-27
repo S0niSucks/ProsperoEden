@@ -2,6 +2,66 @@
 
 What changed in each release of ProsperoEden, newest first. A release's notes on GitHub are its section here.
 
+## Unreleased integration
+
+**Work in progress, not a new published release.** This consolidates the local integration
+branch; versioned release notes and a new package version will follow completion of the
+remaining features. Existing `v1.005.000` test packages do not represent this whole scope.
+
+### New and improved
+
+- **Independent ROM/update drive.** **Settings > ROMs and updates** selects or resets the
+  folder containing `roms/` and `updates/` without moving keys, firmware or saves. Reopen
+  the app to apply it; unavailable drives do not silently change the saved location.
+- **NRO homebrew.** Bounded discovery in nested game folders and `roms/switch/`, embedded
+  titles/icons/languages when available, and launch without commercial-game keys/firmware.
+  Commercial containers retain their setup requirements.
+- **File-backed Amiibo.** The in-game command strip selects a user's `.bin`, presents it
+  to Eden's NFC driver and explicitly removes it. Raw/internal layouts are validated by
+  the core, writes retain their file format/signature, and folders or loose files coexist.
+- **Amiibo names and photos.** Optional offline metadata resolves the full public model ID;
+  paired PNGs, one-tag-folder `cover.png` and ID-keyed cached photos are supported. Selected
+  thumbnails render in OpenGL and Vulkan with bounded decoding and textual fallback.
+  The optional PC helper prepares public metadata/photos, never tags or keys.
+- **Session-only live cheats.** **Left touchpad click + Square** opens the command strip;
+  Up/Down switches to cheats, Left/Right selects and Cross toggles. Changes reach only
+  the current session's loaded cheat VM; disabling a cheat does not undo earlier memory
+  writes. Downloading/managing a remote cheat database is still pending.
+- **Upstream work retained.** The 17 open PR heads cover hooks, compressed containers,
+  nested library/history/forwarders, newest updates, title-scoped mods, audio overflow,
+  guest-write accounting, ExecuteProgram, HUD and Swedish texts. Selected follow-ups add
+  controller-handle recovery, font mods, missing-key diagnostics and portable wallpapers.
+
+### Reliability and diagnostics
+
+- **GPU allocation refusal.** A failed GPU-address-space reservation is rejected before
+  a page-table base can be exposed. This is a tested guard, not a verified Galaxy fix.
+- **Matching crash symbols.** Post-link executable identity, runtime/crash reporting,
+  source hashes and release manifests bind a report to its exact ELF; mismatched or
+  unstamped inputs are refused by the symbolization tools.
+- **Bounded local inputs.** NFC/catalog/image accesses reject symlinks through ancestors,
+  use held descriptors, bound traversal/allocations and preserve distinct user dumps even
+  when they have the same public ID. No game files, tags, keys or third-party artwork ship.
+- **Docker validation.** Native build/package checks, real-core host regressions, sanitizers
+  and offscreen OpenGL/Vulkan tests run in containers without a host/WSL toolchain install.
+
+### Remaining work and test limits
+
+Cheat database downloads, Nextendo, SMB/NFS streaming, Cover Flow, USB backup/restore,
+external/scene themes and physical Switch Pro Controller support remain in scope, not
+implemented by this changeset. In-launcher online Amiibo synchronization is also pending.
+PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate
+from host tests. Adaptive polling PR #284 requires PS5 A/B; the supplied Galaxy crashes
+still require the documented cold-start and launch/return retests. Nothing was pushed
+or released. See [integration evidence and issue matrix](UPSTREAM_INTEGRATION.md),
+[Amiibo study](AMIIBO_CATALOG.md) and [crash validation](CRASH_VALIDATION.md).
+
+### Thank you
+
+Original contributors retain their authorship and upstream commit references. Thanks to
+the upstream PR authors, Oliv3rmoon for the selected follow-ups, and the Eden/graphics
+contributors. This is a ProsperoEden integration, not a rebranding of the Nightshade fork.
+
 ## v1.005.000
 
 This alpha keeps each game in a folder of its own with everything that belongs to it, gives cheats their own list, adds a speed limit and a second frame generation method, and fixes a lost graphics device and black boxes that spread over the picture. Performance and compatibility still vary by game.

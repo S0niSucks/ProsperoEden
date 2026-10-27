@@ -879,7 +879,8 @@ void PresentVulkanLoading(VideoCore::RendererBase& renderer) {
 }'''),
 ])
 adapt('src/video_core/renderer_vulkan/present/window_adapt_pass.h',
-      'include/video_core/renderer_vulkan/present/window_adapt_pass.h', [
+       'include/video_core/renderer_vulkan/present/window_adapt_pass.h', [
+    ('#pragma once', '#pragma once\n#include "quick_picture.h"'),
     # The overlay and the loading screen are drawn in this pass when it is given the allocator
     # their picture's memory comes from (vulkan_hud_prepare.inc).
     ('class RasterizerVulkan;\n\nclass WindowAdaptPass final {',
@@ -890,7 +891,9 @@ adapt('src/video_core/renderer_vulkan/present/window_adapt_pass.h',
      '    vk::Pipeline coverage_pipeline;\n    vk::PipelineLayout hud_layout;\n    vk::Pipeline hud_pipeline;\n'
      '    vk::Image hud_art;\n    vk::ImageView hud_art_view;\n    vk::Sampler hud_sampler;\n'
      '    vk::DescriptorSetLayout hud_set_layout;\n    vk::DescriptorPool hud_pool;\n'
-     '    vk::DescriptorSets hud_sets;'),
+      '    vk::DescriptorSets hud_sets;\n'
+      '    vk::Image hud_quick_art;\n    vk::ImageView hud_quick_view;\n'
+      '    std::shared_ptr<const Eden::QuickPicture> hud_quick_picture;'),
 ])
 adapt('src/video_core/renderer_vulkan/present/window_adapt_pass.cpp', 'vulkan_window_adapt_pass.cpp', [
     ('#include "core/frontend/framebuffer_layout.h"',

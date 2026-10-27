@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Țintă generare cadre"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM-uri și actualizări"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Alege roms/ și updates/ fără a muta cheile, firmware-ul sau salvările."
+
 msgid "Frame generation"
 msgstr "Generare de cadre"
 

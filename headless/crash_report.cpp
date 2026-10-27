@@ -2,6 +2,7 @@
 // The crash report (crash_report.h). What the handler runs is in this file and uses only system
 // calls, atomics and the buffers below.
 #include "crash_report.h"
+#include "build_identity.h"
 
 #include <signal.h>
 #include <algorithm>
@@ -77,6 +78,7 @@ std::time_t started_at = 0;
 long utc_offset = 0;
 char logs[200];
 char version[40];
+char build_identity[65]; // copied before the handler runs; no file access or hashing in a signal
 char sessions[2][400];
 std::atomic<unsigned> session_now{0};
 std::atomic<bool> reported{false};  // the report is written: the helper threads act
@@ -299,7 +301,9 @@ void Compose(const Kind* kind, int code, std::uint64_t address, const Registers&
     t.Put(version);
     t.Put(" (code size 0x");
     t.Hex(CodeEnd() - CodeStart());
-    t.Put(")\ntime: ");
+    t.Put(")\nbuild identity: ");
+    t.Put(build_identity);
+    t.Put("\ntime: ");
     t.Dec(static_cast<std::uint64_t>(stamp.year), 4);
     t.Put('-');
     t.Dec(stamp.month, 2);
@@ -570,6 +574,7 @@ bool Readable(const void* address, std::size_t bytes) noexcept {
 }
 
 void Install(const std::string& logs_folder, const char* app_version, bool restarted) {
+    Eden::ReadBuildIdentity(build_identity);
     if (installed) return;
     CopyText(logs, sizeof(logs), logs_folder.c_str());
     CopyText(version, sizeof(version), app_version);

@@ -826,6 +826,26 @@ void pictures(Stage &s)
         s.ok = false;
     }
 
+    // The appended category must not move the existing Theme/Colour indices. Exercise the real
+    // settings navigation and browser, including the reset that follows Game files again.
+    s.press({Key::circle}); // Theme's Back returned to Appearance; leave that parent too.
+    s.walk(11, 13);
+    s.press({Key::cross});
+    s.wait(0.8f);
+    s.shoot("T2-independent-games-folder");
+    const std::string data_folder = s.services.saved_files_folder();
+    s.press({Key::triangle});
+    s.wait(0.5f);
+    s.shoot("T3-independent-games-saved");
+    if (s.services.saved_games_folder().empty() || s.services.saved_files_folder() != data_folder) {
+        std::fprintf(stderr, "error: independent games folder did not save separately\n"); s.ok = false;
+    }
+    s.press({Key::square});
+    if (!s.services.saved_games_folder().empty() || s.services.saved_files_folder() != data_folder) {
+        std::fprintf(stderr, "error: independent games folder did not reset separately\n"); s.ok = false;
+    }
+    s.press({Key::circle});
+
     s.services.room = {Eden::Multiplayer::Phase::Connected, "", "Friends' room", {"PlayerPS5"}};
     s.restart();
     s.wait(1.0f);
@@ -856,6 +876,30 @@ void pictures(Stage &s)
     s.restart();
     s.wait(2.0f);
     s.shoot("24-home-setup-required");
+    s.services.homebrew_sample = true;
+    s.restart();
+    s.library();
+    s.wait(2.0f);
+    s.shoot("24b-nro-without-firmware");
+    s.press({Key::cross});
+    s.wait(1.0f);
+    if (s.launcher->selected_game() != "/games/roms/switch/Tools/Demo.NRO") {
+        std::fprintf(stderr, "error: NRO without keys/firmware did not launch (selected=%s)\n",
+                     s.launcher->selected_game().c_str()); s.ok = false;
+    }
+    s.services.homebrew_ready = false;
+    s.restart();
+    s.library();
+    s.wait(1.0f);
+    s.press({Key::cross});
+    s.ok = s.ok && s.launcher->selected_game().empty();
+    s.services.homebrew_ready = true;
+    s.services.homebrew_sample = false;
+    s.restart();
+    s.library();
+    s.wait(1.0f);
+    s.press({Key::cross});
+    s.ok = s.ok && s.launcher->selected_game().empty(); // encrypted games still need setup
     s.services.setup_ready = true;
     s.services.launch_error = "The game's keys are missing from prod.keys.";
     s.restart();

@@ -34,16 +34,18 @@ enum Category
     kLanguage,
     kAppearance,
     kColour,
+    kGames,
     kCategoryCount,
 };
+static_assert(kCategoryCount == kSettingsCategories);
 constexpr const char *kCategories[kCategoryCount] = {
     TR("Profiles"), TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"), TR("Accessibility"),
     TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("Save sync"), TR("Language"), TR("Appearance"),
-    TR("Colour")};
+    TR("Colour"), TR("ROMs and updates")};
 constexpr Icon kIcons[kCategoryCount] = {
     Icon::profile, Icon::video, Icon::performance, Icon::audio, Icon::controls, Icon::accessibility,
     Icon::diagnostics, Icon::files, Icon::downloads, Icon::sync, Icon::language, Icon::theme,
-    Icon::theme};
+    Icon::theme, Icon::files};
 constexpr int kTileColumns = 4;
 constexpr int kTileRows = 4;
 constexpr float kTileGap = 20.0f;
@@ -270,6 +272,10 @@ void Launcher::press_settings(Key key)
             open(Screen::files, true);
             enter_files();
             break;
+        case kGames:
+            open(Screen::files, true);
+            enter_files(true);
+            break;
         case kLanguage:
             open(Screen::language, true);
             enter_language();
@@ -368,6 +374,7 @@ void Launcher::draw_settings(Canvas &c)
         t.name,
         accent_index() < 0 ? std::string{tr("Default")} :
             std::string{accent_presets()[static_cast<std::size_t>(accent_index())].name},
+        short_path(services_.games_folder(), 28),
     };
     if (t.list_settings)
     {
@@ -474,6 +481,9 @@ void Launcher::draw_settings(Canvas &c)
             break;
         case kFiles:
             about = tr("The folder that holds your keys, firmware and games.");
+            break;
+        case kGames:
+            about = tr("Choose roms/ and updates/ without moving keys, firmware or saves.");
             break;
         case kDownloads:
             about = tr("Games on your network, downloaded when you play them.");

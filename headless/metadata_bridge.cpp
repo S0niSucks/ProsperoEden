@@ -1,6 +1,7 @@
 #include "game_name.h"
 #include "metadata_bridge.h"
 #include "game_files.h"
+#include "nro_assets.h"
 #include "assets_dir.h"
 #include "diagnostics.h"
 #include "profiles.h"
@@ -45,6 +46,7 @@
 #include "core/file_sys/romfs.h"
 #include "core/file_sys/submission_package.h"
 #include "core/file_sys/vfs/vfs_real.h"
+#include "core/file_sys/vfs/vfs_offset.h"
 #include "core/hle/service/ns/language.h"
 #include "core/hle/service/set/settings_types.h"
 #include "core/loader/loader.h"
@@ -152,6 +154,9 @@ bool WriteTgaBytes(const unsigned char* encoded, std::size_t size, const char* o
     int width = 0;
     int height = 0;
     int channels = 0;
+    if (!encoded || !size || size > (64u << 20) ||
+        !stbi_info_from_memory(encoded, static_cast<int>(size), &width, &height, &channels) ||
+        width <= 0 || height <= 0 || width > 4096 || height > 4096) return false;
     unsigned char* rgba = stbi_load_from_memory(encoded, static_cast<int>(size), &width, &height, &channels, 4);
     if (!rgba || width <= 0 || height <= 0 || width > 4096 || height > 4096) {
         stbi_image_free(rgba);
@@ -200,8 +205,24 @@ bool WriteTgaBytes(const unsigned char* encoded, std::size_t size, const char* o
 }
 
 bool WriteTga(const FileSys::VirtualFile& icon, const char* output) {
+    if (!icon || icon->GetSize() > (64u << 20)) return false;
     const auto encoded = icon->ReadAllBytes();
     return WriteTgaBytes(encoded.data(), encoded.size(), output, 4096);
+}
+
+Eden::NroAssets::Layout NroLayout(const FileSys::VirtualFile& file) {
+    return Eden::NroAssets::Read(file->GetSize(), [&](unsigned char* data, std::size_t size, std::uint64_t offset) {
+        return file->Read(data, size, offset);
+    });
+}
+std::unique_ptr<FileSys::NACP> NroControl(const FileSys::VirtualFile& file,
+                                        const Eden::NroAssets::Layout& layout) {
+    if (!layout.valid || !layout.nacp.size) return {};
+    const auto control = std::make_shared<FileSys::OffsetVfsFile>(file, layout.nacp.size,
+                                                                layout.nacp.offset, "Control.nacp");
+    FileSys::RawNACP raw{};
+    if (control->ReadObject(&raw) != sizeof(raw)) return {};
+    return std::make_unique<FileSys::NACP>(control);
 }
 }
 
@@ -222,6 +243,10 @@ uint64_t eden_game_title_id(const char* rom_path) {
     FileSys::RealVfsFilesystem vfs;
     const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
     if (!file) return 0;
+    if (Eden::IsHomebrewFile(rom_path)) {
+        const auto control = NroControl(file, NroLayout(file));
+        return control ? control->GetTitleId() : 0;
+    }
     std::string path = rom_path;
     std::transform(path.begin(), path.end(), path.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -241,8 +266,31 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
                                size_t title_capacity) {
     if (!rom_path || !keys_dir || !cover_tga_path || !title || title_capacity == 0) return 0;
     title[0] = '\0';
-    // NROs are listed by file name for now; their optional ASET is not an NSP control partition.
-    if (Eden::IsHomebrewFile(rom_path)) return 0;
+    GameLanguages().erase(rom_path);
+    if (Eden::IsHomebrewFile(rom_path)) {
+        FileSys::RealVfsFilesystem vfs;
+        const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
+        if (!file) return 0;
+        const auto layout = NroLayout(file);
+        if (!layout.valid) return 0;
+        int result = 0;
+        if (const auto control = NroControl(file, layout)) {
+            GameLanguages()[rom_path] = control->GetSupportedLanguages();
+            for (const auto& name : control->GetApplicationNames())
+                if (Eden::UsableName(name)) {
+                    const auto plain = Eden::PlainName(name);
+                    std::snprintf(title, title_capacity, "%s", plain.c_str());
+                    result |= EDEN_METADATA_TITLE;
+                    break;
+                }
+        }
+        if (layout.icon.size) {
+            const auto icon = file->ReadBytes(layout.icon.size, layout.icon.offset);
+            if (icon.size() == layout.icon.size &&
+                WriteTgaBytes(icon.data(), icon.size(), cover_tga_path, 512)) result |= EDEN_METADATA_COVER;
+        }
+        return result;
+    }
     Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
     FileSys::RealVfsFilesystem vfs;
     const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
@@ -271,6 +319,12 @@ uint32_t eden_game_supported_languages(const char* rom_path, const char* keys_di
     if (!rom_path || !keys_dir) return 0;
     if (const auto known = GameLanguages().find(rom_path); known != GameLanguages().end()) return known->second;
     try {
+        if (Eden::IsHomebrewFile(rom_path)) {
+            FileSys::RealVfsFilesystem vfs;
+            const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
+            const auto control = file ? NroControl(file, NroLayout(file)) : nullptr;
+            return GameLanguages()[rom_path] = control ? control->GetSupportedLanguages() : 0;
+        }
         Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
         FileSys::RealVfsFilesystem vfs;
         const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);

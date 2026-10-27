@@ -122,7 +122,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #48 Jamboree cookie-cutter freeze | PS5: reproduce minigame and collect GPU/guest logs |
 | #50 Separate game files and emulator data | Implemented `games_folder` setting for ROMs/updates apart from keys/firmware and internal caches/saves; independent picker and PS5 qualification remain |
 | #52 Xenoblade Chronicles 3 console freeze | PS5: guest/GPU hang evidence needed |
-| #56 Amiibo files | Feature: file selection and NFC presentation are not implemented here |
+| #56 Amiibo files | Implemented file-backed NFC factory and in-game selection/presentation; new driver/menu checks in progress, actual PS5 game scan unverified |
 | #59 Pokémon Z-A flicker | PS5: graphics capture and backend comparison needed |
 | #60 3D All-Stars / Splatoon loading | PS5: retest existing pipeline fix; #298 is only a possible lead for program handovers, not a fix for both games |
 | #61 Age of Calamity 1 FPS | PS5: matched scene and synchronization trace needed |
@@ -146,7 +146,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #119 Top Racer slowdown / Vulkan crash | PS5: failing service reply and GPU logs; #241 diagnostics alone would not fix it |
 | #120 Mario Kart CTGDX | Candidate #272/#276 hooks; mod version, build ID and console retest still required |
 | #122 Achilles Survivor | PS5: current title/update crash or loading trace needed |
-| #128 In-game cheat toggle | Feature: no runtime cheat-menu/hotkey added |
+| #128 In-game cheat toggle | Implemented session-only quick strip and timing-owner mailbox; parser/VM/concurrency checks in progress, actual PS5 games unverified |
 | #129 The Stretchers | PS5: startup trace and current build required |
 | #133 Cover Flow | Feature: no 3D library layout added |
 | #148 Monster Hunter Generations Ultimate | PS5: current-version reproduction needed |
@@ -157,7 +157,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #195 Metroid Prime 4 | PS5: exact failure and current-version evidence needed |
 | #202 Switch Pro Controller | Feature: PS5 driver/input support and hardware tests required; MissionControl is not directly portable |
 | #206 Castlevania Belmont's Curse | Improved missing-key diagnostics integrated; PS5 startup/key-generation evidence still required |
-| #219 Cheat GUI / Arceus cheats | Feature: GUI request remains; verify build-ID/file matching separately |
+| #219 Cheat GUI / Arceus cheats | Launcher switches plus live in-game switches implemented; specific Arceus build/cheat compatibility remains unverified |
 | #222 Title 0100D71004694000 | PS5: current-version game report and logs required |
 | #224 Kirby Return to Dream Land Deluxe | PS5: reproduce the specific game problem; no blanket Kirby claim |
 | #226 Graphical glitches | PS5: failing scene and backend comparison needed |
@@ -168,7 +168,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #236 Luigi's Mansion 3 floor 10 | PS5: save/scene and GPU/memory trace required |
 | #238 Abort 2010-0212 | PS5: identify malformed/failing CMIF reply; no guessed service-success patch |
 | #239 Scene themes / Themezer | Feature: large scene/import system remains unimplemented |
-| #242 NRO and NSZ | NSZ/XCZ plus NRO library/launcher paths implemented; embedded NRO metadata, key-free setup and recursive `switch/` import not added, actual homebrew on PS5 unverified |
+| #242 NRO and NSZ | NSZ/XCZ and NRO library/launcher paths, bounded embedded metadata, key-free NRO setup and recursive `switch/` import implemented; actual homebrew on PS5 unverified |
 | #246 Memory write / GPU / heap / app restart | Partial candidate #296: repeated successful write-fault promotions only; remaining three parts unresolved |
 | #248 Shared system-font mods | Implemented shared archive-font override, validation and bounded reads; actual translation/font/game on PS5 still unverified |
 | #260 Kirby and the Forgotten Land regression | Candidate #275: deterministic timing reproduction; same-scene PS5 A/B still needed |
@@ -303,3 +303,122 @@ reproductions above. Do not close composite issues for one corrected symptom.
   In particular, #284 remains experimental pending the author's requested console A/B tests.
 - No console was accessed. No issue was closed or branch pushed. Outstanding features and
   console-only failures in the triage remain work, not implied fixes from a passing build.
+
+## Follow-up implementation, after the user's console smoke test
+
+The user reported that the previous local package worked normally on their PS5. No
+firmware/game/scenario matrix was supplied, so this is a smoke-test report, not
+qualification of every integrated patch or of #284.
+
+- Implemented **Settings > ROMs and updates**, independent save/reset through the real
+  folder browser, service and Lua API. Reset follows Game files; it moves no files.
+  Existing settings indices remain unchanged (the category is appended).
+- Implemented bounded NRO ASET icon/NACP title/program-ID/language reading and key-free
+  homebrew launch, without bypassing encrypted-container setup or storage requirements.
+  `roms/switch/` can be copied intact and searched recursively within documented limits.
+  Symlink loops/aliases and hidden entries are not imported; containers stay one level deep.
+- First follow-up Docker host suite **passed**, including actual NACP metadata bridge,
+  storage preferences/browser regression, 557 texts in 30 catalogs, TSan/memory/JIT,
+  device/audio/mod/save tests, simulated HTTP/FTP and three real NRO loader/JIT/exit cycles.
+  Evidence: shell `sh_17ee2542f0015yvlCWi0XfAqPf`; Docker results
+  `devices-host-20261027-194805.Kb7NX6` and `nro-host-20261027-194808.684ON2`.
+  Later recursive scanning, bounded runtime ASET loading, GPU guard and identity changes
+  require the next run; that earlier pass is not assigned to those later edits.
+- Dedicated audit of the supplied 23-file ZIP found **four crashes, one signature**, from
+  a 17 October diagnostic binary. #237 is directly relevant but remains **candidate,
+  not retested** for these reports. No false symbolization or universal crash-fix claim.
+  See [Crash validation](CRASH_VALIDATION.md) for the evidence boundary and retest matrix.
+- Added specific generated GPU-table regression/failure controls, null-allocation guard,
+  allocation-stage diagnostics and build identity checks. New builds bind logs to the
+  exact unstripped ELF; release manifests also bind eboot and source hashes.
+- The next full host run passed with the generated runtime NRO loader, icon/NACP/languages,
+  GPU refusal controls and build identity. Evidence: shell `sh_17eeb379f001o2nN8XXAmytA7P`,
+  device results `devices-host-20261027-195909.IefzdV`, NRO results
+  `nro-host-20261027-195912.hm3WCy`. Later quick-menu/NFC/cheat edits are not covered by it.
+- The native build/package of that snapshot passed too, including the post-link identity,
+  `build-identity.json`, loader framing and import/inventory checks. Evidence: shell
+  `sh_17eef0a7d0012GGt5NUO0Bttva`. It is an intermediate build, not the requested final release.
+- Launcher preview with ASan/UBSan passed the independent folder category/browser save/reset
+  and the NRO/no-firmware/storage/container scenarios. Fixed the category count (14, not 13)
+  and the test's parent-dialog exit. Evidence: shell `sh_17ef3cccd001X5V6Ub369z8UBQ`.
+- Added isolated post-link identity/LTO/tamper/manifest and source-copy provenance checks;
+  both passed. The next host image exposed an accidental FFmpeg X11/libdrm requirement;
+  the headless runner now disables X11 discovery explicitly, without host/WSL installs.
+- Implementing #56/#128: file-backed NFC registered before controller binding; serialized
+  real Eden NFC driver, bounded tag files, an in-game Amiibo/cheat strip and guest-input
+  capture. Live cheat changes go through a mailbox consumed by the VM timing owner, not
+  direct concurrent mutation of the pinned engine's vector. Tests include the real parser/VM.
+- Native readable-file checks use `open(O_NOFOLLOW)`/`fstat`, not denied `lstat`; this also
+  corrects recursive NRO discovery on those console mounts without accepting symbolic links.
+  Host recursive-count/link/depth checks with forced `lstat` refusal passed.
+- The NFC/live-cheat snapshot passed the complete host suite with normal, ASan/UBSan
+  and TSan targets: `sh_17f08ca13001g7FkfoQ97N7p68`, devices
+  `devices-host-20261027-203437.Vvhp9b`, NRO `nro-host-20261027-203440.QLrC06`.
+  Its native package also passed (`sh_17f08ca5c001JT9XcoIgck5WV6`). These precede
+  the descriptor-backed NFC read/write derivation and are not evidence for that edit.
+- The subsequent descriptor-backed NFC snapshot passed the complete host suite too:
+  `sh_17f1256e4001Q753Kpyb1ipAZH`, devices `devices-host-20261027-204427.OvYEQw`,
+  NRO `nro-host-20261027-204431.GppizT`. This includes the real driver/factories and
+  normal/ASan/UBSan/TSan checks for padding, signed dump normalization and a symlink
+  substituted after scan. RomM real-server tests were explicitly skipped.
+- The matching native build/package passed (`sh_17f125738001X1hSkPgI0Eqs28`), including
+  identity/provenance, ELF framing, import/inventory and package checks. Preserved
+  locally in `.local/docker-release/amiibo-io-20261027/`: ZIP SHA-256
+  `6b57e43f7b7b84fb914b9a7def6d07e522235635ba712675f75fb5a26b6777a1`, matching
+  symbol ELF `3b223a19d6a32d4c3598e32c158c9be03eea9b470244b48b56560540f22483e0`.
+  This intermediate package is neither the final requested release nor PS5-qualified.
+- Researched the user's Amiibo folder/photo request against Eden, a Ryujinx-derived
+  source mirror, TagMo and maintained AmiiboAPI. Added bounded offline catalog/full-ID
+  lookup, folder labels and PNG candidate association; no tag/key/artwork download.
+  The first host/native compile found a missing private core-header include path;
+  corrected it without suppressing the failure. Dedicated host catalog/NFC/cheat checks
+  then passed normal/ASan/UBSan/TSan (`sh_17f1e6240001ypDJxmlbccQyCn`).
+- A later hardening uses `openat` to reject ancestor symlinks as well as leaf symlinks,
+  and discovery enumerates verified directory descriptors. Standalone actual helper
+  tests passed normal and ASan/UBSan: interrupted/short/failed reads/writes, 532-byte
+  padding, all 32 signature bytes preserved, held descriptor reads, and malformed native
+  directory records. The catalog and final directory changes still need the next
+  complete host/native run. See [Amiibo catalog study](AMIIBO_CATALOG.md); photos and
+  online metadata synchronization are not yet implemented.
+- The full offline-catalog/directory snapshot subsequently passed both runners:
+  host `sh_17f220842001lSzaqYxEqiVm0R` (devices `devices-host-20261027-210213.hyesjZ`,
+  NRO `nro-host-20261027-210216.ssV3ex`) and native `sh_17f2208640013Nx1l2Lv0usy9V`.
+  This includes normal/ASan/UBSan/TSan catalog and NFC regressions and normal/ASan/UBSan
+  descriptor/directory fault injection. Preserved ZIP SHA-256
+  `96575539b7c4eee76e9fc0ea4d9af2365a4a00df5e785c5b1cf0f7efcf4d1647`, symbol ELF
+  `73f2849497a91c93ea4892be3e236ed321aad9488795f299ad054d1aa816a916` in
+  `.local/docker-release/amiibo-catalog-20261027/`. It predates photo decoding/rendering.
+- The user confirmed retaining ProsperoEden's existing visual identity, without TGS
+  branding, for the photo extension. Added a selected-item-only PNG decoder and
+  immutable text/picture exchange, with OpenGL/Vulkan photo draw paths. The real
+  OpenGL HUD method passed Mesa rendering/visibility/orientation/replacement/fallback
+  checks at 720p/1080p (`sh_17f2dbb02001mp8njmv25lnR6k`); captures use synthetic colored
+  pixels, not third-party artwork. Complete native, PNG sanitizers and Vulkan checks
+  are still pending for these later edits; no PS5 photo-renderer claim yet.
+- Subsequent photo evidence: native `sh_17f2d250d001D0Jn63FK1OmHh3` passed compilation,
+  linking, imports/inventory and packaging. Actual ZIP CRC/modes and correspondence of
+  manifest, source snapshot, ELF identity, symbols and eboot were verified, then saved in
+  `.local/docker-release/amiibo-photos-20261027/`: ZIP
+  `c1b53d6d3abd81e56d40f6a277cd3fa16d6f2caf31d4ddc81a375a41c7c5c48f`, symbol ELF
+  `b351ea34b704ef5e179d808f52005a496bc501328399c32cf67aa3c5bd31d1c9`, eboot
+  `d4589aab987773caa07cf1a3a13ab03798d7594b8722918095975f772dc6a46d`.
+  Vulkan draw/shaders passed Mesa at both sizes with zero validation errors, including
+  the producer-normalized text follow-up (`sh_17f313d43001mHu3W5p0geaRQ4`). Updated PNG
+  tests with decoder-allocation refusal and exception fallback passed normal/ASan/UBSan/
+  TSan (`sh_17f38f241001cEbhVy0oYtjEgN`). The native artifact predates that exception
+  fallback and the PC helper, and remains unqualified on the PS5.
+- Added an opt-in PC cache-preparation helper, `tools/sync-amiibo.py`: configurable HTTPS
+  catalog/image sources, explicit public IDs only, bounded metadata/PNG downloads,
+  cache reuse and validated atomic file replacement. Synthetic offline checks pass,
+  including redirect/body/deadline controls, malformed compressed images and failed-batch
+  preservation. It does not read user tags, and is not an in-launcher PS5 sync feature.
+- Full photo host suite `sh_17f2d250d002SEdc5zUn7mQ4SY` passed all checks, including NFC,
+  decoded photo selection, live-cheat mailbox and PNG sanitizers. Device evidence:
+  `devices-host-20261027-211827.JXusIb`; real-core NRO cycles:
+  `nro-host-20261027-211831.fqfGQv`. RomM real-server checks were explicitly skipped.
+  This run predates the PC helper and the later C++ allocation-exception fallback,
+  whose separate normal/ASan/UBSan/TSan decoder check is recorded above.
+
+Still active: verify the newest edits on host and native Docker builds and the real
+launcher preview; continue the outstanding feature implementation. No new version or
+release is declared complete yet, and no remote publishing/issue closure was performed.

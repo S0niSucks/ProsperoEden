@@ -21,6 +21,7 @@ import shutil
 import struct
 import subprocess
 import sys
+from build_identity import identity
 
 
 def sections(data):
@@ -66,13 +67,21 @@ def main():
     elf = sys.argv[2]
     with open(elf, 'rb') as file:
         data = file.read()
+    claimed = re.search(r'^build identity: ([0-9a-f]{64})$', report, re.M)
+    if not claimed:
+        sys.exit('Refusing symbolization: report has no verifiable build identity. Keep offsets raw; obtain the exact legacy binary and matching symbols.')
+    try:
+        expected, _at = identity(data)
+    except (ValueError, struct.error) as error:
+        sys.exit('Refusing symbolization: ' + str(error))
+    if claimed.group(1) != expected:
+        sys.exit('Refusing symbolization: report and ELF have different build identities.')
     start, at, size = sections(data)['.text']
     said = re.search(r'\(code size 0x([0-9a-f]+)\)', report)
     if not said:
         sys.exit('not a ProsperoEden crash report: ' + sys.argv[1])
     if int(said.group(1), 16) != size:
-        print(f'WARNING: the report is from a build with 0x{said.group(1)} bytes of code; this ELF has 0x{size:x}. '
-              'The names below are wrong unless it is the same build.\n')
+        sys.exit(f'Refusing symbolization: code size mismatch (report 0x{said.group(1)}, ELF 0x{size:x}).')
     lines = report.splitlines()
     in_calls = False
     dropped = 0

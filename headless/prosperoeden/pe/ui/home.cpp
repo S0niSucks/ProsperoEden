@@ -78,7 +78,8 @@ void Launcher::open_game_settings_from_home(const std::string &file)
 
 void Launcher::press_home(Key key)
 {
-    const bool ready = home_.setup_ready;
+    const bool ready = ready_for_game(home_, home_.last_file);
+    const bool library_ready = home_.setup_ready || home_.homebrew_ready;
     const bool minimal = th().minimal_home;
     const int count = static_cast<int>(games_.size());
 
@@ -120,7 +121,7 @@ void Launcher::press_home(Key key)
             return;
         case Key::cross:
         {
-            if (count == 0 || !ready)
+            if (count == 0 || !ready_for_game(home_, games_[static_cast<std::size_t>(library_.selected)].file))
             {
                 cue(Cue::error);
                 return;
@@ -295,10 +296,10 @@ void Launcher::press_home(Key key)
             launch(home_.last_file, home_.last_title, home_.last_cover);
         }
         else if (focus == kMain)
-            go_section(ready ? 1 : 3);
+            go_section(library_ready ? 1 : 3);
         else if (focus == kGameSettings && continue_ready)
             open_game_settings_from_home(home_.last_file);
-        else if (focus == kViewAll && ready)
+        else if (focus == kViewAll && library_ready)
             go_section(1);
         else if (focus >= kFirstRecent && focus < kFirstRecent + recent_count)
         {
@@ -394,7 +395,8 @@ void Launcher::draw_home(Canvas &c)
 {
     gfx::DrawList &list = c.list;
     const Theme &t = th();
-    const bool ready = home_.setup_ready;
+    const bool ready = ready_for_game(home_, home_.last_file);
+    const bool library_ready = home_.setup_ready || home_.homebrew_ready;
     const bool continue_ready = ready && home_.last_exists;
     const bool minimal = t.minimal_home;
     const auto focus = [&](int index) { return home_springs_[static_cast<std::size_t>(index)].value; };
@@ -550,7 +552,7 @@ void Launcher::draw_home(Canvas &c)
             const Rect first{cx, card.y + card.h - 36.0f - 68.0f - 14.0f - 76.0f, cw, 76.0f};
             const Rect second{cx, card.y + card.h - 36.0f - 68.0f, cw, 68.0f};
             primary_button(c, first, tr("Play"), translate_hint(Pad::cross), focus(kMain), press_,
-                           has_game && ready);
+                           has_game && ready_for_game(home_, game->file));
             secondary_button(c, second, tr("Game settings"), translate_hint(Pad::triangle),
                              focus(kGameSettings), press_, has_game && game->title_id != 0);
         }
@@ -603,7 +605,7 @@ void Launcher::draw_home(Canvas &c)
 
         begin_part(3, 22.0f);
         {
-            const char *first = continue_ready ? tr("Play") : ready ? tr("Open library") : tr("Settings");
+            const char *first = continue_ready ? tr("Play") : library_ready ? tr("Open library") : tr("Settings");
             const char *second = tr("Game settings");
             const float top = below + 112.0f;
             const float first_width = std::clamp(text_width(c, first, 28.0f) + 152.0f, 160.0f, 520.0f);

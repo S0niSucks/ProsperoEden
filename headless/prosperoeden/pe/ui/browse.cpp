@@ -67,13 +67,14 @@ void draw_folder(Canvas &c, float x, float cy, Color ink, bool up)
 
 // ---------------------------------------------------------------- game files
 
-void Launcher::enter_files()
+void Launcher::enter_files(bool games_only)
 {
+    browse_games_ = games_only;
     // Start where the player's files are (or will be after reopening), else the nearest
     // folder that can be opened.
-    std::string start = services_.saved_files_folder();
+    std::string start = browse_games_ ? services_.saved_games_folder() : services_.saved_files_folder();
     if (start.empty())
-        start = services_.files_folder();
+        start = browse_games_ ? services_.games_folder() : services_.files_folder();
     files_.visible = 6;
     files_.pitch = 88.0f;
     while (!browse_to(start) && start != "/")
@@ -145,7 +146,8 @@ void Launcher::press_files(Key key)
     }
     case Key::triangle:
     {
-        const bool saved = services_.set_files_folder(browse_dir_);
+        const bool saved = browse_games_ ? services_.set_games_folder(browse_dir_) :
+                                          services_.set_files_folder(browse_dir_);
         say(saved ? tr("Saved. Reopen ProsperoEden to use this folder.") :
                     tr("Could not save the folder. Please try again."),
             !saved);
@@ -154,9 +156,10 @@ void Launcher::press_files(Key key)
     }
     case Key::square:
     {
-        const std::string fallback = services_.default_files_folder();
-        const bool saved = services_.set_files_folder(fallback);
-        (void)browse_to(fallback);
+        std::string fallback = browse_games_ ? services_.saved_files_folder() : services_.default_files_folder();
+        if (fallback.empty()) fallback = services_.files_folder();
+        const bool saved = browse_games_ ? services_.set_games_folder("") : services_.set_files_folder(fallback);
+        if (saved) (void)browse_to(fallback);
         say(saved ? tr("Default folder saved. Reopen ProsperoEden to use it.") :
                     tr("Could not save the folder. Please try again."),
             !saved);
@@ -172,7 +175,9 @@ void Launcher::draw_files(Canvas &c)
 {
     gfx::DrawList &list = c.list;
     const int count = static_cast<int>(browse_entries_.size());
-    draw_frame(c, tr("Game files"), tr("Choose the folder that holds your keys, firmware and games"));
+    draw_frame(c, browse_games_ ? tr("ROMs and updates") : tr("Game files"),
+               browse_games_ ? tr("Choose roms/ and updates/ without moving keys, firmware or saves.") :
+                               tr("Choose the folder that holds your keys, firmware and games"));
     c.list.push_transform(kFit, 0.0f, 0.0f, kFitX, kFitY);
 
     // ---- folders ----
@@ -244,18 +249,24 @@ void Launcher::draw_files(Canvas &c)
                1764.0f - column, color.r == th().warning.r && color.g == th().warning.g);
     };
     const auto state = [](bool ready) { return ready ? th().accent_pale : th().warning; };
+    if (!browse_games_) {
     line(378.0f, tr("KEYS"), folder_info_.keys ? tr("prod.keys found") : tr("prod.keys missing"),
          state(folder_info_.keys));
     line(434.0f, tr("FIRMWARE"),
          folder_info_.firmware < 0 ? tr("No firmware folder") :
                                      counted(folder_info_.firmware, tr("{0} NCA file"), tr("{0} NCA files")),
-         state(folder_info_.firmware > 0));
-    line(490.0f, tr("GAMES"),
+          state(folder_info_.firmware > 0));
+    }
+    line(browse_games_ ? 378.0f : 490.0f, tr("GAMES"),
          folder_info_.games < 0 ? tr("No roms folder") : counted(folder_info_.games, tr("{0} game"), tr("{0} games")),
          state(folder_info_.games > 0));
     list.rounded_rect({1016.0f, 554.0f, 748.0f, 1.0f}, 0.0f, th().rule);
-    const std::string in_use_folder = services_.files_folder();
-    const std::string saved = services_.saved_files_folder();
+    const std::string in_use_folder = browse_games_ ? services_.games_folder() : services_.files_folder();
+    std::string saved = browse_games_ ? services_.saved_games_folder() : services_.saved_files_folder();
+    if (browse_games_ && saved.empty()) {
+        saved = services_.saved_files_folder();
+        if (saved.empty()) saved = services_.files_folder();
+    }
     line(578.0f, tr("IN USE"),
          !saved.empty() && saved != in_use_folder ? fill(tr("Next launch: {0}"), {short_path(saved, 32)}) :
                                                     short_path(in_use_folder, 40),
@@ -268,7 +279,8 @@ void Launcher::draw_files(Canvas &c)
     list.rounded_rect({1016.0f, 698.0f, 748.0f, 1.0f}, 0.0f, th().rule);
     notice_block(c,
                  message_.empty() ?
-                     tr("Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown.") :
+                      (browse_games_ ? tr("Choose roms/ and updates/ without moving keys, firmware or saves.") :
+                                       tr("Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown.")) :
                      message_,
                  1016.0f, baseline(722.0f, 36.0f, th().size_text), th().size_text, 36.0f,
                  message_.empty() ? th().copy :

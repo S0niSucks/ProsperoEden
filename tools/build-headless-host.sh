@@ -60,19 +60,22 @@ cmake -S "$eden" -B "$scratch/build" -G Ninja \
     -DENABLE_WEB_SERVICE=OFF -DENABLE_LIBUSB=OFF -DYUZU_CRASH_DUMPS=OFF \
     -DYUZU_USE_EXTERNAL_FFMPEG=ON -DENABLE_WERROR=OFF -Dzstd_FORCE_BUNDLED=ON \
     -DDYNARMIC_ENABLE_NO_EXECUTE_SUPPORT=ON -DDYNARMIC_IGNORE_ASSERTS=OFF \
-    -DSDL_UNIX_CONSOLE_BUILD=ON -DSDL_X11=OFF -DSDL_WAYLAND=OFF \
+    -DCMAKE_DISABLE_FIND_PACKAGE_X11=TRUE -DSDL_UNIX_CONSOLE_BUILD=ON -DSDL_X11=OFF -DSDL_WAYLAND=OFF \
     -DSDL_OPENGL=OFF -DSDL_OPENGLES=OFF -DSDL_RENDER=OFF -DSDL_GPU=OFF
 python3 -B "$root/headless/check_slab_lifetime.py" \
     "$scratch/build/headless/include/core/hle/kernel/slab_helpers.h" \
     "$scratch/source/src/core/hle/kernel/slab_helpers.h"
-cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check -j 6
+cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j 6
 python3 -B "$root/tools/check-timing-stop.py" "$scratch/build"
+python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/build"
 python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/build"
 python3 -B "$root/tools/check-guest-hooks.py"
 python3 -B "$root/tools/check-sparse-header.py" "$scratch/build"
 python3 -B "$root/tools/check-multiplayer-headers.py" "$scratch/build"
 python3 -B "$root/tools/check-heap-growth.py"
 python3 -B "$root/tools/check-crash-report.py"
+python3 -B "$root/tools/check-build-identity.py"
+python3 -B "$root/tools/check-source-snapshot.py"
 python3 -B "$root/tools/check-stop-limit.py"
 python3 -B "$root/tools/check-image-pages.py"
 python3 -B "$root/tools/check-astc-policy.py"
@@ -85,6 +88,20 @@ python3 -B "$root/tools/check-update-versions.py" "$scratch/build/headless/regis
 python3 -B "$root/tools/check-game-folder-mods.py"
 python3 -B "$root/tools/check-forwarded-rom.py"
 python3 -B "$root/tools/check-game-files-count.py"
+python3 -B "$root/tools/check-games-folder.py"
+python3 -B "$root/tools/check-nro-assets.py"
+python3 -B "$root/tools/check-amiibo-file.py"
+python3 -B "$root/tools/check-quick-picture.py" "$eden"
+python3 -B "$root/tools/check-sync-amiibo.py"
+"$scratch/build/bin/eden-nro-metadata-check" "$root/sce_sys/icon0.png"
+"$scratch/build/bin/eden-file-amiibo-check"
+"$scratch/build/bin/eden-live-cheats-check"
+"$scratch/build/bin/eden-amiibo-catalog-check" "$root/sce_sys/icon0.png"
+for sanitizer in asan tsan; do
+    "$scratch/build/bin/eden-file-amiibo-check-$sanitizer"
+    "$scratch/build/bin/eden-live-cheats-check-$sanitizer"
+    "$scratch/build/bin/eden-amiibo-catalog-check-$sanitizer" "$root/sce_sys/icon0.png"
+done
 python3 -B "$root/tools/check-library-file.py" "$scratch"
 python3 -B "$root/tools/check-hud.py"
 python3 -B "$root/tools/check-execute-program.py"

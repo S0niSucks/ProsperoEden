@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Meta de geração de quadros"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROMs e atualizações"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Escolha roms/ e updates/ sem mover chaves, firmware ou dados salvos."
+
 msgid "Frame generation"
 msgstr "Geração de quadros"
 

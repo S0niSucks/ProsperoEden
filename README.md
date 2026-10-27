@@ -12,6 +12,11 @@
 
 This is an early alpha. Video, audio, controller input, and saves have been confirmed working. Compatibility and performance will vary between games. The current release is **v1.005.000**. What changed in it, and in every release before, is in the [changelog](docs/CHANGELOG.md#v1005000).
 
+> This local integration branch has additional, unreleased work. See the
+> [draft changeset](docs/CHANGELOG.md#unreleased-integration) and
+> [test/remaining-feature matrix](docs/UPSTREAM_INTEGRATION.md); a successful Docker build
+> does not qualify its new features or reported game fixes on the PS5.
+
 ## Source code
 
 The complete ProsperoEden source is in this repository: the PS5 frontend and launcher in `headless/`, and the build and packaging tools in `tools/`. To build it yourself, run `make` on Linux (Ubuntu 26.04; WSL works). It fetches every dependency at its pinned revision and writes the release files to `dist/`; `make help` lists the other targets. See [docs/BUILDING.md](docs/BUILDING.md). A release ZIP built by GitHub Actions can be checked with `gh attestation verify <ZIP> -R blackbearreloaded/ProsperoEden` (GitHub CLI); this covers releases built from now on (after v1.000.090), not earlier ones.
@@ -48,7 +53,7 @@ Local-wireless multiplayer through Eden rooms is new in v1.000.110 and experimen
 - **Frame generation** - between two of a game's own pictures ProsperoEden can show one made up from them, so a 30 FPS game looks like 60: **Frame generation** in **Settings > Video**, or in one game's settings. Two methods: **MihawkGen**, which comes with the app, or Lossless Scaling with your own copy of it; see [Frame generation](docs/SETTINGS.md#frame-generation).
 - **Post-processing (ReShade FX)** - a look drawn over the game's picture: **Post-processing** in **Settings > Video**, or in one game's settings, with the Vulkan renderer. Six presets come with the app (Anime, Cinematic, Clean, Dreamy, Retro, Vivid). Presets of your own (`.fxp`) go in `/data/prosperoeden/user/post_presets/` and the ReShade FX effects they use (`.fx`, with any `.fxh` they include) in `/data/prosperoeden/user/post_shaders/`; a game's own presets and effects go in its game folder's `reshade/`, and are offered for that game only. They are listed after a restart. See [Post-processing](docs/SETTINGS.md#post-processing).
 - **Game files anywhere** - keys, firmware, and games can live in any folder the PS5 can read: internal storage, an M.2 or external drive, or a USB device.
-- **Folder browser** - pick the game files folder in **Settings > Game files**. It shows how many keys, firmware files, and games each folder holds. Hold L1/R1 to page quickly.
+- **Folder browser** - pick the game files folder in **Settings > Game files**, or keep ROMs/updates on another drive through **Settings > ROMs and updates**, without moving keys, firmware or saves. It shows how many files each folder holds. Hold L1/R1 to page quickly.
 - **Library** - your games as covers, with the selected game's details beside them. The home screen has **Continue Playing** and **Recently Played**, which keep working after you move your files.
 - **Launcher** - an animated interface drawn with OpenGL, with sound effects (their level is in **Settings > Audio**) and a loading screen that shows the game's cover while it starts. It opens from the console's own launch picture without a cut: the mark appears over the picture and goes to its place as the menu arrives (any button skips it). Its five sections (Home, Library, Multiplayer, Settings, About) are on a rail at the left: L1 and R1 go from one to the next, and Left from a screen's edge opens the rail. The home screen shows which controllers are connected.
 - **Themes** - the launcher's look is a theme, chosen in **Settings > Theme**. It comes with one, Canopy; [docs/THEMES.md](docs/THEMES.md) says what a theme is made of.
@@ -60,7 +65,7 @@ Local-wireless multiplayer through Eden rooms is new in v1.000.110 and experimen
 - **Accessibility** - larger text, high contrast and reduced motion, in **Settings > Accessibility**.
 - **Save data in and out** - import a game's save from a folder or from a Ryujinx data folder, and export a copy (Triangle in the Library, then **Save data**).
 - **Compressed games** - NSZ and XCZ files (NSPs and XCIs compressed with [nsz](https://github.com/nicoboss/nsz)) play as they are; see [Compressed games](docs/INSTALL.md#compressed-games-nsz-and-xcz).
-- **Switch homebrew** - `.nro` files in `roms/` or its game folders are listed by file name and use Eden's NRO loader; see [NRO homebrew](docs/INSTALL.md#nro-homebrew) for current metadata/setup limits.
+- **Switch homebrew** - `.nro` files in `roms/`, its game folders or a copied `roms/switch/` tree use Eden's NRO loader without keys/firmware. Embedded titles and icons appear when available; see [NRO homebrew](docs/INSTALL.md#nro-homebrew) for limits.
 - **Game updates and DLC** - keep each game in a folder of its own in `roms`, with its update and DLC files (NSP, XCI, NSZ or XCZ) beside it; see [Game files folder](docs/INSTALL.md#game-files-folder). They apply when the game starts, and each game's details show the update version and DLC count.
 - **Download sources** - the games on servers in your network, such as a [RomM](https://github.com/rommapp/romm) server, appear in the Library next to the ones on the console. A game is downloaded when you play it, or ahead of time through a download queue, and then runs from the console like any other: nothing is streamed. Downloads need an FTP server running on the console; see [Download sources](docs/DOWNLOADS.md#download-sources).
 - **Save sync** - each profile can keep its save data on a server, such as a [RomM](https://github.com/rommapp/romm) server, as Steam does: it is synced before a game starts and after it ended, and when it changed on two devices you choose which one stays. A profile is paired with its server by a QR code, no typing. See [Save sync](docs/SAVES.md#save-sync).
@@ -118,6 +123,7 @@ The touchpad is pressed as a button. On its own, clicking the left half of the t
 |---|---|
 | Touchpad + R1 | Toggle the performance HUD |
 | Touchpad + L1 | End the running game and return to the library |
+| Left touchpad click + Square | Open/close the Amiibo and session-cheat strip ([usage and limits](docs/INSTALL.md#in-game-quick-commands-and-amiibo)) |
 
 ## Issues and reports
 

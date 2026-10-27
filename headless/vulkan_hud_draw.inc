@@ -31,4 +31,24 @@
             }
             cmdbuf.PushConstants(hud_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, constants);
             cmdbuf.Draw(4, 1, 0, 0);
+            if (hud_picture_set && !loading) {
+                const auto side = hud_units(Eden::QuickPicture::kBox);
+                const auto left = hud_units(hud.x);
+                const auto top = hud_units(hud.y + hud_box + Eden::QuickPicture::kGap);
+                if (left + side <= render_area.width && top + side <= render_area.height) {
+                    const VkRect2D picture_scissor{{static_cast<int32_t>(left), static_cast<int32_t>(top)}, {side, side}};
+                    const VkViewport picture_viewport{float(left), float(top), float(side), float(side), 0, 1};
+                    cmdbuf.SetViewport(0, picture_viewport);
+                    cmdbuf.SetScissor(0, picture_scissor);
+                    cmdbuf.BindDescriptorSets(VK_PIPELINE_BIND_POINT_GRAPHICS, hud_pipeline_layout, 0,
+                                              hud_picture_set, {});
+                    Eden::HudSnapshot picture_constants{};
+                    picture_constants.x = left;
+                    picture_constants.y = top;
+                    picture_constants.width = side;
+                    picture_constants.loading = Eden::kHudOverlayFlag | Eden::kHudPictureFlag;
+                    cmdbuf.PushConstants(hud_pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, picture_constants);
+                    cmdbuf.Draw(4, 1, 0, 0);
+                }
+            }
         }

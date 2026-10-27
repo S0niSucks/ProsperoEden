@@ -705,6 +705,12 @@ msgid "Frame gen target"
 msgstr "Képkockagenerálás célértéke"
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+msgid "ROMs and updates"
+msgstr "ROM-ok és frissítések"
+
+msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
+msgstr "Válassza a roms/ és updates/ mappát a kulcsok, firmware és mentések áthelyezése nélkül."
+
 msgid "Frame generation"
 msgstr "Képkockagenerálás"
 

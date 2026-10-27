@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string_view>
+#include "quick_overlay.h"
 
 // The overlay's baked font: how far each character moves the pen, and how large its box is.
 // Outside the namespace below, which opens its own.
@@ -98,6 +99,7 @@ inline constexpr uint32_t kHudOverlayFlag = 0x80000000u;
 // line is drawn in its inks rather than one (bake-loading-text.py, vulkan_hud.frag).
 inline constexpr uint32_t kHudSizeShift = 28, kHudSizeMask = 0x70000000u;
 inline constexpr uint32_t kHudColorsFlag = 0x08000000u;
+inline constexpr uint32_t kHudPictureFlag = 0x04000000u;
 // The chip's size, as the field carries it: the launcher's size index 0, 1, 2 is a scale of
 // 1x, 1.5x, 2x, stored as that scale times two (2, 3, 4).
 inline uint32_t HudSizeField(int size) {
@@ -400,6 +402,21 @@ inline HudSnapshot MakeHudSnapshot(const HudClock& clock, const HudClock& output
     hud.loading = kHudOverlayFlag | HudSizeField(size) | (colors ? kHudColorsFlag : 0u);
     return hud;
 }
+// Quick commands reuse the same bounded chip and font, even if performance counters are off.
+inline int QuickHudSize(std::string_view text) {
+    return HudTextWidth(text, kHudCapUnits * 1.5f) + 3 * kHudPadUnits <= kHudPictureWidth - 2 * kHudBoxX ? 1 : 0;
+}
+inline HudSnapshot MakeQuickHudSnapshot(std::string_view text) {
+    HudSnapshot hud{};
+    const int size = QuickHudSize(text);
+    const float scale = HudSizeScale(HudSizeField(size));
+    while (!text.empty() && HudTextWidth(text, kHudCapUnits * scale) > kHudPictureWidth - 2 * kHudBoxX - 2 * kHudPadUnits * scale)
+        text.remove_suffix(1);
+    PutHudText(hud, text);
+    hud.width = static_cast<uint32_t>(std::lround(HudTextWidth(text, kHudCapUnits * scale) + 2 * kHudPadUnits * scale));
+    hud.loading = kHudOverlayFlag | HudSizeField(size);
+    return hud;
+}
 // The OpenGL renderer has no frame generation: what it presents is the guest's own rate, so both
 // numbers come from one clock. Callers that cannot have an output clock use this.
 inline std::array<char, kHudTextMax + 1> FormatHudText(const HudClock& clock, double speed,
@@ -412,5 +429,5 @@ inline std::array<char, kHudTextMax + 1> FormatHudText(const HudClock& clock, do
 // so the HUD's rate measures the output and not just the guest (graphics.cpp).
 void CountPresentedFrame();
 // Read on the renderer thread; the scheduler captures the returned value per frame.
-HudSnapshot GetVulkanHud();
+HudSnapshot GetVulkanHud(QuickOverlay::Snapshot* quick = nullptr);
 } // namespace Eden

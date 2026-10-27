@@ -13,6 +13,7 @@ Only these subfolders matter; the folder itself can have any name and location.
 │   └── title.keys                      # optional
 ├── firmware/
 │   └── *.nca                           # extracted firmware NCAs
+├── amiibo/                             # optional: your own 532/540/572-byte .bin dumps
 ├── roms/
 │   └── <Game>/                         # one folder per game
 │       ├── <game>.nsp                  # the game (NSP or XCI, or NSZ or XCZ: see Compressed games)
@@ -70,7 +71,7 @@ The folder `/data/prosperoeden/user/cache/nsz` can be deleted whenever no game i
 
 ### Separate games folder
 
-**Games on a drive of their own.** The games can be kept apart from the rest: `roms/` and `updates/` in one folder (a USB drive, say), keys, firmware, mods and cheats in the game files folder on the console. Name that folder as `"games_folder"` in `/data/prosperoeden/config/prosperoeden.json`, next to `"game_files"`:
+**Games on a drive of their own.** Choose **Settings > ROMs and updates** to keep `roms/` and `updates/` in one folder (a USB drive, say) without moving keys, firmware or saves. Triangle saves the folder; Square removes the independent choice and follows **Game files** again. Both changes apply after closing and reopening the app. The same choice can be set as `"games_folder"` in `/data/prosperoeden/config/prosperoeden.json`, next to `"game_files"`:
 
 ```json
 { "game_files": "/data/prosperoeden", "games_folder": "/mnt/usb0/games" }
@@ -81,14 +82,91 @@ It applies from the next start, and the Library, the home page, downloads and fo
 ### NRO homebrew
 
 Put Switch homebrew `.nro` files in `roms/`, or one game folder below it, like
-`roms/Tools/Demo.nro`. They appear in the Library, can be launched through Eden's
-existing NRO loader, and work with recent-game paths and forwarders. This is not
+`roms/Tools/Demo.nro`. You can also copy a complete `switch/` folder into `roms/`,
+for example `roms/switch/Tools/Demo/Demo.nro`: the tree is searched without flattening
+or moving files. Up to eight directories below `switch/` and 16,384 entries are
+examined; hidden entries and symbolic links are skipped. Commercial containers
+still use the existing one-folder layout, not recursive scanning.
+
+NROs appear in the Library, launch through Eden's NRO loader, and work with
+recent-game paths and forwarders. This is not
 support for PS5 ELF files or Switch NSO/NSP conversion.
 
-For now the Library uses the NRO file name, without its optional embedded icon,
-NACP title or program ID. The launcher's existing keys/firmware setup check still
-applies. Host NRO fixtures do not guarantee that a particular homebrew application
-or its GPU/services work on PS5.
+The Library reads the optional ASET icon and NACP title, program ID and language
+flags using bounded reads. An icon is limited to 1 MiB and 4096 pixels per side;
+truncated, overlapping or out-of-file assets are ignored. A bare NRO falls back
+to its file name and does not need an icon or NACP.
+
+Unencrypted NRO homebrew can start without keys or firmware, provided console
+storage is accessible. NSP/XCI/NSZ/XCZ still require the normal setup. This does
+not supply missing services to a homebrew application: host loader/JIT fixtures
+do not guarantee that its GPU/services work on PS5.
+
+### In-game quick commands and Amiibo
+
+**Left touchpad click + Square** opens a compact command strip during gameplay. The
+existing left touchpad + L1 return shortcut and left touchpad + R1 performance-overlay
+shortcut remain available. Circle closes the strip; Up/Down switches between **Amiibo**
+and **Cheats**. The strip works with performance counters turned off. It takes controller
+input while open; **the game keeps running**, so use its own pause menu when appropriate.
+
+Put your own Amiibo dumps in `<game files folder>/amiibo/` (not the independent
+ROMs folder). Left/Right selects a file, Cross presents it when the game is waiting for
+an NFC scan, and Square removes the presented tag. Only regular `.bin` files of 532,
+540 or 572 bytes are offered. Loose files and subfolders work, up to eight folder levels
+and 4,096 entries across the whole tree; links and hidden files/folders are skipped.
+No tag files or NFC keys are included or downloaded. Game writes go back to the
+selected dump, so keep a backup of the original. File size is not proof of valid Amiibo
+contents; the game's NFC validation still applies.
+
+An optional local `amiibo/amiibo.json` catalog supplies names and series by the dump's
+full public model ID. Both AmiiboAPI's compact `amiibos` database and its `amiibo` API
+response format are supported, with a 2 MiB/4,096-item limit. There is **no online sync
+yet**. Without a matching catalog entry, the strip shows the subfolder name, or the
+filename for loose files; long labels are abbreviated. Renaming never changes the tag's
+identity. Two dumps of the same model remain separate files and retain separate progress.
+
+For example, keep `amiibo/Mario - Smash/tag.bin` and optionally `cover.png` in the same
+folder. Local image association recognizes `<dump filename without .bin>.png` first,
+then a folder's `cover.png` only when it contains one dump, then
+`amiibo/images/icon_<8-digit head>-<8-digit tail>.png` by model ID. The selected photo
+appears below the command strip in both OpenGL and Vulkan. PNG files are limited to
+4 MiB and 1,024 pixels on either side, with bounded decoder memory; only the selected
+photo is decoded, then aspect-fitted to a 256-pixel thumbnail. Missing, unreadable or
+invalid pictures fall back to text without changing the tag or preventing a scan.
+No artwork is bundled, and the in-game menu never downloads it. See the
+[catalog study and test scope](AMIIBO_CATALOG.md).
+
+To prepare names and optional photos **on a PC**, use the opt-in helper below, then copy
+that folder to your `amiibo/` folder. It never reads, renames or downloads `.bin`/`.nfc`
+files. No network access happens when the in-game menu opens:
+
+```powershell
+python tools/sync-amiibo.py .local/amiibo-setup
+# Optional photo, selected explicitly by its public 16-digit model ID:
+python tools/sync-amiibo.py .local/amiibo-setup --id 0000000000000002
+```
+
+The default metadata service is `amiiboapi.org`. `--catalog-url` and `--image-template`
+can select an HTTPS mirror; the template accepts `{head}` and `{tail}` only. At most 64
+explicit IDs are downloaded per run. Valid cached photos are reused unless
+`--refresh-images` is given. Failed downloads/validation leave the previous cache in place;
+individual file replacements are atomic, not a multi-file transaction. Use an output
+folder you control, without symlinks/junctions, and do not move its parents while it runs.
+Photos remain subject to their owners' rights; the helper does not grant redistribution
+permission. Updating by network from the PS5 launcher is not yet implemented.
+
+The **Cheats** page lists ordinary cheats actually loaded for the running game/build,
+not master codes. Left/Right selects one and Cross switches it on/off without returning
+to the launcher. Changes apply on the cheat engine's next timing tick and last for this
+session only. Disabling a cheat stops further execution; it cannot undo memory already
+changed by that cheat. Cheats in a mod disabled before launch are not loaded: enable
+that mod in the launcher first. No database download is implied by this runtime menu.
+
+The strip uses the existing baked HUD font: uppercase Latin text and numbers, with
+unsupported filename characters shown as dashes. Real PS5 NFC/game compatibility and
+console rendering still need console testing; host driver/VM and Mesa checks do not
+establish those results.
 
 ## App data
 

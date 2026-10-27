@@ -19,6 +19,8 @@ import zipfile
 from urllib.parse import urljoin
 
 root = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(root / 'tools'))
+from build_identity import identity
 args = sys.argv[1:]
 if len(args) != 1:
     sys.exit(__doc__.strip())
@@ -54,6 +56,19 @@ if unstripped.exists():
     symbols = root / 'build/symbols' / f'ProsperoEden-{tag}.elf'
     symbols.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(unstripped, symbols)
+    build_id, _at = identity(unstripped.read_bytes())
+    source = root / 'build/source-snapshot.json'
+    manifest = {
+        'schema': 1, 'version': tag, 'build_identity': build_id,
+        'elf_sha256': hashlib.sha256(unstripped.read_bytes()).hexdigest(),
+        'eboot_sha256': hashlib.sha256((app / 'eboot.bin').read_bytes()).hexdigest(),
+        'zip_sha256': digest, 'symbols': symbols.name,
+        'source': json.loads(source.read_text()) if source.exists() else None,
+    }
+    provenance = dist / 'build-identity.json'
+    provenance.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    with (dist / 'SHA256SUMS').open('a') as sums:
+        sums.write(f'{hashlib.sha256(provenance.read_bytes()).hexdigest()}  {provenance.name}\n')
     print(f'{symbols} (keep it with the release: crash reports are read with it)')
 # The release notes: this version's section of the changelog. A link that is relative there (to
 # another guide, to another version) would lead nowhere on the release's page, so it is pointed

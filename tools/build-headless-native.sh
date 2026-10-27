@@ -71,6 +71,9 @@ python3 -B "$root/tools/check-timing-stop.py" "$scratch/native-local"
 python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/native-local"
 # In every build: an object that saw Eden's own table header would write a table the rest keeps sparse.
 python3 -B "$root/tools/check-sparse-header.py" "$scratch/native-local"
+python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/native-local"
+python3 -B "$root/tools/check-build-identity.py"
+python3 -B "$root/tools/check-source-snapshot.py"
 python3 -B "$root/tools/check-multiplayer-headers.py" "$scratch/native-local"
 # Source checks of the release configuration (development builds opt out: EDEN_SKIP_SOURCE_CHECKS=1).
 [[ ${EDEN_SKIP_SOURCE_CHECKS:-0} == 1 ]] && exit 0
@@ -82,6 +85,9 @@ python3 -B "$root/tools/check-update-versions.py" "$scratch/native-local/headles
 python3 -B "$root/tools/check-game-folder-mods.py"
 python3 -B "$root/tools/check-forwarded-rom.py"
 python3 -B "$root/tools/check-game-files-count.py"
+python3 -B "$root/tools/check-games-folder.py"
+python3 -B "$root/tools/check-nro-assets.py"
+python3 -B "$root/tools/check-amiibo-file.py"
 python3 -B "$root/tools/check-library-file.py" "$scratch"
 python3 -B "$root/tools/check-execute-program.py"
 python3 -B "$root/tools/check-system-font-mod.py"

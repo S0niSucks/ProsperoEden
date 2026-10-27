@@ -206,6 +206,7 @@ file(READ "${PROJECT_SOURCE_DIR}/src/common/multi_level_page_table.inc" mlpt_sou
 foreach(mlpt_site
         "    void* base{mmap(nullptr, alloc_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0)};\n    if (base == MAP_FAILED)\n        base = nullptr;\n"
         "    ASSERT(munmap(base_ptr, alloc_size) == 0);\n"
+        "    ASSERT(base);\n    base_ptr = reinterpret_cast<BaseAddr*>(base);"
         "#else\n    void* base = ptr;\n#endif\n")
     string(FIND "${mlpt_source}" "${mlpt_site}" mlpt_at)
     if(mlpt_at LESS 0)
@@ -217,13 +218,22 @@ string(REPLACE
     "    void* base{AllocateSparsePages(alloc_size)};\n" mlpt_source "${mlpt_source}")
 string(REPLACE "    ASSERT(munmap(base_ptr, alloc_size) == 0);\n"
     "    FreeSparsePages(base_ptr, alloc_size);\n" mlpt_source "${mlpt_source}")
+set(mlpt_null_guard [=[    if (!base) {
+        const int allocation_errno = errno;
+        std::fprintf(stderr, "EDEN_GPU_PAGE_TABLE refused stage=reserve address_bits=%zu level_bits=%zu page_bits=%zu entry_bytes=%zu bytes=%zu errno=%d\n",
+                     address_space_bits, first_level_bits, page_bits, sizeof(BaseAddr), alloc_size, allocation_errno);
+        throw std::bad_alloc{}; // ASSERT is soft in release builds: never continue with a null table.
+    }
+    base_ptr = reinterpret_cast<BaseAddr*>(base);]=])
+string(REPLACE "    ASSERT(base);\n    base_ptr = reinterpret_cast<BaseAddr*>(base);"
+    "${mlpt_null_guard}" mlpt_source "${mlpt_source}")
 string(REPLACE "#else\n    void* base = ptr;\n#endif\n"
     "#else\n    void* base = ptr;\n    // The chunk is written next (MemoryManager::PageTableOp): give its slots memory of their own.\n    const auto chunk_begin = reinterpret_cast<std::uintptr_t>(ptr);\n    const auto chunk_end = chunk_begin + first_level_chunk_size;\n    for (std::uintptr_t page = chunk_begin; page < chunk_end; page += 0x200000)\n        CommitSparsePage(page);\n    CommitSparsePage(chunk_end - 1);\n#endif\n"
     mlpt_source "${mlpt_source}")
 string(REPLACE "namespace Common {\n"
     "namespace Common {\nvoid* AllocateSparsePages(std::size_t size) noexcept;\nvoid FreeSparsePages(void* base, std::size_t size) noexcept;\nvoid CommitSparsePage(std::uintptr_t page) noexcept;\n"
     mlpt_source "${mlpt_source}")
-string(PREPEND mlpt_source "#include <cstdint>\n")
+string(PREPEND mlpt_source "#include <cstdint>\n#include <cerrno>\n#include <cstdio>\n#include <new>\n")
 file(READ "${PROJECT_SOURCE_DIR}/src/common/multi_level_page_table.cpp" mlpt_unit)
 string(REPLACE "#include \"common/multi_level_page_table.inc\"\n" "${mlpt_source}\n" mlpt_unit "${mlpt_unit}")
 string(FIND "${mlpt_unit}" "AllocateSparsePages(alloc_size)" mlpt_done)
@@ -235,6 +245,38 @@ get_target_property(common_sources common SOURCES)
 list(REMOVE_ITEM common_sources multi_level_page_table.cpp)
 list(APPEND common_sources "${PORT_BUILD_DIR}/multi_level_page_table.cpp")
 set_property(TARGET common PROPERTY SOURCES "${common_sources}")
+
+# The same bounded ASET reader is used for a library scan and a real NRO load. An oversized
+# optional icon must not allocate arbitrary memory just because the user selected the NRO.
+file(READ "${PROJECT_SOURCE_DIR}/src/core/loader/nro.cpp" nro_source)
+string(FIND "${nro_source}" "AppLoader_NRO::AppLoader_NRO(FileSys::VirtualFile file_)" nro_begin)
+string(FIND "${nro_source}" "AppLoader_NRO::~AppLoader_NRO()" nro_end)
+if(nro_begin LESS 0 OR nro_end LESS nro_begin)
+    message(FATAL_ERROR "Pinned NRO constructor changed; review bounded ASET loading.")
+endif()
+math(EXPR nro_length "${nro_end} - ${nro_begin}")
+string(SUBSTRING "${nro_source}" ${nro_begin} ${nro_length} nro_constructor)
+set(nro_bounded [=[AppLoader_NRO::AppLoader_NRO(FileSys::VirtualFile file_) : AppLoader(std::move(file_)) {
+    const auto assets = Eden::NroAssets::Read(file->GetSize(), [&](unsigned char* data, std::size_t size, std::uint64_t offset) {
+        return file->Read(data, size, offset);
+    });
+    if (!assets.valid) return; // Bare NROs work; malformed optional assets are not read.
+    if (assets.nacp.size)
+        nacp = std::make_unique<FileSys::NACP>(std::make_shared<FileSys::OffsetVfsFile>(
+            file, assets.nacp.size, assets.nacp.offset, "Control.nacp"));
+    if (assets.romfs.size)
+        romfs = std::make_shared<FileSys::OffsetVfsFile>(file, assets.romfs.size, assets.romfs.offset, "game.romfs");
+    if (assets.icon.size) icon_data = file->ReadBytes(assets.icon.size, assets.icon.offset);
+}
+
+]=])
+string(REPLACE "${nro_constructor}" "${nro_bounded}" nro_source "${nro_source}")
+string(PREPEND nro_source "#include \"${EDEN_PORT_DIR}/nro_assets.h\"\n")
+write_derived("${PORT_BUILD_DIR}/nro.cpp" "${nro_source}")
+get_target_property(nro_core_sources core SOURCES)
+list(FILTER nro_core_sources EXCLUDE REGEX "(^|/)loader/nro\\.cpp$")
+set_property(TARGET core PROPERTY SOURCES "${nro_core_sources}")
+target_sources(core PRIVATE "${PORT_BUILD_DIR}/nro.cpp")
 
 # An abandoned fiber stack is not unwound. Empty the by-value weak reference
 # before switching; jump_fcontext returns the live destination supplied by the
@@ -1413,6 +1455,29 @@ string(REPLACE "            ShutdownMainProcess();\n            return"
     system_source "${system_source}")
 write_derived("${PORT_BUILD_DIR}/core.cpp" "${system_source}")
 get_target_property(core_sources core SOURCES)
+# In-game switches hand a complete list to the timing owner. The pinned Reload mutates its
+# vector on the caller's thread, which is not safe for our controller worker to call directly.
+file(READ "${PROJECT_SOURCE_DIR}/src/core/memory/cheat_engine.cpp" live_cheat_source)
+foreach(site "    metadata.main_nso_build_id = build_id_;"
+        "CheatEngine::~CheatEngine() {"
+        "    cheats = std::move(reload_cheats);\n    is_pending_reload.exchange(true);"
+        "void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {")
+    string(FIND "${live_cheat_source}" "${site}" at)
+    if(at LESS 0)
+        message(FATAL_ERROR "Pinned live cheat engine changed; review its mailbox and timing ownership")
+    endif()
+endforeach()
+string(REPLACE "    metadata.main_nso_build_id = build_id_;"
+    "    metadata.main_nso_build_id = build_id_;\n    Eden::LiveCheats::Begin(this, cheats, build_id_);" live_cheat_source "${live_cheat_source}")
+string(REPLACE "CheatEngine::~CheatEngine() {"
+    "CheatEngine::~CheatEngine() {\n    Eden::LiveCheats::End(this);" live_cheat_source "${live_cheat_source}")
+string(REPLACE "    cheats = std::move(reload_cheats);\n    is_pending_reload.exchange(true);"
+    "    Eden::LiveCheats::Replace(this, std::move(reload_cheats));" live_cheat_source "${live_cheat_source}")
+string(REPLACE "void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {"
+    "void CheatEngine::FrameCallback(std::chrono::nanoseconds ns_late) {\n    if (auto list = Eden::LiveCheats::Take(this)) {\n        cheats = std::move(*list);\n        is_pending_reload.store(true);\n    }" live_cheat_source "${live_cheat_source}")
+write_derived("${PORT_BUILD_DIR}/cheat_engine.cpp" "#include \"${EDEN_PORT_DIR}/live_cheats.h\"\n${live_cheat_source}")
+list(FILTER core_sources EXCLUDE REGEX "(^|/)cheat_engine\\.cpp$")
+list(APPEND core_sources "${PORT_BUILD_DIR}/cheat_engine.cpp")
 # The PS5 heap is bounded: avoid allocating/decompressing an executable merely
 # to calculate its layout, and avoid vector growth duplicating a large BSS image.
 if(PS5_NATIVE)
@@ -2444,13 +2509,33 @@ get_target_property(npad_sources hid_core SOURCES)
 list(FILTER npad_sources EXCLUDE REGEX "(^|/)npad\\.cpp$")
 list(APPEND npad_sources "${PORT_BUILD_DIR}/npad.cpp")
 set_property(TARGET hid_core PROPERTY SOURCES "${npad_sources}")
+# Reopening a previously validated filename through fopen would follow a substituted symlink.
+# The NFC driver's real reads and writes both use a bounded, no-follow descriptor instead.
+file(READ "${PROJECT_SOURCE_DIR}/src/input_common/drivers/virtual_amiibo.cpp" amiibo_source)
+set(amiibo_read "    const Common::FS::IOFile nfc_file{filename, Common::FS::FileAccessMode::Read,\n                                      Common::FS::FileType::BinaryFile};")
+set(amiibo_write "    const Common::FS::IOFile nfc_file{file_path, Common::FS::FileAccessMode::ReadWrite,\n                                      Common::FS::FileType::BinaryFile};")
+foreach(site IN ITEMS "${amiibo_read}" "${amiibo_write}")
+    string(FIND "${amiibo_source}" "${site}" at)
+    if(at LESS 0)
+        message(FATAL_ERROR "Pinned virtual Amiibo file access changed; review no-follow reads and writes")
+    endif()
+endforeach()
+string(REPLACE "${amiibo_read}" "    const Eden::AmiiboFile nfc_file{filename};" amiibo_source "${amiibo_source}")
+string(REPLACE "${amiibo_write}" "    const Eden::AmiiboFile nfc_file{file_path, true};" amiibo_source "${amiibo_source}")
+write_derived("${PORT_BUILD_DIR}/virtual_amiibo.cpp" "#include \"${EDEN_PORT_DIR}/amiibo_file.h\"\n${amiibo_source}")
 add_library(eden-pad STATIC "${EDEN_PORT_DIR}/pad.cpp" "${EDEN_PORT_DIR}/pad_haptics.cpp"
     "${PROJECT_SOURCE_DIR}/src/input_common/input_engine.cpp"
     "${PROJECT_SOURCE_DIR}/src/input_common/input_poller.cpp"
-    "${PROJECT_SOURCE_DIR}/src/input_common/drivers/virtual_gamepad.cpp")
+    "${PROJECT_SOURCE_DIR}/src/input_common/drivers/virtual_gamepad.cpp"
+    "${PORT_BUILD_DIR}/virtual_amiibo.cpp")
 target_include_directories(eden-pad PUBLIC "${EDEN_PORT_DIR}" "${pad_contract}" "${audio_contract}" "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(eden-pad PUBLIC common)
 target_compile_options(eden-pad PRIVATE -fno-rtti $<$<BOOL:${PS5_NATIVE}>:-femulated-tls>)
+add_library(eden-amiibo-catalog STATIC "${EDEN_PORT_DIR}/amiibo_catalog.cpp" "${EDEN_PORT_DIR}/quick_picture.cpp")
+target_include_directories(eden-amiibo-catalog PUBLIC "${EDEN_PORT_DIR}")
+target_include_directories(eden-amiibo-catalog PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(eden-amiibo-catalog PUBLIC core)
+target_compile_options(eden-amiibo-catalog PRIVATE -fno-rtti $<$<BOOL:${PS5_NATIVE}>:-femulated-tls>)
 target_sources(audio_core PRIVATE "${EDEN_PORT_DIR}/audio.cpp")
 target_include_directories(audio_core PRIVATE "${EDEN_PORT_DIR}" "${pad_contract}" "${audio_contract}")
 file(READ "${PROJECT_SOURCE_DIR}/src/audio_core/sink/sink_details.cpp" sink_source)
@@ -3235,6 +3320,7 @@ void Initialize() {
     add_executable(eden-headless "${EDEN_PORT_DIR}/main.cpp" "${PORT_ROOT}/src/aligned_alloc.c"
         "${EDEN_PORT_DIR}/heap_pages.cpp" "${EDEN_PORT_DIR}/performance.cpp"
         "${EDEN_PORT_DIR}/crash_report.cpp" "${EDEN_PORT_DIR}/stop_limit.cpp"
+        "${EDEN_PORT_DIR}/build_identity.cpp"
         "${EDEN_PORT_DIR}/elevation/elevation.cpp"
         "${eden_app_crt}" "${PORT_ROOT}/src/lifecycle.c" "${PORT_ROOT}/src/direct_memory.c"
         "${PORT_BUILD_DIR}/app_heap.c")
@@ -3282,6 +3368,43 @@ else()
     add_executable(eden-devices-check "${EDEN_PORT_DIR}/devices_check.cpp")
     target_link_libraries(eden-devices-check PRIVATE core eden-pad eden-device-mock)
     target_compile_options(eden-devices-check PRIVATE -fno-rtti)
+    add_executable(eden-file-amiibo-check "${EDEN_PORT_DIR}/file_amiibo_check.cpp")
+    target_link_libraries(eden-file-amiibo-check PRIVATE eden-pad eden-amiibo-catalog)
+    target_compile_options(eden-file-amiibo-check PRIVATE -fno-rtti -UNDEBUG)
+    add_executable(eden-live-cheats-check "${EDEN_PORT_DIR}/live_cheats_check.cpp")
+    target_link_libraries(eden-live-cheats-check PRIVATE core eden-pad eden-amiibo-catalog)
+    target_compile_options(eden-live-cheats-check PRIVATE -fno-rtti -UNDEBUG)
+    add_executable(eden-amiibo-catalog-check "${EDEN_PORT_DIR}/amiibo_catalog_check.cpp")
+    target_link_libraries(eden-amiibo-catalog-check PRIVATE eden-pad eden-amiibo-catalog)
+    target_compile_options(eden-amiibo-catalog-check PRIVATE -fno-rtti -UNDEBUG)
+    foreach(sanitizer asan tsan)
+        if(sanitizer STREQUAL "asan")
+            set(sanitize_flag "-fsanitize=address,undefined")
+        else()
+            set(sanitize_flag "-fsanitize=thread")
+        endif()
+        # Instrument the real NFC driver and factories too, not just the test wrapper.
+        add_executable(eden-file-amiibo-check-${sanitizer} "${EDEN_PORT_DIR}/file_amiibo_check.cpp"
+            "${EDEN_PORT_DIR}/amiibo_catalog.cpp"
+            "${EDEN_PORT_DIR}/quick_picture.cpp"
+            "${PROJECT_SOURCE_DIR}/src/input_common/input_engine.cpp"
+            "${PROJECT_SOURCE_DIR}/src/input_common/input_poller.cpp"
+            "${PORT_BUILD_DIR}/virtual_amiibo.cpp")
+        target_include_directories(eden-file-amiibo-check-${sanitizer} PRIVATE "${EDEN_PORT_DIR}" "${pad_contract}" "${PROJECT_SOURCE_DIR}/src")
+        target_link_libraries(eden-file-amiibo-check-${sanitizer} PRIVATE core)
+        target_compile_options(eden-file-amiibo-check-${sanitizer} PRIVATE -fno-rtti -UNDEBUG ${sanitize_flag} -fno-omit-frame-pointer)
+        target_link_options(eden-file-amiibo-check-${sanitizer} PRIVATE ${sanitize_flag})
+        add_executable(eden-live-cheats-check-${sanitizer} "${EDEN_PORT_DIR}/live_cheats_check.cpp")
+        target_link_libraries(eden-live-cheats-check-${sanitizer} PRIVATE core eden-pad eden-amiibo-catalog)
+        target_compile_options(eden-live-cheats-check-${sanitizer} PRIVATE -fno-rtti -UNDEBUG ${sanitize_flag} -fno-omit-frame-pointer)
+        target_link_options(eden-live-cheats-check-${sanitizer} PRIVATE ${sanitize_flag})
+        add_executable(eden-amiibo-catalog-check-${sanitizer} "${EDEN_PORT_DIR}/amiibo_catalog_check.cpp"
+            "${EDEN_PORT_DIR}/amiibo_catalog.cpp" "${EDEN_PORT_DIR}/quick_picture.cpp")
+        target_include_directories(eden-amiibo-catalog-check-${sanitizer} PRIVATE "${EDEN_PORT_DIR}")
+        target_link_libraries(eden-amiibo-catalog-check-${sanitizer} PRIVATE core eden-pad)
+        target_compile_options(eden-amiibo-catalog-check-${sanitizer} PRIVATE -fno-rtti -UNDEBUG ${sanitize_flag} -fno-omit-frame-pointer)
+        target_link_options(eden-amiibo-catalog-check-${sanitizer} PRIVATE ${sanitize_flag})
+    endforeach()
     # The player profiles (profiles.h): Eden's profile file and the choice in the settings file.
     add_executable(eden-profiles-check "${EDEN_PORT_DIR}/profiles_check.cpp")
     target_link_libraries(eden-profiles-check PRIVATE core)
@@ -3312,7 +3435,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PORT_ROOT}/sce
 write_derived("${PORT_BUILD_DIR}/version/app_version.h"
     "// Generated from sce_sys/param.json (contentVersion).\n#pragma once\n#define EDEN_APP_VERSION \"${app_version}\"\n")
 target_include_directories(eden-headless PRIVATE "${PORT_BUILD_DIR}/version")
-target_link_libraries(eden-headless PRIVATE core eden-pad)
+target_link_libraries(eden-headless PRIVATE core eden-pad eden-amiibo-catalog)
 # A game's text entry on the PS5's own on-screen keyboard (system_keyboard.h, keyboard_applet.h).
 target_sources(eden-headless PRIVATE "${EDEN_PORT_DIR}/system_keyboard.cpp")
 target_sources(eden-headless PRIVATE "${EDEN_PORT_DIR}/multiplayer.cpp")
@@ -3326,6 +3449,12 @@ add_library(eden-metadata STATIC "${EDEN_PORT_DIR}/metadata_bridge.cpp")
 target_include_directories(eden-metadata PUBLIC "${EDEN_PORT_DIR}" PRIVATE "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(eden-metadata PUBLIC core stb)
 target_compile_options(eden-metadata PRIVATE -fno-rtti -Wall -Wextra -Werror -Wno-unused-parameter)
+if(NOT PS5_NATIVE)
+    add_executable(eden-nro-metadata-check "${EDEN_PORT_DIR}/nro_metadata_check.cpp")
+    target_include_directories(eden-nro-metadata-check PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(eden-nro-metadata-check PRIVATE eden-metadata)
+    target_compile_options(eden-nro-metadata-check PRIVATE -UNDEBUG -fno-rtti)
+endif()
 if(PS5_NATIVE)
     target_compile_options(eden-metadata PRIVATE -femulated-tls)
 endif()
