@@ -206,8 +206,15 @@ refuse a busy volume, verified against deliberately held locks for host/native/p
 Port-dependent objects were explicitly invalidated for host/native recovery runs
 `sh_17f8ee1c4001e29O13pI2US2mN` / `sh_17f8ee1ec001Zf9nzTqqubihCm`. The native run
 subsequently **passed** all 738 build steps, source/link/import/inventory checks and packaging.
-Its source snapshot precedes the independent encrypted-container fixtures and team work;
-the host recovery result is still pending. Evidence, fixed runner, invalidation list, source
+Its source snapshot precedes the independent encrypted-container fixtures and team work.
+The host recovery compiled/linked all 648 steps (including the new probe overload), then stopped
+at the existing guest-idle timing assertion `IdlePollBudget(2) == 0`; it is **not a full-suite pass**.
+The same policy/wakeup/cost/lock check passed isolated with ASan/UBSan/TSan in
+`sh_17fadd14e001azk7cH1JRTYcNZ`; scheduler interference is a possibility, not an established cause.
+No runtime idle policy was changed to suppress that failure. Host binaries, compile database,
+source snapshot, invalidation list and preceding test evidence are preserved in
+`.local/docker-release/cheat-fresh-objects-host-20261027/`. The remaining saved-snapshot tests
+are running separately without a core rebuild. Native evidence, fixed runner, source
 snapshot, package and matching symbols are preserved in
 `.local/docker-release/cheat-fresh-objects-native-20261027/`. ZIP SHA-256:
 `dac5e83ec81289a129d148530d28f863b79ff5ce6dd2fc3fc3b7cec7cbcd63d7`;
@@ -219,16 +226,28 @@ BIS factory while the console uses `GameFolderMods::Root`. CMake now derives tha
 mod-root resolver for **both** builds; only the firmware-root constructor extension stays
 native-only. The full host recovery run includes the per-copy check. Further encrypted
 header/section/CNMT/update fixtures, written with independent OpenSSL and invented keys, were
-added after its source snapshot and still require a separate run. No commercial keys were used.
+added after its source snapshot and still require a separate run. The first focused run
+`sh_17fadd135001Y1d88z63azCGZO` reached those cases (including both per-copy mod checks), but
+the wrong-header-key negative failed: this core's `KeyManager::SetKey` deliberately does not
+replace an existing key. The fixture now uses real `prod.keys` reload and asserts the effective
+key bytes before refusal checks. The corrected focused run
+`sh_17fb0095b001poPxgTAYSXCTyP` **passed**: independent encrypted NSP/CNMT/base/update bytes,
+actual wrong-header/area-key refusal, both per-copy native-VFS mod/update paths and the real
+NPDM reader, plus the original-reader allocation-limit negative control. The real core archive
+was mounted read-only and its hash verified unchanged. Input hashes/log are preserved in the
+host evidence folder as `encrypted-probe-reload.{json,log}`. This was a test setup defect, not
+evidence that the reader accepted a wrong key. No commercial keys were used.
 
 ## Remaining qualification
 
-1. Complete encrypted/BKTR and game-folder native-VFS probe qualification. Plaintext full
+1. Complete BKTR probe qualification. Encrypted and game-folder native-VFS fixtures now pass
+   the corrected focused run above. Plaintext full
    NSP/CNMT/external-update/extracted-NSP fixtures passed isolated actual-core linking in
    `sh_17f6746d1001IAphtUmQ2rtAJ2`; the negative control subsequently passed in
-   `sh_17f7317db00114Vy96zy3tBrm5`. Newly added per-copy native-VFS folders still need a run.
-2. Complete the pending fresh-object host/native recovery runs. UI built-in/Lua regressions
-   have passed as recorded above; that does not qualify the actual service callback on PS5.
+   `sh_17f7317db00114Vy96zy3tBrm5`.
+2. Finish the post-idle host tests and investigate/reproduce the full-suite timing failure;
+   fresh-object native packaging passed. UI built-in/Lua regressions have passed as recorded
+   above; that does not qualify the actual service callback on PS5.
 3. Verify the install filesystem operations and default-off invariant on the console. Apply
    no network results directly to a running cheat VM.
 4. The 19 new messages are translated in all 30 catalogs (576 texts; no checker problems).

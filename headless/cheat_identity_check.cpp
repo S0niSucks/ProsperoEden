@@ -206,6 +206,26 @@ int main() {
     keys.SetKey(Core::Crypto::S128KeyType::KeyArea, area);
     const auto header_key = HeaderKey();
     keys.SetKey(Core::Crypto::S256KeyType::Header, header_key);
+    // SetKey intentionally never replaces an existing key in this pinned core.
+    // Use its real file-reload path, and assert the effective bytes, so wrong-key
+    // controls cannot accidentally keep testing the already-loaded correct key.
+    const auto load_keys = [&](const Core::Crypto::Key256& header, const Core::Crypto::Key128& area_key) {
+        const auto hex = [](const auto& value) {
+            constexpr char digits[] = "0123456789abcdef";
+            std::string text;
+            for (const auto byte : value) { text += digits[byte >> 4]; text += digits[byte & 15]; }
+            return text;
+        };
+        {
+            std::ofstream file(root / "keys/prod.keys", std::ios::binary | std::ios::trunc);
+            file << "header_key = " << hex(header) << '\n'
+                 << "key_area_key_application_00 = " << hex(area_key) << '\n';
+            assert(file.good());
+        }
+        keys.ReloadKeys();
+        assert(keys.GetKey(Core::Crypto::S256KeyType::Header) == header);
+        assert(keys.GetKey(Core::Crypto::S128KeyType::KeyArea) == area_key);
+    };
     FileSys::ManualContentProvider updates;
     Core::System system;
     system.SetFilesystem(std::make_shared<FileSys::RealVfsFilesystem>());
@@ -328,13 +348,12 @@ int main() {
     Write(root / "secure-updates/update.nsp", Container(22, true, 9 * 65536, true));
     assert(probe_path(encrypted_rom, secure).build[0] == 22);
     auto bad_header = header_key; bad_header[0] ^= 1;
-    keys.SetKey(Core::Crypto::S256KeyType::Header, bad_header);
+    load_keys(bad_header, area);
     assert(!probe_path(encrypted_rom, secure)); // cannot use plaintext fallback or a stale build
-    keys.SetKey(Core::Crypto::S256KeyType::Header, header_key);
     auto bad_area = area; bad_area[0] ^= 1;
-    keys.SetKey(Core::Crypto::S128KeyType::KeyArea, bad_area);
+    load_keys(header_key, bad_area);
     assert(!probe_path(encrypted_rom, secure));
-    keys.SetKey(Core::Crypto::S128KeyType::KeyArea, area);
+    load_keys(header_key, area);
     assert(probe_path(encrypted_rom, secure).build[0] == 22);
     assert(fs::is_empty(root / "dump"));
     fs::remove_all(root);

@@ -524,7 +524,14 @@ qualification of every integrated patch or of #284.
   `dac5e83ec81289a129d148530d28f863b79ff5ce6dd2fc3fc3b7cec7cbcd63d7`, matching
   symbol ELF `5df516231a42f8688b824988fbf7db61945d1910314085880b655575c5e6cb62`, eboot
   `d4fdd9bf514cb1acce8ff3e371edf1d8d94be6233ed22b78a9e1064bd89b8fa9`.
-  The host result remains pending. This does not include later encrypted fixtures or any
+  The host recovery compiled/linked all 648 steps, including the new probe overload, but its
+  suite stopped at the existing guest-idle timing assertion `IdlePollBudget(2) == 0`.
+  The standalone ASan/UBSan/TSan idle/wakeup/lock run passed
+  (`sh_17fadd14e001azk7cH1JRTYcNZ`); interference is suspected, not proven. No runtime
+  idle policy was weakened. Host binaries, source snapshot, compile database and preceding
+  evidence are in `.local/docker-release/cheat-fresh-objects-host-20261027/`; remaining
+  saved-snapshot tests are being run without recompiling the core.
+  This does not include later encrypted fixtures or any
   team implementation, is not PS5-qualified, and retains the intermediate v1.005.000 version.
 - Per-copy local-update selection passed the isolated probe until its local-mod assertion.
   The host still used the upstream BIS resolver; CMake now derives the same game-folder
