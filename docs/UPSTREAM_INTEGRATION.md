@@ -4,8 +4,9 @@ Source: [Swordpdf/ProsperoEden](https://github.com/Swordpdf/ProsperoEden).
 Base: `a26ba78` (1.005.000). Local branch: `integrate/upstream-prs-2026-10-27`.
 
 **Experimental integration, not a qualified PS5 release.** No issues were closed, no upstream
-PRs were merged on GitHub, and nothing was pushed. Host checks are not evidence that a reported
-game, GPU, firmware or performance problem is fixed.
+PRs were merged on GitHub, and nothing was pushed. The full host suite and Docker native
+build/package checks passed; the local ZIP is recorded below. Neither result is evidence that
+a reported game, GPU, firmware or performance problem is fixed.
 
 ## Inventory and history
 
@@ -192,7 +193,7 @@ The 52 already-closed issues were inventoried with their original state; they we
 or presented as newly fixed. Related closed reports #270 (PCM overflow) and #281 (game-folder
 mods/updates/forwarders) are addressed by the integrated PRs, subject to the same host/console limits.
 
-## Validation record
+## Initial validation record (see follow-up results below)
 
 - Docker Desktop Linux engine, Ubuntu 24.04 image, Clang 18.1.3, GCC 13, CMake 3.31.10.
 - Initial configure found missing `autoconf`; added autoconf/automake/libtool to the Dockerfile
@@ -231,15 +232,16 @@ mods/updates/forwarders) are addressed by the integrated PRs, subject to the sam
   (also mounted from the volume at `/root/.cache`); a fresh documented runner uses `/work/cache`.
 - Resident/one-shot Lapy client checks and single-threaded elevation startup passed on host
   with ASan/UBSan. This tests the client state machine, not actual elevation on a PS5.
-- PS5 release/package build, firmware/game/GPU testing and real-server RomM tests: **not run**.
-  This is not a complete `make test` or `make release` claim.
+- At this initial snapshot, the PS5 release/package build, firmware/game/GPU testing and
+  real-server RomM tests were **not run**. The subsequent native build result is recorded below;
+  console testing and real-server RomM remain unexecuted.
 
 See [BUILDING.md](BUILDING.md#docker-host-tests-including-windows) for the reproducible Docker
-runner. Before promoting this branch, build the native package and
+runner. The native package has now been built, but before promoting this branch,
 perform the console comparisons requested by #284, #275, #285 and #298 as well as the issue
 reproductions above. Do not close composite issues for one corrected symptom.
 
-## Follow-up validation — in progress
+## Follow-up validation — host and native build passed
 
 - The first follow-up full host suite passed, including shared-font anchors, missing-key
   diagnostics and the new controller reopen/backoff fixtures. Evidence is retained in
@@ -275,9 +277,29 @@ reproductions above. Do not close composite issues for one corrected symptom.
   the test still looked for `AssetsPath`, while the independent-folder integration uses
   `GamesPath`. The current-source check was already corrected in `c9cf898` and passes on host.
   Evidence: `.local/upstream-audit/native-first-build.log`.
-- A current-source Docker rerun (through `9ef8012`) is in progress using the native build cache,
-  now including the wallpaper, bounded-font and NRO additions and updated regression checks.
-  Package/release success is **not yet established**; the first linked binary is not accepted
-  as the current integration package.
+- **Current-source Docker `make release`: PASS**, using the native build cache and all changes
+  through `9ef8012`, including wallpapers, bounded-font reads, NRO and updated regression checks.
+  The native executable linked; source/ABI/link checks, Lapy helper verification, loader ELF
+  framing and package inventory/fixture/alignment/import checks passed. Checks using host
+  backends or mocked native APIs remain host evidence, not execution on PS5.
+  Evidence: `.local/upstream-audit/native-final-release.log`.
+- Independently compared all **676 tracked files** with the build volume: only the subsequent
+  documentation update in `docs/UPSTREAM_INTEGRATION.md` differed. A checksum-based dry-run
+  sync also found no extra source files in the reused volume. Verified the ZIP's CRC, unique
+  safe paths, exact 74-file inventory, 0777 permissions and byte-for-byte package contents.
+  The exported ZIP/checksums/notes match the volume; the exported symbols match the native
+  unstripped executable. Evidence: `.local/upstream-audit/native-release-verification.json`.
+- Local artifacts (ignored, not published):
+  - ZIP: `.local/docker-release/20261027/ProsperoEden-v1.005.000.zip` (**42,714,656 bytes**).
+    SHA-256: `08d8b5d3812467584877c8204b2e08c9c7cbc356f9f43f8ae86e5fee3dc32333`.
+  - Packaged `eboot.bin` SHA-256:
+    `0a97ce5eb33e8ef440ee145f3f79c4650504aa8e4ebe2aea0eab8bdae0711708`.
+  - Symbols: `.local/docker-release/20261027/symbols/ProsperoEden-v1.005.000.elf`.
+    SHA-256: `8c64d24d9f604c178dc4c7451237f24d61b3b1c792476d302304e8748b02e4fc`.
+  - `SHA256SUMS` and the upstream-version `release-notes.md` are beside the ZIP. The version
+    number was deliberately not changed; these notes do not describe all integration changes.
+    `INTEGRATION-BUILD.md` beside them identifies this as an experimental local build.
+- This is a **build-verified integration candidate**, not an official or PS5-qualified release.
+  In particular, #284 remains experimental pending the author's requested console A/B tests.
 - No console was accessed. No issue was closed or branch pushed. Outstanding features and
   console-only failures in the triage remain work, not implied fixes from a passing build.

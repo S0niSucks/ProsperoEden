@@ -122,11 +122,17 @@ preserves the failure exit code. The output remains at `/work/ProsperoEden/dist`
 ignored `.local/docker-release/` without another build:
 
 ```powershell
-New-Item -ItemType Directory -Force .local/docker-release | Out-Null
+New-Item -ItemType Directory -Force .local/docker-release/symbols | Out-Null
 docker create --name prosperoeden-release-export --mount type=volume,source=prosperoeden-release-work,target=/work prosperoeden-release
 docker cp prosperoeden-release-export:/work/ProsperoEden/dist/. .local/docker-release/
+docker cp prosperoeden-release-export:/work/ProsperoEden/build/symbols/. .local/docker-release/symbols/
+docker cp prosperoeden-release-export:/work/release-build.log .local/docker-release/release-build.log
 docker rm prosperoeden-release-export
 ```
+
+Keep the matching symbols and build log with the ZIP; symbols are required to interpret crash
+reports from that build. A local integration keeps the base version unless explicitly changed,
+so the ZIP filename and generated upstream changelog alone do not identify its integrated commits.
 
 The container exposes no ports or Docker socket, deploys nothing, and does not need the
 host suite's relaxed seccomp/ASLR options. A successful native build and intact ZIP still
