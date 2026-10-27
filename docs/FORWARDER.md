@@ -59,7 +59,7 @@ holds the games on the console, not those that can only be downloaded from a sou
 | Field | Meaning |
 | --- | --- |
 | `version` | The format. Later versions only add fields; a reader of version 1 reads them as well. |
-| `game_files` | The game files folder in use (**Settings > Game files**), which holds `roms/`. |
+| `game_files` | The folder that holds `roms/`: `games_folder` when configured, otherwise **Settings > Game files**. |
 | `file` | The game's path in `roms/`: what to pass to `--rom`. |
 | `path` | Its full path. |
 | `title` | The name the Library shows. |

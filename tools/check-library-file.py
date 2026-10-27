@@ -18,7 +18,8 @@ services = (root / 'headless/prosperoeden/eden_services.cpp').read_text()
 games = services[services.index('std::vector<pe::ui::Game> EdenServices::games() {'):]
 games = games[:games.index('\n}\n')]
 write = games.index('Eden::LibraryFile::Write(std::string{Eden::kDataDir} + "/library.json",')
-assert 'Eden::LibraryFile::Text(Eden::AssetsDir(), listed)' in games
+assert 'Eden::LibraryFile::Text(Eden::GamesDir(), listed)' in games
+assert 'Eden::GamesPath("roms/" + game.file)' in games
 assert games.rfind('if (Eden::FilesystemAccess()) {', 0, write) > games.index('games.push_back(std::move(game));'), \
     'the file is written after the console games are read, with filesystem access'
 assert write < games.index('game.remote = true;'), 'only the console games are listed, not the download sources\''
