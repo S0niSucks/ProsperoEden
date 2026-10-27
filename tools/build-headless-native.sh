@@ -82,6 +82,7 @@ python3 -B "$root/tools/check-update-versions.py" "$scratch/native-local/headles
 python3 -B "$root/tools/check-game-folder-mods.py"
 python3 -B "$root/tools/check-forwarded-rom.py"
 python3 -B "$root/tools/check-game-files-count.py"
+python3 -B "$root/tools/check-library-file.py" "$scratch"
 python3 -B "$root/tools/check-nso-memory.py"
 python3 -B "$root/tools/check-performance.py"
 python3 -B "$root/tools/check-performance-settings.py"
