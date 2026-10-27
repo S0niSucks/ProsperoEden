@@ -157,7 +157,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #157 USB data backup | Feature: no bulk backup/restore implementation added |
 | #173 External/custom theme engine | Feature: investigation and existing launcher packs are not full acceptance evidence |
 | #195 Metroid Prime 4 | PS5: exact failure and current-version evidence needed |
-| #202 Switch Pro Controller | Feature: PS5 driver/input support and hardware tests required; MissionControl is not directly portable |
+| #202 Switch Pro Controller | Experimental wired USB transport integrated with DualSense recovery, motion and coarse rumble. Integrated sanitizer/native-target checks passed; Bluetooth unimplemented and physical PS5 tests required. See `PRO_CONTROLLER.md` |
 | #206 Castlevania Belmont's Curse | Improved missing-key diagnostics integrated; PS5 startup/key-generation evidence still required |
 | #219 Cheat GUI / Arceus cheats | Launcher switches plus live in-game switches implemented; specific Arceus build/cheat compatibility remains unverified |
 | #222 Title 0100D71004694000 | PS5: current-version game report and logs required |
@@ -530,15 +530,29 @@ qualification of every integrated patch or of #284.
   (`sh_17fadd14e001azk7cH1JRTYcNZ`); interference is suspected, not proven. No runtime
   idle policy was weakened. Host binaries, source snapshot, compile database and preceding
   evidence are in `.local/docker-release/cheat-fresh-objects-host-20261027/`; remaining
-  saved-snapshot tests are being run without recompiling the core.
+  saved-snapshot tests subsequently **passed separately** without recompiling the core
+  (`sh_17fb07c1d001nMrrr0D3Aw4b7y`), including actual NFC/live-cheat/catalog sanitizers,
+  memory/JIT/device checks and three NRO launch/exit cycles. RomM real-server checks were
+  explicitly skipped. This is not a single uninterrupted full-suite pass.
   This does not include later encrypted fixtures or any
   team implementation, is not PS5-qualified, and retains the intermediate v1.005.000 version.
 - Per-copy local-update selection passed the isolated probe until its local-mod assertion.
   The host still used the upstream BIS resolver; CMake now derives the same game-folder
   resolver on host and console, keeping only the firmware-root extension native-specific.
   Recovery host tests include those cases. Independent OpenSSL encrypted header/section/
-  CNMT/update fixtures with invented keys were added **after** that snapshot; their run
-  and BKTR qualification remain pending.
+  CNMT/update fixtures with invented keys were added **after** that snapshot. Corrected
+  key-reload negative controls and per-copy probes passed in
+  `sh_17fb0095b001poPxgTAYSXCTyP`. The independent synthetic encrypted CTREx/BKTR relocation
+  extension also completed with retained exit code 0/source hash/log after its shell caller
+  timed out (`sh_17fb6212f0018RCSZ6B5yYyp8P`); actual mixed base/patch bytes and effective
+  update identity are asserted. This is not commercial-game/PS5 evidence. See `CHEAT_DATABASE.md`.
+- Team deliveries reviewed/integrated so far: selectable perspective Cover Flow (`63b5c97`)
+  and wired physical Pro Controller (`b714eaa` / `a41f29b`, including review-requested recovery
+  fixes). Both passed focused integrated Docker regressions, with 720p/1080p GL/controller/Lua
+  coverage for Cover Flow and PS5-target compile/link smoke for the USB backend. The five
+  Cover Flow strings are translated across all 30 catalogs (581 texts; zero problems).
+  Nextendo, SMB/NFS and Amiibo sync initial deliveries need review/follow-up before acceptance;
+  scene themes remain an explicit partial increment, not a completed Themezer implementation.
 
 Still active: verify the newest edits on host and native Docker builds and the real
 launcher preview; continue the outstanding feature implementation. No new version or

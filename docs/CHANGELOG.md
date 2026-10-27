@@ -43,6 +43,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   perspective-rendered cover browser or the existing default Grid. Selection, game options
   and launch checks retain their established paths; reduced motion, missing artwork and
   large libraries have focused host coverage. Console performance remains unqualified.
+- **Physical Switch Pro Controller (experimental, wired USB).** Explicit opt-in USB input
+  supports sticks/buttons, motion and coarse rumble, with bounded reconnect and DualSense
+  fallback. Synthetic protocol/launcher and PS5-target compile/link checks passed after
+  integration. Bluetooth is not implemented and physical PS5 operation remains unqualified.
 
 ### Reliability and diagnostics
 
@@ -59,8 +63,8 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 ### Remaining work and test limits
 
-Nextendo, SMB/NFS streaming, USB backup/restore, external/scene themes and physical Switch
-Pro Controller support remain under team implementation/review, not accepted as complete
+Nextendo, SMB/NFS streaming, USB backup/restore and external/scene themes remain under
+team implementation/review, not accepted as complete
 by this changeset. In-launcher online Amiibo synchronization is also pending. The integrated
 cheat workflow and Cover Flow still need final combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate

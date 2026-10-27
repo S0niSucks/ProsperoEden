@@ -35,11 +35,12 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | Workstream | Current evidence / disposition |
 |---|---|
 | Cover Flow | Worker `903c233` reviewed and cherry-picked as `63b5c97`. Integrated focused controller/Lua/render regression passed at 720p/1080p (`sh_17fb458ed001cnUb8V89g1PhE5`), with 18 captures reporting no GL errors. Five new msgids translated in all 30 catalogs: 581 texts, zero problems and no additional length warnings. PS5 remains unqualified. |
-| Physical Pro Controller | Initial wired-USB commit `b2073bd` and recovery follow-up `f3c02ec` await integration. Review found primary DualSense recovery/user-slot duplication after USB-only startup; follow-up addresses this with actual launcher-loop regression. Bluetooth and physical execution are not established. |
+| Physical Pro Controller | Wired-USB `b2073bd` and recovery follow-up `f3c02ec` reviewed/cherry-picked as `b714eaa` / `a41f29b`. Integrated ASan/UBSan synthetic protocol/launcher regression, SDK compile/link smoke and actual PS5-target `pad.cpp` compilation passed (`sh_17fbd112a001iOTZpFyGhrt15K`). Review gap in primary DualSense recovery/duplicate user slots was fixed before integration. Bluetooth and physical execution are not established. Worker reassigned to combined cheat cross-layer qualification. |
 | Scene themes | `b01f254` / `6a1bf96` are an **unaccepted partial increment**, not integrated. Worker is continuing complete linked frontend/updater validation, reference screens and console-native import/actual layout conversion. Offline lite conversion is not full #239 acceptance. |
 | Amiibo sync | Worker `f596678` delivered real C++ worker/HTTPS, safe publication and builtin/Lua confirmation. Worker reports normal/ASan/UBSan/TSan plus TLS and 25 UI assertions; coordinator review/integration pending. |
 | Nextendo | Worker `9faebc0` delivered experimental profile/session, guest routing and launcher controls. Review pending; OAuth registration, reviewed BAAS contract/operator routes and real networking remain blocked, not qualified online play. |
-| USB backup/restore, SMB/NFS | Await worker delivery; no acceptance or new compatibility claim. |
+| SMB/NFS | `b057a17` / `dbaf12d` delivered real read-only VFS/protocols and initial launcher wiring, not integrated yet. Worker continues actual loader/library metadata, updates/DLC, recents and authenticated/encrypted SMB tests; JSON configuration alone is not full library/launch acceptance. |
+| USB backup/restore | Await worker delivery; no acceptance or new compatibility claim. Credential exclusions are mandatory. |
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.

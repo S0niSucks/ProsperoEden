@@ -248,7 +248,7 @@ def joined(literals):
 def marked_text():
     """English text -> the files that use it."""
     found = {}
-    sources = sorted(p for pattern in ("*.cpp", "*.hpp", "*.h") for p in LAUNCHER.rglob(pattern))
+    sources = sorted(p for pattern in ("*.cpp", "*.hpp", "*.h", "*.inc") for p in LAUNCHER.rglob(pattern))
     for path in sources:
         source = path.read_text(encoding="utf-8")
         # Comments may quote tr("...") too; drop them.

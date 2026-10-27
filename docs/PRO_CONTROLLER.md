@@ -2,6 +2,15 @@
 
 ## Status (2026-10-27)
 
+Coordinator integration: `b2073bd` / `f3c02ec` are cherry-picked as `b714eaa` / `a41f29b`.
+The integrated protocol/session/launcher checks passed with ASan/UBSan, including 100,000
+random packets, primary-user reservation/reopen/backoff, USB-to-DualSense fallback, timed
+feedback and failed/malformed/regressing clocks. SDK target compilation, symbol/link smoke
+and the real modified `pad.cpp` PS5-target object also passed (`sh_17fbd112a001iOTZpFyGhrt15K`).
+The verified 760-file snapshot/log/status are preserved in
+`.local/docker-release/pro-controller-integrated-20261027/`. No hardware or packaged-app
+execution is implied by these focused checks.
+
 **Experimental wired implementation, not PS5 hardware-qualified.** This is a real
 userland USB transport and frontend connection, not just a report parser and not
 the already-existing emulated guest Pro Controller setting. It does **not** close

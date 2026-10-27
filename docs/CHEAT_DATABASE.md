@@ -214,7 +214,11 @@ The same policy/wakeup/cost/lock check passed isolated with ASan/UBSan/TSan in
 No runtime idle policy was changed to suppress that failure. Host binaries, compile database,
 source snapshot, invalidation list and preceding test evidence are preserved in
 `.local/docker-release/cheat-fresh-objects-host-20261027/`. The remaining saved-snapshot tests
-are running separately without a core rebuild. Native evidence, fixed runner, source
+**passed separately** without a core rebuild (`sh_17fb07c1d001nMrrr0D3Aw4b7y`), including
+actual NFC/live-cheat/catalog factories under sanitizers, memory/JIT/device checks and three
+NRO launch/exit cycles. RomM real-server tests were explicitly skipped. Logs and the final
+device/NRO evidence are preserved in that same folder. This does not erase the original timing
+failure or constitute a single uninterrupted full-suite pass. Native evidence, fixed runner, source
 snapshot, package and matching symbols are preserved in
 `.local/docker-release/cheat-fresh-objects-native-20261027/`. ZIP SHA-256:
 `dac5e83ec81289a129d148530d28f863b79ff5ce6dd2fc3fc3b7cec7cbcd63d7`;
@@ -226,7 +230,7 @@ BIS factory while the console uses `GameFolderMods::Root`. CMake now derives tha
 mod-root resolver for **both** builds; only the firmware-root constructor extension stays
 native-only. The full host recovery run includes the per-copy check. Further encrypted
 header/section/CNMT/update fixtures, written with independent OpenSSL and invented keys, were
-added after its source snapshot and still require a separate run. The first focused run
+added after its source snapshot and were checked separately. The first focused run
 `sh_17fadd135001Y1d88z63azCGZO` reached those cases (including both per-copy mod checks), but
 the wrong-header-key negative failed: this core's `KeyManager::SetKey` deliberately does not
 replace an existing key. The fixture now uses real `prod.keys` reload and asserts the effective
@@ -238,14 +242,27 @@ was mounted read-only and its hash verified unchanged. Input hashes/log are pres
 host evidence folder as `encrypted-probe-reload.{json,log}`. This was a test setup defect, not
 evidence that the reader accepted a wrong key. No commercial keys were used.
 
+The independent BKTR extension also completed successfully. Run
+`sh_17fb6212f0018RCSZ6B5yYyp8P` exceeded the shell caller's 240-second deadline, but the
+container completed and saved `bktr-probe.json` with exit code **0**, its source hash and
+`bktr-probe.log`; these were read after the timed-out container exited, not inferred from
+a partial console log. The tested fixture SHA-256 is
+`24a3acd5a9d876cc1c35d78aecc074d3e2b60b82eba669756fd7f6241d5aa667`.
+Integrated as `2d6b596`, it writes invented-key encrypted CTREx/indirect tables independently,
+asserts missing-base status, reads a real base/patch merge byte-for-byte, then probes the
+encrypted NSP/CNMT update's effective ExeFS. The payload is synthetic RomFS storage, not a
+commercial filesystem or a gameplay result. This establishes these exercised BKTR paths,
+not every malformed table or every real game's update layout.
+
 ## Remaining qualification
 
-1. Complete BKTR probe qualification. Encrypted and game-folder native-VFS fixtures now pass
-   the corrected focused run above. Plaintext full
+1. Encrypted/BKTR and game-folder native-VFS synthetic fixtures pass the focused runs above.
+   Complete the combined real-container/real-TLS/manager cross-layer test and final integrated
+   regression. Plaintext full
    NSP/CNMT/external-update/extracted-NSP fixtures passed isolated actual-core linking in
    `sh_17f6746d1001IAphtUmQ2rtAJ2`; the negative control subsequently passed in
    `sh_17f7317db00114Vy96zy3tBrm5`.
-2. Finish the post-idle host tests and investigate/reproduce the full-suite timing failure;
+2. Investigate/reproduce the full-suite idle timing failure; post-idle tests passed separately,
    fresh-object native packaging passed. UI built-in/Lua regressions have passed as recorded
    above; that does not qualify the actual service callback on PS5.
 3. Verify the install filesystem operations and default-off invariant on the console. Apply
