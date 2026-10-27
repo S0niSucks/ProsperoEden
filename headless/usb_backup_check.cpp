@@ -206,57 +206,83 @@ int main() {
     assert(locked && fs::exists(marker)); fail_pending_sync = fail_pending_unlink = false;
     fail_sync = true; assert(!B::ApplyPending(data, error)); fail_sync = false;
     assert(B::ApplyPending(data, error));
-    // Session secrets are a whole-tree policy, not a filename allow/deny list. A hostile child
+    // Nextendo is a whole-tree policy; network-shares.json is an exact credential node. A hostile child
     // makes any accidental traversal fail, and progress/manifest/payload must contain no secret.
     const auto private_data = root / "nextendo-fixture";
     const std::string synthetic_secret = "SYNTHETIC_BEARER_EQUIVALENT_DO_NOT_COPY";
+    const std::string synthetic_credentials = "{\"password\":\"SYNTHETIC_SMB_PASSWORD_DO_NOT_COPY\"}";
     Write(private_data / "config/prosperoeden.json", "nonsecret settings");
     Write(private_data / "config/nextendo-public.json", "nonsecret sibling stays included");
+    Write(private_data / "config/network-shares.json.bak", "harmless exact-name sibling");
+    Write(private_data / "config/network-shares-public.json", "harmless network-share sibling");
     for (const auto* subtree : {"config/nextendo", "CONFIG/NeXtEnDo", "config./NEXTENDO ", "config/Nextendo."}) {
         for (const auto* file : {"import.txt", "account.json", "routes/oauth.json", ".hidden", ".staging/unknown-name"})
             Write(private_data / subtree / file, synthetic_secret);
         fs::create_symlink("/missing-must-not-be-traversed", private_data / subtree / "must-not-scan");
     }
     fs::create_directory_symlink("/missing-must-not-be-opened", private_data / "config/NEXTENDO");
-    assert(B::Inspect(private_data, usb, stop).files == 2);
+    for (const auto* file : {"config/network-shares.json", "CONFIG/Network-Shares.Json", "config./NETWORK-SHARES.JSON "})
+        Write(private_data / file, synthetic_credentials);
+    Write(private_data / "config/Network-Shares.Json./.staging/unknown", synthetic_credentials);
+    fs::create_symlink("/missing-must-not-be-traversed", private_data / "config/Network-Shares.Json./must-not-scan");
+    fs::create_symlink("/missing-must-not-be-opened", private_data / "config/NETWORK-SHARES.JSON");
+    assert(B::Inspect(private_data, usb, stop).files == 4);
     std::vector<std::string> reported_paths;
     const auto private_backup = B::Backup(private_data, usb, stop, [&](const B::Progress& p) { reported_paths.push_back(p.path); });
     const auto private_manifest = fs::path(private_backup) / "manifest.json";
     const auto clean_manifest = Read(private_manifest);
     assert(clean_manifest.find(synthetic_secret) == std::string::npos);
+    assert(clean_manifest.find(synthetic_credentials) == std::string::npos);
+    assert(clean_manifest.find(Digest(synthetic_secret)) == std::string::npos);
+    assert(clean_manifest.find(Digest(synthetic_credentials)) == std::string::npos);
     for (auto& entry : fs::recursive_directory_iterator(fs::path(private_backup) / "data")) {
         assert(entry.path().filename() != "must-not-scan");
-        if (entry.is_regular_file()) assert(Read(entry.path()).find(synthetic_secret) == std::string::npos);
+        if (entry.is_regular_file()) {
+            assert(Read(entry.path()).find(synthetic_secret) == std::string::npos);
+            assert(Read(entry.path()).find(synthetic_credentials) == std::string::npos);
+        }
     }
     for (const auto& path : reported_paths)
-        assert(path.empty() || path == "config/prosperoeden.json" || path == "config/nextendo-public.json");
+        assert(path.empty() || path == "config/prosperoeden.json" || path == "config/nextendo-public.json" ||
+               path == "config/network-shares.json.bak" || path == "config/network-shares-public.json");
     assert(Read(fs::path(private_backup) / "data/config/nextendo-public.json") == "nonsecret sibling stays included");
+    assert(Read(fs::path(private_backup) / "data/config/network-shares.json.bak") == "harmless exact-name sibling");
+    assert(Read(fs::path(private_backup) / "data/config/network-shares-public.json") == "harmless network-share sibling");
     const auto private_recovery = B::StageRestore(private_data, private_backup, stop);
     assert(B::ApplyPending(private_data, error));
     assert(Read(private_data / "config/nextendo/import.txt") == synthetic_secret);
+    assert(Read(private_data / "config/network-shares.json") == synthetic_credentials);
     assert(!fs::exists(fs::path(private_recovery) / "config/nextendo"));
+    assert(!fs::exists(fs::path(private_recovery) / "config/network-shares.json"));
     // Self-consistent malicious manifests must be rejected before opening any payload file.
     for (const auto* alias : {"config/nextendo", "CONFIG/NeXtEnDo", "config./Nextendo ", "config/nextendo.",
-                              "config/./nextendo", "config/x/../nextendo", "config\\nextendo", "/config/nextendo"}) {
-        auto injected = nlohmann::json::parse(clean_manifest);
-        injected["entries"] = nlohmann::json::array({{{"path", alias}, {"directory", true}, {"size", 0u}, {"sha256", ""}, {"had", false}}});
-        Write(private_manifest, injected.dump()); Write(fs::path(private_backup) / "COMPLETE", Digest(injected.dump()));
-        const bool policy_alias = std::string(alias).find("..") == std::string::npos &&
-            std::string(alias).find("/./") == std::string::npos && std::string(alias).find('\\') == std::string::npos && alias[0] != '/';
-        const auto rejects = [&](auto operation) {
-            bool rejected = false;
-            try { operation(); } catch (const std::exception& e) {
-                rejected = true;
-                assert(std::string(e.what()).find(synthetic_secret) == std::string::npos);
-                if (policy_alias) assert(std::string(e.what()).find("Excluded or duplicate manifest path") != std::string::npos);
-            }
-            assert(rejected);
-        };
-        rejects([&] { B::InspectRestore(private_data, private_backup, stop); });
-        rejects([&] { B::StageRestore(private_data, private_backup, stop); });
-        assert(!fs::exists(root / ".nextendo-fixture-restores/pending.json"));
+                              "config/./nextendo", "config/x/../nextendo", "config\\nextendo", "/config/nextendo",
+                              "config/network-shares.json", "CONFIG/Network-Shares.Json", "config./NETWORK-SHARES.JSON ", "config/network-shares.json.",
+                              "config/./network-shares.json", "config/x/../network-shares.json", "config\\network-shares.json", "/config/network-shares.json"}) {
+        for (bool directory : {true, false}) {
+            auto injected = nlohmann::json::parse(clean_manifest);
+            injected["entries"] = nlohmann::json::array({{{"path", alias}, {"directory", directory},
+                {"size", directory ? 0u : synthetic_credentials.size()}, {"sha256", directory ? "" : Digest(synthetic_credentials)}, {"had", false}}});
+            Write(private_manifest, injected.dump()); Write(fs::path(private_backup) / "COMPLETE", Digest(injected.dump()));
+            const bool policy_alias = std::string(alias).find("..") == std::string::npos &&
+                std::string(alias).find("/./") == std::string::npos && std::string(alias).find('\\') == std::string::npos && alias[0] != '/';
+            const auto rejects = [&](auto operation) {
+                bool rejected = false;
+                try { operation(); } catch (const std::exception& e) {
+                    rejected = true;
+                    assert(std::string(e.what()).find(synthetic_secret) == std::string::npos);
+                    assert(std::string(e.what()).find(synthetic_credentials) == std::string::npos);
+                    if (policy_alias) assert(std::string(e.what()).find("Excluded or duplicate manifest path") != std::string::npos);
+                }
+                assert(rejected);
+            };
+            rejects([&] { B::InspectRestore(private_data, private_backup, stop); });
+            rejects([&] { B::StageRestore(private_data, private_backup, stop); });
+            assert(!fs::exists(root / ".nextendo-fixture-restores/pending.json"));
+        }
     }
     Write(private_manifest, clean_manifest); Write(fs::path(private_backup) / "COMPLETE", Digest(clean_manifest));
     std::cout << "Nextendo whole-tree exclusion/alias/restore-injection tests passed (synthetic secrets)\n";
+    std::cout << "Network-share exact-config exclusion/alias/restore-injection tests passed (synthetic credentials)\n";
     std::cout << "USB backup/restore synthetic filesystem tests passed\n";
 }

@@ -23,7 +23,7 @@ account/device/system saves and their indexes, keys/firmware when inside the roo
 mods, settings and existing save backup folders are included. Backups can contain private
 service tokens and user-provided sensitive files: use a private drive. They are not encrypted.
 
-Excluded regenerable or game-content paths:
+Excluded game content, regenerable data and explicitly named credentials:
 
 - `roms/`, `updates/`, `switch/` and `.remote-downloads/`;
 - `logs/`, `cache/`, `radv-shader-cache/`;
@@ -32,13 +32,18 @@ Excluded regenerable or game-content paths:
 - the entire secret `config/nextendo/` subtree, including imports, account/session files,
   routes/OAuth configuration and all unknown, hidden or staging names; it is excluded before
   opening/enumerating the directory, not inspected for tokens or selectively filtered;
+- the exact `config/network-shares.json` credential node, which can hold plaintext SMB/NFS
+  passwords; if supplied as a directory, none of its children are traversed either;
 - files ending in `.nsp`, `.xci`, `.nsz`, `.xcz` or `.nro` (case insensitive), anywhere in the tree.
 
 Custom covers and wallpapers **inside the data root are kept**, not treated as disposable caches.
-The Nextendo policy conservatively folds ASCII case and trailing-dot/space aliases on its first
-two components, covering case-insensitive USB namespaces without changing nonsecret paths.
+Both explicit credential policies conservatively fold ASCII case and trailing-dot/space aliases
+on their first two components, covering case-insensitive USB namespaces without changing nonsecret paths.
 Dot segments, backslashes, absolute paths and malformed components are rejected, not resolved.
-Restore manifests cannot reintroduce this subtree; progress/diagnostics never scan its contents.
+Restore manifests cannot reintroduce either credential node; progress/diagnostics never scan or
+hash their contents. Harmless siblings such as `config/network-shares.json.bak`,
+`config/network-shares-public.json` and `config/nextendo-public.json` remain included. There is
+no heuristic scanning for passwords/tokens and no exclusion of unknown config files generally.
 
 ## Backup format and safety boundary
 
@@ -131,6 +136,36 @@ failed/not busy, so it can be closed; it never claims publication or leaves an i
 modal. The remote-resume flag resets for each new session, rather than leaking across a failed
 start. No restore bytes are applied on the launcher thread.
 
+### Coordinator-required Amiibo/Nextendo integration hooks (not yet composed)
+
+These APIs are arriving in other deliveries, not present or imported here. Credential exclusion
+does **not** replace writer coordination. The coordinator must compose their real final APIs:
+
+1. In this branch's `EdenServices::begin_usb_backup()` (the USB-enter hook), keep the existing
+   `usb_active_` gate set **before** scheduling preparation. On the USB preparation worker,
+   cancel/stop **and join/drain AmiiboSync** before drive discovery or any snapshot/restore
+   inspection. Do this before taking `bridge_`; never hold `usb_lock_`, a profile lock or a lock
+   needed by the job while joining. A cancellation request alone is not a drain barrier.
+2. Reject every `start_amiibo_sync` request while `usb_active_`, including automatic/background
+   restart paths. Preserve the existing early rejection in `set_files_folder`; the composed
+   implementation must not switch roots or start/restart AmiiboSync behind that guard.
+3. Gate all Nextendo async starts and profile/session/account mutators while `usb_active_`,
+   before they resolve paths or write state: profile selection/create/rename/delete, imports,
+   authentication/link/unlink/logout and any completion-triggered persistence. Use the delivery's
+   real entry points, not guessed method names. The USB preparation worker must cancel and
+   join/drain every in-flight Nextendo job, including queued completion/writeback callbacks,
+   before snapshotting. Detached jobs need an explicit completion barrier, not just cancellation.
+4. No drained completion may publish afterward or restart a job during the session. Preserve
+   generation/root checks for stale captured paths. Ordinary backup success/failure/cancellation
+   may resume eligible jobs only after the USB worker is joined and the gate is released.
+   Pending restore (including `RestorePending`) keeps **all** those jobs/starts/mutators locked
+   until exit. Destruction joins the USB worker before destroying collaborators and never resumes.
+5. Add integrated tests with the **real composed owners/APIs**: block each Amiibo/Nextendo writer
+   just before publication, enter USB, prove inspection cannot begin until writes/callbacks drain,
+   reject new sync/profile/root-change requests, cancel without deadlock, verify safe resumption
+   without stale roots, and exercise destruction plus pending-restore restart lock. The focused
+   synthetic service tests here do not claim this cross-delivery lifetime coverage.
+
 ## Focused validation and limits
 
 Run from this worktree with the existing image, a read-only source mount and an isolated volume:
@@ -153,13 +188,17 @@ restart lock. These collaborators do not qualify the real network/core job shutd
 The actual update-check lifecycle is separately exercised with a blocked synthetic catalog:
 the USB drain cannot finish before the checker completes its sequence-write step, repeated
 starts remain idempotent, and the completed offer is still delivered once. No network is used.
-Focused Nextendo tests use synthetic bearer-equivalent values with unknown/hidden/staging names,
+Focused credential tests use synthetic bearer/password values with unknown/hidden/staging names,
 case and trailing-dot/space aliases, and hostile children that would fail any accidental traversal.
 They verify nonsecret siblings are backed up, progress/payload omit secrets, restore leaves live
 sessions untouched, and self-consistent manifests are rejected by the exclusion policy before
 payload validation; dot-segment/backslash/absolute aliases are rejected as unsafe paths.
-The 2026-10-27 Docker run passed the filesystem/Nextendo, service lifecycle and actual update-check
-drain suites under ASan/UBSan with leak detection, plus all focused syntax checks.
+They cover exact network-share config files, hostile directory/symlink aliases, absent credential
+hashes in manifests, untouched live credentials and file/directory restore-injection attempts.
+The final 2026-10-27 Docker run passed the filesystem/Nextendo/network-share, service lifecycle
+and actual update-check drain suites under ASan/UBSan with leak detection, plus all focused
+syntax checks (complete runner exit 0; a preceding 120-second invocation exhausted its wall-time
+budget after the runtime suites, so the complete runner was repeated with a 300-second budget).
 
 Coordinator focused run `sh_17fcaef8c0011cEcLmxb76dgSB` passed the exact service include with
 ASan/UBSan, real filesystem operations and real `pthread_create` failure injection (`EAGAIN`),
@@ -191,6 +230,9 @@ docker run --rm --name prosperoeden-team-usb-backup-20261027 --cpus=2 --memory=3
 The clean launcher-only ASan/UBSan run on 2026-10-27 passed **20 controller checks** across
 720p/1080p with no GL errors: preflight/Cancel default, launch blocking, cancellation, backup
 completion, low-space refusal, corrupt-backup refusal, restore warning/staging and restart lock.
+The final renderer run also exercised direct outer picker/launcher-selection attempts during
+restart lock. Its report and screenshots are retained at `/work/usb-ui-results` in the isolated
+volume; the later network-share change is backend/docs/tests only and did not launch another renderer.
 Both resolutions' confirmation and restart screenshots were inspected. An earlier incremental
 preview run failed with mixed-object layout evidence; the runner now always builds in a fresh
 isolated launcher directory so Windows source timestamps cannot reuse stale ABI objects.

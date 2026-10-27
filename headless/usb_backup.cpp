@@ -99,7 +99,7 @@ std::uint64_t Available(int fd, std::uint64_t& allocation) {
     return info.f_bavail * info.f_frsize;
 }
 bool Excluded(const std::string& path) {
-    // Never open/enumerate this session-secret tree, even for unknown/hidden filenames.
+    // Never open/enumerate these exact credential nodes (including any hostile children).
     // Be conservative across the case-insensitive USB namespace and adapters that alias a
     // trailing dot/space. Dot segments, backslashes and absolute paths are rejected by Parts.
     const auto policy_name = [](std::string_view part, std::string_view expected) {
@@ -115,7 +115,8 @@ bool Excluded(const std::string& path) {
     const auto slash = relative.find('/');
     if (slash != relative.npos && policy_name(relative.substr(0, slash), "config")) {
         const auto tail = relative.substr(slash + 1);
-        if (policy_name(tail.substr(0, tail.find('/')), "nextendo")) return true;
+        const auto node = tail.substr(0, tail.find('/'));
+        if (policy_name(node, "nextendo") || policy_name(node, "network-shares.json")) return true;
     }
     const auto under = [&](std::string_view p) { return path == p || (path.starts_with(p) && path[p.size()] == '/'); };
     for (auto p : {"roms", "updates", "switch", "logs", "cache", "radv-shader-cache", ".remote-downloads",
