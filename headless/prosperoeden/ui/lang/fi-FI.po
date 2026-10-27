@@ -2370,3 +2370,79 @@ msgstr "{0}/ (kansio kutakin nimiketunnusta kohden)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "Kaatumisraportit (FTP): {0}\nLiitä crash-*.txt ja siihen liittyvät lokit virheilmoitukseesi."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "Viimeistele tai peruuta huijauskoodihaku ennen pelin käynnistämistä."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "Etsi huijauskoodeja verkosta"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "Käytä koodien offline-välimuistia"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "Asenna tarkistetut koodit (pois)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "Tarkista ennen asennusta. Ladatut koodit pysyvät poissa käytöstä, kunnes valitset koodin. Varmuuskopioi tallennukset ennen koodien käyttöä."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "Tarkistetaan pelin käytössä olevaa koontia"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "Ladataan huijauskoodiluetteloa"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "Asennetaan koodit pois käytöstä"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "Asennettu. Ota koodeja käyttöön valitsemalla ne alta."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "Koodit tarkistettu. Valmiina asennukseen pois käytöstä."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "Juuri tälle koonnille ei löytynyt koodeja."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "Peruutettu"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "Huijauskoodihakua ei voitu suorittaa loppuun."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "{0} yhteensopivaa koodia"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "Offline-välimuisti (ei uusi lataus)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "Peruutetaan huijauskoodihakua..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "Etsi ensin verkosta tai lataa sopiva offline-välimuisti."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "Paina X uudelleen asentaaksesi koodit pois käytöstä. Nykyiset tiedostot säilytetään."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "Hakua ei voitu aloittaa. Valitse paikallinen peli ja yritä uudelleen."

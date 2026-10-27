@@ -2370,3 +2370,79 @@ msgstr "{0}/ (หนึ่ง​โฟลเดอร์​ต่อ ID ​ข�
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "รายงานข้อขัดข้อง (FTP): {0}\nแนบ crash-*.txt และบันทึกที่เกี่ยวข้องในรายงานปัญหาของคุณ"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "ค้นหาสูตรโกงให้เสร็จหรือยกเลิกก่อนเริ่มเกม"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "ค้นหาสูตรโกงออนไลน์"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "ใช้แคชสูตรโกงออฟไลน์"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "ติดตั้งสูตรที่ตรวจแล้ว (ปิด)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "ตรวจสอบก่อนติดตั้ง สูตรที่ดาวน์โหลดจะปิดอยู่จนกว่าคุณจะเลือกสูตร สำรองข้อมูลบันทึกก่อนใช้รหัส"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "กำลังตรวจสอบบิลด์เกมที่ใช้งานจริง"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "กำลังดาวน์โหลดรายการสูตรโกง"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "กำลังติดตั้งสูตรโกงโดยปิดใช้งานไว้"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "ติดตั้งแล้ว เลือกสูตรโกงด้านล่างเพื่อเปิดใช้งาน"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "ตรวจสอบสูตรแล้ว พร้อมติดตั้งโดยปิดใช้งานไว้"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "ไม่มีสูตรโกงที่ตรงกับบิลด์นี้ทุกประการ"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "ยกเลิกแล้ว"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "ไม่สามารถค้นหาสูตรโกงให้เสร็จได้"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "สูตรโกงที่เข้ากันได้ {0} รายการ"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "แคชออฟไลน์ (ไม่ใช่การดาวน์โหลดใหม่)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "กำลังยกเลิกการค้นหาสูตรโกง..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "ค้นหาออนไลน์หรือโหลดแคชออฟไลน์ที่ตรงกันก่อน"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "กด X อีกครั้งเพื่อติดตั้งสูตรเหล่านี้โดยปิดใช้งานไว้ ไฟล์เดิมจะยังคงอยู่"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "เริ่มค้นหาไม่ได้ เลือกเกมในเครื่องแล้วลองอีกครั้ง"

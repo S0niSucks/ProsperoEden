@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "live_cheats.h"
+#include "cheat_catalog.h"
 #include "quick_menu.h"
 #include "core/memory/cheat_engine.h"
 #include <cassert>
@@ -29,13 +30,17 @@ struct Memory final : Core::Memory::DmntCheatVm::Callbacks {
 int main() {
     namespace Live = Eden::LiveCheats;
     using namespace ps5::pad;
+    std::array<u8, 32> build{}; build[0] = 0x77;
     Core::Memory::TextCheatParser parser;
     // A real, harmless VM write into the test callback's own 16-byte window.
-    auto list = parser.Parse("{Master}\n04000000 00000004 00000002\n"
-                             "[Write value]\n04000000 00000000 00000001\n");
+    const std::string database = R"({"0100000000001000":{"7700000000000000":{")" + std::string(64, 'a') +
+        R"(":{"title":"[Write value]","source":"04000000 00000000 00000001"},")" + std::string(64, 'b') +
+        R"(":{"title":"{Master}","source":"04000000 00000004 00000002"},"version":0}}})";
+    const auto catalog = Eden::ReadCheatCatalog(database, 0x0100000000001000, build);
+    assert(catalog.status == Eden::CheatCatalogStatus::Ready);
+    auto list = parser.Parse(catalog.Text());
     assert(list.size() == 2 && list[0].cheat_id == 0 && list[1].enabled);
     const int engine = 1, other = 2;
-    std::array<u8, 32> build{}; build[0] = 0x77;
     Live::Begin(&engine, list, build);
     auto view = Live::Read(); assert(view.build == build && view.rows.size() == 1);
     assert(view.rows[0].name == "Write value" && view.rows[0].enabled);

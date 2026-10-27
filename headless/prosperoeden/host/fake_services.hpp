@@ -60,8 +60,19 @@ class FakeServices : public ui::Services
     }
     void leave_room() override { room = {}; }
     bool can_launch_game() override {
-        return room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected;
+        return !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
     }
+    // Synthetic manager for preview/controller tests. Never opens a network connection or
+    // writes codes; the real job/cache/filesystem operations are tested separately in Docker.
+    ui::CheatDatabase cheat_job;
+    std::string cheat_mode;
+    int cheat_polls = 0, cheat_checks = 0, cheat_installs = 0;
+    std::uint64_t downloaded_title = 0, cheat_pending_title = 0;
+    bool downloaded_chosen = false;
+    ui::CheatDatabase cheat_database() override;
+    bool check_cheat_database(const ui::Game& game, bool offline) override;
+    bool install_cheat_database(const ui::Game& game) override;
+    void cancel_cheat_database() override { if (cheat_job.busy) { cheat_job.busy = false; cheat_job.phase = "cancelled"; ++cheat_job.generation; } }
 
     ui::Home home() override;
     std::string clock() override

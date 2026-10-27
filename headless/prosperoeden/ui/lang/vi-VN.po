@@ -2370,3 +2370,79 @@ msgstr "{0}/ (mỗi ID trò chơi một thư mục)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "Báo cáo sự cố (FTP): {0}\nĐính kèm crash-*.txt và nhật ký tương ứng vào báo cáo lỗi."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "Hoàn tất hoặc hủy tìm mã gian lận trước khi chạy trò chơi."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "Tìm mã gian lận trực tuyến"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "Dùng bộ nhớ đệm mã ngoại tuyến"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "Cài mã đã kiểm tra (tắt)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "Kiểm tra trước khi cài. Mã tải về vẫn tắt cho đến khi bạn chọn một mã. Sao lưu dữ liệu lưu trước khi dùng mã."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "Đang kiểm tra bản dựng thực tế của trò chơi"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "Đang tải danh mục mã gian lận"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "Đang cài mã ở trạng thái tắt"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "Đã cài. Chọn mã bên dưới để bật."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "Đã kiểm tra mã. Sẵn sàng cài ở trạng thái tắt."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "Không có mã khớp chính xác bản dựng này."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "Đã hủy"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "Không thể hoàn tất tìm mã gian lận."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "{0} mã tương thích"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "Bộ nhớ đệm ngoại tuyến (không phải bản tải mới)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "Đang hủy tìm mã gian lận..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "Trước tiên hãy tìm trực tuyến hoặc nạp bộ nhớ đệm ngoại tuyến phù hợp."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "Nhấn X lần nữa để cài các mã này ở trạng thái tắt. Các tệp hiện có được giữ nguyên."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "Không thể bắt đầu tìm. Chọn trò chơi cục bộ rồi thử lại."

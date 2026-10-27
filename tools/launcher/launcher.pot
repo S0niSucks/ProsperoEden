@@ -200,7 +200,7 @@ msgstr ""
 msgid "Button mapping"
 msgstr ""
 
-#: pe/ui/pairing.cpp, pe/ui/update.cpp
+#: pe/ui/library.cpp, pe/ui/pairing.cpp, pe/ui/update.cpp
 msgid "Cancel"
 msgstr ""
 
@@ -208,8 +208,16 @@ msgstr ""
 msgid "Cancel download"
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Cancelled"
+msgstr ""
+
 #: pe/ui/update.cpp
 msgid "Cancelling"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Cancelling cheat request..."
 msgstr ""
 
 #: eden_services.cpp
@@ -239,13 +247,33 @@ msgstr ""
 msgid "Cheats"
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Cheats checked. Ready to install, disabled."
+msgstr ""
+
 #. Shown under a cheat that came from the game's cheats folder (not from a mod).
 #: pe/ui/library.cpp
 msgid "Cheats folder"
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Check online for cheats"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Check online or load a matching offline cache first."
+msgstr ""
+
 #: pe/ui/pairing.cpp
 msgid "Check that the code there is this one, and approve."
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Checking effective game build"
 msgstr ""
 
 #: pe/ui/remote.cpp
@@ -269,7 +297,7 @@ msgid "Chinese (Traditional)"
 msgstr ""
 
 #. Button hint: choose the highlighted language.
-#: pe/ui/browse.cpp, pe/ui/save_sync.cpp
+#: pe/ui/browse.cpp, pe/ui/library.cpp, pe/ui/save_sync.cpp
 msgid "Choose"
 msgstr ""
 
@@ -385,6 +413,10 @@ msgid "Could not change save-sync.json."
 msgstr ""
 
 #: pe/ui/library.cpp
+msgid "Could not complete the cheat request."
+msgstr ""
+
+#: pe/ui/library.cpp
 msgid "Could not create the folder. Check that the game files folder can be written."
 msgstr ""
 
@@ -406,6 +438,10 @@ msgstr ""
 
 #: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/profiles.cpp
 msgid "Could not save. Please try again."
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Could not start the cheat request. Choose a local game and try again."
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -543,6 +579,10 @@ msgstr ""
 msgid "Downloading"
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Downloading cheat catalog"
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "Downloading {0}"
 msgstr ""
@@ -661,6 +701,10 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Fine-tune your experience"
+msgstr ""
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the cheat request before starting a game."
 msgstr ""
 
 #: pe/ui/browse.cpp
@@ -874,6 +918,18 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Incompatible"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Install checked cheats (off)"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Installed. Select cheats below to enable them."
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Installing cheats, disabled"
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -1131,6 +1187,10 @@ msgstr ""
 msgid "No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}."
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "No cheats match this exact build."
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "No download source is set up. Save a file named {0} that lists your sources, as this one does with a RomM server, then open this menu again. Downloads need an FTP server running on the console, on port {1}."
 msgstr ""
@@ -1229,6 +1289,10 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Offline"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Offline cache (not a fresh download)"
 msgstr ""
 
 #. A setting that is switched on.
@@ -1382,7 +1446,7 @@ msgid "Powered by Eden"
 msgstr ""
 
 #. Update dialog headline while the download starts.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
+#: pe/ui/library.cpp, pe/ui/remote.cpp, pe/ui/update.cpp
 msgid "Preparing"
 msgstr ""
 
@@ -1393,6 +1457,10 @@ msgstr ""
 #. Asked before a save is imported over the one in use.
 #: pe/ui/library.cpp
 msgid "Press again to replace this game's save. The current one is backed up."
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -2131,6 +2199,10 @@ msgstr ""
 msgid "Use extracted firmware NCA files. Choose the folder in Settings, Game files; restart the app after changing it."
 msgstr ""
 
+#: pe/ui/library.cpp
+msgid "Use offline cheat cache"
+msgstr ""
+
 #: pe/ui/browse.cpp
 msgid "Use this folder"
 msgstr ""
@@ -2262,6 +2334,10 @@ msgstr ""
 #. How many settings of a kind this game has of its own; {0} is a number.
 #: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "{0} changed"
+msgstr ""
+
+#: pe/ui/library.cpp
+msgid "{0} compatible cheats"
 msgstr ""
 
 #. {0} is how many DLC (add-on content) a game has installed.

@@ -2370,3 +2370,79 @@ msgstr "{0}/ (uma pasta por ID de título)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "Relatórios de falha (FTP): {0}\nAnexe crash-*.txt e os registos correspondentes ao relato do problema."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "Conclua ou cancele a consulta de cheats antes de iniciar um jogo."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "Procurar cheats online"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "Usar cache offline de cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "Instalar cheats verificados (off)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "Consulte antes de instalar. Os downloads ficam desativados até selecionar um cheat. Faça uma cópia dos dados guardados antes de usar códigos."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "A verificar o build efetivo do jogo"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "A transferir o catálogo de cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "A instalar cheats desativados"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "Instalado. Selecione os cheats abaixo para os ativar."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "Cheats verificados. Prontos a instalar desativados."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "Nenhum cheat corresponde a este build exato."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "Cancelado"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "Não foi possível concluir a consulta de cheats."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "{0} cheats compatíveis"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "Cache offline (não é um novo download)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "A cancelar a consulta de cheats..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "Procure online ou carregue primeiro uma cache offline compatível."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "Prima X novamente para instalar estes cheats desativados. Os ficheiros existentes são mantidos."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "Não foi possível iniciar a consulta. Escolha um jogo local e tente novamente."

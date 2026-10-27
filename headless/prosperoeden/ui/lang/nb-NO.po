@@ -2370,3 +2370,79 @@ msgstr "{0}/ (én mappe per tittel-ID)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "Krasjrapporter (FTP): {0}\nLegg ved crash-*.txt og tilhørende logger i feilrapporten."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "Fullfør eller avbryt søket etter juksekoder før du starter et spill."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "Søk etter juksekoder på nettet"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "Bruk frakoblet juksekodebuffer"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "Installer sjekkede juksekoder (av)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "Sjekk før installasjon. Nedlastinger er av til du velger en juksekode. Sikkerhetskopier lagrede spill før du bruker koder."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "Sjekker spillets effektive build"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "Laster ned juksekodekatalog"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "Installerer deaktiverte juksekoder"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "Installert. Velg juksekoder nedenfor for å aktivere dem."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "Juksekoder sjekket. Klare til deaktivert installasjon."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "Ingen juksekoder passer til akkurat denne builden."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "Avbrutt"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "Kunne ikke fullføre søket etter juksekoder."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "{0} kompatible juksekoder"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "Frakoblet buffer (ikke en ny nedlasting)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "Avbryter søk etter juksekoder..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "Søk på nettet eller last først inn en passende frakoblet buffer."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "Trykk på X igjen for å installere disse juksekodene deaktivert. Eksisterende filer beholdes."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "Kunne ikke starte søket. Velg et lokalt spill og prøv igjen."

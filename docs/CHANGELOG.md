@@ -5,8 +5,9 @@ What changed in each release of ProsperoEden, newest first. A release's notes on
 ## Unreleased integration
 
 **Work in progress, not a new published release.** This consolidates the local integration
-branch; versioned release notes and a new package version will follow completion of the
-remaining features. Existing `v1.005.000` test packages do not represent this whole scope.
+branch. The user-designated target is **v1.006.000**, after integrating the complete scope;
+versioned release notes and package metadata will be finalized then. Existing `v1.005.000`
+test packages do not represent this whole scope and are not the v1.006.000 release.
 
 ### New and improved
 
@@ -31,6 +32,12 @@ remaining features. Existing `v1.005.000` test packages do not represent this wh
   nested library/history/forwarders, newest updates, title-scoped mods, audio overflow,
   guest-write accounting, ExecuteProgram, HUD and Swedish texts. Selected follow-ups add
   controller-handle recovery, font mods, missing-key diagnostics and portable wallpapers.
+- **Cheat-manager backend (in progress).** Exact title/effective-main build lookup shares
+  update/ExeFS selection with boot. Bounded TitleDB parsing, opt-in HTTPS transport, a bound
+  offline cache and no-clobber managed installation are implemented; downloaded single codes
+  and masters default to off. **Game settings > Cheats** now has explicit check/cache/install
+  actions, confirmation, progress and cancellation, also exposed to Lua launchers. The new
+  wiring still needs its integrated preview/native checks and console qualification.
 
 ### Reliability and diagnostics
 
@@ -47,7 +54,7 @@ remaining features. Existing `v1.005.000` test packages do not represent this wh
 
 ### Remaining work and test limits
 
-Cheat database downloads, Nextendo, SMB/NFS streaming, Cover Flow, USB backup/restore,
+Cheat database launcher integration, Nextendo, SMB/NFS streaming, Cover Flow, USB backup/restore,
 external/scene themes and physical Switch Pro Controller support remain in scope, not
 implemented by this changeset. In-launcher online Amiibo synchronization is also pending.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate

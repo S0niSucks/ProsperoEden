@@ -108,6 +108,7 @@ can fail. Services and serialized fields are defined in
 | `status` | Clock, real controller mask, multiplayer phase, launch/sync/update/keyboard state |
 | `game_files`, `mods`, `cheats`, `setup` | Folder information, a game's mods (each with `cheats_only` when it holds cheats alone), its cheats with the Cheats switch, and setup details |
 | `sources`, `downloads` | Remote-source catalog and native download queue |
+| `cheat_database` | Optional `cheats.catalog.v1`: phase, game file, source, full build, byte progress, compatible optional `names`/count, informational `other_builds`/truncation flag, offline/cache flags and error |
 | `save_sync`, `save_sync_setup`, `pair_servers`, `pairing` | Native save synchronization and pairing |
 | `room_form`, `public_rooms` | Room form without a saved password, cached public directory |
 | `state`, `launchers`, `translate`, `measure` | UI state, installed launchers, localization and font measurement |
@@ -120,6 +121,7 @@ can fail. Services and serialized fields are defined in
 | `preferences.set` (field patch), `game_settings.set` (`game`, `patch`), `game.docked` (`game`, `value`) | Existing settings storage |
 | `game_files.set` (`path`) | Existing game-files folder selection |
 | `mods.enabled`, `mod.enabled`, `cheats.enabled`, `cheat.enabled` (`mod`, `name`), `mods.folder` | Native mod and cheat operations, using a library `game` handle |
+| `cheat_database.check`, `cheat_database.cache`, `cheat_database.install` (`game`, `confirmed=true`), `cheat_database.cancel` | Explicit online lookup, offline cache lookup, separately confirmed installation (new codes off), and cancellation |
 | `save.import`, `save.export` (`game`) | Native save transfer |
 | `sources.refresh`, `download.start` (`game`, `source`, `first`), `download.cancel` (`key`), `game.delete` (`game`, `confirmed`) | Native remote and file operations |
 | `room.refresh`, `room.leave`, `room.join` (connection fields), `room.join_public` (`index`, `nickname`, `password`) | Existing multiplayer services |
@@ -134,6 +136,14 @@ can fail. Services and serialized fields are defined in
 path. `source` and public-room/pairing indices are zero based. Library generation
 changes require the pack to refresh its displayed model. Profiles include a stable
 native `handle`; use it instead of a display name.
+
+The cheat catalog is optional: test `runtime.capabilities` for `cheats.catalog.v1`.
+Do not automatically check or install on page open. A ready catalog does not enable any
+code; installation revalidates the current effective main build and preserves existing
+files. Refresh `cheats` after phase `installed` and require a deliberate selection to enable
+optional codes. Source configuration and safety limits are in [CHEAT_DATABASE.md](CHEAT_DATABASE.md).
+A busy catalog job blocks launch. Cancellation remains busy until a synchronous identity
+probe has returned, and every launcher exit/boot joins the native worker.
 
 `launch.request` captures the current profile and enters `ready` or `syncing`. A pack
 must wait for `ready` before its animation finishes and calls `launch.commit`. The host

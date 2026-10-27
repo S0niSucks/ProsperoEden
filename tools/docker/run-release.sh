@@ -3,6 +3,8 @@
 set -euo pipefail
 
 [[ -f /checkout/UPSTREAM.json ]] || { echo 'Mount the checkout read-only at /checkout' >&2; exit 2; }
+exec 9>/work/.prosperoeden-build.lock
+flock -n 9 || { echo 'This Docker build volume is busy; use a separate volume or wait for its job.' >&2; exit 2; }
 mkdir -p /work/ProsperoEden
 rsync -a --exclude=/.git --exclude=/.deps --exclude=/.local --exclude=/build \
     --exclude=/dist --exclude=/results /checkout/ /work/ProsperoEden/

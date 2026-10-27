@@ -2370,3 +2370,79 @@ msgstr "{0}/ (ένας φάκελος ανά αναγνωριστικό τίτλ
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "Αναφορές σφαλμάτων (FTP): {0}\nΕπισυνάψτε το crash-*.txt και τα αντίστοιχα αρχεία καταγραφής στην αναφορά σας."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "Ολοκληρώστε ή ακυρώστε την αναζήτηση cheats πριν ξεκινήσετε παιχνίδι."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "Αναζήτηση cheats online"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "Χρήση offline cache για cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "Εγκατάσταση ελεγμένων cheats (off)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "Ελέγξτε πριν την εγκατάσταση. Οι λήψεις μένουν ανενεργές μέχρι να επιλέξετε cheat. Αντιγράψτε τις αποθηκεύσεις πριν χρησιμοποιήσετε κωδικούς."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "Έλεγχος της ενεργής έκδοσης παιχνιδιού"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "Λήψη καταλόγου cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "Εγκατάσταση ανενεργών cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "Εγκαταστάθηκαν. Επιλέξτε cheats παρακάτω για ενεργοποίηση."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "Τα cheats ελέγχθηκαν. Έτοιμα για ανενεργή εγκατάσταση."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "Δεν βρέθηκαν cheats για αυτήν ακριβώς την έκδοση."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "Ακυρώθηκε"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "Η αναζήτηση cheats δεν ολοκληρώθηκε."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "{0} συμβατά cheats"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "Offline cache (όχι νέα λήψη)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "Ακύρωση αναζήτησης cheats..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "Αναζητήστε online ή φορτώστε πρώτα συμβατή offline cache."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "Πατήστε ξανά X για εγκατάσταση ανενεργών cheats. Τα υπάρχοντα αρχεία διατηρούνται."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "Η αναζήτηση δεν ξεκίνησε. Επιλέξτε τοπικό παιχνίδι και δοκιμάστε ξανά."

@@ -896,7 +896,9 @@ void Launcher::press_game(Key key)
         read_mods(game);
         cheat_rows_.visible = layout::kPaneRows;
         cheat_rows_.pitch = layout::kPanePitch;
-        cheat_rows_.reset(cheats_.empty() ? 0 : 1 + static_cast<int>(cheats_.size()), 0);
+        cheat_database_ = services_.cheat_database();
+        cheat_rows_.reset(cheat_row_count(), 0);
+        cheat_install_armed_ = false;
         modal_ = modal_shown_ = Modal::cheats;
         message_.clear();
         cue(Cue::open);
@@ -1119,15 +1121,15 @@ void Launcher::draw_game_page(Canvas &c, float open)
     }
     else if (modal_shown_ == Modal::cheats)
     {
-        if (cheats_.empty())
+        if (cheat_database_.busy)
         {
-            static constexpr Hint kEmpty[] = {{Pad::circle, TR("Back")}};
-            hints(kEmpty, 1);
+            static constexpr Hint kBusy[] = {{Pad::circle, TR("Cancel")}};
+            hints(kBusy, 1);
         }
         else
         {
             static constexpr Hint kCheats[] = {{Pad::updown, TR("Select")},
-                                               {Pad::cross, TR("Turn on or off")},
+                                               {Pad::cross, TR("Choose")},
                                                {Pad::circle, TR("Back")}};
             hints(kCheats, 3);
         }
@@ -1270,26 +1272,32 @@ void Launcher::draw_mods_pane(Canvas &c, const Rect &pane, bool active)
     list.pop_opacity();
 }
 
-// The game's cheats: the switch for all of them, then each with its switch and the file it came
-// from under its name.
+const std::vector<std::string>& Launcher::cheat_catalog_rows() const
+{
+    static const std::vector<std::string> empty;
+    if (games_.empty() || cheat_database_.file != games_[static_cast<std::size_t>(library_.selected)].file) return empty;
+    if (cheat_database_.phase == "ready") return cheat_database_.names;
+    if (cheat_database_.phase == "no_match") return cheat_database_.other_builds;
+    return empty;
+}
+
+int Launcher::cheat_row_count() const
+{
+    return 3 + (cheats_.empty() ? 0 : 1 + static_cast<int>(cheats_.size())) + static_cast<int>(cheat_catalog_rows().size());
+}
+
+// Explicit catalog actions, installed cheat switches, then read-only checked names or other
+// incompatible build labels. Preview rows never enable or install code.
 void Launcher::draw_cheats_pane(Canvas &c, const Rect &pane, bool active)
 {
     gfx::DrawList &list = c.list;
     const Theme &t = th();
     const Game &game = games_[static_cast<std::size_t>(library_.selected)];
-    if (cheats_.empty())
-    {
-        text_block(c,
-                   fill(tr("No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}."),
-                        {services_.cheats_folder(game.title_id)}),
-                   pane.x + 8.0f, baseline(pane.y + 8.0f, 40.0f, t.size_text), t.size_text, 40.0f, t.body,
-                   pane.w - 16.0f, 6, kShrink);
-        return;
-    }
     const float pitch = layout::kPanePitch;
     const float height = layout::kPaneRow;
     const float scroll = active ? cheat_rows_.scroll() : 0.0f;
-    const int count = 1 + static_cast<int>(cheats_.size());
+    const int count = cheat_row_count();
+    const int preview_at = 3 + (cheats_.empty() ? 0 : 1 + static_cast<int>(cheats_.size()));
     const int first = active ? cheat_rows_.first_row() : 0;
     const int last = active ? cheat_rows_.last_row() : std::min(count, layout::kPaneRows) - 1;
     list.push_opacity(active ? 1.0f : 0.72f);
@@ -1310,7 +1318,29 @@ void Launcher::draw_cheats_pane(Canvas &c, const Rect &pane, bool active)
     {
         const float top = row_top(row);
         list.push_opacity(active ? cheat_rows_.row_alpha(row, height) : 1.0f);
-        if (row == 0)
+        if (row < 3)
+        {
+            const char* actions[] = {TR("Check online for cheats"), TR("Use offline cheat cache"), TR("Install checked cheats (off)")};
+            const bool installable = cheat_database_.file == game.file && cheat_database_.phase == "ready" && cheat_database_.entries > 0;
+            const bool available = !game.remote && !cheat_database_.busy && (row != 2 || installable);
+            text_fit(c, tr(actions[row]), pane.x + 28.0f, baseline(top, height, t.size_text), t.size_text,
+                     available ? t.title : t.meta, pane.w - 56.0f);
+            list.pop_opacity();
+            continue;
+        }
+        if (row >= preview_at)
+        {
+            auto label = cheat_catalog_rows()[static_cast<std::size_t>(row - preview_at)];
+            if (cheat_database_.phase == "no_match" && cheat_database_.other_builds_truncated && row == count - 1) label += " ...";
+            text_fit(c, label, pane.x + 28.0f,
+                baseline(top + 10.0f, 36.0f, t.size_text), t.size_text, t.copy, pane.w - 56.0f);
+            text_shrink(c, cheat_database_.phase == "ready" ? tr("Cheats checked. Ready to install, disabled.") :
+                tr("No cheats match this exact build."), pane.x + 28.0f, baseline(top + 46.0f, 26.0f, 18.0f),
+                18.0f, t.meta, pane.w - 56.0f);
+            list.pop_opacity();
+            continue;
+        }
+        if (row == 3)
         {
             const Heavy heavy(c);
             text_fit(c, tr("All cheats"), pane.x + 28.0f, baseline(top, height, t.size_text), t.size_text,
@@ -1319,7 +1349,7 @@ void Launcher::draw_cheats_pane(Canvas &c, const Rect &pane, bool active)
             list.pop_opacity();
             continue;
         }
-        const GameCheat &cheat = cheats_[static_cast<std::size_t>(row - 1)];
+        const GameCheat &cheat = cheats_[static_cast<std::size_t>(row - 4)];
         text_fit(c, cheat.name, pane.x + 28.0f, baseline(top + 10.0f, 36.0f, t.size_text), t.size_text,
                  cheat.enabled && cheats_enabled_ ? t.value : t.meta, pane.w - 28.0f - 120.0f);
         // The game's cheats folder is a mod of Eden's making: it is named in the player's language.
@@ -1413,6 +1443,53 @@ void Launcher::draw_explain_pane(Canvas &c, const Rect &pane, int kind)
         const int own = game_overrides(kind - row_video);
         chip(c, changes_text(own), x, y + 22.0f, own > 0 ? Tone::accent : Tone::plain, width);
     }
+    if (kind == row_cheats)
+    {
+        const auto& game = games_[static_cast<std::size_t>(library_.selected)];
+        const int lines = text_block(c, tr("Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."),
+            x, baseline(y, 30.0f, 22.0f), 22.0f, 30.0f, t.body, width, 5, kShrink);
+        y += 30.0f * static_cast<float>(lines) + 20.0f;
+        if (cheat_database_.file == game.file)
+        {
+            const auto& phase = cheat_database_.phase;
+            const char* state = phase == "checking" ? TR("Checking effective game build") :
+                phase == "downloading" ? TR("Downloading cheat catalog") :
+                phase == "installing" ? TR("Installing cheats, disabled") :
+                phase == "installed" ? TR("Installed. Select cheats below to enable them.") :
+                phase == "ready" ? TR("Cheats checked. Ready to install, disabled.") :
+                phase == "no_match" ? TR("No cheats match this exact build.") :
+                phase == "cancelled" ? TR("Cancelled") : phase == "failed" ? TR("Could not complete the cheat request.") : "";
+            const int state_lines = text_block(c, tr(state), x, baseline(y, 30.0f, 22.0f), 22.0f, 30.0f,
+                phase == "failed" ? t.warning : t.accent_pale, width, 3, kShrink);
+            y += 30.0f * static_cast<float>(state_lines) + 12.0f;
+            if (phase == "downloading")
+            {
+                text_fit(c, std::to_string(cheat_database_.done / 1024) + " / " +
+                    (cheat_database_.total ? std::to_string(cheat_database_.total / 1024) : "?") + " KiB",
+                    x, baseline(y, 30.0f, 20.0f), 20.0f, t.copy, width);
+                y += 36.0f;
+            }
+            if (!cheat_database_.build.empty())
+            {
+                text_fit(c, cheat_database_.build.substr(0, 16), x, baseline(y, 28.0f, 20.0f), 20.0f, t.copy, width);
+                y += 32.0f;
+            }
+            if (phase == "ready" || phase == "installed")
+            {
+                text_fit(c, fill(tr("{0} compatible cheats"), {std::to_string(cheat_database_.entries)}),
+                    x, baseline(y, 30.0f, 20.0f), 20.0f, t.copy, width);
+                y += 36.0f;
+            }
+            if (cheat_database_.offline) {
+                text_fit(c, tr("Offline cache (not a fresh download)"), x, baseline(y, 28.0f, 20.0f), 20.0f, t.copy, width);
+                y += 32.0f;
+            }
+            text_block(c, cheat_database_.source, x, baseline(y, 24.0f, 16.0f), 16.0f, 24.0f, t.meta, width, 2, kShrink);
+        }
+        else if (cheats_.empty())
+            text_block(c, fill(tr("No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}."),
+                {services_.cheats_folder(game.title_id)}), x, baseline(y, 30.0f, 20.0f), 20.0f, 30.0f, t.copy, width, 5, kShrink);
+    }
     // What the menu last said, at the foot.
     if (!message_.empty())
     {
@@ -1489,9 +1566,16 @@ void Launcher::press_mods(Key key)
 void Launcher::press_cheats(Key key)
 {
     const Game &game = games_[static_cast<std::size_t>(library_.selected)];
+    update_cheat_database();
+    if (cheat_database_.busy)
+    {
+        if (key == Key::circle) { services_.cancel_cheat_database(); say(tr("Cancelling cheat request...")); }
+        return;
+    }
     switch (key)
     {
     case Key::circle:
+        cheat_install_armed_ = false;
         // Back to the game's settings, on its Cheats row.
         modal_ = modal_shown_ = Modal::game;
         message_.clear();
@@ -1499,6 +1583,7 @@ void Launcher::press_cheats(Key key)
         return;
     case Key::up:
     case Key::down:
+        cheat_install_armed_ = false;
         if (cheat_rows_.move(key == Key::down ? 1 : -1))
         {
             message_.clear();
@@ -1509,10 +1594,35 @@ void Launcher::press_cheats(Key key)
     case Key::left:
     case Key::right:
     {
-        if (cheats_.empty())
+        const int selected = cheat_rows_.selected;
+        if (selected < 3)
+        {
+            if (key != Key::cross) return;
+            bool started = false;
+            if (selected < 2) started = services_.check_cheat_database(game, selected == 1);
+            else
+            {
+                if (cheat_database_.file != game.file || cheat_database_.phase != "ready" || !cheat_database_.entries) {
+                    say(tr("Check online or load a matching offline cache first."), true); return;
+                }
+                if (!cheat_install_armed_) {
+                    cheat_install_armed_ = true;
+                    say(tr("Press Cross again to install these cheats, disabled. Existing files are kept.")); return;
+                }
+                cheat_install_armed_ = false;
+                started = services_.install_cheat_database(game);
+            }
+            say(started ? tr("Preparing") : tr("Could not start the cheat request. Choose a local game and try again."), !started);
+            cue(started ? Cue::open : Cue::error);
             return;
+        }
+        if (selected >= 3 + (cheats_.empty() ? 0 : 1 + static_cast<int>(cheats_.size()))) {
+            say(cheat_database_.phase == "ready" ? tr("Install checked cheats (off)") : tr("No cheats match this exact build."));
+            return;
+        }
+        if (cheats_.empty()) return;
         bool saved = false;
-        if (cheat_rows_.selected == 0)
+        if (selected == 3)
         {
             // The game's Cheats switch: all of its cheats on or off at once.
             saved = services_.set_cheats_enabled(game.title_id, !cheats_enabled_);
@@ -1522,13 +1632,13 @@ void Launcher::press_cheats(Key key)
             // One cheat. With the game's Cheats switch off, choosing one turns the switch on and
             // that cheat with it, as in the Mods list. One of a group (two frame rates) takes the
             // other's place, so the list is read again.
-            const GameCheat &cheat = cheats_[static_cast<std::size_t>(cheat_rows_.selected - 1)];
+            const GameCheat &cheat = cheats_[static_cast<std::size_t>(selected - 4)];
             const bool revive = !cheats_enabled_;
             saved = (!revive || services_.set_cheats_enabled(game.title_id, true)) &&
                     services_.set_cheat_enabled(game.title_id, cheat.mod, cheat.name, revive || !cheat.enabled);
         }
         read_cheats(game);
-        const int rows = cheats_.empty() ? 0 : 1 + static_cast<int>(cheats_.size());
+        const int rows = cheat_row_count();
         if (cheat_rows_.count != rows)
             cheat_rows_.reset(rows, 0);
         say(saved ? tr("Saved for this game. Applies on next launch.") :
@@ -1540,6 +1650,24 @@ void Launcher::press_cheats(Key key)
     default:
         return;
     }
+}
+
+void Launcher::update_cheat_database()
+{
+    if (modal_ != Modal::cheats || games_.empty()) return;
+    auto status = services_.cheat_database();
+    if (status.generation == cheat_database_.generation) { cheat_database_ = std::move(status); return; }
+    cheat_install_armed_ = false;
+    const auto& game = games_[static_cast<std::size_t>(library_.selected)];
+    if (status.file == game.file && status.phase == "installed")
+    {
+        read_cheats(game);
+    }
+    if (status.file == game.file && !status.error.empty()) say(status.error, true);
+    else if (status.file == game.file && !status.busy) message_.clear();
+    const int selected = status.phase == "installed" ? 2 : cheat_rows_.selected;
+    cheat_database_ = std::move(status);
+    cheat_rows_.reset(cheat_row_count(), std::min(selected, cheat_row_count() - 1));
 }
 
 } // namespace pe::ui

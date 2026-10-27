@@ -2,6 +2,8 @@
 
 Source: [Swordpdf/ProsperoEden](https://github.com/Swordpdf/ProsperoEden).
 Base: `a26ba78` (1.005.000). Local branch: `integrate/upstream-prs-2026-10-27`.
+Target release designated by the user: **1.006.000**, after integrating the complete scope.
+Do not publish an intermediate feature batch as that completed release.
 
 **Experimental integration, not a qualified PS5 release.** No issues were closed, no upstream
 PRs were merged on GitHub, and nothing was pushed. The full host suite and Docker native
@@ -129,7 +131,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #62 Link's Awakening FPS ceiling | PS5: timing and GPU bottleneck comparison needed |
 | #63 Final Fantasy demo lined textures | PS5: exact demo build, screenshot and renderer trace needed |
 | #64 Tears of the Kingdom freeze / hair | PS5: treat rendering and freeze as separate symptoms |
-| #74 Cheat database manager | Feature: source licensing, build-ID matching and download UI remain work |
+| #74 Cheat database manager | Implemented explicit HTTPS/cache/confirmed-install UI and build matching; integrated regression and console qualification in progress ([record](CHEAT_DATABASE.md)) |
 | #83 Naruto Storm 4 memory crash | PS5: current-version crash report and symbols needed |
 | #84 Tomodachi frame generation | PS5: plugin/backend/configuration and real presentation measurements needed |
 | #86 Tears of the Kingdom crashes | PS5: exact crash, settings and mod isolation needed |
@@ -418,6 +420,111 @@ qualification of every integrated patch or of #284.
   `nro-host-20261027-211831.fqfGQv`. RomM real-server checks were explicitly skipped.
   This run predates the PC helper and the later C++ allocation-exception fallback,
   whose separate normal/ASan/UBSan/TSan decoder check is recorded above.
+- The hardened-photo snapshot passed native runner `sh_17f3a276a001VLJdXcXaFj3OLR`.
+  It includes the C++ allocation-exception fallback but predates the latest PC-helper edits
+  and cheat-database work. ZIP/ELF/eboot/manifest/source correspondence, CRC and 0777 ZIP
+  modes passed and were preserved in `.local/docker-release/amiibo-photos-hardened-20261027/`:
+  ZIP `1e482fa99694e2076c1fc57a5e754d090f6b621443be62ddd4afce77049eb392`,
+  symbols `95991452635d3db18ce7d8c73dfb8cc0ca32d3b8675a257a32b22cc9108beff3`,
+  eboot `25373693cdbf5ab242ecf9c564cf4aec38570af8aabf3a7cd4e889369b35b155`,
+  build identity `bc7ef855c1395c46da7425063b957b186df2519f9a7ff6069c2401bfa3b51f44`.
+- The later complete host suite `sh_17f3b288e0012Qb6LYPnOiUD5s` passed, including the
+  current PC-helper checks, photo decoder and NFC/catalog/mailbox sanitizers. Evidence:
+  `devices-host-20261027-213103.LZU6ox`, `nro-host-20261027-213107.H38JpV` and
+  `guest-hooks-euwlzkbp`, copied before reuse to
+  `.local/docker-release/amiibo-photos-hardened-host-20261027/` with tested source hashes.
+  Real RomM servers were explicitly skipped. This run predates cheat-catalog ingestion.
+- Started #74's bounded TitleDB ingestion, checked against the inspected pinned database
+  (15 matching entries for one exact title/build; no codes installed). Synthetic parsing
+  passed normal/ASan/UBSan (`sh_17f41e93f001Ntx5gri8965xSL`, extended cases
+  `sh_17f45e8b60013MAEktw2fay2Fs`). Later switch-key-alias and zero-prefix checks,
+  real-core ingestion and the new shared effective-ExeFS lookup require their own runs.
+  See [cheat manager record](CHEAT_DATABASE.md); this is not a completed downloader.
+- #74's effective-main identity and generated-boot shared resolver passed real-core checks
+  `sh_17f4f5370001x4mnyQisFf6M3c`: six update insertion orders with synthetic plaintext NCAs,
+  replacement/disabled main, retained original program ID and malformed NPDM/main refusal.
+  Catalog text also passed the actual parser/VM normal/ASan/UBSan/TSan targets. This is not
+  qualification of encrypted commercial containers or a PS5 game/update/cheat combination.
+- The explicit cheat transport passed synthetic normal/ASan/UBSan and real loopback
+  libcurl/TLS cases (`sh_17f54e811001iet0Dz6g6ayVGT`). The bounded cache/no-clobber managed
+  installer and default-off masters/single-code policy passed normal/ASan/UBSan/TSan
+  (`sh_17f580819001epOwoS3KVz6aqD`). Later cache-depth/checksum edits require a rerun.
+  Backend operations are not yet launcher actions; #74 is still in progress.
+- Later cache-depth/checksum hardening, managed-name recognition and manual-mod preservation
+  passed standalone normal/ASan/UBSan/TSan `sh_17f5bf08d001XGdLYq3FE74We0`. Complete host
+  and native backend snapshots were started as `sh_17f59d6880010hKq69QlDJXEcj` and
+  `sh_17f59d69e001GH1cQjpsW0141i`; their results are pending. Both precede the subsequent
+  early-NPDM-reader guard, extracted-NSP fix, configurable probe paths and expanded
+  NSP/CNMT/external-update identity fixtures; none of those later edits is qualified by them.
+- The combined libcurl/TLS -> catalog -> offline cache -> default-off install flow passed
+  `sh_17f61016b001wH2i0jsEKRO9JW`, with invented program/build/code only. It still does
+  not establish a launcher action or encrypted-game/PS5 compatibility.
+- Backend native snapshot `sh_17f59d69e001GH1cQjpsW0141i` completed packaging/import checks;
+  ZIP, symbols, manifest, source snapshot and hashes are preserved under
+  `.local/docker-release/cheat-backend-before-npdm-20261027/`. It remains a v1.005.000
+  intermediate build, not the requested final v1.006.000, and precedes the new manager wiring.
+- Host `sh_17f59d6880010hKq69QlDJXEcj` printed successful checks through final device/NRO
+  cases but exited 1 in the bind-mounted runner (`y: command not found`) after that file was
+  edited during execution. Do **not** record it as a successful overall suite. Evidence for
+  device/NRO/guest hooks and tested source hashes was preserved under
+  `.local/docker-release/cheat-backend-host-runner-error-20261027/`. The rerun uses a fixed
+  private runner copy, rather than editing the executing mounted script.
+- Isolated actual-core link `sh_17f6746d1001IAphtUmQ2rtAJ2` passed expanded synthetic
+  plaintext NSP/CNMT, external updates, extracted NSP, state restoration and early-NPDM
+  refusal. That execution preceded the later allocation-limit negative control.
+- `CheatManager` normal/ASan/UBSan/TSan passed `sh_17f704d5c001Up4anXAOKPhLTJ`.
+  The launcher now wires explicit check/cache/confirmed-install, status/progress/cancel,
+  default-off selection and a metadata/launch lifetime barrier. UI and actual service/native
+  compilation are pending their next runs; #74 is not console-qualified.
+- Allocation-limit negative control and expanded plaintext probes passed isolated actual-core
+  link `sh_17f7317db00114Vy96zy3tBrm5` (guarded 2 MiB synthetic capability vector is refused;
+  original reader does not satisfy the bounded contract). The preceding attempt
+  `sh_17f71b044001u9UFrSoNnxz5Dc` failed to compile that test-only control due to a missing
+  loader enum include; it was fixed without changing the guard.
+- Native `sh_17f713ac4001Ir3E84MJfOrq77` compiled/linked the early NPDM guard and actual
+  manager/service/built-in/Lua UI, but packaging stopped at 19 missing strings per catalog.
+  All 30 catalogs now contain those translations, and the normal string check passes
+  (576 texts, no problems; existing layout warnings and unqualified console-font glyphs remain).
+  New fixed-snapshot host/native reruns are `sh_17f76fd180017gleRpy2dMvTFd` and
+  `sh_17f76fd44001d1gWDxi93hcd4V`. Their results are pending, and they precede the later
+  optional `cheats.catalog.v1` capability declaration and preview-only completion command.
+- UI `sh_17f7a0a7d001qjYujv5XPvxPKQ` passed 24 controller/API checks and the existing
+  23 runtime-workflow checks, real Mesa at 720p/1080p under address/undefined sanitizers
+  (Mesa process-global leaks excluded). Evidence/source snapshot preserved in
+  `.local/docker-release/cheat-ui-actions-20261027/`. Subsequent named-preview/other-build
+  rows need their own rerun, as do the latest service rechecks/profile locks.
+- `sh_17f7ba158001446LHYgucJfgG3` passed the actual worker manager + libcurl TLS +
+  parser + explicit cache + default-off installation together, including all transport
+  negative cases. No commercial codes, remote services, console filesystem or gameplay tested.
+- Latest #74 additions retain optional cheat names before install and up to 32 informational
+  other-build/version-integer labels on a mismatch, never code from those other builds.
+  The request now derives its local folder from the **selected file**, not a title-ID map
+  that can conflate two installed copies. Two native-VFS local-copy fixtures cover their
+  separate updates/mods; their run is pending. This remains part of the full #74 delivery,
+  not a declaration of complete v1.006.000 integration.
+
+- Named-preview and other-build UI rerun `sh_17f828cf6001LjtWI29yRw9r5U` passed **32**
+  controller/API assertions in 720p and 1080p, plus 23 existing workflow regressions.
+  Actual renderer, simulated backend; evidence retained in
+  `.local/docker-release/cheat-ui-named-builds-20261027/` and captures inspected.
+  Extended parser and manager checks passed too (normal/address/undefined, plus thread
+  for the manager): `sh_17f828c05001rDl24ojpeBw9g2`, `sh_17f828c94001i4IcFpoXclPHJg`.
+- Translated native incremental build `sh_17f76fd44001d1gWDxi93hcd4V` packaged successfully;
+  archive/symbols/manifest/source/logs retained in
+  `.local/docker-release/cheat-launcher-native-translated-20261027/`, ZIP SHA-256
+  `75a9da0a3f156f53c3f5e6242a5293b3d3ad3232a52501da8c4e443406d4082b`.
+  Its copied source snapshot does **not** prove all incremental objects were rebuilt: host
+  `sh_17f76fd180017gleRpy2dMvTFd` exposed an old probe object with the new source, stopping
+  at link. To avoid concurrent volume jobs, all three Docker runners now reject a busy lock
+  (three forced-lock negative tests passed). New recovery runs explicitly invalidated
+  port-dependent objects before rebuilding: host `sh_17f8ee1c4001e29O13pI2US2mN` and native
+  `sh_17f8ee1ec001Zf9nzTqqubihCm`, pending.
+- Per-copy local-update selection passed the isolated probe until its local-mod assertion.
+  The host still used the upstream BIS resolver; CMake now derives the same game-folder
+  resolver on host and console, keeping only the firmware-root extension native-specific.
+  Recovery host tests include those cases. Independent OpenSSL encrypted header/section/
+  CNMT/update fixtures with invented keys were added **after** that snapshot; their run
+  and BKTR qualification remain pending.
 
 Still active: verify the newest edits on host and native Docker builds and the real
 launcher preview; continue the outstanding feature implementation. No new version or

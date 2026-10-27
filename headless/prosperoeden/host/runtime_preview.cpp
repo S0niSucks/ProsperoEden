@@ -99,6 +99,10 @@ int main(int argc,char**argv) {
             else if(command=="offer"){services.update_version=arg;tick(30);}
             else if(command=="update-ready"){services.update_steps=600;tick(2);}
             else if(command=="sync"){services.save_sync_on=arg!="off";services.save_sync_conflict=arg=="conflict";services.save_sync_fails=arg=="failed";}
+            else if(command=="cheat-mode"){services.cheat_mode=arg;}
+            else if(command=="cheat-complete"){services.cheat_polls=40;}
+            else if(command=="mods-empty"){services.has_mods=false;}
+            else if(command=="cheat-state"){const auto s=services.cheat_database();std::cout<<"CHEAT "<<nlohmann::json({{"phase",s.phase},{"busy",s.busy},{"offline",s.offline},{"checks",services.cheat_checks},{"installs",services.cheat_installs},{"enabled",services.downloaded_chosen},{"names",s.names},{"other_builds",s.other_builds}}).dump()<<std::endl;}
             else if(command=="room"){services.room.phase=arg=="connected"?Eden::Multiplayer::Phase::Connected:arg=="connecting"?Eden::Multiplayer::Phase::Connecting:Eden::Multiplayer::Phase::Idle;tick(30);}
             else if(command=="recreate"){
                 launcher.release_pack_textures();textures.release();batch.delete_texture(texture);batch.release();

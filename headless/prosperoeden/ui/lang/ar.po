@@ -2370,3 +2370,79 @@ msgstr "{0}/‎ (مجلد لكل معرّف لعبة)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "تقارير الأعطال (FTP): {0}\nأرفق crash-*.txt والسجلات المطابقة مع بلاغك."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "أكمل البحث عن الشفرات أو ألغِه قبل بدء اللعبة."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "البحث عن شفرات عبر الإنترنت"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "استخدام ذاكرة الشفرات دون اتصال"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "تثبيت الشفرات المتحقق منها (معطلة)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "تحقق أولا ثم ثبّت. تظل التنزيلات معطلة حتى تختار شفرة. انسخ بيانات الحفظ احتياطيا قبل استخدام الشفرات."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "جار التحقق من إصدار اللعبة الفعلي"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "جار تنزيل دليل الشفرات"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "جار تثبيت الشفرات وهي معطلة"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "تم التثبيت. اختر الشفرات أدناه لتفعيلها."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "تم التحقق من الشفرات. جاهزة للتثبيت وهي معطلة."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "لا توجد شفرات تطابق هذا الإصدار تماما."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "تم الإلغاء"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "تعذر إكمال البحث عن الشفرات."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "شفرات متوافقة: {0}"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "ذاكرة دون اتصال (ليست تنزيلا جديدا)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "جار إلغاء البحث عن الشفرات..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "ابحث عبر الإنترنت أو حمّل أولا ذاكرة مطابقة دون اتصال."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "اضغط X مجددا لتثبيت هذه الشفرات وهي معطلة. ستُحفظ الملفات الموجودة."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "تعذر بدء البحث. اختر لعبة محلية وحاول مجددا."

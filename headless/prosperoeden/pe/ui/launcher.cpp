@@ -207,7 +207,8 @@ void Launcher::launch(const std::string &file, const std::string &title, const s
 void Launcher::start_game(const std::string &file, const std::string &title, const std::string &cover)
 {
     if (!services_.can_launch_game()) {
-        say(tr("Join a room successfully or leave it before starting a game."), true);
+        say(services_.cheat_database().busy ? tr("Finish or cancel the cheat request before starting a game.") :
+            tr("Join a room successfully or leave it before starting a game."), true);
         cue(Cue::error);
         return;
     }
@@ -343,6 +344,7 @@ void Launcher::update(float dt)
     refresh_sync_setup(dt);
     update_multiplayer();
     update_game_options();
+    update_cheat_database();
     update_controllers(dt);
     transition_.update(dt);
     press_ = std::max(0.0f, press_ - dt / 0.18f);

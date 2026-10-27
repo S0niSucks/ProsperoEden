@@ -411,12 +411,14 @@ std::vector<ui::GameCheat> FakeServices::cheats(std::uint64_t title_id)
         if (mod.name == "cheat_lives.txt")
             cheats.push_back({mod.name, "Infinite lives", mod.enabled});
     }
+    if (title_id == downloaded_title) cheats.push_back({"Downloaded cheats - preview fixture", "Preview optional cheat", downloaded_chosen});
     return cheats;
 }
 
 bool FakeServices::set_cheat_enabled(std::uint64_t title_id, const std::string &mod, const std::string &cheat,
                                      bool enabled)
 {
+    if (title_id == downloaded_title && mod == "Downloaded cheats - preview fixture") { downloaded_chosen = enabled; return true; }
     // The cheats of mods with one: as EdenServices keeps them.
     if (mod == "Starter pack")
     {
@@ -437,6 +439,43 @@ bool FakeServices::set_cheat_enabled(std::uint64_t title_id, const std::string &
     }
     cheats_on_.push_back(cheat);
     return true;
+}
+
+bool FakeServices::check_cheat_database(const ui::Game& game, bool offline) {
+    if (cheat_job.busy || game.remote) return false;
+    const auto generation = cheat_job.generation + 1;
+    cheat_job = {}; cheat_job.generation = generation;
+    cheat_job.file = game.file; cheat_job.source = "https://example.invalid/synthetic-preview.json";
+    cheat_job.build = "AB000000000000CD" + std::string(48, '0');
+    cheat_job.phase = offline ? "checking" : "downloading";
+    cheat_job.busy = true; cheat_job.offline = offline;
+    cheat_job.total = 12000; cheat_polls = 0; ++cheat_checks;
+    return true;
+}
+bool FakeServices::install_cheat_database(const ui::Game& game) {
+    if (cheat_job.busy || cheat_job.file != game.file || cheat_job.phase != "ready") return false;
+    cheat_job.phase = "installing"; cheat_job.busy = true; cheat_polls = 0;
+    cheat_pending_title = game.title_id; ++cheat_job.generation; ++cheat_installs;
+    return true;
+}
+ui::CheatDatabase FakeServices::cheat_database() {
+    if (cheat_job.busy) {
+        cheat_job.done = std::min<std::uint64_t>(cheat_job.total, ++cheat_polls * 300);
+        if (cheat_polls > 40 && cheat_mode != "slow") {
+            const bool installing = cheat_job.phase == "installing";
+            cheat_job.busy = false; ++cheat_job.generation;
+            cheat_job.phase = cheat_mode == "failed" ? "failed" : cheat_mode == "no_match" ? "no_match" : installing ? "installed" : "ready";
+            cheat_job.entries = 1; cheat_job.cached = true;
+            cheat_job.names = {"Preview optional cheat"};
+            if (cheat_job.phase == "no_match") {
+                cheat_job.names.clear(); cheat_job.entries = 0;
+                cheat_job.other_builds = {"cd00000000000000 / v65536", "ef00000000000000 / v131072"};
+            }
+            if (cheat_job.phase == "installed") downloaded_title = cheat_pending_title;
+            if (cheat_job.phase == "failed") cheat_job.error = "Synthetic preview: network unavailable. Choose offline cache or try again.";
+        }
+    }
+    return cheat_job;
 }
 
 bool FakeServices::set_mod_enabled(std::uint64_t, const std::string &name, bool enabled)

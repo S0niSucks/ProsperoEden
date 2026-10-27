@@ -32,7 +32,7 @@ namespace {
 constexpr std::size_t kScriptBytes = 2 * 1024 * 1024;
 constexpr std::size_t kVmBytes = 16 * 1024 * 1024;
 constexpr int kInstructions = 300000;
-const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1"};
+const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1", "cheats.catalog.v1"};
 bool identifier(std::string_view text) {
     return !text.empty() && text.size() <= 48 && std::all_of(text.begin(), text.end(), [](char c) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
@@ -364,6 +364,7 @@ struct RuntimeLauncher::Impl {
         if (name == "games_folder") { const std::string path=args.value("path",services.games_folder()); std::vector<std::string> folders; const bool ok=services.folders(path,&folders); return {{"path",path},{"folders",folders},{"ok",ok},{"info",services.folder_info(path)},{"current",services.games_folder()},{"saved",services.saved_games_folder()},{"default",services.files_folder()},{"access",services.filesystem_access()}}; }
         if (name == "mods") { const auto& g=game(args); return {{"mods",services.mods(g.title_id)},{"enabled",services.mods_enabled(g.title_id)},{"folder",services.mods_folder(g.title_id)}}; }
         if (name == "cheats") { const auto& g=game(args); return {{"cheats",services.cheats(g.title_id)},{"enabled",services.cheats_enabled(g.title_id)},{"folder",services.cheats_folder(g.title_id)}}; }
+        if (name == "cheat_database") { const auto s=services.cheat_database(); return {{"phase",s.phase},{"game",s.file},{"source",s.source},{"build",s.build},{"error",s.error},{"generation",s.generation},{"done",s.done},{"total",s.total},{"entries",s.entries},{"busy",s.busy},{"offline",s.offline},{"cached",s.cached},{"names",s.names},{"other_builds",s.other_builds},{"other_builds_truncated",s.other_builds_truncated}}; }
         if (name == "sources") return services.sources();
         if (name == "downloads") return services.downloads();
         if (name == "save_sync") return services.save_sync();
@@ -429,6 +430,15 @@ struct RuntimeLauncher::Impl {
         else if (name == "mod.enabled") { const auto& g=game(args); ok=services.set_mod_enabled(g.title_id,args.at("name"),args.at("value")); }
         else if (name == "cheat.enabled") { const auto& g=game(args); ok=services.set_cheat_enabled(g.title_id,args.at("mod"),args.at("name"),args.at("value")); }
         else if (name == "cheats.enabled") { const auto& g=game(args); ok=services.set_cheats_enabled(g.title_id,args.at("value")); }
+        else if (name == "cheat_database.check" || name == "cheat_database.cache" || name == "cheat_database.install") {
+            if(launch.value("stage", "idle") != "idle") throw std::runtime_error("A game launch is pending");
+            const auto& g=game(args);
+            if(name == "cheat_database.install") {
+                if(!args.value("confirmed",false)) throw std::runtime_error("Confirmation required");
+                ok=services.install_cheat_database(g);
+            } else ok=services.check_cheat_database(g,name == "cheat_database.cache");
+        }
+        else if (name == "cheat_database.cancel") services.cancel_cheat_database();
         else if (name == "mods.folder") { const auto& g=game(args); ok=services.make_mods_folder(g.title_id); }
         else if (name == "save.import" || name == "save.export") { const auto& g=game(args); ok=name=="save.import"?services.save_import(g.title_id,&message):services.save_export(g.title_id,&message); }
         else if (name == "sources.refresh") services.refresh_sources();

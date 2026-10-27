@@ -28,6 +28,7 @@
 // code or replace game files, its Cheats list every cheat, whichever file it came from. Each list
 // has a switch of its own per game; Switches() turns both into what Eden is told.
 #pragma once
+#include "downloaded_cheats.h"
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>
@@ -234,7 +235,7 @@ inline std::vector<Patches::Entry> CheatList(std::vector<fs::path> files, const 
 // A mod with the cheats it lists: chosen one by one when there are several, its one cheat named.
 inline Mod WithCheats(std::string name, unsigned kinds, std::vector<Patches::Entry> cheats) {
     Mod mod{std::move(name), kinds, {}, {}};
-    if (cheats.size() == 1) mod.cheat = cheats.front().name;
+    if (cheats.size() == 1 && !Eden::IsDownloadedCheatMod(mod.name)) mod.cheat = cheats.front().name;
     else mod.cheats = std::move(cheats);
     return mod;
 }
@@ -349,6 +350,11 @@ inline Switched Switches(const std::vector<Mod>& mods, std::vector<std::string> 
         if (!Has(result.mods_off, name)) result.mods_off.push_back(name);
     };
     for (const Mod& mod : mods) {
+        // Downloads are opt-in as a whole, including masters. Unlike hand-copied single-cheat
+        // mods, none may run until this content-named download has an explicitly chosen entry.
+        if (Eden::IsDownloadedCheatMod(mod.name) &&
+            std::none_of(mod.cheats.begin(), mod.cheats.end(), [&](const auto& entry) { return Has(chosen, entry.id); }))
+            skip(mod.name);
         if (!mods_on && (mod.kinds & (kCode | kFiles))) skip(mod.name);
         if (cheats_on || !(mod.kinds & kCheats)) continue;
         if (CheatsOnly(mod)) skip(mod.name);

@@ -70,6 +70,11 @@ Local-wireless multiplayer through Eden rooms is new in v1.000.110 and experimen
 - **Download sources** - the games on servers in your network, such as a [RomM](https://github.com/rommapp/romm) server, appear in the Library next to the ones on the console. A game is downloaded when you play it, or ahead of time through a download queue, and then runs from the console like any other: nothing is streamed. Downloads need an FTP server running on the console; see [Download sources](docs/DOWNLOADS.md#download-sources).
 - **Save sync** - each profile can keep its save data on a server, such as a [RomM](https://github.com/rommapp/romm) server, as Steam does: it is synced before a game starts and after it ended, and when it changed on two devices you choose which one stays. A profile is paired with its server by a QR code, no typing. See [Save sync](docs/SAVES.md#save-sync).
 - **Mods and cheats** - patches and replacement game files from the `mods` folder in the game's folder, and cheats from its `cheats` folder. Each has a list of its own in the game's settings (Triangle in the Library, then **Mods** or **Cheats**), where every mod and every cheat is switched on or off, and a switch for all of them at once.
+  The integration branch also adds explicit **Check online**, **Use offline cache** and
+  confirmed **Install (off)** actions under **Cheats**, with exact effective-build matching,
+  progress and cancellation. Downloads never enable codes or overwrite existing cheats.
+  See [the cheat manager record](docs/CHEAT_DATABASE.md) for source configuration and test limits;
+  console qualification is still pending.
 - **Performance switches** - seven switches that trade accuracy for speed (compiling a game's code ahead, asynchronous shaders, faster GPU, CPU and DMA emulation, and more) in **Settings > Performance**; see [Performance settings](docs/SETTINGS.md#performance-settings).
 - **Shader cache** - shaders compiled in earlier sessions are loaded when a game starts, so an effect stutters only the first time it appears.
 - **In-game shortcuts** - a performance overlay (Touchpad + R1), and Touchpad + L1 to end the game and return to the library. Leaving takes ten seconds at most, also while a game is still loading.

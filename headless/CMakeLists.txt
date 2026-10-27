@@ -1375,6 +1375,57 @@ list(APPEND core_sources "${PORT_BUILD_DIR}/memory.cpp")
 # places code at any 4 KiB offset below 16 MiB, which leaves three of four layouts with every
 # module page out of 16 KiB phase with its backing, and module chunks could not alias.
 file(READ "${PROJECT_SOURCE_DIR}/src/core/loader/deconstructed_rom_directory.cpp" aslr_source)
+# NSP title discovery parses NPDM before boot reaches that loader. Bound the actual metadata
+# reader as well, so extracted containers cannot bypass the resolver's input contract.
+file(READ "${PROJECT_SOURCE_DIR}/src/core/file_sys/program_metadata.cpp" npdm_source)
+set(npdm_load_old "Loader::ResultStatus ProgramMetadata::Load(VirtualFile file) {")
+string(FIND "${npdm_source}" "${npdm_load_old}" npdm_load_at)
+if(npdm_load_at LESS 0)
+    message(FATAL_ERROR "Pinned NPDM reader changed; recheck bounded capability parsing")
+endif()
+string(REPLACE "${npdm_load_old}"
+    "${npdm_load_old}\n    if (const auto status = Eden::BoundNpdmCapabilities(file); status != Loader::ResultStatus::Success) return status;"
+    npdm_source "${npdm_source}")
+string(PREPEND npdm_source "#include \"${EDEN_PORT_DIR}/npdm_bounds.h\"\n")
+write_derived("${PORT_BUILD_DIR}/program_metadata.cpp" "${npdm_source}")
+list(REMOVE_ITEM core_sources "file_sys/program_metadata.cpp")
+list(APPEND core_sources "${PORT_BUILD_DIR}/program_metadata.cpp")
+set(exefs_selection_old [=[    // Read meta to determine title ID
+    FileSys::VirtualFile npdm = dir->GetFile("main.npdm");
+    if (npdm == nullptr) {
+        return {ResultStatus::ErrorMissingNPDM, {}};
+    }
+
+    const ResultStatus result = metadata.Load(npdm);
+    if (result != ResultStatus::Success) {
+        return {result, {}};
+    }
+
+    if (override_update) {
+        const FileSys::PatchManager patch_manager(
+            metadata.GetTitleID(), system.GetFileSystemController(), system.GetContentProvider());
+        dir = patch_manager.PatchExeFS(dir);
+    }
+
+    // Reread in case PatchExeFS affected the main.npdm
+    npdm = dir->GetFile("main.npdm");
+    if (npdm == nullptr) {
+        return {ResultStatus::ErrorMissingNPDM, {}};
+    }
+
+    const ResultStatus result2 = metadata.Reload(npdm);
+    if (result2 != ResultStatus::Success) {
+        return {result2, {}};
+    }
+]=])
+string(FIND "${aslr_source}" "${exefs_selection_old}" exefs_selection_at)
+if(exefs_selection_at LESS 0)
+    message(FATAL_ERROR "Pinned boot ExeFS selection changed; recheck cheat identity lookup")
+endif()
+string(REPLACE "${exefs_selection_old}"
+    "    const auto selection = Eden::ResolveProgramExeFS(dir, metadata, override_update,\n        system.GetFileSystemController(), system.GetContentProvider());\n    if (selection != ResultStatus::Success) return {selection, {}};\n"
+    aslr_source "${aslr_source}")
+string(PREPEND aslr_source "#include \"${EDEN_PORT_DIR}/effective_exefs.h\"\n")
 set(aslr_old "((::Settings::values.rng_seed_enabled.GetValue()\n        ? ::Settings::values.rng_seed.GetValue() : Common::Random::Random64(0)) << 12) & 0xfff000;")
 string(FIND "${aslr_source}" "${aslr_old}" aslr_at)
 if(aslr_at LESS 0)
@@ -3116,6 +3167,29 @@ list(REMOVE_ITEM video_sources shader_environment.cpp)
 list(APPEND video_sources "${PORT_BUILD_DIR}/shader_environment.cpp")
 set_property(TARGET video_core PROPERTY SOURCES "${video_sources}")
 
+# Use the same real game-folder mod resolver in host checks and native boot/probes.
+# Only the firmware-root constructor extension is specific to the console.
+get_target_property(core_sources core SOURCES)
+file(READ "${PROJECT_SOURCE_DIR}/src/core/file_sys/bis_factory.cpp" bis_source)
+if(PS5_NATIVE)
+    file(READ "${PROJECT_SOURCE_DIR}/src/core/file_sys/bis_factory.h" bis_header)
+    string(REPLACE "VirtualDir dump_root);" "VirtualDir dump_root, VirtualDir firmware_root = {});" bis_header "${bis_header}")
+    write_derived("${PORT_BUILD_DIR}/include/core/file_sys/bis_factory.h" "${bis_header}")
+    string(REPLACE "VirtualDir dump_root_)" "VirtualDir dump_root_, VirtualDir firmware_root)" bis_source "${bis_source}")
+    string(REPLACE "GetOrCreateDirectoryRelative(nand_root, \"/system/Contents/registered\")"
+        "firmware_root ? std::move(firmware_root) : GetOrCreateDirectoryRelative(nand_root, \"/system/Contents/registered\")" bis_source "${bis_source}")
+endif()
+# A game's mods folder is the player's (headless/mods.h): found whatever the case of its name,
+# and never created here (Eden makes one for every game that starts).
+eden_patch(bis_source
+    "    return GetOrCreateDirectoryRelative(load_root, fmt::format(\"/{:016X}\", title_id));\n}\n\nVirtualDir BISFactory::GetModificationDumpRoot"
+    "    const auto wanted = fmt::format(\"{:016X}\", title_id);\n    VirtualDir shared;\n    if (load_root != nullptr)\n        for (const auto& folder : load_root->GetSubdirectories())\n            if (Common::ToUpper(folder->GetName()) == wanted) shared = folder;\n    // With the game's own folder's mods and the cheats/ folders' cheats (game_folder_vfs.h).\n    return Eden::GameFolderMods::Root(std::move(shared), title_id, wanted);\n}\n\nVirtualDir BISFactory::GetModificationDumpRoot")
+string(PREPEND bis_source "#include \"common/string_util.h\"\n#include \"${EDEN_PORT_DIR}/game_folder_vfs.h\"\n")
+write_derived("${PORT_BUILD_DIR}/bis_factory.cpp" "${bis_source}")
+list(REMOVE_ITEM core_sources file_sys/bis_factory.cpp)
+list(APPEND core_sources "${PORT_BUILD_DIR}/bis_factory.cpp")
+set_property(TARGET core PROPERTY SOURCES "${core_sources}")
+
 if(PS5_NATIVE)
     target_compile_definitions(libzstd_static PRIVATE ZSTD_TRACE=0)
     # The native title cannot chdir. Set the shared path manager's data root
@@ -3166,23 +3240,6 @@ ${paths_source}")
     # The older SDK omits DCCP's IP protocol name (wire value 33, also used by
     # Service::Sockets::Protocol). socket() still decides runtime support.
     get_target_property(core_sources core SOURCES)
-    # Keep immutable firmware outside the small writable title-data quota.
-    file(READ "${PROJECT_SOURCE_DIR}/src/core/file_sys/bis_factory.h" bis_header)
-    string(REPLACE "VirtualDir dump_root);" "VirtualDir dump_root, VirtualDir firmware_root = {});" bis_header "${bis_header}")
-    write_derived("${PORT_BUILD_DIR}/include/core/file_sys/bis_factory.h" "${bis_header}")
-    file(READ "${PROJECT_SOURCE_DIR}/src/core/file_sys/bis_factory.cpp" bis_source)
-    string(REPLACE "VirtualDir dump_root_)" "VirtualDir dump_root_, VirtualDir firmware_root)" bis_source "${bis_source}")
-    string(REPLACE "GetOrCreateDirectoryRelative(nand_root, \"/system/Contents/registered\")"
-        "firmware_root ? std::move(firmware_root) : GetOrCreateDirectoryRelative(nand_root, \"/system/Contents/registered\")" bis_source "${bis_source}")
-    # A game's mods folder is the player's (headless/mods.h): found whatever the case of its name,
-    # and never created here (Eden makes one for every game that starts).
-    eden_patch(bis_source
-        "    return GetOrCreateDirectoryRelative(load_root, fmt::format(\"/{:016X}\", title_id));\n}\n\nVirtualDir BISFactory::GetModificationDumpRoot"
-        "    const auto wanted = fmt::format(\"{:016X}\", title_id);\n    VirtualDir shared;\n    if (load_root != nullptr)\n        for (const auto& folder : load_root->GetSubdirectories())\n            if (Common::ToUpper(folder->GetName()) == wanted) shared = folder;\n    // With the game's own folder's mods and the cheats/ folders' cheats (game_folder_vfs.h).\n    return Eden::GameFolderMods::Root(std::move(shared), title_id, wanted);\n}\n\nVirtualDir BISFactory::GetModificationDumpRoot")
-    string(PREPEND bis_source "#include \"common/string_util.h\"\n#include \"${EDEN_PORT_DIR}/game_folder_vfs.h\"\n")
-    write_derived("${PORT_BUILD_DIR}/bis_factory.cpp" "${bis_source}")
-    list(REMOVE_ITEM core_sources file_sys/bis_factory.cpp)
-    list(APPEND core_sources "${PORT_BUILD_DIR}/bis_factory.cpp")
     file(READ "${PROJECT_SOURCE_DIR}/src/core/hle/service/filesystem/filesystem.cpp" fs_service)
     string(REPLACE "nand_directory, std::move(load_directory), std::move(dump_directory));"
         "nand_directory, std::move(load_directory), std::move(dump_directory), vfs.OpenDirectory(Eden::AssetsPath(\"firmware\"), FileSys::OpenMode::Read));" fs_service "${fs_service}")
@@ -3371,7 +3428,7 @@ else()
     add_executable(eden-file-amiibo-check "${EDEN_PORT_DIR}/file_amiibo_check.cpp")
     target_link_libraries(eden-file-amiibo-check PRIVATE eden-pad eden-amiibo-catalog)
     target_compile_options(eden-file-amiibo-check PRIVATE -fno-rtti -UNDEBUG)
-    add_executable(eden-live-cheats-check "${EDEN_PORT_DIR}/live_cheats_check.cpp")
+    add_executable(eden-live-cheats-check "${EDEN_PORT_DIR}/live_cheats_check.cpp" "${EDEN_PORT_DIR}/cheat_catalog.cpp")
     target_link_libraries(eden-live-cheats-check PRIVATE core eden-pad eden-amiibo-catalog)
     target_compile_options(eden-live-cheats-check PRIVATE -fno-rtti -UNDEBUG)
     add_executable(eden-amiibo-catalog-check "${EDEN_PORT_DIR}/amiibo_catalog_check.cpp")
@@ -3394,7 +3451,7 @@ else()
         target_link_libraries(eden-file-amiibo-check-${sanitizer} PRIVATE core)
         target_compile_options(eden-file-amiibo-check-${sanitizer} PRIVATE -fno-rtti -UNDEBUG ${sanitize_flag} -fno-omit-frame-pointer)
         target_link_options(eden-file-amiibo-check-${sanitizer} PRIVATE ${sanitize_flag})
-        add_executable(eden-live-cheats-check-${sanitizer} "${EDEN_PORT_DIR}/live_cheats_check.cpp")
+        add_executable(eden-live-cheats-check-${sanitizer} "${EDEN_PORT_DIR}/live_cheats_check.cpp" "${EDEN_PORT_DIR}/cheat_catalog.cpp")
         target_link_libraries(eden-live-cheats-check-${sanitizer} PRIVATE core eden-pad eden-amiibo-catalog)
         target_compile_options(eden-live-cheats-check-${sanitizer} PRIVATE -fno-rtti -UNDEBUG ${sanitize_flag} -fno-omit-frame-pointer)
         target_link_options(eden-live-cheats-check-${sanitizer} PRIVATE ${sanitize_flag})
@@ -3445,11 +3502,26 @@ if(PS5_NATIVE)
         "${sdk}/target/lib/libSceImeDialog.so" "${sdk}/target/lib/libSceSysmodule.so"
         "${PORT_ROOT}/build/stubs/libSceCommonDialog.so")
 endif()
-add_library(eden-metadata STATIC "${EDEN_PORT_DIR}/metadata_bridge.cpp")
+add_library(eden-metadata STATIC "${EDEN_PORT_DIR}/metadata_bridge.cpp"
+    "${EDEN_PORT_DIR}/cheat_identity.cpp" "${EDEN_PORT_DIR}/cheat_probe.cpp")
 target_include_directories(eden-metadata PUBLIC "${EDEN_PORT_DIR}" PRIVATE "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(eden-metadata PUBLIC core stb)
 target_compile_options(eden-metadata PRIVATE -fno-rtti -Wall -Wextra -Werror -Wno-unused-parameter)
+# Public JSON transport/cache/install only. HTTP is supplied by the existing curl object.
+add_library(eden-cheat-database STATIC "${EDEN_PORT_DIR}/cheat_catalog.cpp"
+    "${EDEN_PORT_DIR}/cheat_download.cpp" "${EDEN_PORT_DIR}/cheat_store.cpp" "${EDEN_PORT_DIR}/cheat_manager.cpp")
+target_include_directories(eden-cheat-database PRIVATE "${EDEN_PORT_DIR}" "${OPENSSL_INCLUDE_DIR}")
+target_link_libraries(eden-cheat-database PRIVATE common)
+target_compile_options(eden-cheat-database PRIVATE -fno-rtti -Wall -Wextra -Werror)
+if(PS5_NATIVE)
+    target_compile_options(eden-cheat-database PRIVATE -femulated-tls)
+endif()
+target_link_libraries(eden-headless PRIVATE eden-cheat-database)
 if(NOT PS5_NATIVE)
+    add_executable(eden-cheat-identity-check "${EDEN_PORT_DIR}/cheat_identity_check.cpp")
+    target_include_directories(eden-cheat-identity-check PRIVATE "${PROJECT_SOURCE_DIR}/src")
+    target_link_libraries(eden-cheat-identity-check PRIVATE eden-metadata eden-pad eden-device-mock)
+    target_compile_options(eden-cheat-identity-check PRIVATE -UNDEBUG -fno-rtti)
     add_executable(eden-nro-metadata-check "${EDEN_PORT_DIR}/nro_metadata_check.cpp")
     target_include_directories(eden-nro-metadata-check PRIVATE "${PROJECT_SOURCE_DIR}/src")
     target_link_libraries(eden-nro-metadata-check PRIVATE eden-metadata)

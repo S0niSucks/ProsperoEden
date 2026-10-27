@@ -15,9 +15,11 @@
 #include "../../../multiplayer.h"
 #include "../../../multiplayer_directory.h"
 #include "../../../game_files.h"
+#include "../../../cheat_manager_status.h"
 
 namespace pe::ui
 {
+using CheatDatabase = Eden::CheatManagerStatus;
 
 // One pressed button (a first press, or a repeat of a held direction or shoulder button).
 enum class Key : std::uint8_t
@@ -686,6 +688,12 @@ class Services
     {
         return {};
     }
+    // Explicit opt-in catalog checks and a separate default-OFF installation. Empty/false
+    // defaults keep older preview/services implementations safely inert.
+    virtual CheatDatabase cheat_database() { return {}; }
+    virtual bool check_cheat_database(const Game&, bool /*offline*/) { return false; }
+    virtual bool install_cheat_database(const Game&) { return false; }
+    virtual void cancel_cheat_database() {}
     // One switch for all of a game's mods (the Library's Mods switch), on unless turned off. The
     // mods keep their own switches behind it.
     virtual bool mods_enabled(std::uint64_t)

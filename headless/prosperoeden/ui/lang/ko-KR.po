@@ -2370,3 +2370,79 @@ msgstr "{0}/(타이틀 ID마다 폴더 하나)"
 #: pe/ui/settings.cpp
 msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
 msgstr "충돌 보고서 (FTP): {0}\n문제 보고에 crash-*.txt와 해당 로그를 첨부하세요."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Finish or cancel the cheat request before starting a game."
+msgstr "게임을 시작하기 전에 치트 확인을 완료하거나 취소하세요."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online for cheats"
+msgstr "온라인에서 치트 확인"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Use offline cheat cache"
+msgstr "오프라인 치트 캐시 사용"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Install checked cheats (off)"
+msgstr "확인된 치트 설치 (비활성)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
+msgstr "설치 전에 확인하세요. 치트를 선택할 때까지 다운로드한 코드는 비활성 상태입니다. 코드를 사용하기 전에 저장 데이터를 백업하세요."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Checking effective game build"
+msgstr "실제 사용되는 게임 빌드 확인 중"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Downloading cheat catalog"
+msgstr "치트 카탈로그 다운로드 중"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installing cheats, disabled"
+msgstr "치트를 비활성 상태로 설치 중"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Installed. Select cheats below to enable them."
+msgstr "설치되었습니다. 아래에서 치트를 선택하면 활성화됩니다."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cheats checked. Ready to install, disabled."
+msgstr "치트를 확인했습니다. 비활성 상태로 설치할 수 있습니다."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "No cheats match this exact build."
+msgstr "이 빌드와 정확히 일치하는 치트가 없습니다."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelled"
+msgstr "취소됨"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not complete the cheat request."
+msgstr "치트 확인을 완료하지 못했습니다."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "{0} compatible cheats"
+msgstr "호환 치트 {0}개"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Offline cache (not a fresh download)"
+msgstr "오프라인 캐시 (새 다운로드 아님)"
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Cancelling cheat request..."
+msgstr "치트 확인 취소 중..."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Check online or load a matching offline cache first."
+msgstr "먼저 온라인에서 확인하거나 일치하는 오프라인 캐시를 불러오세요."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
+msgstr "X를 다시 누르면 치트를 비활성 상태로 설치합니다. 기존 파일은 유지됩니다."
+
+#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
+msgid "Could not start the cheat request. Choose a local game and try again."
+msgstr "확인을 시작하지 못했습니다. 로컬 게임을 선택하고 다시 시도하세요."

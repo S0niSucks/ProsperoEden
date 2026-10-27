@@ -11,6 +11,7 @@
     "loading.scene.v1",
     "state.v1",
     "updates.launcher-packs.v1",
-    "updates.launcher-packs.view.v1"
+    "updates.launcher-packs.view.v1",
+    "cheats.catalog.v1"
   ]
 }

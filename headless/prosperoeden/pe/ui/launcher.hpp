@@ -531,11 +531,15 @@ class Launcher
     ListView game_rows_;                          // the game dialog's rows (more than it shows)
     std::vector<Mod> mods_;                       // the game's mods, read when its dialog opens
     ListView mod_rows_;
-    // The game's cheats and its Cheats switch, read with its mods. The Cheats list's first row is
-    // that switch, then a row per cheat.
+    // Explicit database actions, then the game's Cheats switch and installed optional entries.
     std::vector<GameCheat> cheats_;
     bool cheats_enabled_ = true;
     ListView cheat_rows_;
+    CheatDatabase cheat_database_;
+    bool cheat_install_armed_ = false;
+    void update_cheat_database();
+    const std::vector<std::string>& cheat_catalog_rows() const;
+    int cheat_row_count() const;
     int game_options_ = 0;          // the category a game's own settings dialog shows
     ListView option_rows_;          // its rows
     std::atomic<bool> seed_edit_stop_{false};

@@ -65,7 +65,7 @@ cmake -S "$eden" -B "$scratch/build" -G Ninja \
 python3 -B "$root/headless/check_slab_lifetime.py" \
     "$scratch/build/headless/include/core/hle/kernel/slab_helpers.h" \
     "$scratch/source/src/core/hle/kernel/slab_helpers.h"
-cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j 6
+cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-cheat-identity-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j 6
 python3 -B "$root/tools/check-timing-stop.py" "$scratch/build"
 python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/build"
 python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/build"
@@ -93,6 +93,12 @@ python3 -B "$root/tools/check-nro-assets.py"
 python3 -B "$root/tools/check-amiibo-file.py"
 python3 -B "$root/tools/check-quick-picture.py" "$eden"
 python3 -B "$root/tools/check-sync-amiibo.py"
+python3 -B "$root/tools/check-cheat-catalog.py"
+python3 -B "$root/tools/check-cheat-download.py"
+python3 -B "$root/tools/check-cheat-store.py"
+python3 -B "$root/tools/check-cheat-manager.py"
+python3 -B "$root/tools/check-cheat-identity.py" "$scratch/build"
+"$scratch/build/bin/eden-cheat-identity-check"
 "$scratch/build/bin/eden-nro-metadata-check" "$root/sce_sys/icon0.png"
 "$scratch/build/bin/eden-file-amiibo-check"
 "$scratch/build/bin/eden-live-cheats-check"
