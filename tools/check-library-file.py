@@ -73,7 +73,8 @@ int main(int, char** argv) {
 with tempfile.TemporaryDirectory() as tmp:
     exe = Path(tmp) / 'library-file'
     subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
-                    '-I' + str(root / 'headless'), '-isystem', json_include(), '-x', 'c++', '-', '-o', str(exe)],
+                    # Preserve libstdc++'s include_next order when JSON lives in /usr/include.
+                    '-I' + str(root / 'headless'), '-idirafter', json_include(), '-x', 'c++', '-', '-o', str(exe)],
                    input=code, text=True, check=True)
     path = subprocess.run([str(exe), tmp], check=True, capture_output=True, text=True).stdout.strip()
     # Read back as a forwarder maker would.

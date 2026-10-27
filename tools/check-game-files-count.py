@@ -31,6 +31,7 @@ code = r'''
 #include <string>
 #include <string_view>
 #include <vector>
+#include "game_files.h"
 namespace fs = std::filesystem;
 namespace Eden {
 ''' + valid + r'''
@@ -75,12 +76,20 @@ int main(int, char** argv) {
     Touch(roms / "Series" / "Part 1" / "Part 1.nsp");
     fs::create_directories(roms / "Odd" / "Folder.nsp");
     assert(CountGames(roms.string()) == 3);
+    // NSZ/XCZ support must survive the nested-folder counting change (PRs 285 and 291).
+    Touch(roms / "Compressed.NSZ");
+    Touch(roms / "Compressed Card.XcZ");
+    Touch(roms / "Compressed Folder" / "Game.nsz");
+    Touch(roms / "Compressed Folder" / "Update.nsz");
+    Touch(roms / "Card Folder" / "Game.XCZ");
+    assert(CountGames(roms.string()) == 7);
     std::puts("game files count: PASS");
 }
 '''
 with tempfile.TemporaryDirectory() as tmp:
     exe = Path(tmp) / 'game-files-count'
-    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-x', 'c++', '-',
+    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
+                    '-I', str(root / 'headless'), '-x', 'c++', '-',
                     '-o', str(exe)], input=code, text=True, check=True)
     subprocess.run([str(exe), tmp], check=True)
 print('Game files count: PASS Settings > Game files counts the games in game folders, one each')

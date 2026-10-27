@@ -15,6 +15,10 @@ from pathlib import Path
 import os, subprocess, sys, tempfile
 
 source = Path(sys.argv[1]).read_text()
+# PRs 285 and 287 both derive this file. Neither may overwrite the other's changes.
+assert '#include "' in source and '/ncz_vfs.h"' in source, 'the NCZ adapter include was lost'
+assert 'extension == "nsp" || extension == "nsz"' in source, 'NSZ updates were lost'
+assert 'extension == "xci" || extension == "xcz"' in source, 'XCZ updates were lost'
 upsert = source[source.index('static void UpsertExternalVersionEntry('):source.index('template <typename EntryMap, typename VersionMap>')]
 start = source.index('static bool AddExternalEntriesFromContainer(')
 callback = source[source.index('[&entries, &versions,', start):source.index('        });', start) + len('        }')]

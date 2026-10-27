@@ -70,6 +70,35 @@ and title IDs, another file name on a second source, and a full drive. Raise
 
 ## Dependencies
 
+### Docker host tests (including Windows)
+
+No compiler or WSL packages need to be installed on the host. From PowerShell at the repository
+root, build the Linux test image and run it with a read-only checkout and a Linux cache volume:
+
+```powershell
+docker build -t prosperoeden-host -f tools/docker/host.Dockerfile tools/docker
+docker run --rm --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-host-work,target=/work prosperoeden-host x86_64 -R bash /usr/local/bin/prosperoeden-host-tests
+```
+
+The runner copies source into the volume, fetches only the hash-pinned Eden/fmt/compiler-rt inputs
+needed by the host suite, and runs `tools/build-headless-host.sh`. Dependency downloads, generated
+fixtures and build outputs stay in Docker, not in the Windows checkout. The image provides CMake
+3.31.10, Clang 18, GCC and host development libraries. Rebuild the image when its Dockerfile changes.
+
+The extra sandbox options are for ThreadSanitizer: Docker's default seccomp profile blocks
+`personality`, and high-entropy ASLR can keep TSan from starting (`unexpected memory mapping`).
+`setarch -R` disables ASLR only for this test process tree; it does not change Windows/WSL sysctls.
+The disposable container drops all capabilities and exposes no ports or Docker socket, but
+`seccomp=unconfined` relaxes syscall filtering: use it only for a trusted checkout. A plain
+`docker run` can build without these options, but may fail at the sanitizer's startup; that is
+not a passing concurrency check.
+
+This is **not** a PS5 release image and does not run `make test`'s separate elevation-helper test
+or the opt-in real-server RomM suite. Host tests do not validate PS5 firmware, GPU drivers,
+commercial games, controllers or frame rates. Native packaging still requires the release
+toolchain described below. Use a fresh named volume if switching to an unrelated source tree;
+the runner deliberately does not delete files from an existing volume.
+
 Every input is pinned in `tools/deps.json` and fetched by `make deps` (`tools/deps.py`) only when
 it is missing: archives are checked against their SHA-256/SHA-512 before use and git
 repositories are fetched at their pinned commit. Nothing that already exists is modified, so a
