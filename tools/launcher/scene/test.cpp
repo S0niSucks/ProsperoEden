@@ -81,6 +81,10 @@ int main(int argc, char** argv) {
     const auto riff_size=static_cast<std::uint32_t>(recording.size()-8); for(int i=0;i<4;++i) recording[4+i]=static_cast<char>(riff_size>>(i*8));
     assert(wav(recording,32).frames==4); rejects([&]{wav(recording,31);});
     recording[20]=3; rejects([&]{wav(recording,32);});
+    Json verbose=Json::array();
+    for(int i=0;i<12;++i) verbose.push_back({{"id","label"+std::to_string(i)},{"type","text"},{"text",std::string(4096,'x')}});
+    Player text_budget(parse(description,{{"home",{{"nodes",verbose}}}}));
+    rejects([&]{text_budget.draw(query,[](const auto&,const auto&){},sound);});
     const auto temp=std::filesystem::temp_directory_path()/"pe-scene-reader-test";
     std::filesystem::create_directories(temp);
     {std::ofstream f(temp/"duplicate.json");f<<"{\"id\":1,\"id\":2}";}

@@ -71,7 +71,7 @@ public:
     void draw(const Query& query, const Draw& draw, const Sound& sound) {
         snapshot(query); normalize_selection();
         if (music_dirty_) { sound(screen_model().music, true); music_dirty_ = false; }
-        commands_ = 0;
+        commands_ = 0; text_bytes_ = 0;
         const float fade = reduced_ || screen_model().transition == 0 ? 1 : static_cast<float>(std::min(1.0, elapsed_ / screen_model().transition));
         emit(draw, "opacity", {{"value", fade}});
         render(screen_model().nodes, draw, false);
@@ -86,6 +86,7 @@ private:
     double elapsed_{}, focus_time_{}, state_time_{};
     bool reduced_{}, music_dirty_ = true;
     int commands_{};
+    std::size_t text_bytes_{};
     const Screen& screen_model() const { return model_.screens.at(screen_); }
     static bool collection(const Node& n) { return n.type == "list" || n.type == "grid"; }
     static bool focusable(const Node& n) {
@@ -171,6 +172,10 @@ private:
         if (model_.cues.contains(name)) sound(model_.cues.at(name), false);
     }
     void emit(const Draw& draw, const std::string& kind, const Json& args) {
+        if (kind == "text") {
+            text_bytes_ += args.value("text", std::string{}).size();
+            require(text_bytes_ <= 32768, "frame text/glyph budget exceeded");
+        }
         require(++commands_ <= 8192, "frame command budget exceeded"); draw(kind, args.is_null() ? Json::object() : args);
     }
     Json animated(const Node& n) const {
@@ -193,6 +198,8 @@ private:
             Json p = animated(n);
             const float x = p.value("x", 0.0f), y = p.value("y", 0.0f), w = p.value("w", 0.0f), h = p.value("h", 0.0f);
             emit(draw, "opacity", {{"value", p.value("alpha", 1.0f)}});
+            // Alpha belongs to the retained subtree stack, not also the primitive's tint.
+            p.erase("alpha");
             emit(draw, "transform", {{"scale", p.value("scale", 1.0f)}, {"ox", x + w / 2}, {"oy", y + h / 2}});
             if (n.type == "group" || n.type == "focus") {
                 if (n.type == "focus" && n.id == focus_) emit(draw, "focus", p);

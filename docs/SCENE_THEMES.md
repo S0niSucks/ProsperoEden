@@ -125,7 +125,9 @@ colons or control characters. JSON duplicate members and nesting over 32 are ref
 - JSON files ≤512 KiB; up to 32 images, each ≤4096², 96 MiB decoded RGBA total.
 - Up to 32 WAVs, each ≤8 MiB, 32 MiB decoded PCM total; font ≤16 MiB, bounded atlas/counts,
   finite metrics and sorted/in-bounds glyph/kerning tables before the existing font loader.
-- Text ≤4 KiB, binding pointers ≤256 bytes, action arguments ≤8 KiB/depth 8.
+- Text ≤4 KiB/node and ≤32 KiB/frame before glyph projection, binding pointers ≤256 bytes,
+  action arguments ≤8 KiB/depth 8. Runtime text overflow falls back rather than allocating an
+  unbounded glyph list; layout fitting is not treated as a memory-safety boundary.
 - Shader/program selection is never a theme operation. All drawing uses the existing
   compiled OpenGL shader. Fonts, textures, clip stacks and audio owners remain host-owned.
 
@@ -245,8 +247,9 @@ read-only; parser/controller checks used 2 CPUs/3 GiB, GL checks 1 CPU/1 GiB; ne
   mutations, both SARC byte orders, modern ZIP, seven-part packs, explicit lite omissions,
   unsupported/proprietary inputs and non-overwriting/link-rejecting installation. The generated
   seven-screen/seven-image package was also accepted by the native `scene-check` subprocess.
-- Mesa/llvmpipe scene GL pixel tests: 1280×720 and 1920×1080 passed; each projected 13 instances
-  in 3 draw batches, with checked mask containment, UV selection and settled motion. Synthetic
+- Mesa/llvmpipe scene GL pixel tests: 1280×720 and 1920×1080 passed; each projected 14 instances
+  in 3 draw batches, with checked mask containment, UV selection, single-application subtree
+  opacity and settled motion. Synthetic
   geometry tests are not screenshots of the complete launcher, typography approval or a
   performance benchmark.
 
