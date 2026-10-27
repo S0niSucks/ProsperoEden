@@ -121,8 +121,62 @@ Core::Crypto::Key256 HeaderKey() {
     for (unsigned n = 0; n < key.size(); ++n) key[n] = static_cast<u8>(0x20 + n);
     return key;
 }
+// A second, independently serialized section exercises actual BKTR relocation and
+// generation-based CTR decryption. The payload is synthetic RomFS storage, not a
+// Nintendo filesystem/image: first half from the base, second half from the patch.
+// Hashes and the PFS ExeFS section still pass through the real NCA storage stack.
+Bytes WithBktrRomFs(Bytes archive, bool patch) {
+    using namespace FileSys;
+    constexpr size_t start = 0x2000, raw_size = 0x1200, table_size = 0x8000;
+    NcaHeader header{}; NcaFsHeader fs{};
+    std::memcpy(&header, archive.data(), sizeof(header));
+    std::memcpy(&fs, archive.data() + 0x400, sizeof(fs));
+    fs.fs_type = NcaFsHeader::FsType::RomFs;
+    fs.encryption_type = patch ? NcaFsHeader::EncryptionType::AesCtrEx : NcaFsHeader::EncryptionType::None;
+    const size_t section_size = patch ? raw_size + 2 * table_size : raw_size;
+    archive.resize(start + section_size);
+    std::fill(archive.begin() + start + 0x200, archive.begin() + start + raw_size, 0x31);
+    if (patch) std::fill(archive.begin() + start + 0xa00, archive.begin() + start + raw_size, 0x62);
+    std::array<u8, 32> block{};
+    SHA256(archive.data() + start + 0x200, 0x1000, block.data());
+    std::memcpy(archive.data() + start, block.data(), block.size());
+    SHA256(block.data(), block.size(), fs.hash_data.hierarchical_sha256_data.fs_data_master_hash.value.data());
+    if (patch) {
+        auto& info = fs.patch_info;
+        info.indirect_offset = raw_size; info.indirect_size = table_size;
+        info.aes_ctr_ex_offset = raw_size + table_size; info.aes_ctr_ex_size = table_size;
+        const auto tree_header = [](auto& data, unsigned count) {
+            std::memcpy(data.data(), "BKTR", 4); data[4] = 1; data[8] = static_cast<u8>(count);
+        };
+        tree_header(info.indirect_header, 3); tree_header(info.aes_ctr_ex_header, 1);
+        const auto tree = [&](size_t offset, unsigned count, size_t end) {
+            // One 16 KiB root, one 16 KiB entry set. Root offsets[0] is zero.
+            Put(archive, start + offset + 4, 1); Put(archive, start + offset + 8, end, 8);
+            Put(archive, start + offset + 0x4004, count);
+            Put(archive, start + offset + 0x4008, end, 8);
+        };
+        tree(raw_size, 3, raw_size);
+        const auto indirect = [&](unsigned index, size_t offset, unsigned storage) {
+            const size_t at = start + raw_size + 0x4010 + index * 0x14;
+            Put(archive, at, offset, 8); Put(archive, at + 8, offset, 8);
+            Put(archive, at + 16, storage);
+        };
+        indirect(0, 0, 1);       // final hash block from patch
+        indirect(1, 0x200, 0);   // unchanged first 2 KiB from the real base storage
+        indirect(2, 0xa00, 1);   // changed final 2 KiB from patch
+        tree(raw_size + table_size, 1, raw_size + table_size);
+        // Encrypted=0; deliberately different generation from the table/header IV.
+        Put(archive, start + raw_size + table_size + 0x401c, 0x3344);
+    }
+    header.content_size = archive.size();
+    header.fs_info[1] = {start / 0x200, static_cast<u32>(archive.size() / 0x200), 0, 0};
+    SHA256(reinterpret_cast<const u8*>(&fs), sizeof(fs), header.fs_header_hash[1].value.data());
+    std::memcpy(archive.data(), &header, sizeof(header));
+    std::memcpy(archive.data() + 0x600, &fs, sizeof(fs));
+    return archive;
+}
 void Encrypt(const EVP_CIPHER* algorithm, const u8* key, const u8* iv, u8* data, size_t size) {
-    assert(size <= 0x10000);
+    assert(size <= 0x20000);
     const auto context = EVP_CIPHER_CTX_new(); assert(context);
     assert(EVP_EncryptInit_ex(context, algorithm, nullptr, key, iv) == 1);
     assert(EVP_CIPHER_CTX_set_padding(context, 0) == 1);
@@ -138,26 +192,43 @@ void Encrypt(const EVP_CIPHER* algorithm, const u8* key, const u8* iv, u8* data,
 // The pinned NCA reader must decrypt these bytes; plaintext fallback cannot read their magic.
 Bytes EncryptedNca(Bytes archive) {
     using namespace FileSys;
-    NcaHeader header{}; NcaFsHeader fs{};
+    NcaHeader header{};
     std::memcpy(&header, archive.data(), sizeof(header));
-    std::memcpy(&fs, archive.data() + 0x400, sizeof(fs));
     Core::Crypto::Key128 data_key{}, area_key{};
     for (unsigned n = 0; n < data_key.size(); ++n) data_key[n] = static_cast<u8>(0x70 + n);
     area_key.fill(0x42);
     auto* encrypted_key = header.encrypted_key_area.data() + NcaHeader::DecryptionKey_AesCtr * data_key.size();
     std::memcpy(encrypted_key, data_key.data(), data_key.size());
     Encrypt(EVP_aes_128_ecb(), area_key.data(), nullptr, encrypted_key, data_key.size());
-    fs.encryption_type = NcaFsHeader::EncryptionType::AesCtr;
-    fs.aes_ctr_upper_iv.value = 0x0102030405060708;
-    SHA256(reinterpret_cast<const u8*>(&fs), sizeof(fs), header.fs_header_hash[0].value.data());
-    std::memcpy(archive.data(), &header, sizeof(header));
-    std::memcpy(archive.data() + 0x400, &fs, sizeof(fs));
     std::array<u8, 16> iv{};
-    for (unsigned n = 0; n < 8; ++n) {
-        iv[7 - n] = static_cast<u8>(fs.aes_ctr_upper_iv.value >> (n * 8));
-        iv[15 - n] = static_cast<u8>(u64{0xc00 / 16} >> (n * 8));
+    const auto section = [&](size_t offset, size_t size, u64 upper) {
+        for (unsigned n = 0; n < 8; ++n) {
+            iv[7 - n] = static_cast<u8>(upper >> (n * 8));
+            iv[15 - n] = static_cast<u8>(static_cast<u64>(offset / 16) >> (n * 8));
+        }
+        Encrypt(EVP_aes_128_ctr(), data_key.data(), iv.data(), archive.data() + offset, size);
+    };
+    for (unsigned index = 0; index < 2; ++index) {
+        if (!header.fs_info[index].start_sector) continue;
+        NcaFsHeader fs{};
+        std::memcpy(&fs, archive.data() + 0x400 + index * sizeof(fs), sizeof(fs));
+        fs.aes_ctr_upper_iv.value = 0x0102030405060708;
+        const size_t start = header.fs_info[index].start_sector * 0x200;
+        const size_t size = (header.fs_info[index].end_sector - header.fs_info[index].start_sector) * 0x200;
+        if (fs.encryption_type == NcaFsHeader::EncryptionType::AesCtrEx) {
+            const auto meta = static_cast<size_t>(fs.patch_info.aes_ctr_ex_offset);
+            auto upper = fs.aes_ctr_upper_iv;
+            upper.part.generation = 0x3344;
+            section(start, meta, upper.value);
+            section(start + meta, size - meta, fs.aes_ctr_upper_iv.value);
+        } else {
+            fs.encryption_type = NcaFsHeader::EncryptionType::AesCtr;
+            section(start, size, fs.aes_ctr_upper_iv.value);
+        }
+        SHA256(reinterpret_cast<const u8*>(&fs), sizeof(fs), header.fs_header_hash[index].value.data());
+        std::memcpy(archive.data() + 0x400 + index * sizeof(fs), &fs, sizeof(fs));
     }
-    Encrypt(EVP_aes_128_ctr(), data_key.data(), iv.data(), archive.data() + 0xc00, archive.size() - 0xc00);
+    std::memcpy(archive.data(), &header, sizeof(header));
     const auto key = HeaderKey();
     for (size_t offset = 0; offset < 0xc00; offset += 0x200) {
         iv.fill(0);
@@ -170,10 +241,11 @@ Bytes EncryptedNca(Bytes archive) {
     assert(std::memcmp(archive.data() + 0xe00, "PFS0", 4) != 0);
     return archive;
 }
-Bytes Container(u8 id, bool update = false, u32 version = 0, bool encrypted = false) {
+Bytes Container(u8 id, bool update = false, u32 version = 0, bool encrypted = false, bool bktr = false) {
     using namespace FileSys;
     const auto nca_title = update ? title | 0x800 : title;
     auto code = PlainNca(Package({{"main", Nso(id)}, {"main.npdm", Npdm()}}), nca_title)->ReadAllBytes();
+    if (bktr) code = WithBktrRomFs(std::move(code), update);
     if (encrypted) code = EncryptedNca(std::move(code));
     ContentRecord content{};
     content.nca_id.fill(0x11); content.type = ContentRecordType::Program;
@@ -347,6 +419,25 @@ int main() {
     assert(probe_path(encrypted_rom, secure).build[0] == 21);
     Write(root / "secure-updates/update.nsp", Container(22, true, 9 * 65536, true));
     assert(probe_path(encrypted_rom, secure).build[0] == 22);
+    // A real CTREx/indirect storage merge must reproduce both sources. Metadata and
+    // lookup alone are insufficient proof that the BKTR tables/decryption worked.
+    const auto base_bytes = EncryptedNca(WithBktrRomFs(PlainNca(
+        Package({{"main", Nso(23)}, {"main.npdm", Npdm()}}), title)->ReadAllBytes(), false));
+    const auto patch_bytes = EncryptedNca(WithBktrRomFs(Update(24)->ReadAllBytes(), true));
+    const FileSys::NCA base(File(base_bytes, "base.nca"));
+    assert(base.GetStatus() == Loader::ResultStatus::Success);
+    const auto patch_file = File(patch_bytes, "patch.nca");
+    const FileSys::NCA missing_base(patch_file);
+    assert(missing_base.IsUpdate() && missing_base.GetStatus() == Loader::ResultStatus::ErrorMissingBKTRBaseRomFS);
+    const FileSys::NCA merged(patch_file, &base);
+    assert(merged.GetStatus() == Loader::ResultStatus::Success && merged.GetRomFS());
+    const auto merged_data = merged.GetRomFS()->ReadAllBytes();
+    assert(merged_data.size() == 0x1000);
+    assert(std::all_of(merged_data.begin(), merged_data.begin() + 0x800, [](u8 b) { return b == 0x31; }));
+    assert(std::all_of(merged_data.begin() + 0x800, merged_data.end(), [](u8 b) { return b == 0x62; }));
+    Write(encrypted_rom, Container(23, false, 0, true, true));
+    Write(root / "secure-updates/update.nsp", Container(24, true, 10 * 65536, true, true));
+    assert(probe_path(encrypted_rom, secure).build[0] == 24);
     auto bad_header = header_key; bad_header[0] ^= 1;
     load_keys(bad_header, area);
     assert(!probe_path(encrypted_rom, secure)); // cannot use plaintext fallback or a stale build
@@ -354,7 +445,7 @@ int main() {
     load_keys(header_key, bad_area);
     assert(!probe_path(encrypted_rom, secure));
     load_keys(header_key, area);
-    assert(probe_path(encrypted_rom, secure).build[0] == 22);
+    assert(probe_path(encrypted_rom, secure).build[0] == 24);
     assert(fs::is_empty(root / "dump"));
     fs::remove_all(root);
     std::puts("Cheat identity PASS: real NPDM/NCA/PatchManager, six update orders, plaintext and independent encrypted NSP/CNMT/update fixtures with wrong-key refusal, native-VFS per-copy updates/mods, main replacement/disable, extracted NSP, original program binding, early malformed NPDM and unknown-build refusal, restored globals and no guest boot/dumps");
