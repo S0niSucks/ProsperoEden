@@ -84,12 +84,22 @@ inline std::vector<std::uint8_t> Read(const std::filesystem::path& mods, std::ui
     for (const auto& romfs : romfs_folders) {
         const auto path = Child(romfs, file, false);
         if (path.empty()) continue;
-        std::ifstream in(path, std::ios::binary);
-        std::vector<std::uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        const char* why = in.bad() ? "it could not be read"
-            : bytes.size() < 8 || bytes.size() % 4 != 0 || !std::equal(std::begin(kMagic), std::end(kMagic), bytes.begin())
-                ? "it is not a shared font file (.bfttf)"
-            : bytes.size() >= kSharedFontMemory ? "it is larger than the shared fonts' memory" : nullptr;
+        // Bound the allocation before reading: a misplaced large file must not exhaust the app's heap.
+        std::ifstream in(path, std::ios::binary | std::ios::ate);
+        const auto length = in.tellg();
+        const char* why = !in || length < 0 ? "it could not be read"
+            : length >= static_cast<std::streamoff>(kSharedFontMemory) ? "it is larger than the shared fonts' memory"
+            : length < 8 || length % 4 != 0 ? "it is not a shared font file (.bfttf)" : nullptr;
+        std::vector<std::uint8_t> bytes;
+        if (why == nullptr) {
+            bytes.resize(static_cast<std::size_t>(length));
+            in.seekg(0);
+            if (!in.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())) ||
+                in.peek() != std::ifstream::traits_type::eof())
+                why = "it could not be read or changed while reading";
+            else if (!std::equal(std::begin(kMagic), std::end(kMagic), bytes.begin()))
+                why = "it is not a shared font file (.bfttf)";
+        }
         if (why == nullptr) return bytes;
         if (rejected) *rejected = path.string() + ": " + why;
     }

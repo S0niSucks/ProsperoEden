@@ -79,6 +79,16 @@ int main(int, char** argv) {
     Write(mods / "0100000000000811" / "romfs" / name, Font("huge", Eden::SystemFontMod::kSharedFontMemory / 4));
     why.clear();
     assert(Read(mods, standard, name, &why).empty() && why.find("larger than") != std::string::npos);
+    // A huge sparse file is rejected before allocating or reading its contents.
+    fs::resize_file(mods / "0100000000000811" / "romfs" / name, 1024ull * 1024 * 1024);
+    why.clear();
+    assert(Read(mods, standard, name, &why).empty() && why.find("larger than") != std::string::npos);
+    // Empty, truncated, and non-word-aligned inputs never reach the font decryptor.
+    for (const auto& bad : {std::string{}, std::string("\x36\xf8\x1a\x1e", 4), Font("short") + 'x'}) {
+        Write(mods / "0100000000000811" / "romfs" / name, bad);
+        why.clear();
+        assert(Read(mods, standard, name, &why).empty() && why.find("not a shared font") != std::string::npos);
+    }
     std::puts("ok");
 }
 '''
