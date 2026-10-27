@@ -262,7 +262,10 @@ not every malformed table or every real game's update layout.
    NSP/CNMT/external-update/extracted-NSP fixtures passed isolated actual-core linking in
    `sh_17f6746d1001IAphtUmQ2rtAJ2`; the negative control subsequently passed in
    `sh_17f7317db00114Vy96zy3tBrm5`.
-2. Investigate/reproduce the full-suite idle timing failure; post-idle tests passed separately,
+2. The idle test's late-entry race is now demonstrated and the test-only entry handshake
+   fixed (`baefe49`); the integrated default ASan/UBSan/TSan/lock invocation passed
+   `sh_17fc6ec0d001Uze9q247hdC5K2`. Exact original scheduling history remains unknown.
+   Run the final uninterrupted combined suite after all features land; post-idle tests passed separately,
    fresh-object native packaging passed. UI built-in/Lua regressions have passed as recorded
    above; that does not qualify the actual service callback on PS5.
 3. Verify the install filesystem operations and default-off invariant on the console. Apply

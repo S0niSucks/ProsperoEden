@@ -10,6 +10,35 @@
 #include <iostream>
 #include <mutex>
 #include <thread>
+#include <cerrno>
+#include <dlfcn.h>
+#include <pthread.h>
+// Fail the actual OS thread-creation call, not a replacement service implementation.
+// Ordinary workers must retain sanitizer bookkeeping: Clang links its interceptor
+// into the executable, so RTLD_NEXT alone would incorrectly bypass it for libc.
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+#define EDEN_CHECK_SANITIZED_THREADS 1
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define EDEN_CHECK_SANITIZED_THREADS 1
+#endif
+#if defined(EDEN_CHECK_SANITIZED_THREADS)
+extern "C" int __interceptor_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*);
+#endif
+static std::atomic<bool> fail_next_thread{false};
+extern "C" int pthread_create(pthread_t* thread, const pthread_attr_t* attributes,
+                             void* (*function)(void*), void* argument) {
+    if (fail_next_thread.exchange(false)) return EAGAIN;
+#if defined(EDEN_CHECK_SANITIZED_THREADS)
+    return __interceptor_pthread_create(thread, attributes, function, argument);
+#else
+    static const auto real = reinterpret_cast<decltype(&pthread_create)>(dlsym(RTLD_NEXT, "pthread_create"));
+    assert(real);
+    return real(thread, attributes, function, argument);
+#endif
+}
 namespace fs = std::filesystem;
 namespace Eden {
 constexpr const char* kDataDir = "/work/usb-service/data";
@@ -69,6 +98,18 @@ int main() {
     std::ofstream(std::string(Eden::kDataDir) + "/config/prosperoeden.json") << "service synthetic settings";
     // The runner mounts this path as an independent tmpfs USB fixture.
     for (auto& entry : fs::directory_iterator("/mnt/usb0")) fs::remove_all(entry.path());
+    {
+        EdenServices failed;
+        fail_next_thread = true;
+        assert(!failed.begin_usb_backup() && !fail_next_thread);
+        auto status = failed.usb_backup_status();
+        assert(!status.active && !status.busy && status.phase == "failed");
+        assert(!failed.usb_active_ && !failed.usb_remote_resume_);
+        failed.end_usb_backup();
+        assert(Eden::Remote::stops == 0 && Eden::Remote::starts == 0);
+        assert(failed.cheat_manager_.stops == 0 && failed.sync_stops == 0);
+        assert(Eden::UpdateNotice::cancels == 0 && Eden::UpdateNotice::finishes == 0);
+    }
     EdenServices services;
     assert(services.begin_usb_backup()); assert(!services.begin_usb_backup());
     auto state = Wait(services);
@@ -77,6 +118,12 @@ int main() {
     assert(Eden::UpdateNotice::cancels == 1 && Eden::UpdateNotice::finishes == 1 && Eden::UpdateNotice::waits == 1);
     assert(!services.usb_backup_action("backup", "/mnt/usb0"));
     assert(!services.usb_backup_action("inspect", "/etc"));
+    fail_next_thread = true;
+    assert(!services.usb_backup_action("inspect", "/mnt/usb0") && !fail_next_thread);
+    state = services.usb_backup_status();
+    assert(state.active && !state.busy && !state.restart && state.phase == "failed");
+    // Failed admission is not an irreversible publication; the same protected
+    // session can inspect again without restarting any paused job.
     assert(services.usb_backup_action("inspect", "/mnt/usb0")); state = Wait(services);
     assert(state.phase == "estimate" && state.estimate.files == 1);
     assert(services.usb_backup_action("backup", "/mnt/usb0"));

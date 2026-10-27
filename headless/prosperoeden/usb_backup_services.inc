@@ -4,8 +4,9 @@ bool EdenServices::begin_usb_backup() {
     if (!Eden::FilesystemAccess() || launch_committed_ || usb_active_.exchange(true)) return false;
     if (usb_thread_.joinable()) usb_thread_.join();
     usb_stop_ = false;
+    usb_remote_resume_ = false;
     { const std::lock_guard lock(usb_lock_); usb_ = {}; usb_.active = usb_.busy = true; usb_.phase = "preparing"; }
-    usb_thread_ = std::thread([this] {
+    try { usb_thread_ = std::thread([this] {
         Eden::UsbBackup::Status result; result.active = true; result.phase = "drives";
         try {
             // Join without bridge_ held: the jobs may be waiting for the metadata bridge.
@@ -24,7 +25,14 @@ bool EdenServices::begin_usb_backup() {
             if (result.drives.empty()) result.error = "No safely accessible USB drive. Connect a writable USB drive and try again.";
         } catch (const std::exception& e) { result.phase = "failed"; result.error = e.what(); }
         const std::lock_guard lock(usb_lock_); usb_ = std::move(result);
-    });
+    }); } catch (const std::exception&) {
+        // No job ran: do not leave launch/storage admission closed or resume jobs
+        // that were never paused. The owner can report failure and try again.
+        const std::lock_guard lock(usb_lock_);
+        usb_ = {}; usb_.phase = "failed"; usb_.error = "Cannot start the USB backup worker. Try again.";
+        usb_active_ = false;
+        return false;
+    }
     return true;
 }
 Eden::UsbBackup::Status EdenServices::usb_backup_status() {
@@ -46,7 +54,7 @@ bool EdenServices::usb_backup_action(const std::string& action, const std::strin
     }
     if (usb_thread_.joinable()) usb_thread_.join();
     usb_stop_ = false;
-    usb_thread_ = std::thread([this, action, path, expected_manifest] {
+    try { usb_thread_ = std::thread([this, action, path, expected_manifest] {
         try {
             const std::lock_guard bridge(bridge_);
             auto report = [this](const Eden::UsbBackup::Progress& p) {
@@ -68,7 +76,14 @@ bool EdenServices::usb_backup_action(const std::string& action, const std::strin
         } catch (const std::exception& e) {
             const std::lock_guard lock(usb_lock_); usb_.busy = false; usb_.phase = "failed"; usb_.error = e.what();
         }
-    });
+    }); } catch (const std::exception&) {
+        // The protected session still owns its paused jobs, but no copy/restore
+        // operation started. Keep it closable instead of a permanently busy modal.
+        const std::lock_guard lock(usb_lock_);
+        usb_.busy = false; usb_.phase = "failed";
+        usb_.error = "Cannot start the USB storage worker. Existing data was kept.";
+        return false;
+    }
     return true;
 }
 void EdenServices::cancel_usb_backup() { usb_stop_ = true; }

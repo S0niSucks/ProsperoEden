@@ -40,7 +40,7 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | Amiibo sync | Worker `f596678` delivered real C++ worker/HTTPS, safe publication and builtin/Lua confirmation. Worker reports normal/ASan/UBSan/TSan plus TLS and 25 UI assertions; coordinator review/integration pending. |
 | Nextendo | Worker `9faebc0` delivered experimental profile/session, guest routing and launcher controls. Review pending; OAuth registration, reviewed BAAS contract/operator routes and real networking remain blocked, not qualified online play. |
 | SMB/NFS | `b057a17` / `dbaf12d` delivered real read-only VFS/protocols and initial launcher wiring, not integrated yet. Worker continues actual loader/library metadata, updates/DLC, recents and authenticated/encrypted SMB tests; JSON configuration alone is not full library/launch acceptance. |
-| USB backup/restore | Await worker delivery; no acceptance or new compatibility claim. Credential exclusions are mandatory. |
+| USB backup/restore | Initial `884a8a4` reviewed/cherry-picked as `afe7d80`, not yet accepted as complete. Worker adds SMB credential-config exclusion/injection tests; final UI report pending. Coordinator worker-creation recovery passed exact-service ASan/UBSan and real OS `EAGAIN` injection (`sh_17fcaef8c0011cEcLmxb76dgSB`), with preserved sanitizer bookkeeping. New-feature writer coordination and final regression remain mandatory. |
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
@@ -49,6 +49,12 @@ The saved fresh-object host linked successfully but stopped at a guest-idle timi
 Isolated idle checks and all remaining saved-snapshot tests passed separately, including actual
 NFC/live-cheat factories, memory/JIT/device checks and three NRO launch/exit cycles. This is not
 a single uninterrupted full-suite pass. See `CHEAT_DATABASE.md`.
+
+The guest-idle worker subsequently demonstrated a late-entry harness race and committed a
+test-only handshake fix (`3eea768`, integrated as `baefe49`). The integrated default invocation
+passed ASan/UBSan, TSan and the kernel-lock check (`sh_17fc6ec0d001Uze9q247hdC5K2`) without
+changing production policy or thresholds. This does not reconstruct the original failure's
+schedule. See `GUEST_IDLE_TEST_INVESTIGATION.md` and its retained hashes/logs.
 
 ## Cross-feature storage/launch gate (integration acceptance, not completed evidence)
 

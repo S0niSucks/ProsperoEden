@@ -9,7 +9,7 @@ clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined 
 ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_check
 clang++-18 -std=c++20 -Wall -Wextra -Werror -D__PROSPERO__ -fsyntax-only headless/usb_backup.cpp
 clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer \
-    headless/usb_backup.cpp headless/usb_backup_service_check.cpp -lcrypto -pthread -o /work/usb_backup_service_check
+    headless/usb_backup.cpp headless/usb_backup_service_check.cpp -lcrypto -ldl -pthread -o /work/usb_backup_service_check
 ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_service_check
 clang++-18 -std=c++20 -Wall -Wextra -Werror -fsyntax-only -Iheadless -Iheadless/prosperoeden \
     -Ithird_party -Ithird_party/lua headless/usb_backup_service_syntax.cpp

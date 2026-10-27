@@ -113,3 +113,18 @@ the coordinator's particular failure had no other cause, eliminate producer over
 all scheduling sensitivity from strict CPU/short-handoff measurements, or establish PS5
 runtime correctness/performance. Observed overshoots remain visible rather than filtered.
 Coordinator review/cherry-pick and a working TSan environment remain follow-up validation.
+
+## Coordinator integrated validation
+
+Reviewed and cherry-picked as `baefe49`. The default complete invocation subsequently
+**passed** with the exact saved generated-body check, ASan/UBSan, TSan and the kernel-lock
+test (`sh_17fc6ec0d001Uze9q247hdC5K2`). It ran in the existing trusted Docker configuration:
+`setarch x86_64 -R`, dropped capabilities, relaxed syscall filter, 2 CPUs and 1 GiB. No
+sanitizer assertion/startup failure was skipped or retried. Both variants reproduced the
+old handshake's 500,000 ns negative control and the corrected zero budget. Runtime policy
+and thresholds were unchanged. Source hashes, verified snapshot, raw log and status are in
+`.local/docker-release/guest-idle-integrated-20261027/`.
+
+This closes the focused test's TSan validation gap, not the original run's missing scheduling
+history or the requirement for a final uninterrupted combined host-suite run after all
+features are integrated. PS5 performance/A-B qualification remains separate.

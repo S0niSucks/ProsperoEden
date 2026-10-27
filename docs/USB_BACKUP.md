@@ -124,6 +124,13 @@ Closing a completed/cancelled/failed backup joins its worker and resumes downloa
 save-sync work. A staged restore cannot close back into the launcher. Destruction cancels/joins
 the USB worker before disposing of the bridge or other jobs, without restarting jobs.
 
+Coordinator review also guards thread-construction failure. If the initial worker cannot start,
+no jobs have been paused: admission is released and the caller receives failure. If a later
+inspection/copy/restore worker cannot start, the protected session remains active but is marked
+failed/not busy, so it can be closed; it never claims publication or leaves an inescapable busy
+modal. The remote-resume flag resets for each new session, rather than leaking across a failed
+start. No restore bytes are applied on the launcher thread.
+
 ## Focused validation and limits
 
 Run from this worktree with the existing image, a read-only source mount and an isolated volume:
@@ -153,6 +160,23 @@ sessions untouched, and self-consistent manifests are rejected by the exclusion 
 payload validation; dot-segment/backslash/absolute aliases are rejected as unsafe paths.
 The 2026-10-27 Docker run passed the filesystem/Nextendo, service lifecycle and actual update-check
 drain suites under ASan/UBSan with leak detection, plus all focused syntax checks.
+
+Coordinator focused run `sh_17fcaef8c0011cEcLmxb76dgSB` passed the exact service include with
+ASan/UBSan, real filesystem operations and real `pthread_create` failure injection (`EAGAIN`),
+plus syntax checking against the actual `EdenServices` declaration. It asserts that failed
+initial creation neither pauses/resumes jobs nor leaves admission closed; failed later creation
+keeps the protected session closable and permits a fresh inspection. Existing cancellation,
+confirmation, restore-staging and restart-lock assertions remain intact. Snapshot/raw log/status
+are preserved under `.local/docker-release/usb-service-failure-sanitizer-aware-20261027/`.
+
+The first injection attempt failed inside ASan's thread bookkeeping: calling libc directly
+with `RTLD_NEXT` bypassed Clang's executable-linked interceptor. A minimal program without any
+USB/service code reproduced that failure, while the sanitizer-preserving injector passed.
+Normal workers in the maintained test now go through the active sanitizer interceptor; only
+the deliberately failed creation returns `EAGAIN`. The failed attempt and diagnostic control
+are retained under `.local/docker-release/usb-service-failure-integrated-20261027/`; they are
+not counted as a passing backup test. Job collaborators remain synthetic, not a full composed
+service/console qualification.
 
 `run-usb-backup-ui-tests.sh`: a standalone **launcher-only** renderer build, ASan/UBSan and
 720p/1080p controller tests against a clearly synthetic USB service. Results and images go to
