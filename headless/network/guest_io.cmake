@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Apply after the optional development instrumentation. Preserve local I/O behavior; never report
+# a poisoned network session as a successful IStorage or IFile read of stale buffer contents.
+foreach(kind storage file)
+    set(relative "hle/service/filesystem/fsp/fs_i_${kind}.cpp")
+    set(input "${PROJECT_SOURCE_DIR}/src/core/${relative}")
+    foreach(source IN LISTS core_sources)
+        if(source MATCHES "(^|/)fs_i_${kind}\\.cpp$")
+            if(IS_ABSOLUTE "${source}")
+                set(input "${source}")
+            endif()
+            list(REMOVE_ITEM core_sources "${source}")
+        endif()
+    endforeach()
+    file(READ "${input}" content)
+    if(kind STREQUAL "storage")
+        set(site "    R_SUCCEED();\n}\n\nResult IStorage::GetSize")
+        set(replacement "    R_UNLESS(::Eden::Network::GameError().empty(), FileSys::ResultReadNotPermitted);\n${site}")
+    else()
+        # Both production and instrumented handlers delegate to an adapter which may ignore a short
+        # backend read. Gate at the IPC handler after it has run, before a success reaches the guest.
+        set(site "        backend->Read(reinterpret_cast<size_t*>(out_size.Get()), offset, out_buffer.data(), size)")
+        set(replacement "        ([&]() -> Result { const auto result = backend->Read(reinterpret_cast<size_t*>(out_size.Get()), offset, out_buffer.data(), size);\n            if (!::Eden::Network::GameError().empty()) return FileSys::ResultReadNotPermitted;\n            return result; })()")
+    endif()
+    string(FIND "${content}" "${site}" found)
+    if(found LESS 0)
+        message(FATAL_ERROR "Pinned ${kind} read changed; review network error propagation")
+    endif()
+    string(REPLACE "${site}" "${replacement}" content "${content}")
+    write_derived("${PORT_BUILD_DIR}/network-${kind}.cpp" "#include \"${EDEN_PORT_DIR}/network/shares.h\"\n${content}")
+    list(APPEND core_sources "${PORT_BUILD_DIR}/network-${kind}.cpp")
+endforeach()

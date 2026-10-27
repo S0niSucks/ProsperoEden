@@ -692,6 +692,7 @@ EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClie
                                  std::to_string(who.current + 1) + " of " + std::to_string(who.profiles.size()) +
                                  ")").c_str());
     KeepSaveSyncFile(who.profiles);
+    if (Eden::FilesystemAccess()) Eden::Network::Configure(Eden::ConfigFile("network-shares.json"));
     setup_ = eden_startup_error();
     Eden::Report("setup", setup_.empty() ? "Keys and firmware startup checks passed" : setup_.c_str());
     // A games folder of its own that is not there (a USB drive not plugged in): the Library finds no
@@ -719,6 +720,7 @@ EdenServices::~EdenServices() {
     usb_stop_ = true;
     if (usb_thread_.joinable()) usb_thread_.join();
     amiibo_sync_.Stop(); // no network/cache worker may outlive launcher settings or launch
+    Eden::Network::StopDiscovery(); // finished sessions remain owned by network VFS consumers
     cheat_manager_.Stop(); // no probe may outlive the metadata bridge or the launcher
     if (Eden::FilesystemAccess()) Eden::Remote::Stop();
     {
@@ -955,12 +957,27 @@ std::vector<pe::ui::Game> EdenServices::games() {
         game.remote = true;
         games.push_back(std::move(game));
     }
+    for (const auto& entry : Eden::Network::Games()) {
+        pe::ui::Game game;
+        game.file = entry.uri;
+        game.name = entry.name;
+        game.format = entry.uri.substr(entry.uri.size() - 3);
+        std::transform(game.format.begin(), game.format.end(), game.format.begin(),
+            [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        game.size = SizeLabel(static_cast<double>(entry.size)) + " / " + tr("Network") + " / " + entry.location;
+        game.addons = tr("Read-only network game. Saves, mods and caches stay local.");
+        game.network = true;
+        games.push_back(std::move(game));
+    }
     std::sort(games.begin(), games.end(),
               [](const pe::ui::Game& a, const pe::ui::Game& b) { return a.name < b.name; });
     return games;
 }
 
 std::string EdenServices::game_path(const std::string& file) {
+    if (Eden::Network::IsPath(file))
+        return Eden::FilesystemAccess() && (setup_.empty() || Eden::IsHomebrewFile(file)) &&
+            Eden::Network::Known(file) ? file : std::string{};
     if (!Eden::FilesystemAccess() || !Eden::ValidRomPath(file) ||
         (!setup_.empty() && !Eden::IsHomebrewFile(file))) return {};
     return Eden::GamesPath("roms/" + file);
@@ -1104,6 +1121,7 @@ bool EdenServices::remove_profile(int index) {
 }
 
 bool EdenServices::game_exists(const std::string& file) {
+    if (Eden::Network::IsPath(file)) return Eden::Network::Known(file);
     return Eden::ValidRomPath(file) && IsFile(Eden::GamesPath("roms/" + file));
 }
 
@@ -1675,13 +1693,13 @@ pe::ui::CheatDatabase EdenServices::cheat_database() { return cheat_manager_.Sta
 bool EdenServices::check_cheat_database(const pe::ui::Game& game, bool offline) {
     const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
-    if (launch_committed_ || game.remote || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
+    if (launch_committed_ || game.remote || game.network || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
     return cheat_manager_.Start(CheatRequest(game), offline);
 }
 bool EdenServices::install_cheat_database(const pe::ui::Game& game) {
     const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
-    if (launch_committed_ || game.remote || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
+    if (launch_committed_ || game.remote || game.network || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
     return cheat_manager_.Install(CheatRequest(game));
 }
 void EdenServices::cancel_cheat_database() { cheat_manager_.Cancel(); }
@@ -1751,7 +1769,7 @@ pe::ui::Sources EdenServices::sources() {
     const Eden::Remote::Status status = Eden::Remote::Current();
     sources.configured = status.configured;
     sources.error = status.error;
-    sources.generation = status.generation;
+    sources.generation = status.generation + Eden::Network::Current().generation;
     sources.ftp_port = status.ftp_port;
     for (const Eden::Remote::SourceStatus& source : status.sources)
         sources.list.push_back({source.name, source.address, source.refreshing, source.online, source.error,
@@ -1912,6 +1930,7 @@ bool EdenServices::save_sync_wanted(const std::string& file) {
 
 bool EdenServices::SaveSyncWanted(const std::string& file) {
     // Caller holds admission -> bridge; CurrentProfile may persist profile selection.
+    if (Eden::Network::IsPath(file)) return false; // the download-source save-sync identity is local-file based
     SyncSetup setup;
     return !file.empty() && SyncSetupOf(CurrentProfile(user_), &setup) && setup.automatic;
 }

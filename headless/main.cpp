@@ -10,6 +10,7 @@
 #include "usb_backup.h"
 #include "forwarded_launch.h"
 #include "gpu_failure.h"
+#include "network/shares.h"
 #include "guest_fault.h"
 #include "jit_list.h"
 #include "boot_trace.h"
@@ -661,6 +662,8 @@ int main(int argc, char** argv) {
         }
         try {
         launch_error.clear();
+        Eden::Network::BeginGame();
+        SCOPE_EXIT { Eden::Network::EndGame(); };
         if (!rooms.BeginGame()) throw std::runtime_error("Join a room successfully or leave it before starting a game.");
         SCOPE_EXIT { rooms.EndGame(); };
         const auto nextendo_profile = Eden::Profiles::SettingsValue(Eden::Settings::LoadWhole(Eden::SettingsFile()), "/profiles/current");
@@ -715,7 +718,8 @@ int main(int argc, char** argv) {
             throw std::runtime_error("Vulkan is not available in this build yet. Select OpenGL in Settings > Video to play.");
 #endif
         Eden::Report("launch", Eden::BackendName(backend));
-        const bool game = std::filesystem::is_regular_file(selected_game);
+        const bool game = Eden::Network::IsPath(selected_game) ? Eden::Network::Known(selected_game) :
+            std::filesystem::is_regular_file(selected_game);
         if (!game) throw std::runtime_error("Selected ROM is no longer available");
         const char* guest = selected_game.c_str();
         // The game as the Library names it: its path in roms/ ("Game.nsp", or "Game/Game.nsp" in a
@@ -1664,6 +1668,7 @@ int main(int argc, char** argv) {
                         if (pad->TakeReturnToMenu() || asked) {
                             Eden::Report("exit", "Touchpad + L1 while the game loads: leaving as soon as it can be stopped");
                             Eden::Ncz::SetUnpackAllowed(false);  // an NSZ being unpacked stops (ncz_vfs.h)
+                            Eden::Network::CancelGame();
                             Eden::StopLimit::Begin();
                             left_while_loading = true;
                             break;
@@ -1677,6 +1682,8 @@ int main(int argc, char** argv) {
                 Core::SystemResultStatus loaded;
                 try {
                     loaded = system.Load(window, guest, params);
+                    if (const auto error = Eden::Network::GameError(); !error.empty())
+                        throw std::runtime_error(error);
                 } catch (const std::exception& error) {
                     // Preserve the original error before partial core teardown.
                     std::fprintf(stderr, "Game load failed: %s\n", error.what());
@@ -1914,6 +1921,12 @@ int main(int argc, char** argv) {
                     unsigned command_poll = 0;
 #endif
                     while (!stop.stop_requested()) {
+                        if (const auto error = Eden::Network::GameError(); !error.empty()) {
+                            std::lock_guard lock(completion->mutex);
+                            completion->failure = std::make_exception_ptr(std::runtime_error(error));
+                            completion->wake.notify_one();
+                            break;
+                        }
                         if (auto error = Eden::TakeGpuFailure()) {
                             std::lock_guard lock(completion->mutex);
                             completion->failure = std::move(error);
@@ -2009,6 +2022,7 @@ int main(int argc, char** argv) {
                         room_lost = rooms.GameConnectionLost();
 #endif
                         if (pad->TakeReturnToMenu() || room_lost) {
+                            Eden::Network::CancelGame();
                             // From here the player is waiting to leave (stop_limit.h).
                             Eden::StopLimit::Begin();
                             std::lock_guard lock(completion->mutex);

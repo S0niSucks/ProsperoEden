@@ -1163,6 +1163,7 @@ if(open_files_at LESS 0)
     message(FATAL_ERROR "Pinned vfs_real.cpp MaxOpenFiles changed")
 endif()
 string(REPLACE "${open_files_old}" "constexpr size_t MaxOpenFiles = 512;" vfs_real_source "${vfs_real_source}")
+include("${EDEN_PORT_DIR}/network/inject.cmake")
 write_derived("${PORT_BUILD_DIR}/vfs_real.cpp" "${vfs_real_source}")
 list(REMOVE_ITEM core_sources "file_sys/vfs/vfs_real.cpp")
 list(APPEND core_sources "${PORT_BUILD_DIR}/vfs_real.cpp")
@@ -1459,6 +1460,7 @@ string(REPLACE "${app_functions_old}" "    auto const seed = res.first != nullpt
 write_derived("${PORT_BUILD_DIR}/application_functions.cpp" "${app_functions_source}")
 list(REMOVE_ITEM core_sources "hle/service/am/service/application_functions.cpp")
 list(APPEND core_sources "${PORT_BUILD_DIR}/application_functions.cpp")
+include("${EDEN_PORT_DIR}/network/guest_io.cmake")
 set_property(TARGET core PROPERTY SOURCES "${core_sources}")
 # Core's NS query service owns this implementation from frontend_common.
 target_sources(core PRIVATE "${PROJECT_SOURCE_DIR}/src/frontend_common/play_time_manager.cpp")
@@ -3656,6 +3658,7 @@ endif()
                 "${EDEN_PORT_DIR}/multiplayer_directory.cpp"
                 "${launcher_dir}/frontend.cpp"
                 "${launcher_dir}/eden_services.cpp"
+                "${EDEN_PORT_DIR}/network/services.cpp"
                 "${launcher_dir}/pe/audio/mixer.cpp"
                 "${launcher_dir}/pe/audio/sounds.cpp"
                 "${launcher_dir}/pe/audio/wav.cpp"
@@ -3674,6 +3677,7 @@ endif()
                 "${launcher_dir}/pe/ui/game_options.cpp"
                 "${launcher_dir}/pe/ui/profiles.cpp"
                 "${launcher_dir}/pe/ui/remote.cpp"
+                "${launcher_dir}/pe/ui/network_shares.cpp"
                 "${launcher_dir}/pe/ui/save_sync.cpp"
                 "${launcher_dir}/pe/ui/pairing.cpp"
                 "${launcher_dir}/pe/ui/multiplayer.cpp"

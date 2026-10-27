@@ -37,17 +37,18 @@ enum Category
     kGames,
     kUsbBackup,
     kAmiibo,
+    kNetworkShares,
     kCategoryCount,
 };
 static_assert(kCategoryCount == kSettingsCategories);
 constexpr const char *kCategories[kCategoryCount] = {
     TR("Profiles"), TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"), TR("Accessibility"),
     TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("Save sync"), TR("Language"), TR("Appearance"),
-    TR("Colour"), TR("ROMs and updates"), TR("USB backup"), TR("Amiibo")};
+    TR("Colour"), TR("ROMs and updates"), TR("USB backup"), TR("Amiibo"), TR("Network shares")};
 constexpr Icon kIcons[kCategoryCount] = {
     Icon::profile, Icon::video, Icon::performance, Icon::audio, Icon::controls, Icon::accessibility,
     Icon::diagnostics, Icon::files, Icon::downloads, Icon::sync, Icon::language, Icon::theme,
-    Icon::theme, Icon::files, Icon::sync, Icon::sync};
+    Icon::theme, Icon::files, Icon::sync, Icon::sync, Icon::files};
 constexpr int kTileColumns = 4;
 constexpr int kTileRows = 4;
 constexpr float kTileGap = 20.0f;
@@ -280,6 +281,9 @@ void Launcher::press_settings(Key key)
             open(Screen::files, true);
             enter_files();
             break;
+        case kNetworkShares:
+            open_modal(Modal::network_shares);
+            break;
         case kGames:
             open(Screen::files, true);
             enter_files(true);
@@ -492,6 +496,9 @@ void Launcher::draw_settings(Canvas &c)
             break;
         case kFiles:
             about = tr("The folder that holds your keys, firmware and games.");
+            break;
+        case kNetworkShares:
+            about = tr("Play read-only SMB or NFS games without downloading them.");
             break;
         case kGames:
             about = tr("Choose roms/ and updates/ without moving keys, firmware or saves.");

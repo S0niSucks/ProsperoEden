@@ -266,6 +266,8 @@ void Launcher::press(Key key)
         return press_choice(key);
     if (modal_ == Modal::sources)
         return press_sources(key);
+    if (modal_ == Modal::network_shares)
+        return press_network_shares(key);
     if (modal_ == Modal::save_sync)
         return press_save_sync(key);
     if (modal_ == Modal::sync_setup)
@@ -814,6 +816,8 @@ void Launcher::draw(gfx::DrawList &list)
             draw_usb_backup(c, opened);
         else if (modal_shown_ == Modal::amiibo)
             draw_amiibo(c, opened);
+        else if (modal_shown_ == Modal::network_shares)
+            draw_network_shares(c, opened);
         else
             draw_dialog(c, modal_shown_, opened);
     }

@@ -18,7 +18,7 @@
 namespace pe::ui
 {
 
-inline constexpr int kSettingsCategories = 16;
+inline constexpr int kSettingsCategories = 17;
 
 // Every screen of the launcher as one state machine. The frontend feeds it
 // pressed buttons and frame time, draws its list and plays its cues; it ends
@@ -109,6 +109,7 @@ class Launcher
         cheats,       // a game's cheats, opened from its settings
         usb_backup,   // Settings > USB backup: protected backup/restore session
         amiibo,       // opt-in public metadata/photos; never NFC data
+        network_shares,
     };
     // The update dialog's steps: the offer, installing, stopping it, closing for the helper to
     // finish, and a failure.
@@ -198,6 +199,8 @@ class Launcher
     // ---- library and game settings (library.cpp) ----
     // The game list is read beside the menu: reading every game takes a moment.
     void start_scan();
+    void press_network_shares(Key key);
+    void draw_network_shares(Canvas& c, float open);
     void finish_scan(bool wait);
     void apply_games(std::vector<Game> games);
     void name_home_games();

@@ -36,6 +36,9 @@ public:
     std::string version() override;
 
     std::vector<pe::ui::Game> games() override;
+    Eden::Network::Status network_shares() override;
+    void reconnect_network_shares() override;
+    void disconnect_network_shares() override;
     std::string game_path(const std::string& file) override;
     bool game_exists(const std::string& file) override;
     bool take_update(pe::ui::UpdateOffer* offer) override;

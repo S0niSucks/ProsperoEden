@@ -19,6 +19,7 @@
 #include "../../../cheat_manager_status.h"
 #include "../../../usb_backup.h"
 #include "../../../amiibo_sync.h"
+#include "../../../network/shares.h"
 
 namespace pe::ui
 {
@@ -95,6 +96,7 @@ struct Game
     std::string key;
     // Not on the console yet: on its sources only. Its file is the name it gets in roms/.
     bool remote = false;
+    bool network = false; // read-only, on-demand share; NOT a download source
 };
 
 // A download source: a place on the network with Switch games (headless/remote/remote.h).
@@ -522,6 +524,9 @@ class Services
     }
 
     // ---- library ----
+    virtual Eden::Network::Status network_shares() { return {}; }
+    virtual void reconnect_network_shares() {}
+    virtual void disconnect_network_shares() {}
     virtual std::vector<Game> games() = 0; // reads every game file: slow
     // The value the launcher hands back to start a game.
     virtual std::string game_path(const std::string &file) = 0;
