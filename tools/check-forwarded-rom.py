@@ -54,6 +54,7 @@ int main(int, char** argv) {
     fs::create_directories(base / "roms" / "Odd" / "Folder.nsp");
     Touch(base / "roms" / "Deep" / "Deep.xci");
     Touch(base / "roms" / "Outside" / "Outside.nsp");
+    Touch(base / "roms" / "Tools" / "Demo.NRO");
     // A game still where its forwarder says: that file, not a copy in a folder.
     assert(Start("Still Here.nsp", roms) == roms + "/Still Here.nsp");
     // Moved into the folder named after it, the forwarder made before (relative or absolute).
@@ -62,6 +63,8 @@ int main(int, char** argv) {
     assert(Start("Mario Kart 8 Deluxe.nsp", roms + "/") == roms + "/Mario Kart 8 Deluxe/Mario Kart 8 Deluxe.nsp");
     // Moved into a folder of another name: the only one that has it.
     assert(Start("Kart.xci", roms) == roms + "/MK8 stuff/Kart.xci");
+    assert(Start("Tools/Demo.NRO", roms) == roms + "/Tools/Demo.NRO");
+    assert(Start("Demo.NRO", roms) == roms + "/Tools/Demo.NRO");
     // In two folders: neither is chosen, unless one is named after it.
     assert(Start("Twice.nsp", roms).empty());
     assert(Start("Own.nsp", roms) == roms + "/Own/Own.nsp");

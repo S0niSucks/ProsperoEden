@@ -189,7 +189,7 @@ inline int KeyIndex(const std::string& value, const char* const* keys, int count
 }
 
 // A game's file as the Library names it: its path in the game files folder's roms/, either its
-// name ("Game.nsp"; .xci, .nsz and .xcz too) or a game folder and its name ("Game/Game.nsp", the
+// name ("Game.nsp"; .xci, .nsz, .xcz and .nro too) or a game folder and its name ("Game/Game.nsp", the
 // game's update and DLC beside it). Readable characters, one folder at most, never a hidden
 // folder, "." or "..".
 inline bool ValidRomPath(std::string_view name) {

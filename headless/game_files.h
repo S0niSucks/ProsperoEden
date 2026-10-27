@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Oliv3rmoon
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The game files ProsperoEden plays: NSP and XCI, and NSZ and XCZ, the same compressed by nsz
-// (headless/ncz.h reads what they hold back as it was).
+// (headless/ncz.h reads what they hold back as it was), plus NRO homebrew loaded by Eden's NRO loader.
 #pragma once
 #include <cctype>
 #include <string_view>
@@ -22,5 +22,8 @@ inline bool IsPackageFile(std::string_view name) {
 inline bool IsCardImageFile(std::string_view name) {
     return EndsWithNoCase(name, ".xci") || EndsWithNoCase(name, ".xcz");
 }
-inline bool IsGameFile(std::string_view name) { return IsPackageFile(name) || IsCardImageFile(name); }
+inline bool IsHomebrewFile(std::string_view name) { return EndsWithNoCase(name, ".nro"); }
+inline bool IsGameFile(std::string_view name) {
+    return IsPackageFile(name) || IsCardImageFile(name) || IsHomebrewFile(name);
+}
 } // namespace Eden

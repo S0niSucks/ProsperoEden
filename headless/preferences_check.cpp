@@ -647,6 +647,15 @@ int main() {
     }
 
     // Game files folder.
+    // NROs use the same relative paths for history and forwarders as container games (#242).
+    {
+        const std::string homebrew = std::string(directory) + "/homebrew.json";
+        assert(Eden::SaveLastGame("Tools/Demo.NRO", homebrew));
+        assert(Eden::LoadLastGame(homebrew) == "Tools/Demo.NRO");
+        assert(Eden::SaveRecentGame("Tools/Demo.NRO", homebrew));
+        assert(Eden::LoadRecentGames(homebrew) == std::vector<std::string>{"Tools/Demo.NRO"});
+        assert(!Eden::SaveLastGame("../Demo.nro", homebrew));
+    }
     assert(Eden::LoadSavedAssetsDir(file).empty());
     assert(Eden::SaveAssetsDir("/mnt/ext1/eden", file));
     assert(Eden::LoadSavedAssetsDir(file) == "/mnt/ext1/eden");

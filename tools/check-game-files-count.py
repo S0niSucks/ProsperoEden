@@ -83,6 +83,14 @@ int main(int, char** argv) {
     Touch(roms / "Compressed Folder" / "Update.nsz");
     Touch(roms / "Card Folder" / "Game.XCZ");
     assert(CountGames(roms.string()) == 7);
+    // Homebrew uses Eden's NRO loader, not the NSP/update container parser.
+    Touch(roms / "Homebrew.NRO");
+    Touch(roms / "Tools" / "Demo.nro");
+    Touch(roms / "Tools" / "notes.txt");
+    assert(CountGames(roms.string()) == 9);
+    assert(Eden::ValidRomPath("Tools/Demo.nro"));
+    assert(!Eden::ValidRomPath("../Demo.nro") && !Eden::ValidRomPath("a/b/Demo.nro"));
+    assert(!Eden::IsPackageFile("Demo.nro") && !Eden::IsCardImageFile("Demo.nro"));
     std::puts("game files count: PASS");
 }
 '''

@@ -68,6 +68,8 @@ nsz -C -B <game>.nsp
 
 The folder `/data/prosperoeden/user/cache/nsz` can be deleted whenever no game is running; it is made again as needed.
 
+### Separate games folder
+
 **Games on a drive of their own.** The games can be kept apart from the rest: `roms/` and `updates/` in one folder (a USB drive, say), keys, firmware, mods and cheats in the game files folder on the console. Name that folder as `"games_folder"` in `/data/prosperoeden/config/prosperoeden.json`, next to `"game_files"`:
 
 ```json
@@ -75,6 +77,18 @@ The folder `/data/prosperoeden/user/cache/nsz` can be deleted whenever no game i
 ```
 
 It applies from the next start, and the Library, the home page, downloads and forwarders then use its `roms/` and `updates/`; the GAMES and UPDATES lines in Settings > Game files and in About show where they are (the folder browser still counts each folder's own `roms/`). When the folder is not there at start (a drive not plugged in), the Library lists no games from it and downloads wait; the log says `games folder: Not found`. Without it, or when it does not name an absolute folder, the games are in the game files folder as before. Whatever the folders, the shader caches, saves and everything else written during play stay in `/data/prosperoeden` on the console (see App data).
+
+### NRO homebrew
+
+Put Switch homebrew `.nro` files in `roms/`, or one game folder below it, like
+`roms/Tools/Demo.nro`. They appear in the Library, can be launched through Eden's
+existing NRO loader, and work with recent-game paths and forwarders. This is not
+support for PS5 ELF files or Switch NSO/NSP conversion.
+
+For now the Library uses the NRO file name, without its optional embedded icon,
+NACP title or program ID. The launcher's existing keys/firmware setup check still
+applies. Host NRO fixtures do not guarantee that a particular homebrew application
+or its GPU/services work on PS5.
 
 ## App data
 

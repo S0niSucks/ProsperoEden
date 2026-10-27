@@ -110,5 +110,6 @@ python3 -B "$root/tools/check-remote.py"
 # The same against real RomM servers in Docker (only with ROMM_CHECK=1, and Docker).
 python3 -B "$root/tools/check-romm.py"
 bash tools/check-headless-devices.sh
+bash tools/check-headless-nro.sh
 cp "$scratch/build/bin/eden-headless" build/headless-host/eden-headless
 cp "$scratch/build/compile_commands.json" build/headless-host/compile_commands.json

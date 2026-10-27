@@ -241,6 +241,8 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
                                size_t title_capacity) {
     if (!rom_path || !keys_dir || !cover_tga_path || !title || title_capacity == 0) return 0;
     title[0] = '\0';
+    // NROs are listed by file name for now; their optional ASET is not an NSP control partition.
+    if (Eden::IsHomebrewFile(rom_path)) return 0;
     Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
     FileSys::RealVfsFilesystem vfs;
     const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
