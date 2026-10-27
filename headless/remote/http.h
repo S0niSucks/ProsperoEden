@@ -51,6 +51,7 @@ extern "C"
         void *user;
         const char *api_version;   /* NULL: no API-version header */
         int https_only;            /* disallow HTTP, including redirects, for public services */
+        int no_redirect;           /* caller validates each redirect before sending another request */
     } remote_http_request;
 
     typedef struct remote_http_result
@@ -60,6 +61,7 @@ extern "C"
         int stopped;         /* the sink or stop ended it */
         uint64_t length;     /* Content-Length of the answer, 0 when it did not say */
         char error[160];     /* what went wrong, in English, for the log and the screen */
+        char redirect_url[2049]; /* resolved Location, only when no_redirect is set; empty if too long */
     } remote_http_result;
 
     /* Runs the request, blocking. Returns 0 when the whole answer arrived (any status), -1 when

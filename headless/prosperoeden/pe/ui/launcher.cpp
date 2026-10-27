@@ -207,7 +207,8 @@ void Launcher::launch(const std::string &file, const std::string &title, const s
 void Launcher::start_game(const std::string &file, const std::string &title, const std::string &cover)
 {
     if (!services_.can_launch_game()) {
-        say(services_.cheat_database().busy ? tr("Finish or cancel the cheat request before starting a game.") :
+        say(services_.amiibo_sync().busy ? tr("Finish or cancel the Amiibo request before starting a game.") :
+            services_.cheat_database().busy ? tr("Finish or cancel the cheat request before starting a game.") :
             tr("Join a room successfully or leave it before starting a game."), true);
         cue(Cue::error);
         return;
@@ -243,6 +244,8 @@ void Launcher::press(Key key)
         return press_mods(key);
     if (modal_ == Modal::cheats)
         return press_cheats(key);
+    if (modal_ == Modal::amiibo)
+        return press_amiibo(key);
     if (modal_ == Modal::game_options)
         return press_game_options(key);
     if (modal_ == Modal::mapping)
@@ -807,6 +810,8 @@ void Launcher::draw(gfx::DrawList &list)
             draw_sources(c, opened);
         else if (modal_shown_ == Modal::usb_backup)
             draw_usb_backup(c, opened);
+        else if (modal_shown_ == Modal::amiibo)
+            draw_amiibo(c, opened);
         else
             draw_dialog(c, modal_shown_, opened);
     }

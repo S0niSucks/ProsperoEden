@@ -60,7 +60,7 @@ class FakeServices : public ui::Services
     }
     void leave_room() override { room = {}; }
     bool can_launch_game() override {
-        return !usb_job.active && !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
+        return !usb_job.active && !amiibo_job.busy && !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
     }
     // Synthetic manager for preview/controller tests. Never opens a network connection or
     // writes codes; the real job/cache/filesystem operations are tested separately in Docker.
@@ -82,6 +82,7 @@ class FakeServices : public ui::Services
     bool check_cheat_database(const ui::Game& game, bool offline) override;
     bool install_cheat_database(const ui::Game& game) override;
     void cancel_cheat_database() override { if (cheat_job.busy) { cheat_job.busy = false; cheat_job.phase = "cancelled"; ++cheat_job.generation; } }
+#include "amiibo_preview.inc"
 
     ui::Home home() override;
     std::string clock() override

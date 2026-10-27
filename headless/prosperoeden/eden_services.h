@@ -108,6 +108,9 @@ public:
     bool check_cheat_database(const pe::ui::Game& game, bool offline) override;
     bool install_cheat_database(const pe::ui::Game& game) override;
     void cancel_cheat_database() override;
+    Eden::AmiiboSyncStatus amiibo_sync() override;
+    bool start_amiibo_sync(const std::vector<std::string>& ids, bool offline, bool confirmed) override;
+    void cancel_amiibo_sync() override;
 
     pe::ui::Sources sources() override;
     void refresh_sources() override;
@@ -159,6 +162,8 @@ private:
     std::string setup_; // what is missing from keys and firmware; empty when ready
     std::mutex bridge_; // Eden's metadata reader keeps state between calls: one caller at a time
     Eden::CheatManager cheat_manager_;
+    Eden::AmiiboSync amiibo_sync_;
+    std::mutex amiibo_path_mutex_; // serializes admission, path changes and launch commitment
     bool launch_committed_ = false;
     std::atomic<bool> usb_active_{false}, usb_stop_{false};
     std::mutex usb_lock_;

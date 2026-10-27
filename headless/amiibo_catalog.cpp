@@ -118,8 +118,15 @@ AmiiboCatalog AmiiboCatalog::Parse(std::string_view text) {
 
 AmiiboCatalog AmiiboCatalog::Read(const std::string& folder) {
     std::vector<unsigned char> text;
-    if (!ReadMetadataFile((std::filesystem::path(folder) / "amiibo.json").string(), kCatalogBytes, text)) return {};
-    return Parse(std::string_view(reinterpret_cast<const char*>(text.data()), text.size()));
+    AmiiboCatalog result;
+    // Downloaded metadata never replaces a user's catalog; explicit local labels win by ID.
+    if (ReadMetadataFile((std::filesystem::path(folder) / "catalog-sync.json").string(), kCatalogBytes, text))
+        result = Parse(std::string_view(reinterpret_cast<const char*>(text.data()), text.size()));
+    if (ReadMetadataFile((std::filesystem::path(folder) / "amiibo.json").string(), kCatalogBytes, text)) {
+        auto local = Parse(std::string_view(reinterpret_cast<const char*>(text.data()), text.size()));
+        for (auto& [id, entry] : local.entries) result.entries.insert_or_assign(id, std::move(entry));
+    }
+    return result;
 }
 
 const AmiiboMetadata* AmiiboCatalog::Find(const std::string& id) const {

@@ -32,7 +32,7 @@ namespace {
 constexpr std::size_t kScriptBytes = 2 * 1024 * 1024;
 constexpr std::size_t kVmBytes = 16 * 1024 * 1024;
 constexpr int kInstructions = 300000;
-const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1", "cheats.catalog.v1"};
+const std::set<std::string> kCapabilities{"draw.atlas.v1", "actions.launch.v1", "audio.named-events.v1", "loading.scene.v1", "state.v1", "updates.launcher-packs.v1", "updates.launcher-packs.view.v1", "cheats.catalog.v1", "amiibo.catalog.v1"};
 bool identifier(std::string_view text) {
     return !text.empty() && text.size() <= 48 && std::all_of(text.begin(), text.end(), [](char c) {
         return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
@@ -136,6 +136,7 @@ struct RuntimeLauncher::Impl {
         ~Pack() { if (host) { for(const auto& [id,texture]:textures) host->batch.delete_texture(texture); host->batch.delete_texture(font_texture); } if (lua) { lua_sethook(lua, nullptr, 0, 0); lua_close(lua); } }
     };
     #include "pe/ui/runtime_update_view.inc"
+    #include "pe/ui/runtime_amiibo_view.inc"
     std::unique_ptr<launcher_updates::Manager> pack_updates;
     std::string updates_id, updates_name, resume_pack;
     bool updates_page{}, rollback_confirmation{}, auto_checked{}, commit_started{}, replacement_seen{}, recovery_attempted{};
@@ -276,6 +277,7 @@ struct RuntimeLauncher::Impl {
     }
     bool select(const std::string& id, bool save = true) {
         if(services.usb_backup_status().active) { last_error="Finish the pending operation before changing launchers"; return false; }
+        if (amiibo_confirmation) { last_error = "Close the Amiibo confirmation before changing launchers"; return false; }
         if(save && updates_page) { last_error="Close launcher updates before changing launchers";return false; }
         if(save && pack_updates->busy() && pack_updates->status("").value("phase","")=="checking") pack_updates->cancel();
         else if(save && pack_updates->busy()) { last_error="Finish the launcher update before changing launchers"; return false; }
@@ -366,6 +368,19 @@ struct RuntimeLauncher::Impl {
         if (name == "mods") { const auto& g=game(args); return {{"mods",services.mods(g.title_id)},{"enabled",services.mods_enabled(g.title_id)},{"folder",services.mods_folder(g.title_id)}}; }
         if (name == "cheats") { const auto& g=game(args); return {{"cheats",services.cheats(g.title_id)},{"enabled",services.cheats_enabled(g.title_id)},{"folder",services.cheats_folder(g.title_id)}}; }
         if (name == "cheat_database") { const auto s=services.cheat_database(); return {{"phase",s.phase},{"game",s.file},{"source",s.source},{"build",s.build},{"error",s.error},{"generation",s.generation},{"done",s.done},{"total",s.total},{"entries",s.entries},{"busy",s.busy},{"offline",s.offline},{"cached",s.cached},{"names",s.names},{"other_builds",s.other_builds},{"other_builds_truncated",s.other_builds_truncated}}; }
+        if (name == "amiibo_sync") {
+            const auto s = services.amiibo_sync(); Json entries = Json::array();
+            const int offset = args.value("offset", 0), limit = args.value("limit", 128);
+            if (offset < 0 || offset > 4096 || limit < 0 || limit > 256) throw std::runtime_error("Invalid Amiibo catalog page");
+            const auto end = std::min(s.entries.size(), static_cast<std::size_t>(offset + limit));
+            for (auto index = static_cast<std::size_t>(offset); index < end; ++index) {
+                const auto& e = s.entries[index]; entries.push_back({{"id",e.id},{"name",e.name},{"series",e.series}});
+            }
+            return {{"phase",s.phase},{"error",s.error},{"folder",s.folder},{"generation",s.generation},
+                {"done",s.done},{"total",s.total},{"busy",s.busy},{"offline",s.offline},
+                {"photos",s.photos},{"reused",s.reused},{"entries",std::move(entries)},
+                {"confirmation_pending",amiibo_confirmation},{"entry_count",s.entries.size()},{"offset",offset}};
+        }
         if (name == "sources") return services.sources();
         if (name == "downloads") return services.downloads();
         if (name == "save_sync") return services.save_sync();
@@ -441,6 +456,23 @@ struct RuntimeLauncher::Impl {
             } else ok=services.check_cheat_database(g,name == "cheat_database.cache");
         }
         else if (name == "cheat_database.cancel") services.cancel_cheat_database();
+        else if (name == "amiibo_sync.start" || name == "amiibo_sync.offline") {
+            if (launch.value("stage", "idle") != "idle") throw std::runtime_error("A game launch is pending");
+            const bool offline = name == "amiibo_sync.offline";
+            const bool confirmed = args.value("confirmed", false);
+            if (!offline && !confirmed) throw std::runtime_error("Confirmation required for public catalog/photo download; no tags or keys are transferred");
+            const auto ids = args.value("ids", std::vector<std::string>{});
+            if (ids.size() > 64) throw std::runtime_error("Select at most 64 public model IDs");
+            for (const auto& id : ids) if (id.size() != 16 || id.find_first_not_of("0123456789abcdefABCDEF") != std::string::npos)
+                throw std::runtime_error("A model ID must have 16 hexadecimal digits");
+            if (offline) ok = services.start_amiibo_sync(ids, true, false);
+            else {
+                if (!amiibo_input_context || amiibo_confirmation || services.amiibo_sync().busy)
+                    throw std::runtime_error("An explicit input action and native confirmation are required");
+                amiibo_confirmation_ids = ids; amiibo_confirmation = true;
+            }
+        }
+        else if (name == "amiibo_sync.cancel") services.cancel_amiibo_sync();
         else if (name == "mods.folder") { const auto& g=game(args); ok=services.make_mods_folder(g.title_id); }
         else if (name == "save.import" || name == "save.export") { const auto& g=game(args); ok=name=="save.import"?services.save_import(g.title_id,&message):services.save_export(g.title_id,&message); }
         else if (name == "sources.refresh") services.refresh_sources();
@@ -682,7 +714,7 @@ struct RuntimeLauncher::Impl {
             launch["sync"]=status;
         }
         finish_update_close();sync_update_view();
-        if(updates_page || commit_started) return;
+        if(updates_page || commit_started || amiibo_confirmation) return;
         if(pack) {
             if(poll_services) { UpdateOffer found; if(services.take_update(&found)) offer=found; }
             if(!call(*pack,"update",{{"dt",std::min(dt,0.05f)},{"time",time}})) fallback();
@@ -690,6 +722,7 @@ struct RuntimeLauncher::Impl {
         } else if(builtin) builtin->update(dt);
     }
     void draw(gfx::DrawList& list) {
+        if (amiibo_confirmation) { draw_amiibo_confirmation(list); return; }
         if(updates_page || commit_started) { if(!draw_update_view(list)) draw_updates(list); return; }
         if(pack) { drawing=&list; draw_commands=0; const bool ok=call(*pack,"draw",{{"time",time}},true); drawing=nullptr; if(!ok) {list.clear(); fallback(); if(builtin) builtin->draw(list);} else batch.sync_font_texture(pack->font_texture,pack->font); }
         else if(builtin) builtin->draw(list);
@@ -723,6 +756,7 @@ RuntimeLauncher::~RuntimeLauncher()=default;
 void RuntimeLauncher::press(Key key) {
     auto& h=*impl_;
     if(h.services.usb_backup_status().active) { if(h.builtin) h.builtin->press(key); return; }
+    if (h.amiibo_confirmation) { h.press_amiibo_confirmation(menu_key_for(key,h.cached_preferences.menu_bind)); return; }
     if(h.updates_page || h.commit_started) {
         if(h.custom_update_view) {
             if(!h.commit_started && !h.pack_updates->replacing()) h.call_update_view("updater_input",{{"key",key_name(key)}},true);
@@ -730,7 +764,7 @@ void RuntimeLauncher::press(Key key) {
         return;
     }
     if(h.picker) { key=menu_key_for(key,h.services.preferences().menu_bind); if(key==Key::circle) h.picker=false; else if(key==Key::up || key==Key::down) h.picker_row=std::clamp(h.picker_row+(key==Key::down?1:-1),0,static_cast<int>(h.installed.size())); else if(key==Key::triangle && h.picker_row>0) h.open_updates(h.installed[h.picker_row-1].at("id").get<std::string>()); else if(key==Key::cross) h.select(h.picker_row==0?"builtin":h.installed[h.picker_row-1].at("id").get<std::string>()); return; }
-    if(h.pack) { if(!h.call(*h.pack,"input",{{"key",key_name(key)}})) h.fallback(); }
+    if(h.pack) { h.amiibo_input_context=true; const bool ok=h.call(*h.pack,"input",{{"key",key_name(key)}}); h.amiibo_input_context=false; if(!ok) h.fallback(); }
     else if(h.builtin) { h.builtin->press(key); if(h.builtin->take_launcher_picker()) open_picker(); }
 }
 void RuntimeLauncher::update(float dt){impl_->update(dt);}

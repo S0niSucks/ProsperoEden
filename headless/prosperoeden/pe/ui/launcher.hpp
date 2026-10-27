@@ -18,7 +18,7 @@
 namespace pe::ui
 {
 
-inline constexpr int kSettingsCategories = 15;
+inline constexpr int kSettingsCategories = 16;
 
 // Every screen of the launcher as one state machine. The frontend feeds it
 // pressed buttons and frame time, draws its list and plays its cues; it ends
@@ -108,6 +108,7 @@ class Launcher
         accent,       // Settings > Colour: the accent preset
         cheats,       // a game's cheats, opened from its settings
         usb_backup,   // Settings > USB backup: protected backup/restore session
+        amiibo,       // opt-in public metadata/photos; never NFC data
     };
     // The update dialog's steps: the offer, installing, stopping it, closing for the helper to
     // finish, and a failure.
@@ -278,6 +279,13 @@ class Launcher
 
     // ---- settings and its dialogs (settings.cpp) ----
     void press_settings(Key key);
+    void open_amiibo();
+    void press_amiibo(Key key);
+    void draw_amiibo(Canvas& c, float open);
+    Eden::AmiiboSyncStatus amiibo_;
+    int amiibo_row_ = 0;
+    bool amiibo_confirm_ = false;
+    std::vector<std::string> amiibo_ids_;
     void draw_settings(Canvas &c);
     void press_dialog(Key key);
     void draw_dialog(Canvas &c, Modal modal, float open);

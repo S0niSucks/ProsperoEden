@@ -102,6 +102,8 @@ int main(int argc,char**argv) {
             else if(command=="cheat-mode"){services.cheat_mode=arg;}
             else if(command=="usb-mode"){services.usb_mode=arg;}
             else if(command=="usb-state"){const auto s=services.usb_backup_status();std::cout<<"USB "<<nlohmann::json({{"phase",s.phase},{"active",s.active},{"busy",s.busy},{"restart",s.restart},{"required",s.estimate.required},{"available",s.estimate.available},{"backups",services.usb_backups},{"restores",services.usb_restores},{"cancels",services.usb_cancels},{"launch_allowed",services.can_launch_game()}}).dump()<<std::endl;}
+            else if(command=="amiibo-mode"){services.amiibo_mode=arg;}
+            else if(command=="amiibo-state"){const auto s=services.amiibo_sync();std::cout<<"AMIIBO "<<nlohmann::json({{"phase",s.phase},{"busy",s.busy},{"offline",s.offline},{"requests",services.amiibo_network_requests},{"ids",services.amiibo_requested_ids},{"entries",s.entries.size()}}).dump()<<std::endl;}
             else if(command=="cheat-complete"){services.cheat_polls=40;}
             else if(command=="mods-empty"){services.has_mods=false;}
             else if(command=="cheat-state"){const auto s=services.cheat_database();std::cout<<"CHEAT "<<nlohmann::json({{"phase",s.phase},{"busy",s.busy},{"offline",s.offline},{"checks",services.cheat_checks},{"installs",services.cheat_installs},{"enabled",services.downloaded_chosen},{"names",s.names},{"other_builds",s.other_builds}}).dump()<<std::endl;}

@@ -17,6 +17,7 @@
 #include "../../../game_files.h"
 #include "../../../cheat_manager_status.h"
 #include "../../../usb_backup.h"
+#include "../../../amiibo_sync.h"
 
 namespace pe::ui
 {
@@ -705,6 +706,9 @@ class Services
     virtual bool check_cheat_database(const Game&, bool /*offline*/) { return false; }
     virtual bool install_cheat_database(const Game&) { return false; }
     virtual void cancel_cheat_database() {}
+    virtual Eden::AmiiboSyncStatus amiibo_sync() { return {}; }
+    virtual bool start_amiibo_sync(const std::vector<std::string>&, bool /*offline*/, bool /*confirmed*/) { return false; }
+    virtual void cancel_amiibo_sync() {}
     // One switch for all of a game's mods (the Library's Mods switch), on unless turned off. The
     // mods keep their own switches behind it.
     virtual bool mods_enabled(std::uint64_t)

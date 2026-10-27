@@ -122,13 +122,15 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
     (void)curl_easy_setopt(t.easy, CURLOPT_REDIR_PROTOCOLS_STR, request->https_only ? "https" : "http,https");
     /* A reverse proxy in front of a server may redirect; curl keeps the Authorization header to the
      * first host only (CURLOPT_UNRESTRICTED_AUTH stays off). */
-    (void)curl_easy_setopt(t.easy, CURLOPT_FOLLOWLOCATION, 1L);
+    (void)curl_easy_setopt(t.easy, CURLOPT_FOLLOWLOCATION, request->no_redirect ? 0L : 1L);
     (void)curl_easy_setopt(t.easy, CURLOPT_MAXREDIRS, (long)remote_http_redirects);
     (void)curl_easy_setopt(t.easy, CURLOPT_HTTP_VERSION, (long)CURL_HTTP_VERSION_1_1);
     (void)curl_easy_setopt(t.easy, CURLOPT_CONNECTTIMEOUT_MS, (long)remote_http_connect_ms);
     (void)curl_easy_setopt(t.easy, CURLOPT_BUFFERSIZE, 1024L * 1024L); /* fewer, larger pieces of a large file */
     if (!request->raw)
         (void)curl_easy_setopt(t.easy, CURLOPT_ACCEPT_ENCODING, ""); /* JSON lists compress well */
+    else
+        headers = curl_slist_append(headers, "Accept-Encoding: identity");
     if (request->timeout_ms > 0)
         (void)curl_easy_setopt(t.easy, CURLOPT_TIMEOUT_MS, request->timeout_ms);
     (void)curl_easy_setopt(t.easy, CURLOPT_LOW_SPEED_LIMIT, 1L);
@@ -203,6 +205,13 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
     done = curl_easy_perform(t.easy);
     (void)curl_easy_getinfo(t.easy, CURLINFO_RESPONSE_CODE, &code);
     (void)curl_easy_getinfo(t.easy, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &length);
+    if (request->no_redirect)
+    {
+        char *redirect = NULL;
+        (void)curl_easy_getinfo(t.easy, CURLINFO_REDIRECT_URL, &redirect);
+        if (redirect != NULL && strlen(redirect) < sizeof(result->redirect_url))
+            memcpy(result->redirect_url, redirect, strlen(redirect) + 1);
+    }
     curl_easy_cleanup(t.easy);
     curl_mime_free(form);
     curl_slist_free_all(headers);

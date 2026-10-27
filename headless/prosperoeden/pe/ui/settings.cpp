@@ -36,17 +36,18 @@ enum Category
     kColour,
     kGames,
     kUsbBackup,
+    kAmiibo,
     kCategoryCount,
 };
 static_assert(kCategoryCount == kSettingsCategories);
 constexpr const char *kCategories[kCategoryCount] = {
     TR("Profiles"), TR("Video"), TR("Performance"), TR("Audio"), TR("Controls"), TR("Accessibility"),
     TR("Diagnostics"), TR("Game files"), TR("Downloads"), TR("Save sync"), TR("Language"), TR("Appearance"),
-    TR("Colour"), TR("ROMs and updates"), TR("USB backup")};
+    TR("Colour"), TR("ROMs and updates"), TR("USB backup"), TR("Amiibo")};
 constexpr Icon kIcons[kCategoryCount] = {
     Icon::profile, Icon::video, Icon::performance, Icon::audio, Icon::controls, Icon::accessibility,
     Icon::diagnostics, Icon::files, Icon::downloads, Icon::sync, Icon::language, Icon::theme,
-    Icon::theme, Icon::files, Icon::sync};
+    Icon::theme, Icon::files, Icon::sync, Icon::sync};
 constexpr int kTileColumns = 4;
 constexpr int kTileRows = 4;
 constexpr float kTileGap = 20.0f;
@@ -272,6 +273,9 @@ void Launcher::press_settings(Key key)
         case kUsbBackup:
             open_usb_backup();
             break;
+        case kAmiibo:
+            open_amiibo();
+            break;
         case kFiles:
             open(Screen::files, true);
             enter_files();
@@ -381,6 +385,7 @@ void Launcher::draw_settings(Canvas &c)
             std::string{accent_presets()[static_cast<std::size_t>(accent_index())].name},
         short_path(services_.games_folder(), 28),
         tr("Back up or restore app data"),
+        tr("Optional catalog and photos"),
     };
     if (t.list_settings)
     {
@@ -1658,4 +1663,5 @@ void Launcher::draw_hud(Canvas &c, float open)
     list.pop_opacity();
 }
 
+#include "amiibo_ui.inc"
 } // namespace pe::ui
