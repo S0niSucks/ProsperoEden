@@ -244,7 +244,17 @@ reproductions above. Do not close composite issues for one corrected symptom.
 - The first follow-up full host suite passed, including shared-font anchors, missing-key
   diagnostics and the new controller reopen/backoff fixtures. Evidence is retained in
   `.local/upstream-audit/followup-host-suite.log`. This run predates the local wallpaper,
-  bounded-font and NRO additions; a final full-suite run with those changes is in progress.
+   bounded-font and NRO additions; the final full-suite run below supersedes it.
+- **Final full host suite: PASS**, ending 2026-10-27 18:50 UTC, including all local runtime
+  changes through `5cbae36`: bounded-font checks, wallpaper path/profile tests, NRO discovery,
+  controller reopen/backoff, ThreadSanitizer heap/idle/spin-lock checks, hooks, memory/JIT,
+  updates, mods, saves and simulated HTTP/FTP. The last step successfully ran three real
+  NRO loader/JIT/guest-exit cycles. Real-server RomM was explicitly skipped. The newly wired
+  catalog check was also run separately and passed for all 30 catalogs.
+  Evidence: `.local/upstream-audit/final-host-suite.log`, `devices-host-final/` and
+  `nro-host-final/`. Host binary SHA-256:
+  `e09c51ee5b236eb09565407ce329fa4eb91570b21f6cc3b7199e55ec2c0df13a`.
+  This is a Linux host executable, not the PS5 app.
 - Current focused checks pass: portable/explicit wallpaper folders and profile settings;
   bounded font reads (including the sparse 1 GiB negative input); settings/history; nested
   game counts with NSZ/XCZ and NRO; moved NRO forwarders; 555 texts in all 30 catalogs.
