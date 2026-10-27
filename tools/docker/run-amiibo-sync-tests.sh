@@ -4,6 +4,8 @@ set -euo pipefail
 exec 9>/tmp/.amiibo-sync-test.lock
 flock -n 9 || { echo 'The private Amiibo test volume is busy.' >&2; exit 2; }
 python3 -B /checkout/tools/check-amiibo-sync.py
+python3 -B /checkout/tools/check-launcher-admission.py
+python3 -B /checkout/tools/check-cheat-manager.py
 mkdir -p /tmp/source
 rsync -a --exclude=/.git --exclude=/.deps --exclude=/.local --exclude=/build \
     --exclude=/dist --exclude=/results /checkout/ /tmp/source/

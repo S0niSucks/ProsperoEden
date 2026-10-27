@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -48,6 +49,31 @@ std::string Read(int dir, const char* name, std::size_t limit, bool optional = f
         if (n < 0 && errno == EINTR) continue;
         Require(n > 0, "Cannot read the Amiibo cache"); done += n;
     }
+    return result;
+}
+struct CatalogSource {
+    std::vector<AmiiboSyncEntry> entries;
+    std::string error;
+};
+CatalogSource ReadCatalog(int dir, const char* name) {
+    try {
+        const auto text = Read(dir, name, kCatalogLimit, true);
+        Require(!text.empty(), "missing or empty");
+        return {ParseAmiiboSyncCatalog(text), {}};
+    } catch (const std::exception& e) {
+        // A bad/unsafe source cannot suppress the other safe catalog. Read never follows links.
+        return {{}, e.what()};
+    }
+}
+std::vector<AmiiboSyncEntry> MergeCatalogs(std::vector<AmiiboSyncEntry> downloaded,
+                                         std::vector<AmiiboSyncEntry> local) {
+    std::map<std::string, AmiiboSyncEntry> unique;
+    for (auto& entry : downloaded) unique.emplace(entry.id, std::move(entry));
+    // Replace the complete label pair, including an explicitly empty/absent local series,
+    // just like AmiiboCatalog::Read. Each source is bounded to 4,096 entries (union <= 8,192).
+    for (auto& entry : local) unique.insert_or_assign(entry.id, std::move(entry));
+    std::vector<AmiiboSyncEntry> result;
+    for (auto& [_, entry] : unique) result.push_back(std::move(entry));
     return result;
 }
 struct Staged {
@@ -158,12 +184,14 @@ void AmiiboSync::Run(const AmiiboSyncRequest& request) {
     (void)PhotoUrl(request.image_template, "0000000000000000");
     File root(OpenRoot(request.folder, !request.offline));
     if (request.offline) {
-        auto text = Read(root.fd, "catalog-sync.json", kCatalogLimit, true);
-        if (text.empty()) text = Read(root.fd, "amiibo.json", kCatalogLimit, true);
-        Require(!text.empty(), "No offline Amiibo catalog. Copy amiibo.json or confirm a catalog download");
-        auto entries = ParseAmiiboSyncCatalog(text);
-        { const std::lock_guard lock(status_mutex_); status_.entries = std::move(entries); }
-        cancelled(); return;
+        auto downloaded = ReadCatalog(root.fd, "catalog-sync.json");
+        auto local = ReadCatalog(root.fd, "amiibo.json");
+        if (downloaded.entries.empty() && local.entries.empty())
+            throw std::runtime_error("No usable offline Amiibo catalog; catalog-sync.json: " + downloaded.error +
+                                     "; amiibo.json: " + local.error);
+        auto entries = MergeCatalogs(std::move(downloaded.entries), std::move(local.entries));
+        const std::lock_guard lock(status_mutex_);
+        cancelled(); status_.entries = std::move(entries); return;
     }
     // This lock is independent of live NFC descriptors. Only cache publishers take it.
     File file_lock(openat(root.fd, ".amiibo-sync.lock", O_RDWR | O_CREAT | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC, 0600));
@@ -202,6 +230,9 @@ void AmiiboSync::Run(const AmiiboSyncRequest& request) {
         ValidateAmiiboSyncPng(bytes); cancelled();
         staged.push_back(std::make_unique<Staged>(images.fd, name, bytes, false));
     }
+    // Only the completed view gets local overrides. Neither downloaded bytes nor the user's
+    // file is rewritten with merged labels, and failures/cancellation keep the old snapshot.
+    auto display_entries = MergeCatalogs(std::move(entries), ReadCatalog(root.fd, "amiibo.json").entries);
     // All requested responses are valid before publication. Per-file atomic, not a batch transaction.
     { const std::lock_guard lock(status_mutex_); status_.phase = "saving"; }
     for (auto& photo : staged) {
@@ -211,7 +242,7 @@ void AmiiboSync::Run(const AmiiboSyncRequest& request) {
     }
     cancelled(); progress(0, 0); metadata.Commit();
     {
-        const std::lock_guard lock(status_mutex_); status_.entries = std::move(entries);
+        const std::lock_guard lock(status_mutex_); status_.entries = std::move(display_entries);
     }
 }
 } // namespace Eden

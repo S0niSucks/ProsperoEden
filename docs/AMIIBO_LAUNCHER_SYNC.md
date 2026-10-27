@@ -31,6 +31,25 @@ the feature on PS5 or change release/version metadata.
   into the separate, reserved `amiibo/catalog-sync.json` cache. The real catalog reader merges
   these with local names/series taking priority by full model ID. Broken/missing downloaded
   metadata does not suppress a valid local catalog.
+- The worker's offline view independently reads and strictly parses **both** bounded sources,
+  then forms a sorted, unique full-model-ID union. A valid local entry replaces both name and
+  series (even an absent/empty local series); disjoint local IDs remain visible. Completed online
+  status applies the same merge to the fetched catalog, without persisting local labels into
+  the downloaded cache or changing `amiibo.json`. Photo IDs must still exist in the fetched
+  public catalog; local-only entries cannot authorize unknown photo downloads.
+- A missing, zero-byte, malformed, oversized, unreadable or unsafe individual read source is
+  ignored **only if the other source is usable**. Parsing is all-or-nothing per source, not a
+  recovery of selected rows from malformed JSON. Symlinks are never followed; FIFOs/directories/
+  nonregular targets are never read as catalog bytes. Fallback succeeds with `phase=ready` and
+  no error. If neither source has valid nonempty entries, offline refresh fails with
+  `No usable offline Amiibo catalog; catalog-sync.json: <reason>; amiibo.json: <reason>`.
+  Missing/zero-byte files report `missing or empty`, valid empty tables report
+  `Amiibo catalog is empty`, other invalid JSON reports its parser/validation error, and unsafe
+  opens/targets report the safe-path/bounded-regular-file error. An unsafe/missing collection
+  directory fails at safe-root opening, before reading either source. The prior same-folder
+  snapshot survives failure/cancellation; a different collection never inherits its labels.
+  Online publication still rejects an unsafe reserved cache/photo target rather than replacing
+  it; an unusable local catalog is ignored in the completed online view.
 - Only `images/icon_<head>-<tail>.png` can be created. All existing photos, including invalid
   or empty custom files, are preserved. Invalid cached art fails the requested run rather
   than silently replacing it. Paired PNGs and `cover.png` are never touched. A regular photo
@@ -57,6 +76,7 @@ the feature on PS5 or change release/version metadata.
 
 `amiibo_sync_format.cpp` ports strict compact/API catalog validation: 2 MiB, 4,096 entries,
 65,536 parser events, depth 16, unique keys/normalized IDs, UTF-8 JSON and 128-byte labels.
+These bounds apply to each source; their merged view contains at most 8,192 unique IDs.
 Downloaded metadata is normalized to names/series/full IDs, stripping unrelated API URLs/data.
 PNG validation covers signature, chunk names/order/CRC, palette/transparency, dimensions
 (1,024 per axis), supported bit depth/color, exact bounded zlib scanlines (including Adam7),
@@ -76,10 +96,19 @@ platform-dependent; no hard PS5 latency claim is made.
 
 `AmiiboSync` owns its request strings, result and worker. Start/Stop are serialized, busy starts
 are refused, and Stop closes admission, cancels and joins before destruction. The service's
-separate path mutex serializes request admission, file-folder changes and launch commitment.
-Folder changes are refused while busy. `can_launch_game` refuses a busy worker; `will_play`
-also stops/joins it defensively. Workers never read mutable global paths or retain launcher,
-metadata-bridge, Lua-VM or NFC references. A new service owns a fresh worker after gameplay.
+single `job_admission_mutex_` serializes **both** Amiibo/cheat Start/Install calls, relevant path
+changes, launch checks and terminal launch commitment. Every `launch_committed_` access takes
+that guard; using an atomic flag alone would not serialize CheatManager's owner-only lifecycle.
+File-folder changes are refused while either worker is busy, and games-folder changes while
+the cheat worker is busy. After `will_play`, all new job/path admissions are refused.
+`can_launch_game` is advisory until `will_play` commits under the same guard; `will_play` cancels
+and joins both workers defensively even if a caller skipped the check. Lock order is admission
+then metadata bridge; **no bridge lock is held across either worker join**, and workers never
+take the admission guard. Direct CheatManager Start/Install/Stop still require its owner thread
+or equivalent external serialization. Other EdenServices APIs remain launcher-thread-owned;
+callers must quiesce before destroying the service. Amiibo workers never read mutable global
+paths or retain launcher, metadata-bridge, Lua-VM or NFC references. A new service owns a fresh
+worker after gameplay.
 
 ## Optional Lua contract
 
@@ -89,7 +118,7 @@ Capability: `amiibo.catalog.v1` (no API/release version change).
 local s = host.query("amiibo_sync", {offset=0, limit=128})
 -- s: phase, error, folder, busy, offline, generation, done, total,
 --    photos, reused, entry_count, offset, entries[{id,name,series}], confirmation_pending
--- Pages default to 128, maximum 256; offset 0..4096.
+-- Pages default to 128, maximum 256; offset 0..8192 (bounded two-source union).
 
 host.action("amiibo_sync.offline", {})  -- no network; refresh local catalog
 -- From a real input handler, after describing the intended selection:
@@ -126,6 +155,19 @@ test. The standalone backend check needs only loopback networking and can use `-
   PNG/catalog fixtures, confirmation gate, offline/cancel/failure/no-clobber, staging cleanup,
   path/FIFO/link/lock rejection, unknown/oversized ID requests, value-owned stale configuration
   and shutdown. Normal, ASan/UBSan and TSan variants are selected by the script.
+- Worker fixtures additionally cover overlapping/disjoint full IDs (including identical tails
+  with different heads), local name/series replacement and empty-series precedence, online
+  cache separation, malformed/missing/empty sources, safe-peer fallback from symlink/FIFO/
+  directory/oversized targets, both-unusable errors, all 8,192 disjoint IDs, and failed/cancelled
+  refresh snapshot retention. No symlink target supplies labels.
+- `tools/check-launcher-admission.py` compiles verbatim production service admission methods
+  and the actual guard/worker member block with real Amiibo/CheatManager workers. Only the
+  surrounding console/core services, paths, build probe and transports are simulated. It
+  exercises concurrent cheat Start/Install/launch-commit races, post-commit refusal, busy path
+  protection, and proves the bridge remains available while **each** Stop/join is blocked.
+  Normal, ASan/UBSan and TSan runs supplement (not replace) actual console integration.
+  `tools/check-cheat-manager.py` also remains in this feature's private-volume runner to check
+  old source/full-build binding, cache/install preservation, serialized probes and cancellation.
 - Actual `remote/http.c` libcurl over private loopback TLS exercises catalog + photo + offline,
   same-origin redirects, cross-origin/downgrade/loop refusal, certificate trust/hostname failures,
   chunked/truncated/oversized/error responses and cancellation. No public service/art is fetched.

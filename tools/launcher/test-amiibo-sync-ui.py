@@ -102,7 +102,7 @@ return {init=function()
 end,draw=function() end,input=function(e)
  local actions={cross="amiibo_sync.start",square="amiibo_sync.offline",triangle="amiibo_sync.start",circle="amiibo_sync.cancel"}
  local r=actions[e.key] and host.action(actions[e.key],{ids={"0000000000000001"},confirmed=e.key=="triangle"}) or {}
- host.action("state.save",{startup=startup,result=r,status=host.query("amiibo_sync")})
+ host.action("state.save",{startup=startup,result=r,status=host.query("amiibo_sync"),tail=host.query("amiibo_sync",{offset=8192})})
 end}
 ''')
     (config / 'launcher.json').write_text(json.dumps({'schema': 1, 'selected': 'amiibo-test'}))
@@ -116,6 +116,7 @@ end}
     s.need(not result()['startup']['ok'], 'Lua init rejects a forged confirmed boolean')
     s.need(not result()['result']['ok'], 'Lua cannot bypass confirmation')
     s.key('square'); s.need(result()['status']['offline'] and len(result()['status']['entries']) == 20, 'Lua offline catalog contains names and exact IDs')
+    s.need(result()['tail']['offset'] == 8192 and not result()['tail']['entries'], 'Lua paging admits the full bounded two-source union')
     s.command('amiibo-mode slow'); s.key('triangle')
     s.need(result()['result']['ok'] and result()['status']['confirmation_pending'] and s.state()['requests'] == 0,
            'Lua intent opens host-owned confirmation without network')

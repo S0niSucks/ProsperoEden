@@ -601,8 +601,8 @@ bool EdenServices::connect_public_room(const Eden::Multiplayer::Connection& conn
 }
 void EdenServices::leave_room() { rooms_.Leave(); }
 bool EdenServices::can_launch_game() {
-    if (usb_active_) return false;
-    if (cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_ || launch_committed_ || cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
     const auto phase = rooms_.GetSnapshot().phase;
     return phase == Eden::Multiplayer::Phase::Idle || phase == Eden::Multiplayer::Phase::Connected;
 }
@@ -1390,7 +1390,8 @@ std::string EdenServices::saved_files_folder() { return Eden::LoadSavedAssetsDir
 std::string EdenServices::games_folder() { return Eden::GamesDir(); }
 std::string EdenServices::saved_games_folder() { return Eden::LoadSavedGamesDir(); }
 bool EdenServices::set_games_folder(const std::string& directory) {
-    if (usb_active_) return false;
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_ || launch_committed_ || cheat_manager_.Status().busy) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveGamesDir(directory);
     if (!saved) Eden::Report("settings", "Could not write the independent games folder");
@@ -1399,9 +1400,8 @@ bool EdenServices::set_games_folder(const std::string& directory) {
 std::string EdenServices::default_files_folder() { return Eden::kDefaultAssetsDir; }
 
 bool EdenServices::set_files_folder(const std::string& directory) {
-    if (usb_active_) return false;
-    const std::lock_guard path_lock(amiibo_path_mutex_);
-    if (launch_committed_ || amiibo_sync_.Status().busy) return false;
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_ || launch_committed_ || amiibo_sync_.Status().busy || cheat_manager_.Status().busy) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveAssetsDir(directory);
     if (!saved) Eden::Report("settings", "Could not write the game files folder");
@@ -1573,11 +1573,13 @@ Eden::CheatManagerRequest EdenServices::CheatRequest(const pe::ui::Game& game) {
 }
 pe::ui::CheatDatabase EdenServices::cheat_database() { return cheat_manager_.Status(); }
 bool EdenServices::check_cheat_database(const pe::ui::Game& game, bool offline) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     if (launch_committed_ || game.remote || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
     return cheat_manager_.Start(CheatRequest(game), offline);
 }
 bool EdenServices::install_cheat_database(const pe::ui::Game& game) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     if (launch_committed_ || game.remote || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
     return cheat_manager_.Install(CheatRequest(game));
@@ -1586,7 +1588,7 @@ void EdenServices::cancel_cheat_database() { cheat_manager_.Cancel(); }
 
 Eden::AmiiboSyncStatus EdenServices::amiibo_sync() { return amiibo_sync_.Status(); }
 bool EdenServices::start_amiibo_sync(const std::vector<std::string>& ids, bool offline, bool confirmed) {
-    const std::lock_guard path_lock(amiibo_path_mutex_);
+    const std::lock_guard admission(job_admission_mutex_);
     if (launch_committed_ || (!offline && !Eden::FilesystemAccess())) return false;
     Eden::AmiiboSyncRequest request;
     request.folder = Eden::AssetsPath("amiibo"); // snapshot on launcher thread, never on worker
@@ -1957,7 +1959,7 @@ void EdenServices::stop_save_sync() {
 }
 
 void EdenServices::will_play(const std::string& file) {
-    const std::lock_guard path_lock(amiibo_path_mutex_);
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return;
     launch_committed_ = true;
     amiibo_sync_.Stop();

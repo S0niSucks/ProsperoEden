@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Synthetic pixels and public-ID-shaped strings only. No tag/key bytes or third-party art.
 #include "amiibo_sync.h"
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstdio>
@@ -55,6 +56,101 @@ void NoTemps(const fs::path& root) {
     for (const auto& item : fs::recursive_directory_iterator(root))
         assert(!item.path().filename().string().starts_with(".amiibo-sync-"));
 }
+using Labels = std::vector<std::array<std::string, 3>>;
+Labels LabelsOf(const Eden::AmiiboSyncStatus& status) {
+    Labels labels;
+    for (const auto& e : status.entries) labels.push_back({e.id, e.name, e.series});
+    return labels;
+}
+void CatalogViews(const fs::path& root) {
+    const auto folder = root / "views";
+    fs::create_directory(folder);
+    const auto downloaded = folder / "catalog-sync.json", local = folder / "amiibo.json";
+    const std::string custom = R"({"amiibos":{"0x0000000000000001":{"name":"My One"},"0x1000000000000001":{"name":"My Other Head"}},"amiibo_series":{"0x00":"My Series"}})";
+    const Labels remote{{"0000000000000001", "Synthetic One", "Fixture"}, {"0000000000000002", "Synthetic Two", ""}};
+    const Labels mine{{"0000000000000001", "My One", "My Series"}, {"1000000000000001", "My Other Head", "My Series"}};
+    const Labels merged{mine[0], remote[1], mine[1]};
+    Write(root / "remote-link-target.json", catalog); Write(root / "local-link-target.json", custom);
+    Eden::AmiiboSync sync(SyntheticFetch);
+    Eden::AmiiboSyncRequest request; request.folder = folder.string(); request.offline = true;
+    const auto offline = [&] {
+        const auto before_calls = calls.load(); assert(sync.Start(request)); auto status = Wait(sync);
+        assert(calls == before_calls); return status;
+    };
+    const auto expect = [&](const Labels& labels) {
+        const auto status = offline(); assert(status.phase == "ready" && status.error.empty());
+        assert(LabelsOf(status) == labels);
+    };
+    Write(downloaded, catalog); Write(local, custom);
+    expect(merged); // overlapping/disjoint IDs, same tail but different head, unique sorted full IDs
+    assert(Read(downloaded) == catalog && Read(local) == custom);
+    request.offline = false; request.confirmed = true;
+    assert(sync.Start(request)); auto status = Wait(sync);
+    assert(status.phase == "ready" && LabelsOf(status) == merged);
+    const auto normalized = Read(downloaded);
+    Eden::AmiiboSyncStatus saved; saved.entries = Eden::ParseAmiiboSyncCatalog(normalized);
+    assert(LabelsOf(saved) == remote);
+    assert(Read(local) == custom); // completed status only, never persist user overrides to the cache
+    request.offline = true;
+    Write(local, R"({"amiibo":[{"head":"00000000","tail":"00000001","name":"Only Name"}]})");
+    expect({{"0000000000000001", "Only Name", ""}, remote[1]}); // local absent series clears remote series
+    Write(local, custom); Write(downloaded, "{"); expect(mine); // bad sync / good local
+    Write(downloaded, catalog); Write(local, "{"); expect(remote); // bad local / good sync
+    fs::remove(local); expect(remote);
+    Write(local, custom); fs::remove(downloaded); expect(mine);
+    // Rejected sources are isolated, not followed/opened as ordinary files. A safe peer still wins.
+    fs::create_symlink(root / "remote-link-target.json", downloaded); expect(mine);
+    fs::remove(downloaded); assert(mkfifo(downloaded.c_str(), 0600) == 0); expect(mine);
+    fs::remove(downloaded); fs::create_directory(downloaded); expect(mine);
+    fs::remove(downloaded); Write(downloaded, std::string(2 * 1024 * 1024 + 1, ' ')); expect(mine);
+    Write(downloaded, catalog); fs::remove(local);
+    fs::create_symlink(root / "local-link-target.json", local); expect(remote);
+    // No usable source is a failed refresh, not a successful empty list. Preserve the last good view.
+    const auto failure = [&] {
+        const auto previous = LabelsOf(sync.Status()); const auto status = offline();
+        assert(status.phase == "failed" && LabelsOf(status) == previous);
+        assert(status.error.starts_with("No usable offline Amiibo catalog; catalog-sync.json: "));
+        assert(status.error.find("; amiibo.json: ") != status.error.npos);
+        return status.error;
+    };
+    fs::remove(downloaded); // even a link to a valid regular catalog is not a usable source
+    assert(failure().find("Cannot open a safe Amiibo cache path") != std::string::npos);
+    fs::remove(local); auto error = failure();
+    assert(error == "No usable offline Amiibo catalog; catalog-sync.json: missing or empty; amiibo.json: missing or empty");
+    Write(downloaded, ""); Write(local, R"({"amiibo":[]})");
+    assert(failure().find("Amiibo catalog is empty") != std::string::npos);
+    Write(downloaded, "{"); Write(local, "{"); failure();
+    // A refresh's new labels must never leak into a failed/cancelled snapshot.
+    Write(downloaded, catalog); Write(local, custom); expect(merged);
+    Write(local, R"({"amiibo":[{"head":"00000000","tail":"00000001","name":"Do Not Publish"}]})");
+    request.offline = false; request.ids = {"ffffffffffffffff"};
+    assert(sync.Start(request)); status = Wait(sync);
+    assert(status.phase == "failed" && LabelsOf(status) == merged && Read(downloaded) == catalog);
+    request.ids.clear(); mode = 1; calls = 0; assert(sync.Start(request));
+    while (!calls) std::this_thread::yield();
+    assert(LabelsOf(sync.Status()) == merged); sync.Cancel(); status = Wait(sync);
+    assert(status.phase == "cancelled" && LabelsOf(status) == merged && Read(downloaded) == catalog);
+    mode = 0;
+    // Bounds apply per source: preserve the entire disjoint union and make every ID pageable.
+    const auto large = [](unsigned head) {
+        std::string text = "{\"amiibo\":[";
+        for (unsigned n = 0; n < 4096; ++n) {
+            char item[160]; std::snprintf(item, sizeof(item),
+                "%s{\"head\":\"%08x\",\"tail\":\"%08x\",\"name\":\"Bounded\"}", n ? "," : "", head, n);
+            text += item;
+        }
+        return text + "]}";
+    };
+    request.offline = true; Write(downloaded, large(0)); Write(local, large(1));
+    status = offline(); assert(status.phase == "ready" && status.entries.size() == 8192);
+    for (std::size_t i = 1; i < status.entries.size(); ++i) assert(status.entries[i - 1].id < status.entries[i].id);
+    // An unsafe collection root cannot be bypassed even when its target contains usable catalogs.
+    fs::create_directory_symlink(folder, root / "views-link");
+    request.offline = true; request.folder = (root / "views-link").string();
+    assert(sync.Start(request)); status = Wait(sync); assert(status.phase == "failed" && status.entries.empty());
+    sync.Stop(); NoTemps(folder);
+    std::puts("Amiibo catalog views PASS: bounded independent sources, full-ID union, local name/series overrides, online cache separation, malformed/missing/empty/unsafe fallback, failure/cancel snapshots");
+}
 extern "C" void console_curl_setup(CURL* easy) {
     curl_easy_setopt(easy, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(easy, CURLOPT_CAINFO, std::getenv("AMIIBO_TEST_CA"));
@@ -84,6 +180,8 @@ int main(int argc, char** argv) {
         } else assert(!fs::exists(root / "amiibo/catalog-sync.json"));
         sync.Stop(); NoTemps(root); fs::remove_all(root); return 0;
     }
+    CatalogViews(root);
+    calls = 0;
     Eden::ValidateAmiiboSyncPng(Png());
     auto corrupt = Png(); corrupt[40] ^= 1; Reject([&] { Eden::ValidateAmiiboSyncPng(corrupt); });
     Reject([&] { Eden::ValidateAmiiboSyncPng(Png() + "trailing"); });

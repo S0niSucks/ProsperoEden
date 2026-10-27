@@ -163,8 +163,10 @@ private:
     std::mutex bridge_; // Eden's metadata reader keeps state between calls: one caller at a time
     Eden::CheatManager cheat_manager_;
     Eden::AmiiboSync amiibo_sync_;
-    std::mutex amiibo_path_mutex_; // serializes admission, path changes and launch commitment
-    bool launch_committed_ = false;
+    // One guard for Amiibo/cheat/USB admission, path changes and launch commitment.
+    // Lock order: admission -> bridge. Workers never take admission; never hold bridge across Stop/join.
+    std::mutex job_admission_mutex_;
+    bool launch_committed_ = false; // guarded by job_admission_mutex_; no reopening after will_play
     std::atomic<bool> usb_active_{false}, usb_stop_{false};
     std::mutex usb_lock_;
     std::thread usb_thread_;

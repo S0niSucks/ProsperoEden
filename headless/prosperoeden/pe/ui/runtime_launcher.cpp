@@ -371,7 +371,7 @@ struct RuntimeLauncher::Impl {
         if (name == "amiibo_sync") {
             const auto s = services.amiibo_sync(); Json entries = Json::array();
             const int offset = args.value("offset", 0), limit = args.value("limit", 128);
-            if (offset < 0 || offset > 4096 || limit < 0 || limit > 256) throw std::runtime_error("Invalid Amiibo catalog page");
+            if (offset < 0 || offset > 8192 || limit < 0 || limit > 256) throw std::runtime_error("Invalid Amiibo catalog page");
             const auto end = std::min(s.entries.size(), static_cast<std::size_t>(offset + limit));
             for (auto index = static_cast<std::size_t>(offset); index < end; ++index) {
                 const auto& e = s.entries[index]; entries.push_back({{"id",e.id},{"name",e.name},{"series",e.series}});
