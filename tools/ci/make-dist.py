@@ -14,6 +14,7 @@ import os
 import pathlib
 import re
 import shutil
+import stat
 import sys
 import zipfile
 from urllib.parse import urljoin
@@ -21,7 +22,7 @@ from urllib.parse import urljoin
 root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / 'tools'))
 from build_identity import identity
-from network_privacy import private_network_path
+from network_privacy import public_export_paths
 args = sys.argv[1:]
 if len(args) != 1:
     sys.exit(__doc__.strip())
@@ -32,8 +33,8 @@ dist = root / 'dist'
 shutil.rmtree(dist, ignore_errors=True)
 dist.mkdir()
 archive = dist / f'ProsperoEden-{tag}.zip'
-files = [(p, 'PPSA99008/' + p.relative_to(app).as_posix()) for p in sorted(app.rglob('*'))
-         if p.is_file() and not private_network_path(p.relative_to(app))]
+files = [(p, 'PPSA99008/' + p.relative_to(app).as_posix())
+         for p, metadata in public_export_paths(app) if stat.S_ISREG(metadata.st_mode)]
 files += [(root / name, name) for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md') if (root / name).exists()]
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
     for path, name in files:

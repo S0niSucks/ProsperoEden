@@ -12,7 +12,7 @@ from urllib.parse import urlsplit
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from network_privacy import private_network_path
+from network_privacy import public_export_paths
 
 
 def version(value):
@@ -46,17 +46,12 @@ def package(folder, output, url, previous=None, notes='', min_app=None):
         version(min_app)
     files = []
     total = 0
-    for path in sorted(folder.rglob('*')):
+    for path, metadata in public_export_paths(folder):
         relative = path.relative_to(folder).as_posix()
-        if private_network_path(relative):
-            continue
-        mode = path.lstat().st_mode
-        if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
-            raise ValueError(f'Links and special files are forbidden: {relative}')
         if len((identifier + '/' + relative).encode()) > 240 or len(path.relative_to(folder).parts) > 20 or any(':' in part or any(ord(c) < 32 or ord(c) == 127 or c == '\\' for c in part) for part in path.relative_to(folder).parts):
             raise ValueError(f'Invalid resource path: {relative}')
-        if path.is_file():
-            size = path.stat().st_size
+        if stat.S_ISREG(metadata.st_mode):
+            size = metadata.st_size
             if size > 64 * 1024**2:
                 raise ValueError(f'Resource exceeds 64 MiB: {relative}')
             total += size
