@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Irrota tili"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Vahvista korvaus selaimella"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Yhdistä tämän PS5:n selaimessa"
 
@@ -2780,3 +2776,321 @@ msgstr "Pidä ProsperoEden käynnissä. Älä avaa tätä puhelimella tai muulla
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Takaisin / peruuta"
+
+msgid "Network"
+msgstr "Verkko"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Kirjoitussuojattu verkkopeli. Tallennukset, modit ja välimuistit pysyvät paikallisina."
+
+msgid "Location name"
+msgstr "Sijainnin nimi"
+
+msgid "Protocol"
+msgstr "Protokolla"
+
+msgid "Server IPv4"
+msgstr "Palvelimen IPv4-osoite"
+
+msgid "Share / export"
+msgstr "Jako / vienti"
+
+msgid "Games folder"
+msgstr "Pelikansio"
+
+msgid "Updates / DLC folder"
+msgstr "Päivitysten / DLC:n kansio"
+
+msgid "Enabled"
+msgstr "Käytössä"
+
+msgid "Server port"
+msgstr "Palvelimen portti"
+
+msgid "SMB user"
+msgstr "SMB-käyttäjä"
+
+msgid "SMB password"
+msgstr "SMB-salasana"
+
+msgid "SMB domain"
+msgstr "SMB-toimialue"
+
+msgid "SMB encryption"
+msgstr "SMB-salaus"
+
+msgid "NFS UID"
+msgstr "NFS-UID"
+
+msgid "NFS GID"
+msgstr "NFS-GID"
+
+msgid "NFS mount port"
+msgstr "NFS-liitosportti"
+
+msgid "Timeout (ms)"
+msgstr "Aikakatkaisu (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Välimuisti (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 tai NFS v3 TCP:n kautta. Protokollan vaihtaminen tyhjentää jaon ja SMB-kirjautumistiedot tästä luonnoksesta."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Vain numeerinen IPv4-osoite. Muokkauksen aikana ei oteta yhteyttä palvelimiin."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: vain jaon nimi. NFS: absoluuttinen vientipolku, esimerkiksi /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Suhteessa jakoon / vientiin. Jätä tyhjäksi, jos haluat käyttää juurikansiota. Ei linkkejä eikä ..-polkuosia."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Valinnainen, suhteessa pelikansioon. Etsii tästä kansiosta ja yhdeltä alikansiotasolta peliin sopivia päivityksiä / DLC:tä."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter-painikkeella korvaat salasanan järjestelmän näppäimistöllä, jossa syöttö on piilotettu. Neliö tyhjentää sen; Kolmio palauttaa tallennetun salasanan."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Tyhjä käyttäjänimi valitsee SMB2-vieraskäytön. Tyhjennä myös salasana ja toimialue sekä poista salaus käytöstä. Allekirjoitettu kirjautuminen vaatii käyttäjän."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Pakollinen salaus vaatii SMB3:n ja käyttäjän. Yhteys epäonnistuu, jos palvelin ei tue vaatimuksia; suojausta ei heikennetä huomaamatta."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYS -todennuksen numeerinen tunniste (0–2147483647). Määritä palvelimellasi vain lukuoikeudet."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Arvo 0 kysyy palvelimen portmapperilta mountd-palvelun portin. Käytä muussa tapauksessa kiinteää TCP-liitosporttia (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Toimintokohtainen aikakatkaisu, 250–15000 millisekuntia. Hauilla on lisäksi oma rajattu lukubudjettinsa."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Kirjoitussuojattu välimuisti, 1–32 MiB yhdistettyä sijaintia kohden. Kokonaisia pelejä ei ladata."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Muutokset pysyvät tässä luonnoksessa, kunnes valitset Tallenna. Peruuta jättää tallennetut asetukset ennalleen."
+
+msgid "Network settings saved."
+msgstr "Verkkoasetukset tallennettu."
+
+msgid "Edit network location"
+msgstr "Muokkaa verkkosijaintia"
+
+msgid "Add network location"
+msgstr "Lisää verkkosijainti"
+
+msgid "Network shares"
+msgstr "Verkkojaot"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "Kirjoitussuojattu SMB / NFS · Enintään neljä sijaintia · Sisäänrakennettu yksityinen näppäimistö"
+
+msgid "Remove this network location?"
+msgstr "Poistetaanko tämä verkkosijainti?"
+
+msgid "Discard unsaved changes?"
+msgstr "Hylätäänkö tallentamattomat muutokset?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Vain sijainnin tallennetut yhteysasetukset poistetaan. Palvelimen tiedostoja ja paikallisia pelitallennuksia ei poisteta."
+
+msgid "The saved network configuration will not change."
+msgstr "Tallennetut verkkoasetukset eivät muutu."
+
+msgid "Confirm"
+msgstr "Vahvista"
+
+msgid "Keep editing / back"
+msgstr "Jatka muokkausta / takaisin"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Käsitellään… Ympyrä peruu, ennen kuin tallennus on tehty lopulliseksi."
+
+msgid "Not set"
+msgstr "Ei asetettu"
+
+msgid "Connecting and scanning…"
+msgstr "Yhdistetään ja etsitään…"
+
+msgid "Connected · {0} games"
+msgstr "Yhdistetty · {0} peliä"
+
+msgid "Disconnected"
+msgstr "Yhteys katkaistu"
+
+msgid "Save (no connection)"
+msgstr "Tallenna (ei yhteyttä)"
+
+msgid "Save and reconnect"
+msgstr "Tallenna ja yhdistä uudelleen"
+
+msgid "Cancel editing"
+msgstr "Peruuta muokkaus"
+
+msgid "Reconnect saved locations"
+msgstr "Yhdistä tallennetut sijainnit uudelleen"
+
+msgid "Disconnect / cancel"
+msgstr "Katkaise yhteys / peruuta"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 vaihtaa sivua"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Tallenna ei koskaan ota yhteyttä palvelimeen. Tallenna ja yhdistä uudelleen lataa nimenomaisesti käyttöön otetut sijainnit uudelleen ja yhdistää niihin."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Valitse muokattava sijainti tai Lisää verkkosijainti. Neliö poistaa valitun sijainnin vahvistuksen jälkeen."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Kirjautumistiedot ovat yksityistä selväkielistä tekstiä tiedostossa config/network-shares.json (0600), eivät salattuja. Älä jaa tätä tiedostoa tai sen valmisteltuja kopioita."
+
+msgid "Edit / select"
+msgstr "Muokkaa / valitse"
+
+msgid "Replace"
+msgstr "Korvaa"
+
+msgid "Clear"
+msgstr "Tyhjennä"
+
+msgid "Keep saved"
+msgstr "Säilytä tallennettu arvo"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Yhdistetäänkö Nextendo-peli-istunto? Jaa identiteettisi ja salli peliseuran haku (identity, game.matchmaking). Oikeuksia kavereihin, läsnäolotilaan tai profiilin muokkaamiseen ei pyydetä. Pelireititys pysyy pois päältä, kunnes otat sen erikseen käyttöön."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Vahvista lupa identiteettisi jakamiseen ja peliseuran hakuun ennen Nextendo-peli-istunnon yhdistämistä."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Etätarkistukset eivät ole käytettävissä vain pelaamiseen tarkoitetuissa Nextendo-istunnoissa. Yhdistä uudelleen saadaksesi uuden peli-istunnon; tallennettua istuntoa ei ole poistettu."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendo-peli-istunto on vanhentunut tai kello on väärässä. Yhdistä uudelleen ennen käyttöönottoa tai pelin käynnistämistä."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Nextendo-peli-istunnon yhdistäminen epäonnistui. Tarkista rekisteröinti, suostumus, verkkoyhteys ja luotetut varmenteet."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Virheellinen oauth.json. Anna rekisteröity client_id ja HTTP-redirect_uri osoitteella 127.0.0.1 (portti >= 1024 tai {port}); app on valinnainen."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo-toiminto peruttu."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo-toiminto epäonnistui. Yritä uudelleen tai poista istunnon yhdistys."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Pelaa kirjoitussuojattuja SMB- tai NFS-pelejä lataamatta niitä."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Virheelliset verkkojaon asetukset. Korjaa tuotu JSON ennen muokkausta; tiedostoa ei korvattu."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Verkkoasetusten on oltava tavallinen tiedosto, jonka yläkansiot eivät ole linkkejä (enintään 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Verkkoasetuksia muutettiin tämän muokkaimen ulkopuolella. Avaa muokkain uudelleen; mitään ei korvattu."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Peruttu. Tallennettuja verkkoasetuksia ei muutettu."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Tallennettu, mutta hakemiston synkronointia ei voitu vahvistaa."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Verkkoasetuksia ei voitu tallentaa. Aiempi tiedosto säilytettiin."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Verkkoasetusten näppäimistö ei ole käytettävissä."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Virheellinen arvo. Käytä numeerista IPv4-osoitetta, turvallisia polkuja, kelvollisia portteja, aikakatkaisua 250–15000 ms ja välimuistia 1–32 MiB. SMB-kirjautumistiedot vaativat käyttäjän."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Palvelimen IPv4-osoite ja jako / vienti vaaditaan. Anna ne ennen tallennusta."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Tämä verkkosijainti on jo olemassa. Muokkaa sitä uuden lisäämisen sijaan."
+
+msgid "At most four network locations can be saved."
+msgstr "Enintään neljä verkkosijaintia voidaan tallentaa."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Verkkoasetukset eivät ole käytettävissä toisen suojatun tehtävän tai pelin käynnistyessä."
+
+msgid "Reopen the network location before editing."
+msgstr "Avaa verkkosijainti uudelleen ennen muokkausta."
+
+msgid "Network location"
+msgstr "Verkkosijainti"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Pakollinen (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Pois (käyttäjän kanssa vaaditaan allekirjoitus)"
+
+msgid "Replacement set"
+msgstr "Korvaava arvo asetettu"
+
+msgid "Set / keep existing"
+msgstr "Asetettu / säilytä nykyinen"
+
+msgid "Network location name"
+msgstr "Verkkosijainnin nimi"
+
+msgid "Network server IPv4"
+msgstr "Verkkopalvelimen IPv4-osoite"
+
+msgid "Network share / export"
+msgstr "Verkkojako / vienti"
+
+msgid "Network games folder (relative)"
+msgstr "Verkon pelikansio (suhteellinen)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Verkon päivitysten / DLC:n kansio (suhteellinen)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB-käyttäjä (tyhjä = vieras)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB-salasana (yksityinen korvaava arvo)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB-toimialue (valinnainen)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS -käyttäjätunniste UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS -ryhmätunniste GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS-liitosportti (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Verkkopalvelimen TCP-portti"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Verkon välimuisti (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Verkon aikakatkaisu (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Anna korvaava arvo; Peruuta säilyttää nykyisen salasanan"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Vahvista tämän arvon käyttö; Peruuta säilyttää aiemman arvon"

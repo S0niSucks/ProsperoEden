@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Odpojit účet"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Potvrdit nahrazení přes prohlížeč"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Propojit v prohlížeči této PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Nechte ProsperoEden spuštěný. Neotevírejte to na telefonu ani jiném
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Zpět / zrušit"
+
+msgid "Network"
+msgstr "Síť"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Hra ze sítě jen pro čtení. Uložené pozice, mody a mezipaměti zůstávají místní."
+
+msgid "Location name"
+msgstr "Název umístění"
+
+msgid "Protocol"
+msgstr "Protokol"
+
+msgid "Server IPv4"
+msgstr "IPv4 serveru"
+
+msgid "Share / export"
+msgstr "Sdílení / export"
+
+msgid "Games folder"
+msgstr "Složka her"
+
+msgid "Updates / DLC folder"
+msgstr "Složka aktualizací / DLC"
+
+msgid "Enabled"
+msgstr "Zapnuto"
+
+msgid "Server port"
+msgstr "Port serveru"
+
+msgid "SMB user"
+msgstr "Uživatel SMB"
+
+msgid "SMB password"
+msgstr "Heslo SMB"
+
+msgid "SMB domain"
+msgstr "Doména SMB"
+
+msgid "SMB encryption"
+msgstr "Šifrování SMB"
+
+msgid "NFS UID"
+msgstr "UID pro NFS"
+
+msgid "NFS GID"
+msgstr "GID pro NFS"
+
+msgid "NFS mount port"
+msgstr "Port připojení NFS"
+
+msgid "Timeout (ms)"
+msgstr "Časový limit (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Mezipaměť (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 nebo NFS v3 přes TCP. Změna protokolu vymaže sdílení a přihlašovací údaje SMB v tomto návrhu."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Pouze číselná adresa IPv4. Během úprav se žádný server nekontaktuje."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: pouze název sdílení. NFS: absolutní cesta exportu, například /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relativní vůči sdílení / exportu. Nech prázdné pro použití jeho kořene. Odkazy ani části cesty .. nejsou povolené."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Volitelné, relativní vůči složce her. Odpovídající aktualizace / DLC se hledají v této složce a o jednu úroveň podsložek níže."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter nahradí heslo pomocí systémové klávesnice se skrytým zadáváním. Čtverec ho vymaže; trojúhelník obnoví uložené heslo."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Prázdné uživatelské jméno zvolí hosta SMB2. Vymaž i heslo a doménu a vypni šifrování. Přihlášení s podepisováním vyžaduje uživatele."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Povinné šifrování vyžaduje SMB3 a uživatele. U serverů bez podpory připojení selže; k tichému snížení zabezpečení nedojde."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Číselná identita NFS v3 AUTH_SYS (0–2147483647). Na serveru nastav přístup jen pro čtení."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Hodnota 0 zjistí port mountd pomocí služby portmapper na serveru. Jinak použij pevný TCP port pro připojení (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Časový limit každé operace, 250–15000 milisekund. Prohledávání má také vlastní omezený rozpočet čtení."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Mezipaměť jen pro čtení, 1–32 MiB na každé připojené umístění. Celé hry se nestahují."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Změny zůstávají v tomto návrhu až do volby Uložit. Zrušit ponechá uloženou konfiguraci beze změny."
+
+msgid "Network settings saved."
+msgstr "Nastavení sítě uloženo."
+
+msgid "Edit network location"
+msgstr "Upravit síťové umístění"
+
+msgid "Add network location"
+msgstr "Přidat síťové umístění"
+
+msgid "Network shares"
+msgstr "Síťová sdílení"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS jen pro čtení · Až čtyři umístění · Vestavěná soukromá klávesnice"
+
+msgid "Remove this network location?"
+msgstr "Odebrat toto síťové umístění?"
+
+msgid "Discard unsaved changes?"
+msgstr "Zahodit neuložené změny?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Odebere se pouze uložené nastavení jeho připojení. Soubory na serveru ani místní uložené pozice se nesmažou."
+
+msgid "The saved network configuration will not change."
+msgstr "Uložená konfigurace sítě se nezmění."
+
+msgid "Confirm"
+msgstr "Potvrdit"
+
+msgid "Keep editing / back"
+msgstr "Pokračovat v úpravách / zpět"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Pracuji… Kolečko zruší akci, dokud není uložení dokončeno."
+
+msgid "Not set"
+msgstr "Nenastaveno"
+
+msgid "Connecting and scanning…"
+msgstr "Připojování a prohledávání…"
+
+msgid "Connected · {0} games"
+msgstr "Připojeno · Počet her: {0}"
+
+msgid "Disconnected"
+msgstr "Odpojeno"
+
+msgid "Save (no connection)"
+msgstr "Uložit (bez připojení)"
+
+msgid "Save and reconnect"
+msgstr "Uložit a znovu připojit"
+
+msgid "Cancel editing"
+msgstr "Zrušit úpravy"
+
+msgid "Reconnect saved locations"
+msgstr "Znovu připojit uložená umístění"
+
+msgid "Disconnect / cancel"
+msgstr "Odpojit / zrušit"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 pro změnu stránky"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Volba Uložit nikdy nekontaktuje server. Volba Uložit a znovu připojit výslovně znovu načte a připojí zapnutá umístění."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Vyber umístění k úpravě nebo Přidat síťové umístění. Čtverec po potvrzení odebere vybrané umístění."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Přihlašovací údaje jsou v soukromém souboru config/network-shares.json (0600) jako prostý text, bez šifrování. Nesdílej tento soubor ani jeho dočasné kopie připravené k uložení."
+
+msgid "Edit / select"
+msgstr "Upravit / vybrat"
+
+msgid "Replace"
+msgstr "Nahradit"
+
+msgid "Clear"
+msgstr "Vymazat"
+
+msgid "Keep saved"
+msgstr "Ponechat uložené"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Propojit herní relaci Nextendo? Sdílejte svou identitu a povolte vyhledávání spoluhráčů (identity, game.matchmaking). Oprávnění k přátelům, stavu online ani úpravám profilu se nepožaduje. Směrování hry zůstane vypnuté, dokud ho samostatně nezapnete."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Před propojením herní relace Nextendo potvrďte oprávnění ke sdílení identity a vyhledávání spoluhráčů."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Vzdálené kontroly nejsou dostupné pro relace Nextendo určené pouze pro hry. Propojte se znovu a získejte novou herní relaci; uložená relace nebyla odebrána."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Platnost herní relace Nextendo vypršela nebo jsou hodiny nastavené nesprávně. Před zapnutím nebo spuštěním hry se znovu propojte."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Propojení hry s Nextendo selhalo. Zkontrolujte registraci, souhlas, připojení a důvěryhodné certifikáty."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Neplatný oauth.json. Zadejte svůj registrovaný client_id a redirect_uri s HTTP 127.0.0.1 (port >= 1024 nebo {port}); pole app je volitelné."
+
+msgid "Nextendo action cancelled."
+msgstr "Akce Nextendo zrušena."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Akce Nextendo selhala. Zkuste to znovu nebo relaci odpojte."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Hraj hry přes SMB nebo NFS v režimu jen pro čtení, bez jejich stahování."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Neplatné nastavení síťového sdílení. Před úpravami oprav importovaný JSON; soubor nebyl nahrazen."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Nastavení sítě musí být běžný soubor (nejvýše 64 KiB) s nadřazenými adresáři bez odkazů."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Nastavení sítě se změnilo mimo tento editor. Otevři editor znovu; nic nebylo přepsáno."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Zrušeno. Uložené nastavení sítě se nezměnilo."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Uloženo, ale synchronizaci adresáře se nepodařilo potvrdit."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Nastavení sítě se nepodařilo uložit. Předchozí soubor zůstal zachován."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Klávesnice pro nastavení sítě není dostupná."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Neplatná hodnota. Použij číselnou adresu IPv4, bezpečné cesty, platné porty, časový limit 250–15000 ms a mezipaměť 1–32 MiB. Přihlašovací údaje SMB vyžadují uživatele."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "IPv4 serveru a sdílení / export jsou povinné. Před uložením je zadej."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Toto síťové umístění už existuje. Místo přidání ho uprav."
+
+msgid "At most four network locations can be saved."
+msgstr "Lze uložit nejvýše čtyři síťová umístění."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Nastavení sítě není dostupné, pokud probíhá jiná chráněná úloha nebo se spouští hra."
+
+msgid "Reopen the network location before editing."
+msgstr "Před úpravami otevři síťové umístění znovu."
+
+msgid "Network location"
+msgstr "Síťové umístění"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Povinné (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Vypnuto (s uživatelem je povinné podepisování)"
+
+msgid "Replacement set"
+msgstr "Náhrada zadána"
+
+msgid "Set / keep existing"
+msgstr "Nastaveno / ponechat stávající"
+
+msgid "Network location name"
+msgstr "Název síťového umístění"
+
+msgid "Network server IPv4"
+msgstr "IPv4 síťového serveru"
+
+msgid "Network share / export"
+msgstr "Síťové sdílení / export"
+
+msgid "Network games folder (relative)"
+msgstr "Síťová složka her (relativní)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Síťová složka aktualizací / DLC (relativní)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Uživatel SMB (prázdné = host)"
+
+msgid "SMB password (private replacement)"
+msgstr "Heslo SMB (soukromé zadání náhrady)"
+
+msgid "SMB domain (optional)"
+msgstr "Doména SMB (volitelná)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID pro NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID pro NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Port připojení NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "TCP port síťového serveru"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Síťová mezipaměť (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Časový limit sítě (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Zadej náhradní heslo; Zrušit ponechá aktuální heslo"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Potvrď použití této hodnoty; Zrušit ponechá předchozí hodnotu"

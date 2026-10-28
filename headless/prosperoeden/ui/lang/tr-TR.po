@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Hesap bağlantısını kaldır"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Tarayıcıyla değiştirmeyi onayla"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Bu PS5'in tarayıcısında bağla"
 
@@ -2780,3 +2776,321 @@ msgstr "ProsperoEden çalışmaya devam etsin. Bunu telefonda veya başka bir ci
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Geri / iptal"
+
+msgid "Network"
+msgstr "Ağ"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Salt okunur ağ oyunu. Kayıtlar, modlar ve önbellekler yerel olarak kalır."
+
+msgid "Location name"
+msgstr "Konum adı"
+
+msgid "Protocol"
+msgstr "Protokol"
+
+msgid "Server IPv4"
+msgstr "Sunucu IPv4 adresi"
+
+msgid "Share / export"
+msgstr "Paylaşım / dışa aktarım"
+
+msgid "Games folder"
+msgstr "Oyunlar klasörü"
+
+msgid "Updates / DLC folder"
+msgstr "Güncellemeler / DLC klasörü"
+
+msgid "Enabled"
+msgstr "Etkin"
+
+msgid "Server port"
+msgstr "Sunucu bağlantı noktası"
+
+msgid "SMB user"
+msgstr "SMB kullanıcısı"
+
+msgid "SMB password"
+msgstr "SMB parolası"
+
+msgid "SMB domain"
+msgstr "SMB etki alanı"
+
+msgid "SMB encryption"
+msgstr "SMB şifrelemesi"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "NFS bağlama bağlantı noktası"
+
+msgid "Timeout (ms)"
+msgstr "Zaman aşımı (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Önbellek (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "TCP üzerinden SMB2/3 veya NFS v3. Protokolü değiştirmek bu taslaktaki paylaşımı ve SMB kimlik bilgilerini temizler."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Yalnızca sayısal IPv4. Düzenleme sırasında hiçbir sunucuyla bağlantı kurulmaz."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: yalnızca paylaşım adı. NFS: mutlak dışa aktarım yolu, örneğin /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Paylaşıma / dışa aktarıma göreli yol. Kökünü kullanmak için boş bırakın. Bağlantılar veya .. bileşenleri kullanılamaz."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "İsteğe bağlıdır, Oyunlar klasörüne görelidir. Eşleşen güncellemeler / DLC için bu klasörü ve bir alt klasör düzeyini tarar."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter, karakterleri gizleyen sistem klavyesinde parolayı değiştirir. Kare parolayı temizler; Üçgen kaydedilmiş parolayı geri yükler."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Boş kullanıcı SMB2 konuk erişimini seçer. Parolayı ve etki alanını da temizleyin, şifrelemeyi kapatın. İmzalı oturum açma için kullanıcı gerekir."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Zorunlu şifreleme SMB3 ve bir kullanıcı gerektirir. Desteklemeyen sunucularda işlem başarısız olur; güvenlik sessizce düşürülmez."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYS sayısal kimliği (0–2147483647). Sunucunuzda salt okunur erişimi yapılandırın."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0, sunucunun portmapper hizmetinden mountd bağlantı noktasını ister. Aksi halde sabit bir TCP bağlama bağlantı noktası kullanın (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "İşlem başına zaman aşımı, 250–15000 milisaniye. Taramaların ayrıca kendilerine ait sınırlı bir okuma bütçesi vardır."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Salt okunur önbellek, bağlı konum başına 1–32 MiB. Oyunların tamamı indirilmez."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Kaydet seçilene kadar değişiklikler bu taslakta kalır. İptal, kaydedilmiş yapılandırmayı değiştirmez."
+
+msgid "Network settings saved."
+msgstr "Ağ ayarları kaydedildi."
+
+msgid "Edit network location"
+msgstr "Ağ konumunu düzenle"
+
+msgid "Add network location"
+msgstr "Ağ konumu ekle"
+
+msgid "Network shares"
+msgstr "Ağ paylaşımları"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "Salt okunur SMB / NFS · En fazla dört konum · Yerleşik özel klavye"
+
+msgid "Remove this network location?"
+msgstr "Bu ağ konumu kaldırılsın mı?"
+
+msgid "Discard unsaved changes?"
+msgstr "Kaydedilmemiş değişiklikler atılsın mı?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Yalnızca bu konumun kaydedilmiş bağlantı ayarları kaldırılır. Sunucudaki dosyalar ve yerel oyun kayıtları silinmez."
+
+msgid "The saved network configuration will not change."
+msgstr "Kaydedilmiş ağ yapılandırması değişmeyecek."
+
+msgid "Confirm"
+msgstr "Onayla"
+
+msgid "Keep editing / back"
+msgstr "Düzenlemeye devam et / geri"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "İşleniyor… Kayıt kesinleştirilmeden önce Daire iptal eder."
+
+msgid "Not set"
+msgstr "Ayarlanmamış"
+
+msgid "Connecting and scanning…"
+msgstr "Bağlanılıyor ve taranıyor…"
+
+msgid "Connected · {0} games"
+msgstr "Bağlı · {0} oyun"
+
+msgid "Disconnected"
+msgstr "Bağlantı kesildi"
+
+msgid "Save (no connection)"
+msgstr "Kaydet (bağlanmadan)"
+
+msgid "Save and reconnect"
+msgstr "Kaydet ve yeniden bağlan"
+
+msgid "Cancel editing"
+msgstr "Düzenlemeyi iptal et"
+
+msgid "Reconnect saved locations"
+msgstr "Kaydedilmiş konumlara yeniden bağlan"
+
+msgid "Disconnect / cancel"
+msgstr "Bağlantıyı kes / iptal"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · Sayfa değiştirmek için L1 / R1"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Kaydet hiçbir zaman sunucuyla bağlantı kurmaz. Kaydet ve yeniden bağlan, etkin konumları açıkça yeniden yükler ve bu konumlara bağlanır."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Düzenlemek için bir konum veya Ağ konumu ekle seçeneğini seçin. Kare, onaydan sonra seçili konumu kaldırır."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Kimlik bilgileri config/network-shares.json (0600) içinde özel düz metin olarak tutulur, şifrelenmez. Bu dosyayı veya kaydetmek için hazırlanmış geçici kopyalarını paylaşmayın."
+
+msgid "Edit / select"
+msgstr "Düzenle / seç"
+
+msgid "Replace"
+msgstr "Değiştir"
+
+msgid "Clear"
+msgstr "Temizle"
+
+msgid "Keep saved"
+msgstr "Kaydedileni koru"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Bir Nextendo oyun oturumu bağlansın mı? Kimliğinizi paylaşın ve oyun eşleştirmesine izin verin (identity, game.matchmaking). Arkadaşlar, çevrimiçi durum veya profil düzenleme izni istenmez. Oyun yönlendirmesi, siz ayrıca etkinleştirene kadar kapalı kalır."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Bir Nextendo oyun oturumu bağlamadan önce kimlik ve oyun eşleştirme iznini onaylayın."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Yalnızca oyun için olan Nextendo oturumlarında uzaktan denetimler kullanılamaz. Yeni bir oyun oturumu almak için yeniden bağlayın; kaydedilmiş oturum kaldırılmadı."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendo oyun oturumunun süresi dolmuş veya saat yanlış. Etkinleştirmeden ya da başlatmadan önce yeniden bağlayın."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Nextendo oyun oturumu bağlanamadı. Kaydı, izni, bağlantıyı ve güvenilir sertifikaları kontrol edin."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Geçersiz oauth.json. Kayıtlı client_id değerinizi ve HTTP 127.0.0.1 redirect_uri adresini girin (bağlantı noktası >= 1024 veya {port}); app isteğe bağlıdır."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo işlemi iptal edildi."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo işlemi başarısız oldu. Yeniden deneyin veya oturum bağlantısını kaldırın."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Salt okunur SMB veya NFS oyunlarını indirmeden oynayın."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Geçersiz ağ paylaşımı ayarları. Düzenlemeden önce içe aktarılan JSON verisini düzeltin; dosya değiştirilmedi."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Ağ ayarları, üst dizinlerinde bağlantı bulunmayan normal bir dosya olmalıdır (en fazla 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Ağ ayarları bu düzenleyicinin dışında değiştirildi. Düzenleyiciyi yeniden açın; hiçbir şeyin üzerine yazılmadı."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "İptal edildi. Kaydedilmiş ağ ayarları değiştirilmedi."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Kaydedildi, ancak dizin eşitlemesi doğrulanamadı."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Ağ ayarları kaydedilemedi. Önceki dosya korundu."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Ağ ayarları klavyesi kullanılamıyor."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Geçersiz değer. Sayısal IPv4, güvenli yollar, geçerli bağlantı noktaları, 250–15000 ms zaman aşımı ve 1–32 MiB önbellek kullanın. SMB kimlik bilgileri için kullanıcı gerekir."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Sunucu IPv4 adresi ve paylaşım / dışa aktarım gereklidir. Kaydetmeden önce bunları girin."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Bu ağ konumu zaten var. Bunun yerine mevcut konumu düzenleyin."
+
+msgid "At most four network locations can be saved."
+msgstr "En fazla dört ağ konumu kaydedilebilir."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Başka bir korumalı iş veya bir oyun başlatılırken ağ ayarları kullanılamaz."
+
+msgid "Reopen the network location before editing."
+msgstr "Düzenlemeden önce ağ konumunu yeniden açın."
+
+msgid "Network location"
+msgstr "Ağ konumu"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Zorunlu (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Kapalı (kullanıcı varsa imzalama zorunlu)"
+
+msgid "Replacement set"
+msgstr "Yeni değer ayarlandı"
+
+msgid "Set / keep existing"
+msgstr "Ayarla / mevcut olanı koru"
+
+msgid "Network location name"
+msgstr "Ağ konumu adı"
+
+msgid "Network server IPv4"
+msgstr "Ağ sunucusu IPv4 adresi"
+
+msgid "Network share / export"
+msgstr "Ağ paylaşımı / dışa aktarımı"
+
+msgid "Network games folder (relative)"
+msgstr "Ağ oyunları klasörü (göreli)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Ağ güncellemeleri / DLC klasörü (göreli)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB kullanıcısı (boş = konuk)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB parolası (özel değiştirme)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB etki alanı (isteğe bağlı)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS bağlama bağlantı noktası (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Ağ sunucusu TCP bağlantı noktası"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Ağ önbelleği (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Ağ zaman aşımı (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Yeni bir parola girin; İptal mevcut parolayı korur"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Bu değeri kullanmak için onaylayın; İptal önceki değeri korur"

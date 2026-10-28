@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Hủy liên kết tài khoản"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Xác nhận thay thế qua trình duyệt"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Liên kết trong trình duyệt của PS5 này"
 
@@ -2780,3 +2776,321 @@ msgstr "Giữ ProsperoEden đang chạy. Không mở trên điện thoại hoặ
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Quay lại / hủy"
+
+msgid "Network"
+msgstr "Mạng"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Trò chơi trên mạng ở chế độ chỉ đọc. Dữ liệu lưu, bản mod và bộ nhớ đệm vẫn nằm trên máy."
+
+msgid "Location name"
+msgstr "Tên vị trí"
+
+msgid "Protocol"
+msgstr "Giao thức"
+
+msgid "Server IPv4"
+msgstr "IPv4 máy chủ"
+
+msgid "Share / export"
+msgstr "Tên chia sẻ / đường dẫn xuất"
+
+msgid "Games folder"
+msgstr "Thư mục trò chơi"
+
+msgid "Updates / DLC folder"
+msgstr "Thư mục cập nhật / DLC"
+
+msgid "Enabled"
+msgstr "Bật"
+
+msgid "Server port"
+msgstr "Cổng máy chủ"
+
+msgid "SMB user"
+msgstr "Người dùng SMB"
+
+msgid "SMB password"
+msgstr "Mật khẩu SMB"
+
+msgid "SMB domain"
+msgstr "Miền SMB"
+
+msgid "SMB encryption"
+msgstr "Mã hóa SMB"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "Cổng gắn kết NFS"
+
+msgid "Timeout (ms)"
+msgstr "Thời gian chờ (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Bộ nhớ đệm (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 hoặc NFS v3 qua TCP. Đổi giao thức sẽ xóa thiết lập chia sẻ và thông tin xác thực SMB trong bản nháp này."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Chỉ dùng địa chỉ IPv4 dạng số. Không liên hệ máy chủ trong lúc bạn chỉnh sửa."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: chỉ nhập tên chia sẻ. NFS: nhập đường dẫn xuất tuyệt đối, ví dụ /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Đường dẫn tương đối tính từ thư mục chia sẻ / xuất. Để trống để dùng thư mục gốc đó. Không dùng liên kết hoặc thành phần đường dẫn '..'."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Không bắt buộc, tương đối với thư mục trò chơi. Quét thư mục này và một cấp thư mục con để tìm bản cập nhật / DLC phù hợp."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Nhấn xác nhận để thay mật khẩu bằng bàn phím hệ thống có che nội dung nhập. Nút Vuông xóa mật khẩu; nút Tam giác khôi phục mật khẩu đã lưu."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Để trống người dùng để dùng chế độ khách SMB2. Hãy xóa cả mật khẩu, miền và thiết lập mã hóa. Đăng nhập có chữ ký yêu cầu tên người dùng."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Mã hóa bắt buộc cần SMB3 và người dùng. Kết nối sẽ thất bại nếu máy chủ không hỗ trợ; không tự ý hạ mức bảo mật mà không thông báo."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Định danh dạng số NFS v3 AUTH_SYS (0–2147483647). Hãy cấu hình quyền truy cập chỉ đọc trên máy chủ."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Giá trị 0 sẽ hỏi portmapper của máy chủ về cổng mountd. Nếu không, dùng cổng gắn kết TCP cố định (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Thời gian chờ cho mỗi thao tác là 250–15000 mili giây. Quá trình quét còn có giới hạn đọc riêng."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Bộ nhớ đệm chỉ đọc, 1–32 MiB cho mỗi vị trí đang kết nối. Không tải toàn bộ trò chơi."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Thay đổi chỉ nằm trong bản nháp này cho đến khi lưu. Hủy sẽ giữ nguyên cấu hình đã lưu."
+
+msgid "Network settings saved."
+msgstr "Đã lưu cài đặt mạng."
+
+msgid "Edit network location"
+msgstr "Sửa vị trí mạng"
+
+msgid "Add network location"
+msgstr "Thêm vị trí mạng"
+
+msgid "Network shares"
+msgstr "Thư mục chia sẻ trên mạng"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS chỉ đọc · Tối đa bốn vị trí · Bàn phím nhập riêng tư tích hợp"
+
+msgid "Remove this network location?"
+msgstr "Xóa vị trí mạng này?"
+
+msgid "Discard unsaved changes?"
+msgstr "Bỏ các thay đổi chưa lưu?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Chỉ xóa cài đặt kết nối đã lưu. Không xóa tệp trên máy chủ hay dữ liệu lưu trên máy."
+
+msgid "The saved network configuration will not change."
+msgstr "Cấu hình mạng đã lưu sẽ không thay đổi."
+
+msgid "Confirm"
+msgstr "Xác nhận"
+
+msgid "Keep editing / back"
+msgstr "Tiếp tục sửa / quay lại"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Đang xử lý… Có thể nhấn nút Tròn để hủy trước khi việc lưu có hiệu lực."
+
+msgid "Not set"
+msgstr "Chưa đặt"
+
+msgid "Connecting and scanning…"
+msgstr "Đang kết nối và quét…"
+
+msgid "Connected · {0} games"
+msgstr "Đã kết nối · {0} trò chơi"
+
+msgid "Disconnected"
+msgstr "Chưa kết nối"
+
+msgid "Save (no connection)"
+msgstr "Lưu (không kết nối)"
+
+msgid "Save and reconnect"
+msgstr "Lưu và kết nối lại"
+
+msgid "Cancel editing"
+msgstr "Hủy chỉnh sửa"
+
+msgid "Reconnect saved locations"
+msgstr "Kết nối lại các vị trí đã lưu"
+
+msgid "Disconnect / cancel"
+msgstr "Ngắt kết nối / hủy"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 để chuyển trang"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Lưu không bao giờ liên hệ máy chủ. Chỉ khi chọn Lưu và kết nối lại, ứng dụng mới tải lại cấu hình và kết nối các vị trí đang bật."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Chọn vị trí để sửa hoặc chọn Thêm vị trí mạng. Nút Vuông xóa vị trí đang chọn sau khi xác nhận."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Thông tin xác thực được lưu riêng tư dưới dạng văn bản thuần trong config/network-shares.json (0600), không được mã hóa. Không chia sẻ tệp này hoặc các bản sao tạm chờ lưu."
+
+msgid "Edit / select"
+msgstr "Sửa / chọn"
+
+msgid "Replace"
+msgstr "Thay thế"
+
+msgid "Clear"
+msgstr "Xóa"
+
+msgid "Keep saved"
+msgstr "Giữ giá trị đã lưu"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Liên kết phiên trò chơi Nextendo? Thao tác này chia sẻ thông tin định danh của bạn và cho phép ghép trận (identity, game.matchmaking). Không yêu cầu quyền về bạn bè, trạng thái trực tuyến hay chỉnh sửa hồ sơ. Định tuyến trò chơi vẫn tắt cho đến khi bạn bật riêng."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Xác nhận quyền chia sẻ thông tin định danh và ghép trận trước khi liên kết phiên trò chơi Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Không thể kiểm tra từ xa với phiên Nextendo chỉ dành cho trò chơi. Hãy liên kết lại để lấy phiên trò chơi mới; phiên đã lưu chưa bị xóa."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Phiên trò chơi Nextendo đã hết hạn hoặc đồng hồ không đúng. Hãy liên kết lại trước khi bật hoặc khởi chạy trò chơi."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Liên kết trò chơi Nextendo thất bại. Kiểm tra đăng ký, sự đồng ý cấp quyền, kết nối và chứng chỉ đáng tin cậy."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json không hợp lệ. Cung cấp client_id đã đăng ký và redirect_uri HTTP 127.0.0.1 (cổng >= 1024 hoặc {port}); app là tùy chọn."
+
+msgid "Nextendo action cancelled."
+msgstr "Đã hủy thao tác Nextendo."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Thao tác Nextendo thất bại. Thử lại hoặc hủy liên kết phiên."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Chơi trò chơi SMB hoặc NFS ở chế độ chỉ đọc mà không cần tải xuống."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Cài đặt chia sẻ mạng không hợp lệ. Sửa JSON đã nhập trước khi chỉnh sửa; tệp chưa bị thay thế."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Cài đặt mạng phải là tệp thông thường (tối đa 64 KiB), với các thư mục cha không phải là liên kết."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Cài đặt mạng đã bị thay đổi bên ngoài trình chỉnh sửa này. Hãy mở lại trình chỉnh sửa; chưa ghi đè gì."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Đã hủy. Cài đặt mạng đã lưu không thay đổi."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Đã lưu nhưng không xác nhận được việc đồng bộ thư mục."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Không lưu được cài đặt mạng. Tệp cũ được giữ nguyên."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Không dùng được bàn phím cài đặt mạng."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Giá trị không hợp lệ. Dùng IPv4 dạng số, đường dẫn an toàn, cổng hợp lệ, thời gian chờ 250–15000 ms và bộ nhớ đệm 1–32 MiB. Thông tin xác thực SMB yêu cầu người dùng."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Bắt buộc nhập IPv4 máy chủ và tên chia sẻ / đường dẫn xuất. Hãy nhập trước khi lưu."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Vị trí mạng này đã tồn tại. Hãy sửa vị trí hiện có."
+
+msgid "At most four network locations can be saved."
+msgstr "Có thể lưu tối đa bốn vị trí mạng."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Không thể dùng cài đặt mạng khi tác vụ được bảo vệ khác đang chạy hoặc khi trò chơi đang khởi động."
+
+msgid "Reopen the network location before editing."
+msgstr "Mở lại vị trí mạng trước khi chỉnh sửa."
+
+msgid "Network location"
+msgstr "Vị trí mạng"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Bắt buộc (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Tắt (bắt buộc ký khi có người dùng)"
+
+msgid "Replacement set"
+msgstr "Đã đặt giá trị thay thế"
+
+msgid "Set / keep existing"
+msgstr "Đã đặt / giữ giá trị hiện có"
+
+msgid "Network location name"
+msgstr "Tên vị trí mạng"
+
+msgid "Network server IPv4"
+msgstr "IPv4 máy chủ mạng"
+
+msgid "Network share / export"
+msgstr "Tên chia sẻ / đường dẫn xuất trên mạng"
+
+msgid "Network games folder (relative)"
+msgstr "Thư mục trò chơi trên mạng (tương đối)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Thư mục cập nhật / DLC trên mạng (tương đối)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Người dùng SMB (trống = khách)"
+
+msgid "SMB password (private replacement)"
+msgstr "Mật khẩu SMB (thay thế riêng tư)"
+
+msgid "SMB domain (optional)"
+msgstr "Miền SMB (không bắt buộc)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Cổng gắn kết NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Cổng TCP máy chủ mạng"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Bộ nhớ đệm mạng (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Thời gian chờ mạng (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Nhập mật khẩu thay thế; Hủy để giữ mật khẩu hiện tại"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Xác nhận để dùng giá trị này; Hủy để giữ giá trị trước"

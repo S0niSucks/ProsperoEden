@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Αποσύνδεση λογαριασμού"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Επιβεβαίωση αντικατάστασης μέσω φυλλομετρητή"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Σύνδεση στον φυλλομετρητή αυτού του PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Αφήστε το ProsperoEden σε λειτουργία. Μην το α
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Πίσω / ακύρωση"
+
+msgid "Network"
+msgstr "Δίκτυο"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Παιχνίδι δικτύου μόνο για ανάγνωση. Οι αποθηκεύσεις, οι τροποποιήσεις και οι κρυφές μνήμες παραμένουν τοπικά."
+
+msgid "Location name"
+msgstr "Όνομα τοποθεσίας"
+
+msgid "Protocol"
+msgstr "Πρωτόκολλο"
+
+msgid "Server IPv4"
+msgstr "IPv4 διακομιστή"
+
+msgid "Share / export"
+msgstr "Κοινόχρηστος πόρος / εξαγωγή"
+
+msgid "Games folder"
+msgstr "Φάκελος παιχνιδιών"
+
+msgid "Updates / DLC folder"
+msgstr "Φάκελος ενημερώσεων / DLC"
+
+msgid "Enabled"
+msgstr "Ενεργό"
+
+msgid "Server port"
+msgstr "Θύρα διακομιστή"
+
+msgid "SMB user"
+msgstr "Χρήστης SMB"
+
+msgid "SMB password"
+msgstr "Κωδικός πρόσβασης SMB"
+
+msgid "SMB domain"
+msgstr "Τομέας SMB"
+
+msgid "SMB encryption"
+msgstr "Κρυπτογράφηση SMB"
+
+msgid "NFS UID"
+msgstr "UID NFS"
+
+msgid "NFS GID"
+msgstr "GID NFS"
+
+msgid "NFS mount port"
+msgstr "Θύρα προσάρτησης NFS"
+
+msgid "Timeout (ms)"
+msgstr "Χρονικό όριο (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Κρυφή μνήμη (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 ή NFS v3 μέσω TCP. Η αλλαγή πρωτοκόλλου διαγράφει τον κοινόχρηστο πόρο και τα διαπιστευτήρια SMB από αυτό το προσχέδιο."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Μόνο αριθμητική IPv4. Δεν γίνεται επικοινωνία με κανέναν διακομιστή κατά την επεξεργασία."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: μόνο όνομα κοινόχρηστου πόρου. NFS: απόλυτη διαδρομή εξαγωγής, για παράδειγμα /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Σχετική με τον κοινόχρηστο πόρο / την εξαγωγή. Αφήστε κενό για να χρησιμοποιηθεί η ρίζα. Δεν επιτρέπονται σύνδεσμοι ή τμήματα .. στη διαδρομή."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Προαιρετικός, σχετικός με τον φάκελο παιχνιδιών. Σαρώνει αυτόν τον φάκελο και ένα επίπεδο υποφακέλων για αντίστοιχες ενημερώσεις / DLC."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Το Enter αντικαθιστά τον κωδικό πρόσβασης μέσω πληκτρολογίου συστήματος με απόκρυψη χαρακτήρων. Το Τετράγωνο τον διαγράφει· το Τρίγωνο επαναφέρει τον αποθηκευμένο κωδικό."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Το κενό πεδίο χρήστη επιλέγει πρόσβαση επισκέπτη SMB2. Διαγράψτε επίσης τον κωδικό και τον τομέα και απενεργοποιήστε την κρυπτογράφηση. Η σύνδεση με υπογραφή απαιτεί χρήστη."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Η υποχρεωτική κρυπτογράφηση απαιτεί SMB3 και χρήστη. Οι διακομιστές χωρίς υποστήριξη αποτυγχάνουν· δεν γίνεται σιωπηρή υποβάθμιση της ασφάλειας."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Αριθμητική ταυτότητα NFS v3 AUTH_SYS (0–2147483647). Ρυθμίστε πρόσβαση μόνο για ανάγνωση στον διακομιστή σας."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Το 0 ζητά τη θύρα του mountd από το portmapper του διακομιστή. Διαφορετικά, χρησιμοποιήστε σταθερή θύρα προσάρτησης TCP (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Χρονικό όριο ανά λειτουργία, 250–15000 χιλιοστά του δευτερολέπτου. Οι σαρώσεις έχουν επίσης το δικό τους περιορισμένο όριο ανάγνωσης."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Κρυφή μνήμη μόνο για ανάγνωση, 1–32 MiB ανά συνδεδεμένη τοποθεσία. Δεν λαμβάνονται ολόκληρα παιχνίδια."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Οι αλλαγές παραμένουν σε αυτό το προσχέδιο μέχρι την Αποθήκευση. Η Ακύρωση αφήνει την αποθηκευμένη διαμόρφωση αμετάβλητη."
+
+msgid "Network settings saved."
+msgstr "Οι ρυθμίσεις δικτύου αποθηκεύτηκαν."
+
+msgid "Edit network location"
+msgstr "Επεξεργασία τοποθεσίας δικτύου"
+
+msgid "Add network location"
+msgstr "Προσθήκη τοποθεσίας δικτύου"
+
+msgid "Network shares"
+msgstr "Κοινόχρηστοι πόροι δικτύου"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS μόνο για ανάγνωση · Έως τέσσερις τοποθεσίες · Ενσωματωμένο ιδιωτικό πληκτρολόγιο"
+
+msgid "Remove this network location?"
+msgstr "Να αφαιρεθεί αυτή η τοποθεσία δικτύου;"
+
+msgid "Discard unsaved changes?"
+msgstr "Να απορριφθούν οι μη αποθηκευμένες αλλαγές;"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Αφαιρούνται μόνο οι αποθηκευμένες ρυθμίσεις σύνδεσής της. Τα αρχεία στον διακομιστή και οι τοπικές αποθηκεύσεις δεν διαγράφονται."
+
+msgid "The saved network configuration will not change."
+msgstr "Η αποθηκευμένη διαμόρφωση δικτύου δεν θα αλλάξει."
+
+msgid "Confirm"
+msgstr "Επιβεβαίωση"
+
+msgid "Keep editing / back"
+msgstr "Συνέχεια επεξεργασίας / πίσω"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Σε εξέλιξη… Ο Κύκλος ακυρώνει πριν οριστικοποιηθεί η αποθήκευση."
+
+msgid "Not set"
+msgstr "Δεν έχει οριστεί"
+
+msgid "Connecting and scanning…"
+msgstr "Σύνδεση και σάρωση…"
+
+msgid "Connected · {0} games"
+msgstr "Συνδεδεμένη · {0} παιχνίδια"
+
+msgid "Disconnected"
+msgstr "Αποσυνδεδεμένη"
+
+msgid "Save (no connection)"
+msgstr "Αποθήκευση (χωρίς σύνδεση)"
+
+msgid "Save and reconnect"
+msgstr "Αποθήκευση και επανασύνδεση"
+
+msgid "Cancel editing"
+msgstr "Ακύρωση επεξεργασίας"
+
+msgid "Reconnect saved locations"
+msgstr "Επανασύνδεση αποθηκευμένων τοποθεσιών"
+
+msgid "Disconnect / cancel"
+msgstr "Αποσύνδεση / ακύρωση"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 για αλλαγή σελίδας"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Η Αποθήκευση δεν επικοινωνεί ποτέ με διακομιστή. Η Αποθήκευση και επανασύνδεση επαναφορτώνει και συνδέει ρητά τις ενεργές τοποθεσίες."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Επιλέξτε τοποθεσία για επεξεργασία ή Προσθήκη τοποθεσίας δικτύου. Το Τετράγωνο αφαιρεί την επιλεγμένη τοποθεσία μετά από επιβεβαίωση."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Τα διαπιστευτήρια είναι ιδιωτικό απλό κείμενο στο config/network-shares.json (0600), όχι κρυπτογραφημένα. Μην κοινοποιείτε αυτό το αρχείο ούτε τα προσωρινά αντίγραφα που προετοιμάζονται για αποθήκευση."
+
+msgid "Edit / select"
+msgstr "Επεξεργασία / επιλογή"
+
+msgid "Replace"
+msgstr "Αντικατάσταση"
+
+msgid "Clear"
+msgstr "Εκκαθάριση"
+
+msgid "Keep saved"
+msgstr "Διατήρηση αποθηκευμένης τιμής"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Να συνδεθεί συνεδρία παιχνιδιού Nextendo; Κοινοποιείτε την ταυτότητά σας και επιτρέπετε την αντιστοίχιση παικτών (identity, game.matchmaking). Δεν ζητείται άδεια για φίλους, παρουσία ή επεξεργασία προφίλ. Η δρομολόγηση παιχνιδιών παραμένει ανενεργή μέχρι να την ενεργοποιήσετε ξεχωριστά."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Επιβεβαιώστε την άδεια για ταυτότητα και αντιστοίχιση παικτών πριν συνδέσετε συνεδρία παιχνιδιού Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Οι απομακρυσμένοι έλεγχοι δεν διατίθενται για συνεδρίες Nextendo μόνο για παιχνίδια. Συνδέστε ξανά για να λάβετε νέα συνεδρία παιχνιδιού· η αποθηκευμένη συνεδρία δεν έχει αφαιρεθεί."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Η συνεδρία παιχνιδιού Nextendo έχει λήξει ή το ρολόι είναι λανθασμένο. Συνδέστε ξανά πριν από την ενεργοποίηση ή την εκκίνηση."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Η σύνδεση παιχνιδιού Nextendo απέτυχε. Ελέγξτε την καταχώριση, τη συγκατάθεση, τη συνδεσιμότητα και τα έμπιστα πιστοποιητικά."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Μη έγκυρο oauth.json. Δώστε το καταχωρισμένο client_id σας και redirect_uri HTTP στο 127.0.0.1 (θύρα >= 1024 ή {port})· το app είναι προαιρετικό."
+
+msgid "Nextendo action cancelled."
+msgstr "Η ενέργεια Nextendo ακυρώθηκε."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Η ενέργεια Nextendo απέτυχε. Δοκιμάστε ξανά ή αποσυνδέστε τη συνεδρία."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Παίξτε παιχνίδια SMB ή NFS μόνο για ανάγνωση χωρίς να τα κατεβάσετε."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Μη έγκυρες ρυθμίσεις κοινόχρηστων πόρων δικτύου. Διορθώστε το εισαγόμενο JSON πριν από την επεξεργασία· το αρχείο δεν αντικαταστάθηκε."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Οι ρυθμίσεις δικτύου πρέπει να είναι κανονικό αρχείο με γονικούς καταλόγους χωρίς συνδέσμους (έως 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Οι ρυθμίσεις δικτύου άλλαξαν εκτός αυτού του επεξεργαστή. Ανοίξτε ξανά τον επεξεργαστή· τίποτα δεν αντικαταστάθηκε."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Ακυρώθηκε. Οι αποθηκευμένες ρυθμίσεις δικτύου δεν άλλαξαν."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Αποθηκεύτηκε, αλλά δεν ήταν δυνατή η επιβεβαίωση του συγχρονισμού του καταλόγου."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Δεν ήταν δυνατή η αποθήκευση των ρυθμίσεων δικτύου. Το προηγούμενο αρχείο διατηρήθηκε."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Το πληκτρολόγιο των ρυθμίσεων δικτύου δεν είναι διαθέσιμο."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Μη έγκυρη τιμή. Χρησιμοποιήστε αριθμητική IPv4, ασφαλείς διαδρομές, έγκυρες θύρες, χρονικό όριο 250–15000 ms και κρυφή μνήμη 1–32 MiB. Τα διαπιστευτήρια SMB απαιτούν χρήστη."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Απαιτούνται IPv4 διακομιστή και κοινόχρηστος πόρος / εξαγωγή. Συμπληρώστε τα πριν από την αποθήκευση."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Αυτή η τοποθεσία δικτύου υπάρχει ήδη. Επεξεργαστείτε την υπάρχουσα."
+
+msgid "At most four network locations can be saved."
+msgstr "Μπορούν να αποθηκευτούν έως τέσσερις τοποθεσίες δικτύου."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Οι ρυθμίσεις δικτύου δεν είναι διαθέσιμες ενώ ξεκινά άλλη προστατευμένη εργασία ή παιχνίδι."
+
+msgid "Reopen the network location before editing."
+msgstr "Ανοίξτε ξανά την τοποθεσία δικτύου πριν από την επεξεργασία."
+
+msgid "Network location"
+msgstr "Τοποθεσία δικτύου"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Υποχρεωτική (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Ανενεργή (απαιτείται υπογραφή με χρήστη)"
+
+msgid "Replacement set"
+msgstr "Ορίστηκε αντικατάσταση"
+
+msgid "Set / keep existing"
+msgstr "Ορισμός / διατήρηση υπάρχοντος"
+
+msgid "Network location name"
+msgstr "Όνομα τοποθεσίας δικτύου"
+
+msgid "Network server IPv4"
+msgstr "IPv4 διακομιστή δικτύου"
+
+msgid "Network share / export"
+msgstr "Κοινόχρηστος πόρος / εξαγωγή δικτύου"
+
+msgid "Network games folder (relative)"
+msgstr "Φάκελος παιχνιδιών δικτύου (σχετικός)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Φάκελος ενημερώσεων / DLC δικτύου (σχετικός)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Χρήστης SMB (κενό = επισκέπτης)"
+
+msgid "SMB password (private replacement)"
+msgstr "Κωδικός πρόσβασης SMB (ιδιωτική αντικατάσταση)"
+
+msgid "SMB domain (optional)"
+msgstr "Τομέας SMB (προαιρετικός)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Θύρα προσάρτησης NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Θύρα TCP διακομιστή δικτύου"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Κρυφή μνήμη δικτύου (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Χρονικό όριο δικτύου (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Εισαγάγετε νέο κωδικό· η Ακύρωση διατηρεί τον τρέχοντα κωδικό πρόσβασης"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Επιβεβαιώστε για να χρησιμοποιηθεί αυτή η τιμή· η Ακύρωση διατηρεί την προηγούμενη τιμή"

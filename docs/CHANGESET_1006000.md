@@ -15,6 +15,10 @@ generated build-identity receipt, not invented in this changeset before the buil
 - Experimental wired Pro Controller support; Bluetooth is not implemented.
 - USB app-data backup, exclusion of named credentials and cold-start restore/recovery.
 - Read-only SMB/NFS VFS and a native private Settings editor, not a JSON-only workflow.
+- Complete current network/Nextendo catalog additions across the existing 30 locales and a
+  regenerated 764-text template, with named-token and native prompt-length regressions.
+- Native keyboard buffers retained through failed system termination, safe cleanup/reopen,
+  buffer clearing after release and cancellation preserved across late completion.
 - Default-off Nextendo with request-bound explicit consent, PKCE/state and separate game
   credentials; no web/refresh token persistence or unregistered live sign-in claim.
 - Retained scenes, bounded theme import and app-owned process storage credits. Full NXTheme
@@ -30,10 +34,12 @@ generated build-identity receipt, not invented in this changeset before the buil
    proof; complete application qualification is still pending.
 2. Run the complete host suite, all-feature UI and native build on that same immutable snapshot,
    invalidating launcher-dependent cache objects. No running or partial test counts as PASS.
-3. Resolve the actual translation gate: `4a33dc9`, `2b9d869` and the `2bdedef` native run
-   found 764 source texts/30 catalogs
-   with untranslated new entries. The catalog import was interrupted by a tool policy guard;
-   it has not been retried, rerouted or waived. The older 659-text PASS is not current coverage.
+3. Confirm the translation gate on the new final freeze. Earlier native runs found 764 source
+   texts/30 failing catalogs; the older 659-text PASS was not current coverage. The current
+   corrections add 106 translations per locale, remove one obsolete entry per locale and pass
+   the original checker (764 texts, 30 catalogs) without reducing its coverage. Focused checks
+   preserve existing translations, named/numeric tokens and all 16 native prompt limits.
+   This working-source result is not a complete host/native aggregate or console font check.
 4. Collect applied/generated sources, real objects/link argv and final binary identities;
    export/verify/restore the final source inputs offline and execute a real modified-library
    relink. Old source bundles and synthetic link fixtures do not satisfy this gate.
@@ -42,8 +48,12 @@ generated build-identity receipt, not invented in this changeset before the buil
    firmware/rest mode, USB/filesystem/controller, real-server networking and long sessions.
    Live Nextendo also needs approved registration, provider contract, routes and trust.
 
-Theme issues #173/#239 remain open. The independent IME review interrupted by a tool policy
-guard remains unaccepted and is not replaced by a different review.
+Theme issues #173/#239 remain open. Historical interrupted tasks have no accepted result.
+The new native keyboard lifetime correction received a separate review of its actual diff:
+that review found a cancellation regression, which was repaired and reproduced as passing
+with the reviewer's fixture in normal and ASan/UBSan builds. A negative control reproduces
+the old adapter's heap-use-after-free when system termination times out. Native/full-app and
+physical-console acceptance must still use the new frozen snapshot; no old review is relabelled.
 
 Snapshot-specific closure results on `2bdedef`: 11 combined UI groups and 245 unprivileged
 notices/privacy/license CLI calls passed, as did source export/verify/offline restoration.

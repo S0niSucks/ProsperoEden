@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Afkobl konto"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Bekræft erstatning via browser"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Tilknyt i denne PS5's browser"
 
@@ -2780,3 +2776,321 @@ msgstr "Lad ProsperoEden køre. Åbn ikke dette på en telefon eller en anden en
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Tilbage / annuller"
+
+msgid "Network"
+msgstr "Netværk"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Skrivebeskyttet netværksspil. Gemte spildata, mods og cacher forbliver lokale."
+
+msgid "Location name"
+msgstr "Placeringens navn"
+
+msgid "Protocol"
+msgstr "Protokol"
+
+msgid "Server IPv4"
+msgstr "Serverens IPv4-adresse"
+
+msgid "Share / export"
+msgstr "Deling / eksport"
+
+msgid "Games folder"
+msgstr "Spilmappe"
+
+msgid "Updates / DLC folder"
+msgstr "Mappe til opdateringer / DLC"
+
+msgid "Enabled"
+msgstr "Aktiveret"
+
+msgid "Server port"
+msgstr "Serverport"
+
+msgid "SMB user"
+msgstr "SMB-bruger"
+
+msgid "SMB password"
+msgstr "SMB-adgangskode"
+
+msgid "SMB domain"
+msgstr "SMB-domæne"
+
+msgid "SMB encryption"
+msgstr "SMB-kryptering"
+
+msgid "NFS UID"
+msgstr "NFS-UID"
+
+msgid "NFS GID"
+msgstr "NFS-GID"
+
+msgid "NFS mount port"
+msgstr "NFS-monteringsport"
+
+msgid "Timeout (ms)"
+msgstr "Tidsgrænse (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Cache (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 eller NFS v3 via TCP. Ændring af protokollen rydder delingen og SMB-loginoplysningerne i denne kladde."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Kun numeriske IPv4-adresser. Ingen server kontaktes, mens du redigerer."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: kun delingsnavnet. NFS: absolut eksportsti, for eksempel /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relativt til delingen / eksporten. Lad feltet være tomt for at bruge rodmappen. Ingen links eller ..-komponenter."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Valgfrit, relativt til spilmappen. Gennemsøger denne mappe og ét niveau af undermapper for tilhørende opdateringer / DLC."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter erstatter adgangskoden via et systemtastatur med skjult indtastning. Firkant rydder den; Trekant gendanner den gemte adgangskode."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Et tomt brugernavn vælger SMB2-gæsteadgang. Ryd også adgangskode og domæne, og slå kryptering fra. Signeret login kræver en bruger."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Påkrævet kryptering kræver SMB3 og en bruger. Servere uden understøttelse giver fejl; sikkerheden nedgraderes ikke i det skjulte."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Numerisk identitet til NFS v3 AUTH_SYS (0–2147483647). Indstil adgang med kun læserettigheder på din server."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0 spørger serverens portmapper efter mountd. Brug ellers en fast TCP-monteringsport (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Tidsgrænse pr. handling, 250–15000 millisekunder. Gennemsøgninger har også deres eget begrænsede læsebudget."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Skrivebeskyttet cache, 1–32 MiB pr. tilsluttet placering. Ingen download af hele spil."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Ændringer bliver i denne kladde, indtil du vælger Gem. Annuller lader den gemte konfiguration være uændret."
+
+msgid "Network settings saved."
+msgstr "Netværksindstillinger gemt."
+
+msgid "Edit network location"
+msgstr "Rediger netværksplacering"
+
+msgid "Add network location"
+msgstr "Tilføj netværksplacering"
+
+msgid "Network shares"
+msgstr "Netværksdelinger"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "Skrivebeskyttet SMB / NFS · Op til fire placeringer · Indbygget privat tastatur"
+
+msgid "Remove this network location?"
+msgstr "Fjern denne netværksplacering?"
+
+msgid "Discard unsaved changes?"
+msgstr "Kassér ændringer, der ikke er gemt?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Kun de gemte forbindelsesindstillinger fjernes. Filer på serveren og lokalt gemte spildata slettes ikke."
+
+msgid "The saved network configuration will not change."
+msgstr "Den gemte netværkskonfiguration ændres ikke."
+
+msgid "Confirm"
+msgstr "Bekræft"
+
+msgid "Keep editing / back"
+msgstr "Fortsæt redigering / tilbage"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Arbejder… Cirkel annullerer, før lagringen gøres endelig."
+
+msgid "Not set"
+msgstr "Ikke angivet"
+
+msgid "Connecting and scanning…"
+msgstr "Opretter forbindelse og gennemsøger…"
+
+msgid "Connected · {0} games"
+msgstr "Tilsluttet · {0} spil"
+
+msgid "Disconnected"
+msgstr "Afbrudt"
+
+msgid "Save (no connection)"
+msgstr "Gem (uden forbindelse)"
+
+msgid "Save and reconnect"
+msgstr "Gem og genopret forbindelse"
+
+msgid "Cancel editing"
+msgstr "Annuller redigering"
+
+msgid "Reconnect saved locations"
+msgstr "Genopret forbindelse til gemte placeringer"
+
+msgid "Disconnect / cancel"
+msgstr "Afbryd forbindelse / annuller"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 for at skifte side"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Gem kontakter aldrig en server. Gem og genopret forbindelse genindlæser udtrykkeligt aktiverede placeringer og opretter forbindelse til dem."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Vælg en placering at redigere, eller Tilføj netværksplacering. Firkant fjerner den valgte placering efter bekræftelse."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Loginoplysninger er private og gemmes i klartekst i config/network-shares.json (0600), ikke krypteret. Del ikke denne fil eller klargjorte kopier."
+
+msgid "Edit / select"
+msgstr "Rediger / vælg"
+
+msgid "Replace"
+msgstr "Erstat"
+
+msgid "Clear"
+msgstr "Ryd"
+
+msgid "Keep saved"
+msgstr "Behold gemt værdi"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Tilknyt en Nextendo-spilsession? Del din identitet, og tillad søgning efter medspillere (identity, game.matchmaking). Der anmodes ikke om tilladelse til venner, tilstedeværelsesstatus eller profilredigering. Spilrouting forbliver slået fra, indtil du aktiverer det særskilt."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Bekræft tilladelse til at dele din identitet og søge efter medspillere, før du tilknytter en Nextendo-spilsession."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Kontrol på afstand er ikke tilgængelig for Nextendo-sessioner kun til spil. Tilknyt igen for at få en ny spilsession; den gemte session er ikke blevet fjernet."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendo-spilsessionen er udløbet, eller uret er forkert. Tilknyt igen før aktivering eller spilstart."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Tilknytning af Nextendo-spilsessionen mislykkedes. Kontrollér registrering, samtykke, forbindelse og betroede certifikater."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Ugyldig oauth.json. Angiv dit registrerede client_id og HTTP-redirect_uri med 127.0.0.1 (port >= 1024 eller {port}); app er valgfrit."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo-handling annulleret."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo-handling mislykkedes. Prøv igen, eller afkobl sessionen."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Spil skrivebeskyttede SMB- eller NFS-spil uden at downloade dem."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Ugyldige indstillinger for netværksdeling. Ret den importerede JSON før redigering; filen blev ikke erstattet."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Netværksindstillinger skal være en almindelig fil med overordnede mapper uden links (højst 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Netværksindstillingerne er ændret uden for denne editor. Åbn editoren igen; intet blev overskrevet."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Annulleret. De gemte netværksindstillinger blev ikke ændret."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Gemt, men synkronisering af mappen kunne ikke bekræftes."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Kunne ikke gemme netværksindstillingerne. Den tidligere fil blev bevaret."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Tastaturet til netværksindstillinger er ikke tilgængeligt."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Ugyldig værdi. Brug numeriske IPv4-adresser, sikre stier, gyldige porte, tidsgrænse 250–15000 ms og cache 1–32 MiB. SMB-loginoplysninger kræver en bruger."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Serverens IPv4-adresse og deling / eksport er påkrævet. Angiv dem, før du gemmer."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Denne netværksplacering findes allerede. Rediger den i stedet."
+
+msgid "At most four network locations can be saved."
+msgstr "Der kan højst gemmes fire netværksplaceringer."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Netværksindstillinger er ikke tilgængelige, mens en anden beskyttet opgave eller et spil starter."
+
+msgid "Reopen the network location before editing."
+msgstr "Åbn netværksplaceringen igen før redigering."
+
+msgid "Network location"
+msgstr "Netværksplacering"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Påkrævet (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Fra (signering påkrævet med en bruger)"
+
+msgid "Replacement set"
+msgstr "Erstatning angivet"
+
+msgid "Set / keep existing"
+msgstr "Angivet / behold eksisterende"
+
+msgid "Network location name"
+msgstr "Netværksplaceringens navn"
+
+msgid "Network server IPv4"
+msgstr "Netværksserverens IPv4-adresse"
+
+msgid "Network share / export"
+msgstr "Netværksdeling / eksport"
+
+msgid "Network games folder (relative)"
+msgstr "Netværksspilmappe (relativ)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Netværksmappe til opdateringer / DLC (relativ)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB-bruger (tom = gæst)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB-adgangskode (privat erstatning)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB-domæne (valgfrit)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID til NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID til NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS-monteringsport (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Netværksserverens TCP-port"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Netværkscache (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Netværkstidsgrænse (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Indtast en erstatning; Annuller beholder den nuværende adgangskode"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Bekræft for at bruge denne værdi; Annuller beholder den tidligere værdi"

@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Відв'язати обліковий запис"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Підтвердити заміну через браузер"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Прив'язати в браузері цієї PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Залиште ProsperoEden запущеним. Не відкривай�
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Назад / скасувати"
+
+msgid "Network"
+msgstr "Мережа"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Гра з мережі лише для читання. Збереження, моди й кеші залишаються локальними."
+
+msgid "Location name"
+msgstr "Назва розташування"
+
+msgid "Protocol"
+msgstr "Протокол"
+
+msgid "Server IPv4"
+msgstr "IPv4 сервера"
+
+msgid "Share / export"
+msgstr "Спільний ресурс / експорт"
+
+msgid "Games folder"
+msgstr "Папка ігор"
+
+msgid "Updates / DLC folder"
+msgstr "Папка оновлень / DLC"
+
+msgid "Enabled"
+msgstr "Увімкнено"
+
+msgid "Server port"
+msgstr "Порт сервера"
+
+msgid "SMB user"
+msgstr "Користувач SMB"
+
+msgid "SMB password"
+msgstr "Пароль SMB"
+
+msgid "SMB domain"
+msgstr "Домен SMB"
+
+msgid "SMB encryption"
+msgstr "Шифрування SMB"
+
+msgid "NFS UID"
+msgstr "UID NFS"
+
+msgid "NFS GID"
+msgstr "GID NFS"
+
+msgid "NFS mount port"
+msgstr "Порт монтування NFS"
+
+msgid "Timeout (ms)"
+msgstr "Час очікування (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Кеш (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 або NFS v3 через TCP. Зміна протоколу очищає спільний ресурс і облікові дані SMB у цій чернетці."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Лише числова адреса IPv4. Під час редагування звернень до серверів немає."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: лише назва спільного ресурсу. NFS: абсолютний шлях експорту, наприклад /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Відносно спільного ресурсу / експорту. Залиште порожнім, щоб використати його корінь. Посилання й компоненти шляху .. заборонені."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Необов'язкова, відносно папки ігор. Шукає відповідні оновлення / DLC у цій папці та на одному рівні вкладених папок."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter замінює пароль через системну клавіатуру з прихованим введенням. Квадрат очищає його; Трикутник відновлює збережений пароль."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Порожнє ім'я користувача вибирає гостьовий доступ SMB2. Також очистьте пароль і домен та вимкніть шифрування. Вхід із підписуванням потребує користувача."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Обов'язкове шифрування потребує SMB3 і користувача. З'єднання із серверами без підтримки завершується помилкою; непомітного зниження захисту немає."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Числовий ідентифікатор NFS v3 AUTH_SYS (0–2147483647). Налаштуйте на сервері доступ лише для читання."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Значення 0 запитує порт mountd у служби portmapper сервера. Інакше вкажіть фіксований TCP-порт монтування (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Час очікування кожної операції: 250–15000 мілісекунд. Сканування також має власний обмежений бюджет читання."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Кеш лише для читання, 1–32 MiB на кожне підключене розташування. Ігри не завантажуються цілком."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Зміни залишаються в цій чернетці до вибору «Зберегти». «Скасувати» залишає збережену конфігурацію без змін."
+
+msgid "Network settings saved."
+msgstr "Мережеві налаштування збережено."
+
+msgid "Edit network location"
+msgstr "Редагувати мережеве розташування"
+
+msgid "Add network location"
+msgstr "Додати мережеве розташування"
+
+msgid "Network shares"
+msgstr "Спільні мережеві ресурси"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS лише для читання · До чотирьох розташувань · Вбудована приватна клавіатура"
+
+msgid "Remove this network location?"
+msgstr "Вилучити це мережеве розташування?"
+
+msgid "Discard unsaved changes?"
+msgstr "Відкинути незбережені зміни?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Буде вилучено лише збережені налаштування цього з'єднання. Файли на сервері й локальні збереження ігор не видаляються."
+
+msgid "The saved network configuration will not change."
+msgstr "Збережена мережева конфігурація не зміниться."
+
+msgid "Confirm"
+msgstr "Підтвердити"
+
+msgid "Keep editing / back"
+msgstr "Продовжити редагування / назад"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Обробка… Коло скасовує дію до остаточного збереження."
+
+msgid "Not set"
+msgstr "Не задано"
+
+msgid "Connecting and scanning…"
+msgstr "Підключення й сканування…"
+
+msgid "Connected · {0} games"
+msgstr "Підключено · Ігор: {0}"
+
+msgid "Disconnected"
+msgstr "Відключено"
+
+msgid "Save (no connection)"
+msgstr "Зберегти (без підключення)"
+
+msgid "Save and reconnect"
+msgstr "Зберегти й підключити знову"
+
+msgid "Cancel editing"
+msgstr "Скасувати редагування"
+
+msgid "Reconnect saved locations"
+msgstr "Підключити збережені розташування знову"
+
+msgid "Disconnect / cancel"
+msgstr "Відключити / скасувати"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 — гортати сторінки"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "«Зберегти» ніколи не звертається до сервера. «Зберегти й підключити знову» явно перечитує ввімкнені розташування та підключається до них."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Виберіть розташування для редагування або «Додати мережеве розташування». Квадрат вилучає вибране розташування після підтвердження."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Облікові дані зберігаються відкритим текстом у приватному файлі config/network-shares.json (0600), без шифрування. Не поширюйте цей файл або його копії, підготовлені до збереження."
+
+msgid "Edit / select"
+msgstr "Редагувати / вибрати"
+
+msgid "Replace"
+msgstr "Замінити"
+
+msgid "Clear"
+msgstr "Очистити"
+
+msgid "Keep saved"
+msgstr "Залишити збережене"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Прив'язати ігровий сеанс Nextendo? Надайте свої ідентифікаційні дані й дозвольте підбір гравців (identity, game.matchmaking). Дозволи на доступ до друзів, стану присутності або редагування профілю не запитуються. Маршрутизація гри залишатиметься вимкненою, доки ви не ввімкнете її окремо."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Перш ніж прив'язати ігровий сеанс Nextendo, підтвердьте дозвіл на передавання ідентифікаційних даних та підбір гравців."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Віддалені перевірки недоступні для сеансів Nextendo, призначених лише для ігор. Виконайте прив'язування знову, щоб отримати новий ігровий сеанс; збережений сеанс не було вилучено."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Термін дії ігрового сеансу Nextendo минув або годинник налаштований неправильно. Перед увімкненням чи запуском гри виконайте прив'язування знову."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Не вдалося прив'язати гру до Nextendo. Перевірте реєстрацію, згоду, з'єднання та довірені сертифікати."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Некоректний oauth.json. Укажіть зареєстрований client_id та redirect_uri з HTTP 127.0.0.1 (port >= 1024 або {port}); поле app необов'язкове."
+
+msgid "Nextendo action cancelled."
+msgstr "Дію Nextendo скасовано."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Дія Nextendo завершилася помилкою. Спробуйте знову або відв'яжіть сеанс."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Грайте через SMB або NFS лише для читання, не завантажуючи ігри."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Некоректні налаштування мережевого спільного ресурсу. Виправте імпортований JSON перед редагуванням; файл не було замінено."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Мережеві налаштування мають бути звичайним файлом (не більше 64 KiB), а батьківські каталоги — без посилань."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Мережеві налаштування змінено поза цим редактором. Відкрийте редактор знову; нічого не було перезаписано."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Скасовано. Збережені мережеві налаштування не змінено."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Збережено, але не вдалося підтвердити синхронізацію каталогу."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Не вдалося зберегти мережеві налаштування. Попередній файл збережено."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Клавіатура мережевих налаштувань недоступна."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Некоректне значення. Укажіть числову адресу IPv4, безпечні шляхи, коректні порти, час очікування 250–15000 ms і кеш 1–32 MiB. Облікові дані SMB потребують користувача."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "IPv4 сервера та спільний ресурс / експорт обов'язкові. Укажіть їх перед збереженням."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Це мережеве розташування вже існує. Відредагуйте його замість додавання нового."
+
+msgid "At most four network locations can be saved."
+msgstr "Можна зберегти не більше чотирьох мережевих розташувань."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Мережеві налаштування недоступні, поки виконується інше захищене завдання або запускається гра."
+
+msgid "Reopen the network location before editing."
+msgstr "Перед редагуванням відкрийте мережеве розташування знову."
+
+msgid "Network location"
+msgstr "Мережеве розташування"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Обов'язкове (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Вимкнено (з користувачем потрібне підписування)"
+
+msgid "Replacement set"
+msgstr "Нове значення задано"
+
+msgid "Set / keep existing"
+msgstr "Задано / залишити наявне"
+
+msgid "Network location name"
+msgstr "Назва мережевого розташування"
+
+msgid "Network server IPv4"
+msgstr "IPv4 мережевого сервера"
+
+msgid "Network share / export"
+msgstr "Спільний мережевий ресурс / експорт"
+
+msgid "Network games folder (relative)"
+msgstr "Мережева папка ігор (відносна)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Мережева папка оновлень / DLC (відносна)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Користувач SMB (порожньо = гість)"
+
+msgid "SMB password (private replacement)"
+msgstr "Пароль SMB (приватне введення заміни)"
+
+msgid "SMB domain (optional)"
+msgstr "Домен SMB (необов'язковий)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Порт монтування NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "TCP-порт мережевого сервера"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Мережевий кеш (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Мережевий час очікування (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Уведіть новий пароль; «Скасувати» залишає поточний пароль"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Підтвердьте використання цього значення; «Скасувати» залишає попереднє значення"

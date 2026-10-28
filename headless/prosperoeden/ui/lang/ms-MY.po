@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Nyahpaut akaun"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Sahkan penggantian melalui pelayar"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Pautkan dalam pelayar PS5 ini"
 
@@ -2780,3 +2776,321 @@ msgstr "Pastikan ProsperoEden terus berjalan. Jangan buka ini pada telefon atau 
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Kembali / batal"
+
+msgid "Network"
+msgstr "Rangkaian"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Game rangkaian baca sahaja. Data simpanan, mod dan cache kekal setempat."
+
+msgid "Location name"
+msgstr "Nama lokasi"
+
+msgid "Protocol"
+msgstr "Protokol"
+
+msgid "Server IPv4"
+msgstr "IPv4 pelayan"
+
+msgid "Share / export"
+msgstr "Perkongsian / eksport"
+
+msgid "Games folder"
+msgstr "Folder game"
+
+msgid "Updates / DLC folder"
+msgstr "Folder kemas kini / DLC"
+
+msgid "Enabled"
+msgstr "Diaktifkan"
+
+msgid "Server port"
+msgstr "Port pelayan"
+
+msgid "SMB user"
+msgstr "Pengguna SMB"
+
+msgid "SMB password"
+msgstr "Kata laluan SMB"
+
+msgid "SMB domain"
+msgstr "Domain SMB"
+
+msgid "SMB encryption"
+msgstr "Penyulitan SMB"
+
+msgid "NFS UID"
+msgstr "UID NFS"
+
+msgid "NFS GID"
+msgstr "GID NFS"
+
+msgid "NFS mount port"
+msgstr "Port pelekap NFS"
+
+msgid "Timeout (ms)"
+msgstr "Had masa (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Cache (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 atau NFS v3 melalui TCP. Menukar protokol mengosongkan perkongsian dan kelayakan SMB dalam draf ini."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "IPv4 berangka sahaja. Tiada pelayan dihubungi semasa anda menyunting."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: nama perkongsian sahaja. NFS: laluan eksport mutlak, contohnya /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relatif kepada perkongsian / eksport. Biarkan kosong untuk menggunakan akar direktorinya. Pautan atau komponen .. tidak dibenarkan."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Pilihan, relatif kepada Folder game. Mengimbas folder ini dan satu aras subfolder untuk mencari kemas kini / DLC yang sepadan."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter menggantikan kata laluan melalui papan kekunci sistem yang menyembunyikan aksara. Petak mengosongkannya; Segi Tiga memulihkan kata laluan yang disimpan."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Pengguna kosong memilih akses tetamu SMB2. Kosongkan kata laluan dan domain serta matikan penyulitan juga. Log masuk bertandatangan memerlukan pengguna."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Penyulitan wajib memerlukan SMB3 dan pengguna. Pelayan yang tidak menyokongnya akan gagal; tiada penurunan tahap keselamatan secara senyap."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Identiti berangka NFS v3 AUTH_SYS (0–2147483647). Konfigurasikan akses baca sahaja pada pelayan anda."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0 meminta port mountd daripada portmapper pelayan. Jika tidak, gunakan port pelekap TCP tetap (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Had masa bagi setiap operasi, 250–15000 milisaat. Imbasan juga mempunyai peruntukan bacaan terhadnya sendiri."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Cache baca sahaja, 1–32 MiB bagi setiap lokasi yang disambungkan. Tiada muat turun keseluruhan game."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Perubahan kekal dalam draf ini sehingga Simpan dipilih. Batal membiarkan konfigurasi yang disimpan tanpa perubahan."
+
+msgid "Network settings saved."
+msgstr "Tetapan rangkaian disimpan."
+
+msgid "Edit network location"
+msgstr "Sunting lokasi rangkaian"
+
+msgid "Add network location"
+msgstr "Tambah lokasi rangkaian"
+
+msgid "Network shares"
+msgstr "Perkongsian rangkaian"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS baca sahaja · Sehingga empat lokasi · Papan kekunci peribadi terbina dalam"
+
+msgid "Remove this network location?"
+msgstr "Alih keluar lokasi rangkaian ini?"
+
+msgid "Discard unsaved changes?"
+msgstr "Buang perubahan yang belum disimpan?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Hanya tetapan sambungannya yang disimpan dialih keluar. Fail pada pelayan dan data simpanan setempat tidak dipadam."
+
+msgid "The saved network configuration will not change."
+msgstr "Konfigurasi rangkaian yang disimpan tidak akan berubah."
+
+msgid "Confirm"
+msgstr "Sahkan"
+
+msgid "Keep editing / back"
+msgstr "Teruskan menyunting / kembali"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Sedang memproses… Bulatan membatalkan sebelum simpanan dimuktamadkan."
+
+msgid "Not set"
+msgstr "Belum ditetapkan"
+
+msgid "Connecting and scanning…"
+msgstr "Menyambung dan mengimbas…"
+
+msgid "Connected · {0} games"
+msgstr "Disambungkan · {0} game"
+
+msgid "Disconnected"
+msgstr "Terputus sambungan"
+
+msgid "Save (no connection)"
+msgstr "Simpan (tanpa sambungan)"
+
+msgid "Save and reconnect"
+msgstr "Simpan dan sambung semula"
+
+msgid "Cancel editing"
+msgstr "Batalkan suntingan"
+
+msgid "Reconnect saved locations"
+msgstr "Sambung semula lokasi yang disimpan"
+
+msgid "Disconnect / cancel"
+msgstr "Putuskan sambungan / batal"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 untuk menukar halaman"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Simpan tidak pernah menghubungi pelayan. Simpan dan sambung semula memuatkan semula dan menyambungkan lokasi yang diaktifkan secara nyata."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Pilih lokasi untuk disunting, atau Tambah lokasi rangkaian. Petak mengalih keluar lokasi yang dipilih selepas pengesahan."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Kelayakan ialah teks biasa peribadi dalam config/network-shares.json (0600), bukan disulitkan. Jangan kongsi fail ini atau salinan sementara yang disediakan untuk penyimpanan."
+
+msgid "Edit / select"
+msgstr "Sunting / pilih"
+
+msgid "Replace"
+msgstr "Ganti"
+
+msgid "Clear"
+msgstr "Kosongkan"
+
+msgid "Keep saved"
+msgstr "Kekalkan yang disimpan"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Pautkan sesi game Nextendo? Kongsi identiti anda dan benarkan pemadanan pemain (identity, game.matchmaking). Tiada kebenaran rakan, status kehadiran atau penyuntingan profil diminta. Penghalaan game kekal dimatikan sehingga anda mengaktifkannya secara berasingan."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Sahkan kebenaran identiti dan pemadanan pemain sebelum memautkan sesi game Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Semakan jauh tidak tersedia untuk sesi Nextendo khusus game. Pautkan semula untuk mendapatkan sesi game baharu; sesi yang disimpan belum dialih keluar."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Sesi game Nextendo telah tamat tempoh atau jam tidak betul. Pautkan semula sebelum mengaktifkan atau melancarkan."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Pemautan game Nextendo gagal. Semak pendaftaran, persetujuan, kesambungan dan sijil yang dipercayai."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json tidak sah. Berikan client_id berdaftar anda dan redirect_uri HTTP 127.0.0.1 (port >= 1024 atau {port}); app ialah pilihan."
+
+msgid "Nextendo action cancelled."
+msgstr "Tindakan Nextendo dibatalkan."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Tindakan Nextendo gagal. Cuba semula atau nyahpaut sesi."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Mainkan game SMB atau NFS baca sahaja tanpa memuat turunnya."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Tetapan perkongsian rangkaian tidak sah. Betulkan JSON yang diimport sebelum menyunting; fail tidak digantikan."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Tetapan rangkaian mestilah fail biasa dengan direktori induk tanpa pautan (paling banyak 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Tetapan rangkaian berubah di luar penyunting ini. Buka semula penyunting; tiada apa-apa ditulis ganti."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Dibatalkan. Tetapan rangkaian yang disimpan tidak diubah."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Disimpan, tetapi penyelarasan direktori tidak dapat disahkan."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Tidak dapat menyimpan tetapan rangkaian. Fail terdahulu dikekalkan."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Papan kekunci tetapan rangkaian tidak tersedia."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Nilai tidak sah. Gunakan IPv4 berangka, laluan selamat, port sah, had masa 250–15000 ms dan cache 1–32 MiB. Kelayakan SMB memerlukan pengguna."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "IPv4 pelayan dan perkongsian / eksport diperlukan. Masukkannya sebelum menyimpan."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Lokasi rangkaian ini sudah wujud. Sunting lokasi sedia ada."
+
+msgid "At most four network locations can be saved."
+msgstr "Paling banyak empat lokasi rangkaian boleh disimpan."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Tetapan rangkaian tidak tersedia semasa tugas terlindung lain atau game sedang bermula."
+
+msgid "Reopen the network location before editing."
+msgstr "Buka semula lokasi rangkaian sebelum menyunting."
+
+msgid "Network location"
+msgstr "Lokasi rangkaian"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Wajib (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Dimatikan (tandatangan wajib jika ada pengguna)"
+
+msgid "Replacement set"
+msgstr "Pengganti ditetapkan"
+
+msgid "Set / keep existing"
+msgstr "Tetapkan / kekalkan sedia ada"
+
+msgid "Network location name"
+msgstr "Nama lokasi rangkaian"
+
+msgid "Network server IPv4"
+msgstr "IPv4 pelayan rangkaian"
+
+msgid "Network share / export"
+msgstr "Perkongsian / eksport rangkaian"
+
+msgid "Network games folder (relative)"
+msgstr "Folder game rangkaian (relatif)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Folder kemas kini / DLC rangkaian (relatif)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Pengguna SMB (kosong = tetamu)"
+
+msgid "SMB password (private replacement)"
+msgstr "Kata laluan SMB (penggantian peribadi)"
+
+msgid "SMB domain (optional)"
+msgstr "Domain SMB (pilihan)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Port pelekap NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Port TCP pelayan rangkaian"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Cache rangkaian (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Had masa rangkaian (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Masukkan pengganti; Batal mengekalkan kata laluan semasa"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Sahkan untuk menggunakan nilai ini; Batal mengekalkan nilai terdahulu"

@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Desvincular conta"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Confirmar substituição pelo navegador"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Vincular no navegador deste PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Mantenha o ProsperoEden em execução. Não abra isto em um celular ou o
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Voltar / cancelar"
+
+msgid "Network"
+msgstr "Rede"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Jogo em rede somente para leitura. Dados salvos, mods e caches ficam locais."
+
+msgid "Location name"
+msgstr "Nome do local"
+
+msgid "Protocol"
+msgstr "Protocolo"
+
+msgid "Server IPv4"
+msgstr "IPv4 do servidor"
+
+msgid "Share / export"
+msgstr "Compartilhamento / exportação"
+
+msgid "Games folder"
+msgstr "Pasta de jogos"
+
+msgid "Updates / DLC folder"
+msgstr "Pasta de atualizações / DLC"
+
+msgid "Enabled"
+msgstr "Ativado"
+
+msgid "Server port"
+msgstr "Porta do servidor"
+
+msgid "SMB user"
+msgstr "Usuário SMB"
+
+msgid "SMB password"
+msgstr "Senha SMB"
+
+msgid "SMB domain"
+msgstr "Domínio SMB"
+
+msgid "SMB encryption"
+msgstr "Criptografia SMB"
+
+msgid "NFS UID"
+msgstr "UID do NFS"
+
+msgid "NFS GID"
+msgstr "GID do NFS"
+
+msgid "NFS mount port"
+msgstr "Porta de montagem NFS"
+
+msgid "Timeout (ms)"
+msgstr "Tempo limite (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Cache (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 ou NFS v3 sobre TCP. Alterar o protocolo limpa o compartilhamento e as credenciais SMB neste rascunho."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Somente IPv4 numérico. Nenhum servidor é contatado durante a edição."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: somente o nome do compartilhamento. NFS: caminho absoluto da exportação, por exemplo /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relativo ao compartilhamento / exportação. Deixe vazio para usar a raiz. Não use links nem componentes .. no caminho."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Opcional, relativo à pasta de jogos. Procura atualizações / DLC correspondentes nesta pasta e em um nível de subpastas."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter substitui a senha em um teclado do sistema com entrada oculta. Quadrado a limpa; Triângulo restaura a senha salva."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Usuário vazio seleciona o convidado SMB2. Limpe também a senha, o domínio e a criptografia. A autenticação assinada exige um usuário."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "A criptografia obrigatória exige SMB3 e um usuário. Servidores sem suporte causam falha; não há redução silenciosa da segurança."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Identidade numérica NFS v3 AUTH_SYS (0–2147483647). Configure acesso somente para leitura no seu servidor."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0 consulta o portmapper do servidor para localizar mountd. Caso contrário, use uma porta TCP fixa de montagem (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Tempo limite por operação, 250–15000 milissegundos. As varreduras também têm seu próprio limite de leitura."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Cache somente para leitura, 1–32 MiB por local conectado. Sem downloads de jogos inteiros."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "As alterações ficam neste rascunho até Salvar. Cancelar mantém a configuração salva sem alterações."
+
+msgid "Network settings saved."
+msgstr "Configurações de rede salvas."
+
+msgid "Edit network location"
+msgstr "Editar local de rede"
+
+msgid "Add network location"
+msgstr "Adicionar local de rede"
+
+msgid "Network shares"
+msgstr "Compartilhamentos de rede"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS somente para leitura · Até quatro locais · Teclado privado integrado"
+
+msgid "Remove this network location?"
+msgstr "Remover este local de rede?"
+
+msgid "Discard unsaved changes?"
+msgstr "Descartar alterações não salvas?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Somente as configurações de conexão salvas deste local são removidas. Os arquivos no servidor e os dados salvos locais não são excluídos."
+
+msgid "The saved network configuration will not change."
+msgstr "A configuração de rede salva não será alterada."
+
+msgid "Confirm"
+msgstr "Confirmar"
+
+msgid "Keep editing / back"
+msgstr "Continuar editando / voltar"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Processando… Círculo cancela antes da gravação definitiva."
+
+msgid "Not set"
+msgstr "Não definido"
+
+msgid "Connecting and scanning…"
+msgstr "Conectando e procurando jogos…"
+
+msgid "Connected · {0} games"
+msgstr "Conectado · {0} jogos"
+
+msgid "Disconnected"
+msgstr "Desconectado"
+
+msgid "Save (no connection)"
+msgstr "Salvar (sem conexão)"
+
+msgid "Save and reconnect"
+msgstr "Salvar e reconectar"
+
+msgid "Cancel editing"
+msgstr "Cancelar edição"
+
+msgid "Reconnect saved locations"
+msgstr "Reconectar locais salvos"
+
+msgid "Disconnect / cancel"
+msgstr "Desconectar / cancelar"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 para mudar de página"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Salvar nunca contata um servidor. Salvar e reconectar recarrega explicitamente os locais ativados e se conecta a eles."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Escolha um local para editar ou Adicionar local de rede. Quadrado remove o local selecionado após confirmação."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "As credenciais ficam em texto simples privado em config/network-shares.json (0600), sem criptografia. Não compartilhe este arquivo nem cópias preparadas para gravação."
+
+msgid "Edit / select"
+msgstr "Editar / selecionar"
+
+msgid "Replace"
+msgstr "Substituir"
+
+msgid "Clear"
+msgstr "Limpar"
+
+msgid "Keep saved"
+msgstr "Manter o valor salvo"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Vincular uma sessão de jogo Nextendo? Compartilhe sua identidade e permita a busca de partidas (identity, game.matchmaking). Não é solicitada permissão para amigos, presença ou edição de perfil. O roteamento de jogos permanece desativado até você ativá-lo separadamente."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Confirme a permissão de identidade e busca de partidas antes de vincular uma sessão de jogo Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "As verificações remotas não estão disponíveis para sessões Nextendo exclusivas de jogo. Vincule novamente para obter uma nova sessão de jogo; a sessão salva não foi removida."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "A sessão de jogo Nextendo expirou ou o relógio está incorreto. Vincule novamente antes de ativar ou iniciar."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Falha ao vincular o jogo ao Nextendo. Verifique o registro, o consentimento, a conectividade e os certificados confiáveis."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json inválido. Forneça seu client_id registrado e redirect_uri HTTP 127.0.0.1 (porta >= 1024 ou {port}); app é opcional."
+
+msgid "Nextendo action cancelled."
+msgstr "Ação do Nextendo cancelada."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Falha na ação do Nextendo. Tente novamente ou desvincule a sessão."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Jogue por SMB ou NFS somente para leitura sem baixar os jogos."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Configurações de compartilhamento de rede inválidas. Corrija o JSON importado antes de editar; o arquivo não foi substituído."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "As configurações de rede devem estar em um arquivo regular, com diretórios pais sem links (no máximo 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "As configurações de rede foram alteradas fora deste editor. Reabra o editor; nada foi sobrescrito."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Cancelado. As configurações de rede salvas não foram alteradas."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Salvo, mas não foi possível confirmar a sincronização do diretório."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Não foi possível salvar as configurações de rede. O arquivo anterior foi preservado."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "O teclado das configurações de rede não está disponível."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Valor inválido. Use IPv4 numérico, caminhos seguros, portas válidas, tempo limite de 250–15000 ms e cache de 1–32 MiB. As credenciais SMB exigem um usuário."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "O IPv4 do servidor e o compartilhamento / exportação são obrigatórios. Preencha-os antes de salvar."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Este local de rede já existe. Edite-o em vez de adicionar outro."
+
+msgid "At most four network locations can be saved."
+msgstr "É possível salvar no máximo quatro locais de rede."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "As configurações de rede não estão disponíveis enquanto outra tarefa protegida ou um jogo está iniciando."
+
+msgid "Reopen the network location before editing."
+msgstr "Reabra o local de rede antes de editar."
+
+msgid "Network location"
+msgstr "Local de rede"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Obrigatória (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Desativada (assinatura obrigatória com um usuário)"
+
+msgid "Replacement set"
+msgstr "Substituição definida"
+
+msgid "Set / keep existing"
+msgstr "Definir / manter existente"
+
+msgid "Network location name"
+msgstr "Nome do local de rede"
+
+msgid "Network server IPv4"
+msgstr "IPv4 do servidor de rede"
+
+msgid "Network share / export"
+msgstr "Compartilhamento / exportação de rede"
+
+msgid "Network games folder (relative)"
+msgstr "Pasta de jogos em rede (relativa)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Pasta de atualizações / DLC em rede (relativa)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Usuário SMB (vazio = convidado)"
+
+msgid "SMB password (private replacement)"
+msgstr "Senha SMB (substituição privada)"
+
+msgid "SMB domain (optional)"
+msgstr "Domínio SMB (opcional)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID do NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID do NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Porta de montagem NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Porta TCP do servidor de rede"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Cache de rede (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Tempo limite de rede (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Digite uma substituição; Cancelar mantém a senha atual"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Confirme para usar este valor; Cancelar mantém o valor anterior"

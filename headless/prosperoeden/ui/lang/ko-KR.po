@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "계정 연결 해제"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "브라우저로 세션 교체 확인"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "이 PS5의 브라우저에서 연결"
 
@@ -2780,3 +2776,321 @@ msgstr "ProsperoEden을 계속 실행하세요. 휴대전화나 다른 기기에
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "뒤로 / 취소"
+
+msgid "Network"
+msgstr "네트워크"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "네트워크 게임은 읽기 전용입니다. 세이브 데이터, 모드, 캐시는 본체에 저장됩니다."
+
+msgid "Location name"
+msgstr "위치 이름"
+
+msgid "Protocol"
+msgstr "프로토콜"
+
+msgid "Server IPv4"
+msgstr "서버 IPv4"
+
+msgid "Share / export"
+msgstr "공유 / 내보내기 경로"
+
+msgid "Games folder"
+msgstr "게임 폴더"
+
+msgid "Updates / DLC folder"
+msgstr "업데이트 / DLC 폴더"
+
+msgid "Enabled"
+msgstr "사용"
+
+msgid "Server port"
+msgstr "서버 포트"
+
+msgid "SMB user"
+msgstr "SMB 사용자"
+
+msgid "SMB password"
+msgstr "SMB 비밀번호"
+
+msgid "SMB domain"
+msgstr "SMB 도메인"
+
+msgid "SMB encryption"
+msgstr "SMB 암호화"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "NFS 마운트 포트"
+
+msgid "Timeout (ms)"
+msgstr "시간 제한 (ms)"
+
+msgid "Cache (MiB)"
+msgstr "캐시 (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "TCP를 통한 SMB2/3 또는 NFS v3입니다. 프로토콜을 바꾸면 편집 중인 공유 설정과 SMB 인증 정보가 지워집니다."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "숫자로 된 IPv4 주소만 사용할 수 있습니다. 편집 중에는 서버에 접속하지 않습니다."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: 공유 이름만 입력하세요. NFS: /games와 같은 절대 내보내기 경로를 입력하세요."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "공유 / 내보내기 경로 기준의 상대 경로입니다. 비워 두면 해당 루트를 사용합니다. 링크나 .. 경로 요소는 사용할 수 없습니다."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "선택 사항이며 게임 폴더 기준의 상대 경로입니다. 이 폴더와 한 단계 아래 폴더에서 게임에 맞는 업데이트 / DLC를 검색합니다."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "확인하면 입력 내용을 숨기는 시스템 키보드로 비밀번호를 교체합니다. 네모 버튼으로 지우고, 세모 버튼으로 저장된 비밀번호를 복원합니다."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "사용자를 비워 두면 SMB2 게스트로 접속합니다. 비밀번호, 도메인, 암호화 설정도 지우세요. 서명된 로그인에는 사용자가 필요합니다."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "암호화를 필수로 설정하려면 SMB3와 사용자가 필요합니다. 지원하지 않는 서버에는 연결되지 않으며, 알리지 않고 보안 수준을 낮추지 않습니다."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYS 숫자 ID (0–2147483647)입니다. 서버에서 읽기 전용 접근을 설정하세요."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0이면 서버의 portmapper에 mountd 포트를 요청합니다. 그 외에는 고정 TCP 마운트 포트 (1–65535)를 사용합니다."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "작업별 시간 제한은 250–15000밀리초입니다. 검색에는 별도의 읽기 한도도 적용됩니다."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "연결된 위치마다 1–32 MiB의 읽기 전용 캐시를 사용합니다. 게임 전체를 다운로드하지 않습니다."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "저장하기 전까지 변경 사항은 편집 중인 설정에만 남습니다. 취소하면 저장된 설정은 바뀌지 않습니다."
+
+msgid "Network settings saved."
+msgstr "네트워크 설정을 저장했습니다."
+
+msgid "Edit network location"
+msgstr "네트워크 위치 편집"
+
+msgid "Add network location"
+msgstr "네트워크 위치 추가"
+
+msgid "Network shares"
+msgstr "네트워크 공유"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "읽기 전용 SMB / NFS · 최대 4개 위치 · 비공개 입력용 키보드 내장"
+
+msgid "Remove this network location?"
+msgstr "이 네트워크 위치를 삭제할까요?"
+
+msgid "Discard unsaved changes?"
+msgstr "저장하지 않은 변경 사항을 버릴까요?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "저장된 연결 설정만 삭제합니다. 서버의 파일과 본체의 세이브 데이터는 삭제하지 않습니다."
+
+msgid "The saved network configuration will not change."
+msgstr "저장된 네트워크 설정은 바뀌지 않습니다."
+
+msgid "Confirm"
+msgstr "확인"
+
+msgid "Keep editing / back"
+msgstr "계속 편집 / 뒤로"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "처리 중… 저장이 확정되기 전에는 동그라미 버튼으로 취소할 수 있습니다."
+
+msgid "Not set"
+msgstr "미설정"
+
+msgid "Connecting and scanning…"
+msgstr "연결 및 검색 중…"
+
+msgid "Connected · {0} games"
+msgstr "연결됨 · 게임 {0}개"
+
+msgid "Disconnected"
+msgstr "연결 안 됨"
+
+msgid "Save (no connection)"
+msgstr "저장 (연결하지 않음)"
+
+msgid "Save and reconnect"
+msgstr "저장 후 다시 연결"
+
+msgid "Cancel editing"
+msgstr "편집 취소"
+
+msgid "Reconnect saved locations"
+msgstr "저장된 위치에 다시 연결"
+
+msgid "Disconnect / cancel"
+msgstr "연결 해제 / 취소"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1으로 페이지 이동"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "저장만 하면 서버에 접속하지 않습니다. '저장 후 다시 연결'을 선택하면 사용 설정된 위치를 명시적으로 다시 불러와 연결합니다."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "편집할 위치 또는 '네트워크 위치 추가'를 선택하세요. 네모 버튼을 누르면 확인 후 선택한 위치를 삭제합니다."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "인증 정보는 config/network-shares.json (0600)에 비공개 평문으로 저장되며, 암호화되지 않습니다. 이 파일이나 저장 준비 중인 사본을 공유하지 마세요."
+
+msgid "Edit / select"
+msgstr "편집 / 선택"
+
+msgid "Replace"
+msgstr "교체"
+
+msgid "Clear"
+msgstr "지우기"
+
+msgid "Keep saved"
+msgstr "저장된 값 유지"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Nextendo 게임 세션을 연결할까요? 신원 정보를 공유하고 게임 매치메이킹을 허용합니다 (identity, game.matchmaking). 친구, 접속 상태, 프로필 편집 권한은 요청하지 않습니다. 게임 라우팅은 별도로 켜기 전까지 꺼진 상태로 유지됩니다."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Nextendo 게임 세션을 연결하기 전에 신원 정보 공유 및 게임 매치메이킹 권한을 확인하세요."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "게임 전용 Nextendo 세션에서는 원격 확인을 사용할 수 없습니다. 다시 연결하여 새 게임 세션을 받으세요. 저장된 세션은 삭제되지 않았습니다."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendo 게임 세션이 만료되었거나 시계가 잘못되었습니다. 활성화하거나 게임을 실행하기 전에 다시 연결하세요."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Nextendo 게임 연결에 실패했습니다. 등록, 동의, 연결 상태, 신뢰할 수 있는 인증서를 확인하세요."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json이 올바르지 않습니다. 등록된 client_id와 HTTP 127.0.0.1 redirect_uri (포트 >= 1024 또는 {port})를 입력하세요. app은 선택 사항입니다."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo 작업을 취소했습니다."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo 작업에 실패했습니다. 다시 시도하거나 세션 연결을 해제하세요."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "읽기 전용 SMB 또는 NFS 게임을 다운로드 없이 플레이합니다."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "네트워크 공유 설정이 올바르지 않습니다. 편집 전에 가져온 JSON을 수정하세요. 파일은 교체되지 않았습니다."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "네트워크 설정은 일반 파일이어야 하며 (최대 64 KiB), 상위 디렉터리에도 링크가 없어야 합니다."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "이 편집기 밖에서 네트워크 설정이 변경되었습니다. 편집기를 다시 여세요. 아무것도 덮어쓰지 않았습니다."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "취소했습니다. 저장된 네트워크 설정은 바뀌지 않았습니다."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "저장했지만 디렉터리 동기화를 확인하지 못했습니다."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "네트워크 설정을 저장하지 못했습니다. 이전 파일은 보존되었습니다."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "네트워크 설정 키보드를 사용할 수 없습니다."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "올바르지 않은 값입니다. 숫자로 된 IPv4, 안전한 경로, 유효한 포트, 시간 제한 250–15000 ms, 캐시 1–32 MiB를 사용하세요. SMB 인증 정보에는 사용자가 필요합니다."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "서버 IPv4와 공유 / 내보내기 경로는 필수입니다. 저장하기 전에 입력하세요."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "이 네트워크 위치는 이미 있습니다. 기존 위치를 편집하세요."
+
+msgid "At most four network locations can be saved."
+msgstr "네트워크 위치는 최대 4개까지 저장할 수 있습니다."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "다른 보호된 작업이 실행 중이거나 게임을 시작하는 동안에는 네트워크 설정을 사용할 수 없습니다."
+
+msgid "Reopen the network location before editing."
+msgstr "편집하기 전에 네트워크 위치를 다시 여세요."
+
+msgid "Network location"
+msgstr "네트워크 위치"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "필수 (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "끄기 (사용자 지정 시 서명 필수)"
+
+msgid "Replacement set"
+msgstr "교체할 값 설정됨"
+
+msgid "Set / keep existing"
+msgstr "설정됨 / 기존 값 유지"
+
+msgid "Network location name"
+msgstr "네트워크 위치 이름"
+
+msgid "Network server IPv4"
+msgstr "네트워크 서버 IPv4"
+
+msgid "Network share / export"
+msgstr "네트워크 공유 / 내보내기 경로"
+
+msgid "Network games folder (relative)"
+msgstr "네트워크 게임 폴더 (상대 경로)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "네트워크 업데이트 / DLC 폴더 (상대 경로)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB 사용자 (비어 있음 = 게스트)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB 비밀번호 (비공개 교체)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB 도메인 (선택 사항)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS 마운트 포트 (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "네트워크 서버 TCP 포트"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "네트워크 캐시 (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "네트워크 시간 제한 (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "교체할 비밀번호를 입력하세요. 취소하면 현재 비밀번호를 유지합니다"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "확인하면 이 값을 사용합니다. 취소하면 이전 값을 유지합니다"

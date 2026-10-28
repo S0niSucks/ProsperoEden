@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Account ontkoppelen"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Vervanging via browser bevestigen"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Koppelen in de browser van deze PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Laat ProsperoEden draaien. Open dit niet op een telefoon of ander appara
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Terug / annuleren"
+
+msgid "Network"
+msgstr "Netwerk"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Netwerkspel met alleen leestoegang. Opgeslagen spelgegevens, mods en caches blijven lokaal."
+
+msgid "Location name"
+msgstr "Locatienaam"
+
+msgid "Protocol"
+msgstr "Protocol"
+
+msgid "Server IPv4"
+msgstr "IPv4-adres van server"
+
+msgid "Share / export"
+msgstr "Gedeelde map / export"
+
+msgid "Games folder"
+msgstr "Spellenmap"
+
+msgid "Updates / DLC folder"
+msgstr "Map voor updates / DLC"
+
+msgid "Enabled"
+msgstr "Ingeschakeld"
+
+msgid "Server port"
+msgstr "Serverpoort"
+
+msgid "SMB user"
+msgstr "SMB-gebruiker"
+
+msgid "SMB password"
+msgstr "SMB-wachtwoord"
+
+msgid "SMB domain"
+msgstr "SMB-domein"
+
+msgid "SMB encryption"
+msgstr "SMB-versleuteling"
+
+msgid "NFS UID"
+msgstr "NFS-UID"
+
+msgid "NFS GID"
+msgstr "NFS-GID"
+
+msgid "NFS mount port"
+msgstr "NFS-aankoppelpoort"
+
+msgid "Timeout (ms)"
+msgstr "Time-out (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Cache (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 of NFS v3 via TCP. Het wijzigen van het protocol wist de gedeelde map en SMB-aanmeldgegevens in dit concept."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Alleen numerieke IPv4-adressen. Tijdens het bewerken wordt geen server benaderd."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: alleen de naam van de gedeelde map. NFS: absoluut exportpad, bijvoorbeeld /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relatief aan de gedeelde map / export. Laat leeg om de hoofdmap te gebruiken. Geen koppelingen of ..-onderdelen."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Optioneel, relatief aan de spellenmap. Doorzoekt deze map en één niveau onderliggende mappen op bijbehorende updates / DLC."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter vervangt het wachtwoord via een systeemtoetsenbord met afgeschermde invoer. Vierkant wist het; Driehoek herstelt het opgeslagen wachtwoord."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Een lege gebruikersnaam kiest SMB2-gasttoegang. Wis ook het wachtwoord en domein en schakel versleuteling uit. Ondertekend aanmelden vereist een gebruiker."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Verplichte versleuteling vereist SMB3 en een gebruiker. Niet-ondersteunde servers geven een fout; er wordt niet stilzwijgend naar zwakkere beveiliging overgeschakeld."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Numerieke identiteit voor NFS v3 AUTH_SYS (0–2147483647). Stel op je server alleen leestoegang in."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0 vraagt de portmapper van de server om mountd. Gebruik anders een vaste TCP-aankoppelpoort (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Time-out per bewerking, 250–15000 milliseconden. Scans hebben daarnaast een eigen begrensd leesbudget."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Cache met alleen leestoegang, 1–32 MiB per verbonden locatie. Geen downloads van volledige spellen."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Wijzigingen blijven in dit concept totdat je Opslaan kiest. Annuleren laat de opgeslagen configuratie ongewijzigd."
+
+msgid "Network settings saved."
+msgstr "Netwerkinstellingen opgeslagen."
+
+msgid "Edit network location"
+msgstr "Netwerklocatie bewerken"
+
+msgid "Add network location"
+msgstr "Netwerklocatie toevoegen"
+
+msgid "Network shares"
+msgstr "Gedeelde netwerkmappen"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS met alleen leestoegang · Maximaal vier locaties · Ingebouwd privétoetsenbord"
+
+msgid "Remove this network location?"
+msgstr "Deze netwerklocatie verwijderen?"
+
+msgid "Discard unsaved changes?"
+msgstr "Niet-opgeslagen wijzigingen verwerpen?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Alleen de opgeslagen verbindingsinstellingen worden verwijderd. Bestanden op de server en lokaal opgeslagen spelgegevens worden niet verwijderd."
+
+msgid "The saved network configuration will not change."
+msgstr "De opgeslagen netwerkconfiguratie verandert niet."
+
+msgid "Confirm"
+msgstr "Bevestigen"
+
+msgid "Keep editing / back"
+msgstr "Verder bewerken / terug"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Bezig… Cirkel annuleert zolang het opslaan nog niet definitief is gemaakt."
+
+msgid "Not set"
+msgstr "Niet ingesteld"
+
+msgid "Connecting and scanning…"
+msgstr "Verbinden en doorzoeken…"
+
+msgid "Connected · {0} games"
+msgstr "Verbonden · {0} spellen"
+
+msgid "Disconnected"
+msgstr "Verbinding verbroken"
+
+msgid "Save (no connection)"
+msgstr "Opslaan (zonder verbinding)"
+
+msgid "Save and reconnect"
+msgstr "Opslaan en opnieuw verbinden"
+
+msgid "Cancel editing"
+msgstr "Bewerken annuleren"
+
+msgid "Reconnect saved locations"
+msgstr "Opgeslagen locaties opnieuw verbinden"
+
+msgid "Disconnect / cancel"
+msgstr "Verbinding verbreken / annuleren"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 om te bladeren"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Opslaan benadert nooit een server. Opslaan en opnieuw verbinden laadt ingeschakelde locaties uitdrukkelijk opnieuw en maakt er verbinding mee."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Kies een locatie om te bewerken, of Netwerklocatie toevoegen. Vierkant verwijdert de geselecteerde locatie na bevestiging."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Aanmeldgegevens staan als privégegevens in platte tekst in config/network-shares.json (0600) en zijn niet versleuteld. Deel dit bestand en klaargezette kopieën ervan niet."
+
+msgid "Edit / select"
+msgstr "Bewerken / selecteren"
+
+msgid "Replace"
+msgstr "Vervangen"
+
+msgid "Clear"
+msgstr "Wissen"
+
+msgid "Keep saved"
+msgstr "Opgeslagen waarde behouden"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Een Nextendo-spelsessie koppelen? Deel je identiteit en sta het zoeken naar medespelers toe (identity, game.matchmaking). Er wordt geen toestemming gevraagd voor vrienden, aanwezigheidsstatus of profielbewerking. Spelroutering blijft uit totdat je die afzonderlijk inschakelt."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Bevestig de toestemming om je identiteit te delen en medespelers te zoeken voordat je een Nextendo-spelsessie koppelt."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Controles op afstand zijn niet beschikbaar voor Nextendo-sessies die alleen voor spellen dienen. Koppel opnieuw om een nieuwe spelsessie te krijgen; de opgeslagen sessie is niet verwijderd."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "De Nextendo-spelsessie is verlopen of de klok staat verkeerd. Koppel opnieuw voordat je inschakelt of een spel start."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Het koppelen van de Nextendo-spelsessie is mislukt. Controleer de registratie, toestemming, verbinding en vertrouwde certificaten."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Ongeldige oauth.json. Geef je geregistreerde client_id en HTTP-redirect_uri met 127.0.0.1 op (poort >= 1024 of {port}); app is optioneel."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo-actie geannuleerd."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo-actie mislukt. Probeer opnieuw of ontkoppel de sessie."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Speel SMB- of NFS-spellen met alleen leestoegang zonder ze te downloaden."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Ongeldige instellingen voor gedeelde netwerkmappen. Corrigeer de geïmporteerde JSON vóór het bewerken; het bestand is niet vervangen."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Netwerkinstellingen moeten in een regulier bestand staan met bovenliggende mappen zonder koppelingen (maximaal 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "De netwerkinstellingen zijn buiten deze editor gewijzigd. Open de editor opnieuw; er is niets overschreven."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Geannuleerd. De opgeslagen netwerkinstellingen zijn niet gewijzigd."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Opgeslagen, maar synchronisatie van de map kon niet worden bevestigd."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Kan netwerkinstellingen niet opslaan. Het vorige bestand is behouden."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Het toetsenbord voor netwerkinstellingen is niet beschikbaar."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Ongeldige waarde. Gebruik numerieke IPv4-adressen, veilige paden, geldige poorten, een time-out van 250–15000 ms en een cache van 1–32 MiB. SMB-aanmeldgegevens vereisen een gebruiker."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Het IPv4-adres van de server en de gedeelde map / export zijn vereist. Vul ze in voordat je opslaat."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Deze netwerklocatie bestaat al. Bewerk die in plaats daarvan."
+
+msgid "At most four network locations can be saved."
+msgstr "Er kunnen maximaal vier netwerklocaties worden opgeslagen."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Netwerkinstellingen zijn niet beschikbaar terwijl een andere beschermde taak of een spel wordt gestart."
+
+msgid "Reopen the network location before editing."
+msgstr "Open de netwerklocatie opnieuw voordat je die bewerkt."
+
+msgid "Network location"
+msgstr "Netwerklocatie"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Verplicht (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Uit (ondertekening vereist bij een gebruiker)"
+
+msgid "Replacement set"
+msgstr "Vervanging ingesteld"
+
+msgid "Set / keep existing"
+msgstr "Ingesteld / bestaande waarde behouden"
+
+msgid "Network location name"
+msgstr "Naam van netwerklocatie"
+
+msgid "Network server IPv4"
+msgstr "IPv4-adres van netwerkserver"
+
+msgid "Network share / export"
+msgstr "Gedeelde netwerkmap / export"
+
+msgid "Network games folder (relative)"
+msgstr "Netwerkspellenmap (relatief)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Netwerkmap voor updates / DLC (relatief)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB-gebruiker (leeg = gast)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB-wachtwoord (privévervanging)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB-domein (optioneel)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID voor NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID voor NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS-aankoppelpoort (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "TCP-poort van netwerkserver"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Netwerkcache (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Netwerktime-out (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Voer een vervanging in; Annuleren behoudt het huidige wachtwoord"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Bevestig om deze waarde te gebruiken; Annuleren behoudt de vorige waarde"

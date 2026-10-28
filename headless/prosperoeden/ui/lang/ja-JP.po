@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "アカウントの連携を解除"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "ブラウザーでの置き換えを確認"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "このPS5のブラウザーで連携"
 
@@ -2780,3 +2776,321 @@ msgstr "ProsperoEdenを起動したままにしてください。スマートフ
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "戻る / キャンセル"
+
+msgid "Network"
+msgstr "ネットワーク"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "ネットワーク上のゲームは読み取り専用です。セーブデータ、MOD、キャッシュは本体に保存されます。"
+
+msgid "Location name"
+msgstr "接続先の名前"
+
+msgid "Protocol"
+msgstr "プロトコル"
+
+msgid "Server IPv4"
+msgstr "サーバーのIPv4"
+
+msgid "Share / export"
+msgstr "共有 / エクスポート"
+
+msgid "Games folder"
+msgstr "ゲームフォルダー"
+
+msgid "Updates / DLC folder"
+msgstr "更新データ / DLCフォルダー"
+
+msgid "Enabled"
+msgstr "有効"
+
+msgid "Server port"
+msgstr "サーバーポート"
+
+msgid "SMB user"
+msgstr "SMBユーザー"
+
+msgid "SMB password"
+msgstr "SMBパスワード"
+
+msgid "SMB domain"
+msgstr "SMBドメイン"
+
+msgid "SMB encryption"
+msgstr "SMB暗号化"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "NFSマウントポート"
+
+msgid "Timeout (ms)"
+msgstr "タイムアウト (ms)"
+
+msgid "Cache (MiB)"
+msgstr "キャッシュ (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "TCP経由のSMB2/3またはNFS v3。プロトコルを変更すると、編集中の共有設定とSMB認証情報が消去されます。"
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "数字のIPv4アドレスのみ使用できます。編集中はサーバーに接続しません。"
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB：共有名のみ。NFS：エクスポートの絶対パス（例：/games）。"
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "共有 / エクスポートからの相対パスです。空欄ならそのルートを使用します。リンクや .. を含むパスは使用できません。"
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "任意。ゲームフォルダーからの相対パスです。このフォルダーと1階層下のフォルダーから、対応する更新データ / DLCを検索します。"
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "決定すると、入力内容を伏せるシステムキーボードでパスワードを置き換えます。四角ボタンで消去、三角ボタンで保存済みのパスワードに戻します。"
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "ユーザーが空欄ならSMB2のゲスト接続になります。パスワード、ドメイン、暗号化設定も消去してください。署名付きログインにはユーザーが必要です。"
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "暗号化を必須にするにはSMB3とユーザーが必要です。未対応のサーバーへの接続は失敗します。暗黙に保護を弱めることはありません。"
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYSの数値ID (0–2147483647)。サーバー側で読み取り専用アクセスを設定してください。"
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "0の場合、サーバーのportmapperにmountdのポートを問い合わせます。それ以外は固定のTCPマウントポート (1–65535) を使用します。"
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "各操作のタイムアウトは250–15000ミリ秒です。スキャンには別途、読み取り量の上限もあります。"
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "接続中の接続先ごとに1–32 MiBの読み取り専用キャッシュを使用します。ゲーム全体はダウンロードしません。"
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "保存するまで変更は編集中の設定にのみ反映されます。キャンセルしても保存済みの設定は変わりません。"
+
+msgid "Network settings saved."
+msgstr "ネットワーク設定を保存しました。"
+
+msgid "Edit network location"
+msgstr "ネットワーク接続先を編集"
+
+msgid "Add network location"
+msgstr "ネットワーク接続先を追加"
+
+msgid "Network shares"
+msgstr "ネットワーク共有"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "読み取り専用SMB / NFS · 接続先は最大4件 · 秘密情報入力用キーボード内蔵"
+
+msgid "Remove this network location?"
+msgstr "このネットワーク接続先を削除しますか？"
+
+msgid "Discard unsaved changes?"
+msgstr "未保存の変更を破棄しますか？"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "保存済みの接続設定のみを削除します。サーバー上のファイルや本体のセーブデータは削除しません。"
+
+msgid "The saved network configuration will not change."
+msgstr "保存済みのネットワーク設定は変わりません。"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Keep editing / back"
+msgstr "編集を続ける / 戻る"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "処理中… 保存が確定する前なら丸ボタンでキャンセルできます。"
+
+msgid "Not set"
+msgstr "未設定"
+
+msgid "Connecting and scanning…"
+msgstr "接続してスキャン中…"
+
+msgid "Connected · {0} games"
+msgstr "接続済み · ゲーム{0}本"
+
+msgid "Disconnected"
+msgstr "未接続"
+
+msgid "Save (no connection)"
+msgstr "保存（接続しない）"
+
+msgid "Save and reconnect"
+msgstr "保存して再接続"
+
+msgid "Cancel editing"
+msgstr "編集をキャンセル"
+
+msgid "Reconnect saved locations"
+msgstr "保存済みの接続先に再接続"
+
+msgid "Disconnect / cancel"
+msgstr "切断 / キャンセル"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1でページ切り替え"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "「保存」ではサーバーに接続しません。「保存して再接続」を選ぶと、有効な接続先を明示的に再読み込みして接続します。"
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "編集する接続先、または「ネットワーク接続先を追加」を選んでください。四角ボタンで、確認後に選択中の接続先を削除します。"
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "認証情報は非公開の平文としてconfig/network-shares.json (0600) に保存され、暗号化されません。このファイルや保存準備中のコピーを共有しないでください。"
+
+msgid "Edit / select"
+msgstr "編集 / 選択"
+
+msgid "Replace"
+msgstr "置き換え"
+
+msgid "Clear"
+msgstr "消去"
+
+msgid "Keep saved"
+msgstr "保存済みの値を維持"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Nextendoのゲームセッションを連携しますか？ あなたの識別情報の共有とゲームのマッチメイキングを許可します (identity, game.matchmaking)。フレンド、オンライン状態、プロフィール編集の権限は要求しません。ゲームの経路制御は、別途有効にするまで無効のままです。"
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Nextendoのゲームセッションを連携する前に、識別情報の共有とゲームのマッチメイキングの許可を確認してください。"
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "ゲーム専用のNextendoセッションではリモート確認を利用できません。再度連携して新しいゲームセッションを取得してください。保存済みのセッションは削除されていません。"
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendoのゲームセッションの有効期限が切れているか、時計が正しくありません。有効化またはゲームの起動前に再度連携してください。"
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Nextendoのゲーム連携に失敗しました。登録、同意、接続状態、信頼された証明書を確認してください。"
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.jsonが無効です。登録済みのclient_idとHTTP 127.0.0.1のredirect_uri（ポート >= 1024 または {port}）を指定してください。appは任意です。"
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendoの操作をキャンセルしました。"
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendoの操作に失敗しました。再試行するか、セッションの連携を解除してください。"
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "読み取り専用のSMBまたはNFS上のゲームを、ダウンロードせずにプレイします。"
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "ネットワーク共有の設定が無効です。編集する前にインポートしたJSONを修正してください。ファイルは置き換えられていません。"
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "ネットワーク設定は通常のファイル（最大64 KiB）で、親ディレクトリにもリンクを含んではいけません。"
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "このエディターの外でネットワーク設定が変更されました。エディターを開き直してください。何も上書きしていません。"
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "キャンセルしました。保存済みのネットワーク設定は変更されていません。"
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "保存しましたが、ディレクトリの同期を確認できませんでした。"
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "ネットワーク設定を保存できませんでした。以前のファイルは保持されています。"
+
+msgid "The network settings keyboard is unavailable."
+msgstr "ネットワーク設定用のキーボードを利用できません。"
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "値が無効です。数字のIPv4、安全なパス、有効なポート、タイムアウト250–15000 ms、キャッシュ1–32 MiBを指定してください。SMB認証情報にはユーザーが必要です。"
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "サーバーのIPv4と共有 / エクスポートは必須です。保存する前に入力してください。"
+
+msgid "This network location already exists. Edit it instead."
+msgstr "このネットワーク接続先はすでに存在します。既存の接続先を編集してください。"
+
+msgid "At most four network locations can be saved."
+msgstr "保存できるネットワーク接続先は最大4件です。"
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "別の保護された処理の実行中、またはゲームの起動中は、ネットワーク設定を利用できません。"
+
+msgid "Reopen the network location before editing."
+msgstr "編集する前にネットワーク接続先を開き直してください。"
+
+msgid "Network location"
+msgstr "ネットワーク接続先"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "必須 (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "無効（ユーザー指定時は署名必須）"
+
+msgid "Replacement set"
+msgstr "置き換え内容を設定済み"
+
+msgid "Set / keep existing"
+msgstr "設定済み / 現在の値を維持"
+
+msgid "Network location name"
+msgstr "ネットワーク接続先の名前"
+
+msgid "Network server IPv4"
+msgstr "ネットワークサーバーのIPv4"
+
+msgid "Network share / export"
+msgstr "ネットワーク共有 / エクスポート"
+
+msgid "Network games folder (relative)"
+msgstr "ネットワーク上のゲームフォルダー（相対パス）"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "ネットワーク上の更新データ / DLCフォルダー（相対パス）"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMBユーザー（空欄 = ゲスト）"
+
+msgid "SMB password (private replacement)"
+msgstr "SMBパスワード（非公開で置き換え）"
+
+msgid "SMB domain (optional)"
+msgstr "SMBドメイン（任意）"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFSマウントポート (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "ネットワークサーバーのTCPポート"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "ネットワークキャッシュ (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "ネットワークのタイムアウト (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "置き換えるパスワードを入力してください。キャンセルすると現在のパスワードを維持します"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "確認してこの値を使用します。キャンセルすると以前の値を維持します"

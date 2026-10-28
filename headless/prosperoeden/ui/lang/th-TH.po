@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "ยกเลิกการเชื่อมโยงบัญชี"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "ยืนยันการแทนที่ผ่านเบราว์เซอร์"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "เชื่อมโยงในเบราว์เซอร์ของ PS5 เครื่องนี้"
 
@@ -2780,3 +2776,321 @@ msgstr "เปิด ProsperoEden ไว้ อย่าเปิดลิงก
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "ย้อนกลับ / ยกเลิก"
+
+msgid "Network"
+msgstr "เครือข่าย"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "เกมบนเครือข่ายเป็นแบบอ่านอย่างเดียว ข้อมูลเซฟ ม็อด และแคชจะเก็บไว้ในเครื่อง"
+
+msgid "Location name"
+msgstr "ชื่อตำแหน่ง"
+
+msgid "Protocol"
+msgstr "โพรโทคอล"
+
+msgid "Server IPv4"
+msgstr "IPv4 ของเซิร์ฟเวอร์"
+
+msgid "Share / export"
+msgstr "ชื่อแชร์ / พาธส่งออก"
+
+msgid "Games folder"
+msgstr "โฟลเดอร์เกม"
+
+msgid "Updates / DLC folder"
+msgstr "โฟลเดอร์อัปเดต / DLC"
+
+msgid "Enabled"
+msgstr "เปิดใช้งาน"
+
+msgid "Server port"
+msgstr "พอร์ตเซิร์ฟเวอร์"
+
+msgid "SMB user"
+msgstr "ผู้ใช้ SMB"
+
+msgid "SMB password"
+msgstr "รหัสผ่าน SMB"
+
+msgid "SMB domain"
+msgstr "โดเมน SMB"
+
+msgid "SMB encryption"
+msgstr "การเข้ารหัส SMB"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "พอร์ตเมานต์ NFS"
+
+msgid "Timeout (ms)"
+msgstr "เวลารอสูงสุด (ms)"
+
+msgid "Cache (MiB)"
+msgstr "แคช (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 หรือ NFS v3 ผ่าน TCP การเปลี่ยนโพรโทคอลจะล้างการตั้งค่าแชร์และข้อมูลรับรอง SMB ในฉบับร่างนี้"
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "ใช้ได้เฉพาะที่อยู่ IPv4 แบบตัวเลข ขณะแก้ไขจะไม่มีการติดต่อเซิร์ฟเวอร์"
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: ใช้เฉพาะชื่อแชร์ NFS: ใช้พาธส่งออกแบบสัมบูรณ์ เช่น /games"
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "พาธสัมพัทธ์จากแชร์ / พาธส่งออก เว้นว่างเพื่อใช้โฟลเดอร์ราก ห้ามใช้ลิงก์หรือส่วนของพาธที่เป็น .."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "ไม่จำเป็นต้องระบุ เป็นพาธสัมพัทธ์จากโฟลเดอร์เกม จะสแกนโฟลเดอร์นี้และโฟลเดอร์ย่อยหนึ่งระดับเพื่อหาอัปเดต / DLC ที่ตรงกัน"
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "กดยืนยันเพื่อแทนที่รหัสผ่านด้วยแป้นพิมพ์ระบบที่ซ่อนข้อความที่พิมพ์ ปุ่มสี่เหลี่ยมใช้ล้าง ปุ่มสามเหลี่ยมใช้คืนค่ารหัสผ่านที่บันทึกไว้"
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "เว้นชื่อผู้ใช้ว่างเพื่อใช้บัญชีผู้เยี่ยมชม SMB2 ต้องล้างรหัสผ่าน โดเมน และการตั้งค่าการเข้ารหัสด้วย การเข้าสู่ระบบแบบลงลายเซ็นต้องระบุผู้ใช้"
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "หากบังคับใช้การเข้ารหัส ต้องใช้ SMB3 และระบุผู้ใช้ เซิร์ฟเวอร์ที่ไม่รองรับจะเชื่อมต่อไม่สำเร็จ โดยจะไม่ลดระดับความปลอดภัยโดยไม่แจ้งให้ทราบ"
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "รหัสประจำตัวแบบตัวเลขของ NFS v3 AUTH_SYS (0–2147483647) ให้ตั้งค่าสิทธิ์อ่านอย่างเดียวบนเซิร์ฟเวอร์ของคุณ"
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "ค่า 0 จะสอบถามพอร์ต mountd จาก portmapper ของเซิร์ฟเวอร์ ค่าอื่นจะใช้เป็นพอร์ตเมานต์ TCP แบบคงที่ (1–65535)"
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "เวลารอสูงสุดต่อการดำเนินการ 250–15000 มิลลิวินาที การสแกนยังมีขีดจำกัดปริมาณการอ่านแยกต่างหากด้วย"
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "แคชแบบอ่านอย่างเดียว 1–32 MiB ต่อตำแหน่งที่เชื่อมต่อ จะไม่ดาวน์โหลดเกมทั้งเกม"
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "การเปลี่ยนแปลงจะอยู่ในฉบับร่างนี้จนกว่าจะบันทึก การยกเลิกจะไม่เปลี่ยนการตั้งค่าที่บันทึกไว้"
+
+msgid "Network settings saved."
+msgstr "บันทึกการตั้งค่าเครือข่ายแล้ว"
+
+msgid "Edit network location"
+msgstr "แก้ไขตำแหน่งเครือข่าย"
+
+msgid "Add network location"
+msgstr "เพิ่มตำแหน่งเครือข่าย"
+
+msgid "Network shares"
+msgstr "แชร์บนเครือข่าย"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS แบบอ่านอย่างเดียว · สูงสุดสี่ตำแหน่ง · มีแป้นพิมพ์สำหรับข้อมูลส่วนตัวในตัว"
+
+msgid "Remove this network location?"
+msgstr "นำตำแหน่งเครือข่ายนี้ออกหรือไม่?"
+
+msgid "Discard unsaved changes?"
+msgstr "ทิ้งการเปลี่ยนแปลงที่ยังไม่ได้บันทึกหรือไม่?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "จะนำออกเฉพาะการตั้งค่าการเชื่อมต่อที่บันทึกไว้ ไม่ลบไฟล์บนเซิร์ฟเวอร์หรือข้อมูลเซฟในเครื่อง"
+
+msgid "The saved network configuration will not change."
+msgstr "การตั้งค่าเครือข่ายที่บันทึกไว้จะไม่เปลี่ยนแปลง"
+
+msgid "Confirm"
+msgstr "ยืนยัน"
+
+msgid "Keep editing / back"
+msgstr "แก้ไขต่อ / ย้อนกลับ"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "กำลังทำงาน… กดปุ่มวงกลมเพื่อยกเลิกได้ก่อนการบันทึกจะมีผล"
+
+msgid "Not set"
+msgstr "ยังไม่ได้ตั้งค่า"
+
+msgid "Connecting and scanning…"
+msgstr "กำลังเชื่อมต่อและสแกน…"
+
+msgid "Connected · {0} games"
+msgstr "เชื่อมต่อแล้ว · {0} เกม"
+
+msgid "Disconnected"
+msgstr "ไม่ได้เชื่อมต่อ"
+
+msgid "Save (no connection)"
+msgstr "บันทึก (ไม่เชื่อมต่อ)"
+
+msgid "Save and reconnect"
+msgstr "บันทึกและเชื่อมต่อใหม่"
+
+msgid "Cancel editing"
+msgstr "ยกเลิกการแก้ไข"
+
+msgid "Reconnect saved locations"
+msgstr "เชื่อมต่อตำแหน่งที่บันทึกไว้ใหม่"
+
+msgid "Disconnect / cancel"
+msgstr "ตัดการเชื่อมต่อ / ยกเลิก"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 เปลี่ยนหน้า"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "การบันทึกจะไม่ติดต่อเซิร์ฟเวอร์ หากเลือกบันทึกและเชื่อมต่อใหม่ จึงจะโหลดตำแหน่งที่เปิดใช้งานไว้อีกครั้งแล้วเชื่อมต่อ"
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "เลือกตำแหน่งที่จะแก้ไข หรือเลือกเพิ่มตำแหน่งเครือข่าย ปุ่มสี่เหลี่ยมจะนำตำแหน่งที่เลือกออกหลังจากยืนยัน"
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "ข้อมูลรับรองจะเก็บเป็นข้อความล้วนแบบส่วนตัวใน config/network-shares.json (0600) โดยไม่เข้ารหัส อย่าแชร์ไฟล์นี้หรือสำเนาที่เตรียมไว้สำหรับบันทึก"
+
+msgid "Edit / select"
+msgstr "แก้ไข / เลือก"
+
+msgid "Replace"
+msgstr "แทนที่"
+
+msgid "Clear"
+msgstr "ล้าง"
+
+msgid "Keep saved"
+msgstr "เก็บค่าที่บันทึกไว้"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "เชื่อมโยงเซสชันเกม Nextendo หรือไม่? การเชื่อมโยงจะแชร์ข้อมูลระบุตัวตนของคุณและอนุญาตการจับคู่เกม (identity, game.matchmaking) จะไม่ขอสิทธิ์เกี่ยวกับเพื่อน สถานะออนไลน์ หรือการแก้ไขโปรไฟล์ การกำหนดเส้นทางเกมจะยังปิดอยู่จนกว่าคุณจะเปิดใช้งานแยกต่างหาก"
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "ยืนยันสิทธิ์การแชร์ข้อมูลระบุตัวตนและการจับคู่เกมก่อนเชื่อมโยงเซสชันเกม Nextendo"
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "เซสชัน Nextendo สำหรับเกมเท่านั้นใช้การตรวจสอบระยะไกลไม่ได้ ให้เชื่อมโยงอีกครั้งเพื่อรับเซสชันเกมใหม่ เซสชันที่บันทึกไว้ยังไม่ได้ถูกนำออก"
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "เซสชันเกม Nextendo หมดอายุหรือนาฬิกาไม่ถูกต้อง ให้เชื่อมโยงอีกครั้งก่อนเปิดใช้งานหรือเริ่มเกม"
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "เชื่อมโยงเกม Nextendo ไม่สำเร็จ ตรวจสอบการลงทะเบียน ความยินยอม การเชื่อมต่อ และใบรับรองที่เชื่อถือได้"
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json ไม่ถูกต้อง ระบุ client_id ที่คุณลงทะเบียนไว้และ redirect_uri แบบ HTTP 127.0.0.1 (พอร์ต >= 1024 หรือ {port}) โดยไม่จำเป็นต้องระบุ app"
+
+msgid "Nextendo action cancelled."
+msgstr "ยกเลิกการดำเนินการ Nextendo แล้ว"
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "การดำเนินการ Nextendo ล้มเหลว ลองอีกครั้งหรือยกเลิกการเชื่อมโยงเซสชัน"
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "เล่นเกมบน SMB หรือ NFS แบบอ่านอย่างเดียวโดยไม่ต้องดาวน์โหลดเกม"
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "การตั้งค่าแชร์บนเครือข่ายไม่ถูกต้อง แก้ไข JSON ที่นำเข้าให้ถูกต้องก่อนเริ่มแก้ไขการตั้งค่า ไฟล์ยังไม่ได้ถูกแทนที่"
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "การตั้งค่าเครือข่ายต้องเป็นไฟล์ปกติ (ไม่เกิน 64 KiB) และไดเรกทอรีแม่ทุกระดับต้องไม่มีลิงก์"
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "การตั้งค่าเครือข่ายถูกเปลี่ยนจากภายนอกตัวแก้ไขนี้ ให้เปิดตัวแก้ไขใหม่ ยังไม่มีการเขียนทับใด ๆ"
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "ยกเลิกแล้ว การตั้งค่าเครือข่ายที่บันทึกไว้ไม่ได้เปลี่ยนแปลง"
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "บันทึกแล้ว แต่ยืนยันการซิงค์ไดเรกทอรีไม่ได้"
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "บันทึกการตั้งค่าเครือข่ายไม่ได้ ไฟล์เดิมยังคงอยู่"
+
+msgid "The network settings keyboard is unavailable."
+msgstr "แป้นพิมพ์สำหรับการตั้งค่าเครือข่ายไม่พร้อมใช้งาน"
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "ค่าไม่ถูกต้อง ใช้ IPv4 แบบตัวเลข พาธที่ปลอดภัย พอร์ตที่ถูกต้อง เวลารอสูงสุด 250–15000 ms และแคช 1–32 MiB ข้อมูลรับรอง SMB ต้องระบุผู้ใช้"
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "ต้องระบุ IPv4 ของเซิร์ฟเวอร์และชื่อแชร์ / พาธส่งออก กรอกข้อมูลเหล่านี้ก่อนบันทึก"
+
+msgid "This network location already exists. Edit it instead."
+msgstr "มีตำแหน่งเครือข่ายนี้อยู่แล้ว ให้แก้ไขตำแหน่งเดิมแทน"
+
+msgid "At most four network locations can be saved."
+msgstr "บันทึกตำแหน่งเครือข่ายได้สูงสุดสี่ตำแหน่ง"
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "ใช้การตั้งค่าเครือข่ายไม่ได้ขณะมีงานที่ได้รับการป้องกันอื่นกำลังทำงาน หรือขณะกำลังเริ่มเกม"
+
+msgid "Reopen the network location before editing."
+msgstr "เปิดตำแหน่งเครือข่ายใหม่ก่อนแก้ไข"
+
+msgid "Network location"
+msgstr "ตำแหน่งเครือข่าย"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "บังคับใช้ (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "ปิด (ต้องลงลายเซ็นเมื่อระบุผู้ใช้)"
+
+msgid "Replacement set"
+msgstr "ตั้งค่าใหม่ที่จะแทนที่แล้ว"
+
+msgid "Set / keep existing"
+msgstr "ตั้งค่าแล้ว / เก็บค่าเดิม"
+
+msgid "Network location name"
+msgstr "ชื่อตำแหน่งเครือข่าย"
+
+msgid "Network server IPv4"
+msgstr "IPv4 ของเซิร์ฟเวอร์เครือข่าย"
+
+msgid "Network share / export"
+msgstr "ชื่อแชร์ / พาธส่งออกบนเครือข่าย"
+
+msgid "Network games folder (relative)"
+msgstr "โฟลเดอร์เกมบนเครือข่าย (พาธสัมพัทธ์)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "โฟลเดอร์อัปเดต / DLC บนเครือข่าย (พาธสัมพัทธ์)"
+
+msgid "SMB user (empty = guest)"
+msgstr "ผู้ใช้ SMB (ว่าง = ผู้เยี่ยมชม)"
+
+msgid "SMB password (private replacement)"
+msgstr "รหัสผ่าน SMB (แทนที่แบบส่วนตัว)"
+
+msgid "SMB domain (optional)"
+msgstr "โดเมน SMB (ไม่จำเป็นต้องระบุ)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "พอร์ตเมานต์ NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "พอร์ต TCP ของเซิร์ฟเวอร์เครือข่าย"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "แคชเครือข่าย (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "เวลารอสูงสุดของเครือข่าย (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "ป้อนรหัสผ่านใหม่เพื่อแทนที่ ยกเลิกเพื่อเก็บรหัสผ่านปัจจุบัน"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "ยืนยันเพื่อใช้ค่านี้ ยกเลิกเพื่อเก็บค่าก่อนหน้า"

@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Dezasociază contul"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Confirmă înlocuirea prin navigator"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Asociază în navigatorul acestui PS5"
 
@@ -2780,3 +2776,321 @@ msgstr "Lasă ProsperoEden să ruleze. Nu deschide pe un telefon sau alt dispozi
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Înapoi / anulare"
+
+msgid "Network"
+msgstr "Rețea"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Joc din rețea, doar în citire. Salvările, modurile și memoria cache rămân locale."
+
+msgid "Location name"
+msgstr "Numele locației"
+
+msgid "Protocol"
+msgstr "Protocol"
+
+msgid "Server IPv4"
+msgstr "IPv4 server"
+
+msgid "Share / export"
+msgstr "Partajare / export"
+
+msgid "Games folder"
+msgstr "Folder de jocuri"
+
+msgid "Updates / DLC folder"
+msgstr "Folder de actualizări / DLC"
+
+msgid "Enabled"
+msgstr "Activat"
+
+msgid "Server port"
+msgstr "Port server"
+
+msgid "SMB user"
+msgstr "Utilizator SMB"
+
+msgid "SMB password"
+msgstr "Parolă SMB"
+
+msgid "SMB domain"
+msgstr "Domeniu SMB"
+
+msgid "SMB encryption"
+msgstr "Criptare SMB"
+
+msgid "NFS UID"
+msgstr "UID NFS"
+
+msgid "NFS GID"
+msgstr "GID NFS"
+
+msgid "NFS mount port"
+msgstr "Port de montare NFS"
+
+msgid "Timeout (ms)"
+msgstr "Timp-limită (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Memorie cache (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 sau NFS v3 prin TCP. Schimbarea protocolului șterge partajarea și datele de autentificare SMB din această ciornă."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Doar adresă IPv4 numerică. Niciun server nu este contactat în timpul editării."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: doar numele partajării. NFS: calea absolută a exportului, de exemplu /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "Relativ la partajare / export. Lasă gol pentru a folosi rădăcina. Legăturile și componentele de cale .. nu sunt permise."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Opțional, relativ la folderul de jocuri. Caută actualizări / DLC corespunzătoare în acest folder și într-un singur nivel de subfoldere."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Enter înlocuiește parola folosind tastatura sistemului, cu textul ascuns. Pătrat o șterge; Triunghi restabilește parola salvată."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Un nume de utilizator gol selectează accesul ca oaspete SMB2. Șterge și parola și domeniul, apoi dezactivează criptarea. Autentificarea cu semnare necesită un utilizator."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "Criptarea obligatorie necesită SMB3 și un utilizator. Conectarea la servere fără suport eșuează; nu se trece pe ascuns la o protecție mai slabă."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "Identitate numerică NFS v3 AUTH_SYS (0–2147483647). Configurează pe server acces doar în citire."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "Valoarea 0 solicită portul mountd de la serviciul portmapper al serverului. Altfel, folosește un port TCP fix de montare (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Timp-limită pentru fiecare operație: 250–15000 milisecunde. Scanările au și propriul buget limitat de citire."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Memorie cache doar în citire, 1–32 MiB pentru fiecare locație conectată. Fără descărcarea jocurilor întregi."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "Modificările rămân în această ciornă până alegi Salvează. Anulează păstrează configurația salvată neschimbată."
+
+msgid "Network settings saved."
+msgstr "Setările de rețea au fost salvate."
+
+msgid "Edit network location"
+msgstr "Editează locația de rețea"
+
+msgid "Add network location"
+msgstr "Adaugă o locație de rețea"
+
+msgid "Network shares"
+msgstr "Partajări de rețea"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS doar în citire · Cel mult patru locații · Tastatură privată integrată"
+
+msgid "Remove this network location?"
+msgstr "Elimini această locație de rețea?"
+
+msgid "Discard unsaved changes?"
+msgstr "Renunți la modificările nesalvate?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Sunt eliminate doar setările salvate ale conexiunii. Fișierele de pe server și salvările locale nu sunt șterse."
+
+msgid "The saved network configuration will not change."
+msgstr "Configurația de rețea salvată nu se va schimba."
+
+msgid "Confirm"
+msgstr "Confirmă"
+
+msgid "Keep editing / back"
+msgstr "Continuă editarea / înapoi"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Se procesează… Cerc anulează înainte ca salvarea să fie finalizată."
+
+msgid "Not set"
+msgstr "Nesetat"
+
+msgid "Connecting and scanning…"
+msgstr "Conectare și scanare…"
+
+msgid "Connected · {0} games"
+msgstr "Conectat · Jocuri: {0}"
+
+msgid "Disconnected"
+msgstr "Deconectat"
+
+msgid "Save (no connection)"
+msgstr "Salvează (fără conectare)"
+
+msgid "Save and reconnect"
+msgstr "Salvează și reconectează"
+
+msgid "Cancel editing"
+msgstr "Anulează editarea"
+
+msgid "Reconnect saved locations"
+msgstr "Reconectează locațiile salvate"
+
+msgid "Disconnect / cancel"
+msgstr "Deconectează / anulează"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 schimbă pagina"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "Opțiunea Salvează nu contactează niciodată un server. Opțiunea Salvează și reconectează reîncarcă explicit locațiile activate și se conectează la ele."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Alege o locație de editat sau Adaugă o locație de rețea. Pătrat elimină locația selectată după confirmare."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "Datele de autentificare sunt text simplu în fișierul privat config/network-shares.json (0600), fără criptare. Nu distribui acest fișier sau copiile pregătite pentru salvare."
+
+msgid "Edit / select"
+msgstr "Editează / selectează"
+
+msgid "Replace"
+msgstr "Înlocuiește"
+
+msgid "Clear"
+msgstr "Golește"
+
+msgid "Keep saved"
+msgstr "Păstrează valoarea salvată"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Asociezi o sesiune de joc Nextendo? Partajează-ți identitatea și permite găsirea de parteneri de joc (identity, game.matchmaking). Nu se cer permisiuni pentru prieteni, starea de prezență sau editarea profilului. Rutarea jocului rămâne dezactivată până o activezi separat."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Confirmă permisiunea pentru partajarea identității și găsirea de parteneri de joc înainte de a asocia o sesiune de joc Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "Verificările la distanță nu sunt disponibile pentru sesiunile Nextendo destinate doar jocurilor. Asociază din nou pentru a obține o sesiune de joc nouă; sesiunea salvată nu a fost eliminată."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Sesiunea de joc Nextendo a expirat sau ceasul este incorect. Asociază din nou înainte de activare sau de lansarea jocului."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Asocierea jocului cu Nextendo a eșuat. Verifică înregistrarea, consimțământul, conectivitatea și certificatele de încredere."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json nevalid. Furnizează client_id înregistrat și redirect_uri cu HTTP 127.0.0.1 (port >= 1024 sau {port}); câmpul app este opțional."
+
+msgid "Nextendo action cancelled."
+msgstr "Acțiunea Nextendo a fost anulată."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Acțiunea Nextendo a eșuat. Încearcă din nou sau dezasociază sesiunea."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Joacă prin SMB sau NFS, doar în citire, fără să descarci jocurile."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Setări nevalide pentru partajarea de rețea. Corectează fișierul JSON importat înainte de editare; fișierul nu a fost înlocuit."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "Setările de rețea trebuie să fie într-un fișier obișnuit (cel mult 64 KiB), cu directoare părinte fără legături."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "Setările de rețea au fost modificate în afara acestui editor. Redeschide editorul; nimic nu a fost suprascris."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Anulat. Setările de rețea salvate nu au fost modificate."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Salvat, dar sincronizarea directorului nu a putut fi confirmată."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "Setările de rețea nu au putut fi salvate. Fișierul anterior a fost păstrat."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "Tastatura pentru setările de rețea nu este disponibilă."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Valoare nevalidă. Folosește IPv4 numeric, căi sigure, porturi valide, timp-limită de 250–15000 ms și memorie cache de 1–32 MiB. Datele de autentificare SMB necesită un utilizator."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "Adresa IPv4 a serverului și partajarea / exportul sunt obligatorii. Introdu-le înainte de salvare."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Această locație de rețea există deja. Editeaz-o în loc să adaugi alta."
+
+msgid "At most four network locations can be saved."
+msgstr "Pot fi salvate cel mult patru locații de rețea."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "Setările de rețea nu sunt disponibile cât timp rulează o altă operație protejată sau pornește un joc."
+
+msgid "Reopen the network location before editing."
+msgstr "Redeschide locația de rețea înainte de editare."
+
+msgid "Network location"
+msgstr "Locație de rețea"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Obligatorie (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Dezactivată (semnare obligatorie cu un utilizator)"
+
+msgid "Replacement set"
+msgstr "Valoare de înlocuire introdusă"
+
+msgid "Set / keep existing"
+msgstr "Setat / păstrează valoarea existentă"
+
+msgid "Network location name"
+msgstr "Numele locației de rețea"
+
+msgid "Network server IPv4"
+msgstr "IPv4 al serverului de rețea"
+
+msgid "Network share / export"
+msgstr "Partajare / export de rețea"
+
+msgid "Network games folder (relative)"
+msgstr "Folder de jocuri din rețea (relativ)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Folder de actualizări / DLC din rețea (relativ)"
+
+msgid "SMB user (empty = guest)"
+msgstr "Utilizator SMB (gol = oaspete)"
+
+msgid "SMB password (private replacement)"
+msgstr "Parolă SMB (înlocuire privată)"
+
+msgid "SMB domain (optional)"
+msgstr "Domeniu SMB (opțional)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "UID NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "GID NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "Port de montare NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Port TCP al serverului de rețea"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Memorie cache de rețea (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Timp-limită de rețea (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Introdu o parolă nouă; Anulează păstrează parola curentă"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Confirmă pentru a folosi această valoare; Anulează păstrează valoarea anterioară"

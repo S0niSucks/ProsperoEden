@@ -53,6 +53,29 @@ std::vector<std::uint16_t> Units(const std::u16string& text, std::size_t limit) 
     return units;
 }
 
+struct DialogStorage {
+    ImeParam param{};
+    std::vector<std::uint16_t> text, title, placeholder;
+    bool active = false;
+
+    void Clear() {
+        // In particular, do not retain a private network password after the system releases it.
+        for (auto* buffer : {&text, &title, &placeholder}) {
+            volatile std::uint16_t* units = buffer->data();
+            for (std::size_t i = 0; i < buffer->size(); ++i) units[i] = 0;
+            buffer->clear();
+        }
+        param = {};
+    }
+};
+
+DialogStorage& Storage() {
+    // The system can refuse Term even after its bounded retry window. Keep this one allocation
+    // alive until process teardown, rather than destroying buffers still owned by that dialog.
+    static auto* storage = new DialogStorage;
+    return *storage;
+}
+
 void Note(const char* what, int code) {
     char line[160];
     std::snprintf(line, sizeof(line), "%s (%#x); the game gets its default text", what, static_cast<unsigned>(code));
@@ -92,6 +115,17 @@ TextAnswer AskSystemKeyboard(const TextRequest& request, const std::atomic<bool>
         answer.outcome = TextOutcome::cancelled;
         return answer;
     }
+    auto& storage = Storage();
+    if (storage.active) {
+        // A previous timed-out termination still owns all of its pointers. Never open or reuse
+        // its buffers until the system acknowledges release, including on a cancelled request.
+        if (const int closed = sceImeDialogTerm(); closed < 0) {
+            Note("The PS5 keyboard has not released its previous dialog", closed);
+            return answer;
+        }
+        storage.active = false;
+        storage.Clear();
+    }
     if (!loaded) {
         // The keyboard's module (asked for when the app started, PrepareSystemKeyboard): without
         // it its functions are not there to call.
@@ -107,28 +141,31 @@ TextAnswer AskSystemKeyboard(const TextRequest& request, const std::atomic<bool>
         }
         loaded = true;
     }
-    ImeParam param{};
+    auto& param = storage.param;
     if (const int user = sceUserServiceGetForegroundUser(&param.user_id); user < 0) {
         Note("No PS5 user for the keyboard", user);
         return answer;
     }
     const std::size_t limit = std::clamp<std::size_t>(request.max_length ? request.max_length : kUnlimitedText, 1,
                                                       kLongestText);
-    std::vector<std::uint16_t> text = Units(request.initial, limit);
-    const std::vector<std::uint16_t> title = Units(request.title, 127);
-    const std::vector<std::uint16_t> placeholder = Units(request.placeholder, 127);
+    storage.text = Units(request.initial, limit);
+    storage.title = Units(request.title, 127);
+    storage.placeholder = Units(request.placeholder, 127);
+    const auto& text = storage.text;
     // Password masking is invalid with the default multilingual keyboard type.
     param.type = request.numbers ? kTypeNumber : request.password ? kTypeBasicLatin : 0;
     param.option = request.password ? kOptionPassword : 0;
     param.max_text_length = static_cast<std::uint32_t>(limit);
-    param.input_text_buffer = text.data();
+    param.input_text_buffer = storage.text.data();
     param.horizontal_alignment = param.vertical_alignment = kAlignCenter;
-    param.placeholder = placeholder.data();
-    param.title = title.data();
+    param.placeholder = storage.placeholder.data();
+    param.title = storage.title.data();
     if (const int opened = sceImeDialogInit(&param, nullptr); opened != 0) {
+        storage.Clear();
         Note("The PS5 keyboard did not open", opened);
         return answer;
     }
+    storage.active = true;
     Report("keyboard", "The PS5 keyboard is open");
     const auto since = std::chrono::steady_clock::now();
     for (;;) {
@@ -152,8 +189,22 @@ TextAnswer AskSystemKeyboard(const TextRequest& request, const std::atomic<bool>
         }
         break;
     }
-    // The system owns the dialog until it has let go of it.
-    for (int tries = 0; tries < 100 && sceImeDialogTerm() < 0; ++tries) std::this_thread::sleep_for(50ms);
+    // The system owns the dialog until it has let go of it. A timeout must not free its memory
+    // or publish an accepted answer; the next request can retry cleanup without opening a dialog.
+    int closed = -1;
+    for (int tries = 0; tries < 100; ++tries) {
+        closed = sceImeDialogTerm();
+        if (closed >= 0) break;
+        if (tries + 1 < 100) std::this_thread::sleep_for(50ms);
+    }
+    if (closed >= 0) {
+        storage.active = false;
+        storage.Clear();
+    } else {
+        if (answer.outcome == TextOutcome::accepted) answer = {};
+        Note("The PS5 keyboard has not released its dialog", closed);
+    }
+    if (stop.load()) answer = {TextOutcome::cancelled, {}};
     Report("keyboard", answer.outcome == TextOutcome::accepted ? "The PS5 keyboard closed: text entered" :
                        answer.outcome == TextOutcome::cancelled ? "The PS5 keyboard closed: cancelled" :
                                                                   "The PS5 keyboard closed");

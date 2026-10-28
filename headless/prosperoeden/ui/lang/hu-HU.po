@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "Fiók leválasztása"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "Böngészős csere megerősítése"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "Összekapcsolás e PS5 böngészőjében"
 
@@ -2780,3 +2776,321 @@ msgstr "Hagyd futni a ProsperoEden alkalmazást. Ne nyisd meg telefonon vagy má
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "Vissza / megszakítás"
+
+msgid "Network"
+msgstr "Hálózat"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "Csak olvasható hálózati játék. A mentések, modok és gyorsítótárak helyben maradnak."
+
+msgid "Location name"
+msgstr "Hely neve"
+
+msgid "Protocol"
+msgstr "Protokoll"
+
+msgid "Server IPv4"
+msgstr "Szerver IPv4-címe"
+
+msgid "Share / export"
+msgstr "Megosztás / export"
+
+msgid "Games folder"
+msgstr "Játékok mappája"
+
+msgid "Updates / DLC folder"
+msgstr "Frissítések / DLC mappája"
+
+msgid "Enabled"
+msgstr "Bekapcsolva"
+
+msgid "Server port"
+msgstr "Szerver portja"
+
+msgid "SMB user"
+msgstr "SMB-felhasználó"
+
+msgid "SMB password"
+msgstr "SMB-jelszó"
+
+msgid "SMB domain"
+msgstr "SMB-tartomány"
+
+msgid "SMB encryption"
+msgstr "SMB-titkosítás"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "NFS csatolási port"
+
+msgid "Timeout (ms)"
+msgstr "Időkorlát (ms)"
+
+msgid "Cache (MiB)"
+msgstr "Gyorsítótár (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 vagy NFS v3 TCP-n keresztül. A protokoll módosítása törli a megosztást és az SMB bejelentkezési adatait ebből a piszkozatból."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "Csak számszerű IPv4-cím adható meg. Szerkesztés közben nem lép kapcsolatba egyetlen szerverrel sem."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: csak a megosztás neve. NFS: az export abszolút elérési útja, például /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "A megosztáshoz / exporthoz viszonyított útvonal. Hagyd üresen a gyökér használatához. Hivatkozások és .. útvonalelemek nem engedélyezettek."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "Nem kötelező, a játékok mappájához viszonyítva. Ebben a mappában és egy almappaszintig keresi a hozzájuk illő frissítéseket / DLC-ket."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "Az Enter megnyitja a rendszerbillentyűzetet a jelszó cseréjéhez, rejtett bevitellel. A négyzet törli; a háromszög visszaállítja a mentett jelszót."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "Az üres felhasználónév SMB2-vendéghozzáférést választ. Töröld a jelszót és a tartományt is, és kapcsold ki a titkosítást. Az aláírt bejelentkezéshez felhasználó szükséges."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "A kötelező titkosításhoz SMB3 és felhasználó szükséges. Az ezt nem támogató szervereken a kapcsolat sikertelen; nincs észrevétlen visszaváltás gyengébb védelemre."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYS számszerű azonosító (0–2147483647). Állíts be csak olvasható hozzáférést a szervereden."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "A 0 a szerver portmapper szolgáltatásától kéri le a mountd portját. Egyébként adj meg rögzített TCP csatolási portot (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "Műveletenkénti időkorlát: 250–15000 milliszekundum. A kereséseknek külön korlátozott olvasási keretük is van."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "Csak olvasható gyorsítótár, csatlakoztatott helyenként 1–32 MiB. Nem tölt le teljes játékokat."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "A módosítások a Mentésig ebben a piszkozatban maradnak. A Mégse változatlanul hagyja a mentett beállításokat."
+
+msgid "Network settings saved."
+msgstr "Hálózati beállítások mentve."
+
+msgid "Edit network location"
+msgstr "Hálózati hely szerkesztése"
+
+msgid "Add network location"
+msgstr "Hálózati hely hozzáadása"
+
+msgid "Network shares"
+msgstr "Hálózati megosztások"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "Csak olvasható SMB / NFS · Legfeljebb négy hely · Beépített privát billentyűzet"
+
+msgid "Remove this network location?"
+msgstr "Eltávolítod ezt a hálózati helyet?"
+
+msgid "Discard unsaved changes?"
+msgstr "Elveted a nem mentett módosításokat?"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "Csak a mentett kapcsolati beállításai törlődnek. A szerveren lévő fájlok és a helyi játékmentések nem törlődnek."
+
+msgid "The saved network configuration will not change."
+msgstr "A mentett hálózati beállítások nem változnak."
+
+msgid "Confirm"
+msgstr "Megerősítés"
+
+msgid "Keep editing / back"
+msgstr "Szerkesztés folytatása / vissza"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "Folyamatban… A kör a mentés véglegesítése előtt megszakítja."
+
+msgid "Not set"
+msgstr "Nincs beállítva"
+
+msgid "Connecting and scanning…"
+msgstr "Csatlakozás és keresés…"
+
+msgid "Connected · {0} games"
+msgstr "Csatlakoztatva · Játékok száma: {0}"
+
+msgid "Disconnected"
+msgstr "Leválasztva"
+
+msgid "Save (no connection)"
+msgstr "Mentés (csatlakozás nélkül)"
+
+msgid "Save and reconnect"
+msgstr "Mentés és újracsatlakozás"
+
+msgid "Cancel editing"
+msgstr "Szerkesztés elvetése"
+
+msgid "Reconnect saved locations"
+msgstr "Mentett helyek újracsatlakoztatása"
+
+msgid "Disconnect / cancel"
+msgstr "Leválasztás / megszakítás"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · Lapozás: L1 / R1"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "A Mentés soha nem lép kapcsolatba szerverrel. A Mentés és újracsatlakozás kifejezetten újratölti és csatlakoztatja a bekapcsolt helyeket."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "Válassz szerkesztendő helyet, vagy a Hálózati hely hozzáadása lehetőséget. A négyzet megerősítés után eltávolítja a kijelölt helyet."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "A bejelentkezési adatok a privát config/network-shares.json fájlban (0600) egyszerű szövegként, titkosítás nélkül szerepelnek. Ne oszd meg ezt a fájlt vagy a mentéshez előkészített másolatait."
+
+msgid "Edit / select"
+msgstr "Szerkesztés / kiválasztás"
+
+msgid "Replace"
+msgstr "Csere"
+
+msgid "Clear"
+msgstr "Törlés"
+
+msgid "Keep saved"
+msgstr "Mentett érték megtartása"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "Összekapcsolsz egy Nextendo-játékmunkamenetet? Oszd meg a személyazonosságodat, és engedélyezd a játékoskeresést (identity, game.matchmaking). Nem kér engedélyt az ismerősökhöz, a jelenléti állapothoz vagy a profil szerkesztéséhez. A játék útválasztása kikapcsolva marad, amíg külön be nem kapcsolod."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "Nextendo-játékmunkamenet összekapcsolása előtt erősítsd meg a személyazonosság megosztására és a játékoskeresésre adott engedélyt."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "A csak játékra szolgáló Nextendo-munkameneteknél nem érhetők el távoli ellenőrzések. Kapcsold össze újra egy friss játékmunkamenetért; a mentett munkamenet nem lett eltávolítva."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "A Nextendo-játékmunkamenet lejárt, vagy az óra pontatlan. Bekapcsolás vagy játékindítás előtt kapcsold össze újra."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "A Nextendo-játék összekapcsolása sikertelen. Ellenőrizd a regisztrációt, a hozzájárulást, a hálózati kapcsolatot és a megbízható tanúsítványokat."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "Érvénytelen oauth.json. Add meg a regisztrált client_id értékét és a HTTP 127.0.0.1 redirect_uri értékét (port >= 1024 vagy {port}); az app mező nem kötelező."
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo-művelet megszakítva."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "A Nextendo-művelet sikertelen. Próbáld újra, vagy válaszd le a munkamenetet."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "Játssz csak olvasható SMB- vagy NFS-játékokkal letöltés nélkül."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "Érvénytelenek a hálózati megosztás beállításai. Szerkesztés előtt javítsd az importált JSON-t; a fájl nem lett lecserélve."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "A hálózati beállításoknak hagyományos fájlban kell lenniük (legfeljebb 64 KiB), hivatkozásmentes szülőkönyvtárakkal."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "A hálózati beállítások ezen a szerkesztőn kívül megváltoztak. Nyisd meg újra a szerkesztőt; semmi sem lett felülírva."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "Megszakítva. A mentett hálózati beállítások nem változtak."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "Mentve, de a könyvtár szinkronizálását nem sikerült megerősíteni."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "A hálózati beállítások mentése sikertelen. A korábbi fájl megmaradt."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "A hálózati beállítások billentyűzete nem érhető el."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "Érvénytelen érték. Használj számszerű IPv4-címet, biztonságos útvonalakat, érvényes portokat, 250–15000 ms időkorlátot és 1–32 MiB gyorsítótárat. Az SMB bejelentkezési adataihoz felhasználó szükséges."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "A szerver IPv4-címe és a megosztás / export megadása kötelező. Mentés előtt add meg ezeket."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "Ez a hálózati hely már létezik. Új hozzáadása helyett szerkeszd a meglévőt."
+
+msgid "At most four network locations can be saved."
+msgstr "Legfeljebb négy hálózati hely menthető."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "A hálózati beállítások nem érhetők el, amíg másik védett feladat fut vagy játék indul."
+
+msgid "Reopen the network location before editing."
+msgstr "Szerkesztés előtt nyisd meg újra a hálózati helyet."
+
+msgid "Network location"
+msgstr "Hálózati hely"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "Kötelező (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "Ki (felhasználóval kötelező az aláírás)"
+
+msgid "Replacement set"
+msgstr "Új érték megadva"
+
+msgid "Set / keep existing"
+msgstr "Beállítva / meglévő megtartása"
+
+msgid "Network location name"
+msgstr "Hálózati hely neve"
+
+msgid "Network server IPv4"
+msgstr "Hálózati szerver IPv4-címe"
+
+msgid "Network share / export"
+msgstr "Hálózati megosztás / export"
+
+msgid "Network games folder (relative)"
+msgstr "Hálózati játékok mappája (relatív)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "Hálózati frissítések / DLC mappája (relatív)"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB-felhasználó (üres = vendég)"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB-jelszó (privát csere)"
+
+msgid "SMB domain (optional)"
+msgstr "SMB-tartomány (nem kötelező)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS csatolási port (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "Hálózati szerver TCP-portja"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "Hálózati gyorsítótár (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "Hálózati időkorlát (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "Adj meg új jelszót; a Mégse megtartja a jelenlegi jelszót"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "Erősítsd meg az érték használatát; a Mégse megtartja a korábbi értéket"

@@ -7,6 +7,10 @@
 msgid "%Y-%m-%d %H:%M"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr ""
+
 #: settings_store.h
 msgid "0.5x (faster, softer)"
 msgstr ""
@@ -96,6 +100,10 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Add network location"
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "Added to the downloads. Settings, Downloads shows the queue."
 msgstr ""
@@ -163,6 +171,10 @@ msgstr ""
 msgid "Asynchronous shaders"
 msgstr ""
 
+#: network/editor.cpp
+msgid "At most four network locations can be saved."
+msgstr ""
+
 #: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Audio"
 msgstr ""
@@ -180,11 +192,11 @@ msgid "Automatic"
 msgstr ""
 
 #. Button hint: go back one screen.
-#: pe/ui/amiibo_ui.inc, pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/runtime_amiibo_view.inc, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/amiibo_ui.inc, pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/network_shares.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/runtime_amiibo_view.inc, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
 msgid "Back"
 msgstr ""
 
-#: pe/ui/nextendo.inc
+#: pe/ui/network_shares.cpp, pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr ""
 
@@ -248,12 +260,20 @@ msgstr ""
 msgid "Button mapping"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Cache (MiB)"
+msgstr ""
+
 #: pe/ui/amiibo_ui.inc, pe/ui/library.cpp, pe/ui/pairing.cpp, pe/ui/update.cpp, pe/ui/usb_backup.cpp
 msgid "Cancel"
 msgstr ""
 
 #: pe/ui/library.cpp, pe/ui/remote.cpp
 msgid "Cancel download"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Cancel editing"
 msgstr ""
 
 #: pe/ui/usb_backup.cpp
@@ -266,6 +286,10 @@ msgstr ""
 
 #: pe/ui/library.cpp
 msgid "Cancelled"
+msgstr ""
+
+#: network/config.cpp, network/editor.cpp
+msgid "Cancelled. The saved network settings were not changed."
 msgstr ""
 
 #: pe/ui/update.cpp
@@ -304,6 +328,10 @@ msgstr ""
 #. The button mapping has been changed.
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Changed"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
 msgstr ""
 
 #. What a mod is made of: cheat codes.
@@ -369,7 +397,7 @@ msgid "Chinese (Traditional)"
 msgstr ""
 
 #. Button hint: choose the highlighted language.
-#: pe/ui/browse.cpp, pe/ui/library.cpp, pe/ui/save_sync.cpp
+#: pe/ui/browse.cpp, pe/ui/library.cpp, pe/ui/network_shares.cpp, pe/ui/save_sync.cpp
 msgid "Choose"
 msgstr ""
 
@@ -379,6 +407,10 @@ msgstr ""
 
 #: pe/ui/home.cpp
 msgid "Choose a game from your library."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -408,6 +440,10 @@ msgstr ""
 #. A DualSense button.
 #: pe/ui/game_options.cpp
 msgid "Circle"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Clear"
 msgstr ""
 
 #: pe/ui/launcher.cpp, pe/ui/remote.cpp, pe/ui/update.cpp
@@ -440,8 +476,8 @@ msgstr ""
 msgid "Compressed"
 msgstr ""
 
-#: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
+#: pe/ui/network_shares.cpp, pe/ui/nextendo.inc
+msgid "Confirm"
 msgstr ""
 
 #: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
@@ -449,7 +485,15 @@ msgid "Confirm download"
 msgstr ""
 
 #: pe/ui/nextendo.inc
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr ""
+
+#: pe/ui/nextendo.inc
 msgid "Confirm replace"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Confirm to use this value; Cancel keeps the previous value"
 msgstr ""
 
 #: pe/ui/nextendo.inc
@@ -462,6 +506,14 @@ msgstr ""
 
 #: pe/ui/home.cpp, pe/ui/multiplayer.cpp
 msgid "Connected"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Connected · {0} games"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Connecting and scanning…"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -536,6 +588,10 @@ msgstr ""
 msgid "Could not delete {0}."
 msgstr ""
 
+#: network/config.cpp
+msgid "Could not save network settings. The previous file was preserved."
+msgstr ""
+
 #: pe/ui/launcher.cpp
 msgid "Could not save settings. Please try again."
 msgstr ""
@@ -595,6 +651,10 @@ msgstr ""
 msgid "Created {0}. Copy each mod's folder into it."
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr ""
+
 #: pe/ui/browse.cpp
 msgid "Credits and setup"
 msgstr ""
@@ -608,7 +668,7 @@ msgstr ""
 msgid "Data: {0} in {1} files"
 msgstr ""
 
-#: pe/ui/settings.cpp
+#: pe/ui/scene/runtime.inc, pe/ui/settings.cpp
 msgid "Default"
 msgstr ""
 
@@ -655,6 +715,18 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Diagnostics"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Discard unsaved changes?"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Disconnect / cancel"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Disconnected"
 msgstr ""
 
 #: pe/ui/usb_backup.cpp
@@ -780,8 +852,24 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Edit / select"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Edit network location"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Enable colors"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Enabled"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -801,8 +889,16 @@ msgstr ""
 msgid "Enter a number between 0 and 4294967295."
 msgstr ""
 
+#: network/keyboard.cpp
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Enter a UDP port between 1 and 65535."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
 msgstr ""
 
 #: eden_services.cpp
@@ -983,6 +1079,10 @@ msgstr ""
 msgid "GAMES"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Games folder"
+msgstr ""
+
 #: pe/ui/remote.cpp, pe/ui/settings.cpp
 msgid "Games on your network, downloaded when you play them."
 msgstr ""
@@ -1092,6 +1192,18 @@ msgstr ""
 msgid "Installing cheats, disabled"
 msgstr ""
 
+#: network/config.cpp
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr ""
+
+#: network/editor.cpp
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr ""
+
 #: pe/ui/save_sync.cpp
 msgid "It goes to the server."
 msgstr ""
@@ -1132,6 +1244,10 @@ msgstr ""
 msgid "Join room"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Keep editing / back"
+msgstr ""
+
 #. keys, firmware and roms are folder names (unchanged). TRIANGLE is the controller's triangle button, in capitals.
 #: pe/ui/browse.cpp
 msgid "Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown."
@@ -1139,6 +1255,10 @@ msgstr ""
 
 #: pe/ui/nextendo.inc
 msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Keep saved"
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -1250,6 +1370,10 @@ msgid "Link a community account. Separate from local rooms; off by default."
 msgstr ""
 
 #: pe/ui/nextendo.inc
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr ""
+
+#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr ""
 
@@ -1259,6 +1383,10 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Loading public rooms..."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Location name"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -1333,6 +1461,66 @@ msgstr ""
 msgid "Needs attention"
 msgstr ""
 
+#: eden_services.cpp
+msgid "Network"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network cache (1-32 MiB)"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network games folder (relative)"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Network location"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network location name"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network server IPv4"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network server TCP port"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr ""
+
+#: network/config.cpp
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr ""
+
+#: network/config.cpp
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Network settings saved."
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network share / export"
+msgstr ""
+
+#: pe/ui/network_shares.cpp, pe/ui/settings.cpp
+msgid "Network shares"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network timeout (250-15000 ms)"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "Network updates / DLC folder (relative)"
+msgstr ""
+
 #: pe/ui/theme.cpp
 msgid "Neutral glass, clean and still."
 msgstr ""
@@ -1348,6 +1536,50 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
 msgid "Nextendo (experimental)"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Nextendo action cancelled."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "NFS AUTH_SYS GID"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "NFS AUTH_SYS UID"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "NFS GID"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "NFS mount port"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "NFS mount port (0 = portmapper)"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "NFS UID"
+msgstr ""
+
+#: network/editor.cpp
+msgid "NFS v3 / AUTH_SYS"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -1469,6 +1701,10 @@ msgstr ""
 msgid "Not reachable"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Not set"
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Not set up"
 msgstr ""
@@ -1478,9 +1714,17 @@ msgstr ""
 msgid "Nothing to import"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr ""
+
 #. A setting that is switched off.
 #: eden_services.cpp, host/fake_services.cpp, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Off"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Off (signing required with a user)"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -1494,6 +1738,10 @@ msgstr ""
 #. A setting that is switched on.
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "On"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
 msgstr ""
 
 #. Short tag on a folder row.
@@ -1524,6 +1772,10 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Optional catalog and photos"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
 msgstr ""
 
 #. The DualSense button labelled OPTIONS: keep the label if the language's players do.
@@ -1590,6 +1842,10 @@ msgstr ""
 msgid "Patch"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr ""
+
 #. A settings category: options that make games run faster, at some cost in accuracy.
 #: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Performance"
@@ -1610,6 +1866,10 @@ msgstr ""
 
 #: pe/ui/profiles.cpp
 msgid "Play as"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Play read-only SMB or NFS games without downloading them."
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -1736,6 +1996,10 @@ msgstr ""
 msgid "ProsperoEden was not changed."
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Protocol"
+msgstr ""
+
 #. Why a game did not start.
 #: eden_services.cpp
 msgid "PS5 controller initialization failed"
@@ -1787,6 +2051,18 @@ msgstr ""
 msgid "Read the lists again"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr ""
+
+#: eden_services.cpp
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr ""
+
 #: pe/ui/remote.cpp
 msgid "Reading the game lists..."
 msgstr ""
@@ -1801,6 +2077,10 @@ msgstr ""
 
 #: pe/ui/home.cpp
 msgid "RECENTLY PLAYED"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Reconnect saved locations"
 msgstr ""
 
 #. A switch: no drifting, sliding or zooming on screen.
@@ -1825,8 +2105,20 @@ msgstr ""
 msgid "Regular"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr ""
+
 #: pe/ui/profiles.cpp
 msgid "Remove"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Remove this network location?"
 msgstr ""
 
 #: pe/ui/profiles.cpp
@@ -1837,8 +2129,20 @@ msgstr ""
 msgid "Renderer"
 msgstr ""
 
+#: network/editor.cpp
+msgid "Reopen the network location before editing."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Replace"
+msgstr ""
+
 #: pe/ui/nextendo.inc
 msgid "Replace linked session"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Replacement set"
 msgstr ""
 
 #: pe/ui/amiibo_ui.inc
@@ -1849,8 +2153,16 @@ msgstr ""
 msgid "Request failed. Use offline catalog or retry."
 msgstr ""
 
+#: network/editor.cpp
+msgid "Required (SMB3)"
+msgstr ""
+
 #: pe/ui/usb_backup.cpp
 msgid "Required (with reserve): {0} / Available: {1}"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
 msgstr ""
 
 #: pe/ui/game_options.cpp
@@ -1916,6 +2228,14 @@ msgstr ""
 msgid "Sandboxed (code {0}): app folder only"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Save (no connection)"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Save and reconnect"
+msgstr ""
+
 #. A row of a game's settings: the game's saved progress, which can be copied in or out.
 #: pe/ui/library.cpp
 msgid "Save data"
@@ -1950,6 +2270,10 @@ msgstr ""
 msgid "Save folder found"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr ""
+
 #: pe/ui/pairing.cpp, pe/ui/settings.cpp
 msgid "Save sync"
 msgstr ""
@@ -1972,6 +2296,10 @@ msgstr ""
 
 #: pe/ui/save_sync.cpp
 msgid "Saved {0}. It replaces this console's."
+msgstr ""
+
+#: network/config.cpp
+msgid "Saved, but directory sync could not be confirmed."
 msgstr ""
 
 #. Shown after choosing 120 Hz.
@@ -2046,6 +2374,18 @@ msgstr ""
 msgid "Selected ROM is no longer available"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Server IPv4"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Server port"
+msgstr ""
+
 #: pe/ui/save_sync.cpp
 msgid "Server too old for save sync"
 msgstr ""
@@ -2056,6 +2396,10 @@ msgstr ""
 
 #: pe/ui/nextendo.inc
 msgid "Service routing on"
+msgstr ""
+
+#: network/editor.cpp
+msgid "Set / keep existing"
 msgstr ""
 
 #: pe/ui/home.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
@@ -2098,6 +2442,10 @@ msgstr ""
 msgid "Several sources have this game. Which one should it come from?"
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Share / export"
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Show an image of your own behind the menu."
 msgstr ""
@@ -2130,6 +2478,46 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Skips some checks when a game changes memory the GPU uses: faster, and textures can be stale."
+msgstr ""
+
+#: network/editor.cpp
+msgid "SMB"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB domain"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "SMB domain (optional)"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB encryption"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB password"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "SMB password (private replacement)"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB user"
+msgstr ""
+
+#: network/keyboard.cpp
+msgid "SMB user (empty = guest)"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -2284,6 +2672,14 @@ msgstr ""
 msgid "The look of this menu."
 msgstr ""
 
+#: network/editor.cpp
+msgid "The network settings keyboard is unavailable."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr ""
+
 #: pe/ui/pairing.cpp
 msgid "The profile or the server is no longer there."
 msgstr ""
@@ -2303,6 +2699,10 @@ msgstr ""
 #. Shown at the end of release notes that were cut short; homebrew.page is a site's name and stays as it is.
 #: pe/ui/update.cpp
 msgid "The rest is on the app's page on homebrew.page."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "The saved network configuration will not change."
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -2359,8 +2759,16 @@ msgstr ""
 msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
 msgstr ""
 
+#: network/editor.cpp
+msgid "This network location already exists. Edit it instead."
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "This room uses a different protocol version."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Timeout (ms)"
 msgstr ""
 
 #. ryujinx/, save-import/ and roms/ are folder names (unchanged); {0} is the game's ID.
@@ -2416,7 +2824,7 @@ msgstr ""
 msgid "UDP port"
 msgstr ""
 
-#: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/scene/runtime.inc, pe/ui/settings.cpp
 msgid "Unavailable"
 msgstr ""
 
@@ -2473,6 +2881,10 @@ msgstr ""
 #. A game update; {0} is its version, for example 1.2.0.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Update {0}"
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "Updates / DLC folder"
 msgstr ""
 
 #: pe/ui/browse.cpp
@@ -2625,6 +3037,10 @@ msgstr ""
 msgid "Working... Circle cancels."
 msgstr ""
 
+#: pe/ui/network_shares.cpp
+msgid "Working… Circle cancels before save is committed."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Write logs at once"
 msgstr ""
@@ -2649,6 +3065,10 @@ msgstr ""
 
 #: pe/ui/save_sync.cpp
 msgid "Your save data is checked against the server's."
+msgstr ""
+
+#: pe/ui/network_shares.cpp
+msgid "{0} / {1} · L1 / R1 to page"
 msgstr ""
 
 #. How many settings of a kind this game has of its own; {0} is a number.

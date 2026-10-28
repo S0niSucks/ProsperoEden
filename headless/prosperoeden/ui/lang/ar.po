@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "إلغاء ربط الحساب"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "تأكيد الاستبدال عبر المتصفح"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "الربط في متصفح جهاز PS5 هذا"
 
@@ -2780,3 +2776,321 @@ msgstr "أبقِ ProsperoEden قيد التشغيل. لا تفتح هذا على
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "رجوع / إلغاء"
+
+msgid "Network"
+msgstr "الشبكة"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "لعبة عبر الشبكة للقراءة فقط. تبقى بيانات الحفظ والتعديلات وذاكرات التخزين المؤقت محليًا."
+
+msgid "Location name"
+msgstr "اسم الموقع"
+
+msgid "Protocol"
+msgstr "البروتوكول"
+
+msgid "Server IPv4"
+msgstr "عنوان IPv4 للخادم"
+
+msgid "Share / export"
+msgstr "المشاركة / التصدير"
+
+msgid "Games folder"
+msgstr "مجلد الألعاب"
+
+msgid "Updates / DLC folder"
+msgstr "مجلد التحديثات / DLC"
+
+msgid "Enabled"
+msgstr "مفعّل"
+
+msgid "Server port"
+msgstr "منفذ الخادم"
+
+msgid "SMB user"
+msgstr "مستخدم SMB"
+
+msgid "SMB password"
+msgstr "كلمة مرور SMB"
+
+msgid "SMB domain"
+msgstr "نطاق SMB"
+
+msgid "SMB encryption"
+msgstr "تشفير SMB"
+
+msgid "NFS UID"
+msgstr "معرّف المستخدم UID في NFS"
+
+msgid "NFS GID"
+msgstr "معرّف المجموعة GID في NFS"
+
+msgid "NFS mount port"
+msgstr "منفذ تركيب NFS"
+
+msgid "Timeout (ms)"
+msgstr "المهلة (ms)"
+
+msgid "Cache (MiB)"
+msgstr "التخزين المؤقت (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "SMB2/3 أو NFS v3 عبر TCP. يؤدي تغيير البروتوكول إلى مسح المشاركة وبيانات اعتماد SMB في هذه المسودة."
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "عنوان IPv4 رقمي فقط. لا يجري الاتصال بأي خادم أثناء التعديل."
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB: اسم المشاركة فقط. NFS: مسار تصدير مطلق، مثل /games."
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "مسار نسبي إلى المشاركة / التصدير. اتركه فارغًا لاستخدام الجذر. لا يُسمح بالروابط أو بمكوّنات .. في المسار."
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "اختياري، ونسبي إلى مجلد الألعاب. يفحص هذا المجلد ومستوى واحدًا من المجلدات الفرعية بحثًا عن التحديثات / DLC المطابقة."
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "زر الإدخال يستبدل كلمة المرور باستخدام لوحة مفاتيح النظام مع إخفاء الأحرف. زر المربع يمسحها؛ وزر المثلث يستعيد كلمة المرور المحفوظة."
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "ترك المستخدم فارغًا يختار دخول الضيف في SMB2. امسح كلمة المرور والنطاق وعطّل التشفير أيضًا. يتطلب تسجيل الدخول الموقّع وجود مستخدم."
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "يتطلب التشفير الإلزامي SMB3 ومستخدمًا. تفشل العملية مع الخوادم التي لا تدعمه؛ ولا يجري خفض مستوى الأمان بصمت."
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "هوية رقمية لـ NFS v3 AUTH_SYS ‏(0–2147483647). اضبط الوصول للقراءة فقط على خادمك."
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "تطلب القيمة 0 منفذ mountd من خدمة portmapper على الخادم. وإلا فاستخدم منفذ تركيب TCP ثابتًا (1–65535)."
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "مهلة لكل عملية، 250–15000 مللي ثانية. ولعمليات الفحص أيضًا حد قراءة خاص بها."
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "تخزين مؤقت للقراءة فقط، 1–32 MiB لكل موقع متصل. لا تُنزّل الألعاب كاملةً."
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "تبقى التغييرات في هذه المسودة حتى اختيار حفظ. يترك الإلغاء الإعدادات المحفوظة دون تغيير."
+
+msgid "Network settings saved."
+msgstr "حُفظت إعدادات الشبكة."
+
+msgid "Edit network location"
+msgstr "تعديل موقع الشبكة"
+
+msgid "Add network location"
+msgstr "إضافة موقع شبكة"
+
+msgid "Network shares"
+msgstr "مشاركات الشبكة"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "SMB / NFS للقراءة فقط · حتى أربعة مواقع · لوحة مفاتيح خاصة مدمجة"
+
+msgid "Remove this network location?"
+msgstr "إزالة موقع الشبكة هذا؟"
+
+msgid "Discard unsaved changes?"
+msgstr "تجاهل التغييرات غير المحفوظة؟"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "تُزال إعدادات الاتصال المحفوظة لهذا الموقع فقط. لا تُحذف الملفات على الخادم ولا بيانات الحفظ المحلية."
+
+msgid "The saved network configuration will not change."
+msgstr "لن تتغير إعدادات الشبكة المحفوظة."
+
+msgid "Confirm"
+msgstr "تأكيد"
+
+msgid "Keep editing / back"
+msgstr "متابعة التعديل / رجوع"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "جارٍ العمل… زر الدائرة يلغي العملية قبل تثبيت الحفظ نهائيًا."
+
+msgid "Not set"
+msgstr "غير محدد"
+
+msgid "Connecting and scanning…"
+msgstr "جارٍ الاتصال والفحص…"
+
+msgid "Connected · {0} games"
+msgstr "متصل · عدد الألعاب: {0}"
+
+msgid "Disconnected"
+msgstr "غير متصل"
+
+msgid "Save (no connection)"
+msgstr "حفظ (دون اتصال)"
+
+msgid "Save and reconnect"
+msgstr "حفظ وإعادة الاتصال"
+
+msgid "Cancel editing"
+msgstr "إلغاء التعديل"
+
+msgid "Reconnect saved locations"
+msgstr "إعادة الاتصال بالمواقع المحفوظة"
+
+msgid "Disconnect / cancel"
+msgstr "قطع الاتصال / إلغاء"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 لتغيير الصفحة"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "لا يتصل خيار حفظ بأي خادم مطلقًا. يعيد خيار حفظ وإعادة الاتصال تحميل المواقع المفعّلة ويتصل بها صراحةً."
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "اختر موقعًا لتعديله، أو اختر إضافة موقع شبكة. يزيل زر المربع الموقع المحدد بعد التأكيد."
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "تُحفظ بيانات الاعتماد كنص صريح خاص في config/network-shares.json (0600)، وليست مشفّرة. لا تشارك هذا الملف أو النسخ المؤقتة المُعدّة للحفظ."
+
+msgid "Edit / select"
+msgstr "تعديل / اختيار"
+
+msgid "Replace"
+msgstr "استبدال"
+
+msgid "Clear"
+msgstr "مسح"
+
+msgid "Keep saved"
+msgstr "إبقاء القيمة المحفوظة"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "ربط جلسة لعب Nextendo؟ ستشارك هويتك وتسمح بمطابقة اللاعبين (identity, game.matchmaking). لا يُطلب إذن للأصدقاء أو حالة التواجد أو تعديل الملف الشخصي. يبقى توجيه الألعاب معطّلًا حتى تفعّله بشكل منفصل."
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "أكّد إذن مشاركة الهوية ومطابقة اللاعبين قبل ربط جلسة لعب Nextendo."
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "الفحوص عن بُعد غير متاحة لجلسات Nextendo المخصصة للألعاب فقط. أعد الربط للحصول على جلسة لعب جديدة؛ لم تُزل الجلسة المحفوظة."
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "انتهت صلاحية جلسة لعب Nextendo أو أن الساعة غير صحيحة. أعد الربط قبل التفعيل أو التشغيل."
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "فشل ربط اللعب في Nextendo. تحقّق من التسجيل والموافقة والاتصال والشهادات الموثوقة."
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "ملف oauth.json غير صالح. أدخل client_id المسجّل الخاص بك وredirect_uri عبر HTTP على 127.0.0.1 (المنفذ >= 1024 أو {port})؛ الحقل app اختياري."
+
+msgid "Nextendo action cancelled."
+msgstr "أُلغيت عملية Nextendo."
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "فشلت عملية Nextendo. أعد المحاولة أو ألغِ ربط الجلسة."
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "العب ألعاب SMB أو NFS للقراءة فقط دون تنزيلها."
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "إعدادات مشاركات الشبكة غير صالحة. صحّح JSON المستورد قبل التعديل؛ لم يُستبدل الملف."
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "يجب أن تكون إعدادات الشبكة ملفًا عاديًا لا تتضمن المجلدات الأب في مساره أي روابط (بحد أقصى 64 KiB)."
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "تغيّرت إعدادات الشبكة خارج هذا المحرر. أعد فتح المحرر؛ لم تُستبدل أي بيانات."
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "أُلغيت العملية. لم تتغير إعدادات الشبكة المحفوظة."
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "تم الحفظ، لكن تعذّر تأكيد مزامنة المجلد."
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "تعذّر حفظ إعدادات الشبكة. حُفظ الملف السابق دون تغيير."
+
+msgid "The network settings keyboard is unavailable."
+msgstr "لوحة مفاتيح إعدادات الشبكة غير متاحة."
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "قيمة غير صالحة. استخدم عنوان IPv4 رقميًا ومسارات آمنة ومنافذ صالحة ومهلة 250–15000 ms وتخزينًا مؤقتًا بسعة 1–32 MiB. تتطلب بيانات اعتماد SMB وجود مستخدم."
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "عنوان IPv4 للخادم والمشاركة / التصدير مطلوبان. أدخلهما قبل الحفظ."
+
+msgid "This network location already exists. Edit it instead."
+msgstr "موقع الشبكة هذا موجود بالفعل. عدّله بدلًا من إضافته."
+
+msgid "At most four network locations can be saved."
+msgstr "يمكن حفظ أربعة مواقع شبكة كحد أقصى."
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "إعدادات الشبكة غير متاحة أثناء بدء مهمة محمية أخرى أو لعبة."
+
+msgid "Reopen the network location before editing."
+msgstr "أعد فتح موقع الشبكة قبل تعديله."
+
+msgid "Network location"
+msgstr "موقع الشبكة"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "إلزامي (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "معطّل (التوقيع إلزامي عند وجود مستخدم)"
+
+msgid "Replacement set"
+msgstr "تم تعيين البديل"
+
+msgid "Set / keep existing"
+msgstr "تعيين / إبقاء الحالي"
+
+msgid "Network location name"
+msgstr "اسم موقع الشبكة"
+
+msgid "Network server IPv4"
+msgstr "عنوان IPv4 لخادم الشبكة"
+
+msgid "Network share / export"
+msgstr "مشاركة / تصدير الشبكة"
+
+msgid "Network games folder (relative)"
+msgstr "مجلد ألعاب الشبكة (نسبي)"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "مجلد تحديثات الشبكة / DLC (نسبي)"
+
+msgid "SMB user (empty = guest)"
+msgstr "مستخدم SMB (فارغ = ضيف)"
+
+msgid "SMB password (private replacement)"
+msgstr "كلمة مرور SMB (استبدال خاص)"
+
+msgid "SMB domain (optional)"
+msgstr "نطاق SMB (اختياري)"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "معرّف المستخدم UID في NFS AUTH_SYS"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "معرّف المجموعة GID في NFS AUTH_SYS"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "منفذ تركيب NFS (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "منفذ TCP لخادم الشبكة"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "التخزين المؤقت للشبكة (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "مهلة الشبكة (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "أدخل بديلًا؛ الإلغاء يُبقي كلمة المرور الحالية"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "أكّد لاستخدام هذه القيمة؛ الإلغاء يُبقي القيمة السابقة"

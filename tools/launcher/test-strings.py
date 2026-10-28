@@ -89,6 +89,22 @@ assert all(set(after[key]) <= set(strings.NETWORK_BACKEND_SOURCES) for key in ba
 assert all(after[key] == ['network/keyboard.cpp'] for key in prompt_added)
 assert after['Network location'] == ['network/editor.cpp']
 
+# The generated template and every shipped catalog must cover the same current source set.
+# Check named tokens as well as numeric formatting arguments: oauth redirect hints use {port}.
+assert strings.parse_po(strings.TEMPLATE).keys() == after.keys(), 'Regenerate launcher.pot from current sources'
+catalogs = sorted(strings.CATALOGS.glob('*.po'))
+assert catalogs
+for catalog in catalogs:
+    translations = strings.parse_po(catalog)
+    assert translations.keys() == after.keys(), catalog.name
+    for key, value in translations.items():
+        assert value.strip(), (catalog.name, key)
+        assert sorted(re.findall(r'\{[\w]+\}', key)) == sorted(re.findall(r'\{[\w]+\}', value)), (catalog.name, key)
+    for key in prompt_expected:
+        value = translations[key]
+        assert '\0' not in value and len(value.encode('utf-16-le')) // 2 <= 127, (catalog.name, key)
+print('Catalog contract PASS: current template/locale coverage, named/numeric tokens and native prompt UTF-16 limits')
+
 # Optional external coverage receipt is read-only and independent of our marker implementation.
 if path := os.environ.get('NETWORK_TRANSLATION_COVERAGE'):
     coverage = json.loads(Path(path).read_text(encoding='utf-8'))

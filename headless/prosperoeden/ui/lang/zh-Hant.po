@@ -2746,10 +2746,6 @@ msgid "Unlink account"
 msgstr "解除帳號連結"
 
 #: pe/ui/nextendo.inc
-msgid "Confirm browser replacement"
-msgstr "確認透過瀏覽器取代"
-
-#: pe/ui/nextendo.inc
 msgid "Link in this PS5's browser"
 msgstr "在這台 PS5 的瀏覽器中連結"
 
@@ -2780,3 +2776,321 @@ msgstr "請保持 ProsperoEden 執行。不要在手機或其他裝置上開啟�
 #: pe/ui/nextendo.inc
 msgid "Back / cancel"
 msgstr "返回 / 取消"
+
+msgid "Network"
+msgstr "網路"
+
+msgid "Read-only network game. Saves, mods and caches stay local."
+msgstr "網路遊戲檔案為唯讀。存檔、模組與快取皆保留在本機。"
+
+msgid "Location name"
+msgstr "位置名稱"
+
+msgid "Protocol"
+msgstr "通訊協定"
+
+msgid "Server IPv4"
+msgstr "伺服器 IPv4"
+
+msgid "Share / export"
+msgstr "共用 / 匯出路徑"
+
+msgid "Games folder"
+msgstr "遊戲資料夾"
+
+msgid "Updates / DLC folder"
+msgstr "更新 / DLC 資料夾"
+
+msgid "Enabled"
+msgstr "啟用"
+
+msgid "Server port"
+msgstr "伺服器連接埠"
+
+msgid "SMB user"
+msgstr "SMB 使用者"
+
+msgid "SMB password"
+msgstr "SMB 密碼"
+
+msgid "SMB domain"
+msgstr "SMB 網域"
+
+msgid "SMB encryption"
+msgstr "SMB 加密"
+
+msgid "NFS UID"
+msgstr "NFS UID"
+
+msgid "NFS GID"
+msgstr "NFS GID"
+
+msgid "NFS mount port"
+msgstr "NFS 掛載連接埠"
+
+msgid "Timeout (ms)"
+msgstr "逾時 (ms)"
+
+msgid "Cache (MiB)"
+msgstr "快取 (MiB)"
+
+msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
+msgstr "透過 TCP 使用 SMB2/3 或 NFS v3。變更通訊協定會清除此草稿中的共用設定與 SMB 認證資訊。"
+
+msgid "Numeric IPv4 only. No server is contacted while you edit."
+msgstr "僅支援數字形式的 IPv4 位址。編輯時不會連線至伺服器。"
+
+msgid "SMB: share name only. NFS: absolute export path, for example /games."
+msgstr "SMB：僅填寫共用名稱。NFS：填寫絕對匯出路徑，例如 /games。"
+
+msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
+msgstr "相對於共用 / 匯出路徑。留空則使用其根目錄。不允許連結或 .. 路徑區段。"
+
+msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
+msgstr "選填，相對於遊戲資料夾。掃描此資料夾及下一層子資料夾，尋找相符的更新 / DLC。"
+
+msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
+msgstr "按確定，透過隱藏輸入內容的系統鍵盤取代密碼。方塊鍵清除密碼；三角鍵還原已儲存的密碼。"
+
+msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
+msgstr "使用者留空則以 SMB2 訪客身分連線。也請清除密碼、網域與加密設定。使用簽章登入需要指定使用者。"
+
+msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
+msgstr "要求加密時必須使用 SMB3 並指定使用者。不支援的伺服器將連線失敗，不會悄悄降低安全等級。"
+
+msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
+msgstr "NFS v3 AUTH_SYS 數字身分識別碼 (0–2147483647)。請在伺服器上設定唯讀存取權限。"
+
+msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
+msgstr "設為 0 時向伺服器的 portmapper 查詢 mountd 連接埠。否則使用固定的 TCP 掛載連接埠 (1–65535)。"
+
+msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
+msgstr "每次操作的逾時時間為 250–15000 毫秒。掃描另有獨立的讀取量上限。"
+
+msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
+msgstr "唯讀快取，每個已連線位置使用 1–32 MiB。不會下載整個遊戲。"
+
+msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
+msgstr "儲存前，變更僅保留在此草稿中。取消不會變更已儲存的設定。"
+
+msgid "Network settings saved."
+msgstr "網路設定已儲存。"
+
+msgid "Edit network location"
+msgstr "編輯網路位置"
+
+msgid "Add network location"
+msgstr "新增網路位置"
+
+msgid "Network shares"
+msgstr "網路共用"
+
+msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
+msgstr "唯讀 SMB / NFS · 最多四個位置 · 內建私密輸入鍵盤"
+
+msgid "Remove this network location?"
+msgstr "移除此網路位置？"
+
+msgid "Discard unsaved changes?"
+msgstr "捨棄未儲存的變更？"
+
+msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
+msgstr "僅移除已儲存的連線設定。不會刪除伺服器上的檔案或本機存檔。"
+
+msgid "The saved network configuration will not change."
+msgstr "已儲存的網路設定不會變更。"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Keep editing / back"
+msgstr "繼續編輯 / 返回"
+
+msgid "Working… Circle cancels before save is committed."
+msgstr "正在處理… 儲存提交前可按圓圈鍵取消。"
+
+msgid "Not set"
+msgstr "未設定"
+
+msgid "Connecting and scanning…"
+msgstr "正在連線並掃描…"
+
+msgid "Connected · {0} games"
+msgstr "已連線 · {0} 個遊戲"
+
+msgid "Disconnected"
+msgstr "未連線"
+
+msgid "Save (no connection)"
+msgstr "儲存（不連線）"
+
+msgid "Save and reconnect"
+msgstr "儲存並重新連線"
+
+msgid "Cancel editing"
+msgstr "取消編輯"
+
+msgid "Reconnect saved locations"
+msgstr "重新連線至已儲存的位置"
+
+msgid "Disconnect / cancel"
+msgstr "中斷連線 / 取消"
+
+msgid "{0} / {1} · L1 / R1 to page"
+msgstr "{0} / {1} · L1 / R1 換頁"
+
+msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
+msgstr "「儲存」不會連線至伺服器。選擇「儲存並重新連線」才會重新載入並連線至已啟用的位置。"
+
+msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
+msgstr "選擇要編輯的位置，或選擇「新增網路位置」。按方塊鍵並確認後可移除選取的位置。"
+
+msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
+msgstr "認證資訊以私密明文形式儲存在 config/network-shares.json (0600) 中，未經加密。請勿分享此檔案或暫存副本。"
+
+msgid "Edit / select"
+msgstr "編輯 / 選取"
+
+msgid "Replace"
+msgstr "取代"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Keep saved"
+msgstr "保留已儲存的值"
+
+msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
+msgstr "連結 Nextendo 遊戲工作階段？這會分享你的身分資訊並允許遊戲配對 (identity, game.matchmaking)。不會要求好友、上線狀態或編輯個人資料的權限。遊戲路由會保持關閉，直到你另外啟用。"
+
+msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
+msgstr "連結 Nextendo 遊戲工作階段前，請確認身分資訊分享與遊戲配對權限。"
+
+msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
+msgstr "僅供遊戲使用的 Nextendo 工作階段不支援遠端檢查。請重新連結以取得新的遊戲工作階段；已儲存的工作階段並未移除。"
+
+msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
+msgstr "Nextendo 遊戲工作階段已過期，或時鐘不正確。啟用或啟動遊戲前請重新連結。"
+
+msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
+msgstr "Nextendo 遊戲連結失敗。請檢查註冊資訊、授權同意、網路連線與受信任的憑證。"
+
+msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
+msgstr "oauth.json 無效。請提供已註冊的 client_id 與 HTTP 127.0.0.1 redirect_uri（連接埠 >= 1024 或 {port}）；app 為選填項目。"
+
+msgid "Nextendo action cancelled."
+msgstr "Nextendo 操作已取消。"
+
+msgid "Nextendo action failed. Retry or unlink the session."
+msgstr "Nextendo 操作失敗。請重試或解除工作階段連結。"
+
+msgid "Play read-only SMB or NFS games without downloading them."
+msgstr "無需下載，即可遊玩唯讀 SMB 或 NFS 上的遊戲。"
+
+msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
+msgstr "網路共用設定無效。請先修正匯入的 JSON 再編輯；檔案未被取代。"
+
+msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
+msgstr "網路設定必須是一般檔案（最大 64 KiB），且各層父目錄皆不得為連結。"
+
+msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
+msgstr "網路設定已在此編輯器之外變更。請重新開啟編輯器；未覆寫任何內容。"
+
+msgid "Cancelled. The saved network settings were not changed."
+msgstr "已取消。已儲存的網路設定未變更。"
+
+msgid "Saved, but directory sync could not be confirmed."
+msgstr "已儲存，但無法確認目錄同步是否完成。"
+
+msgid "Could not save network settings. The previous file was preserved."
+msgstr "無法儲存網路設定。原檔案已保留。"
+
+msgid "The network settings keyboard is unavailable."
+msgstr "網路設定鍵盤無法使用。"
+
+msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
+msgstr "數值無效。請使用數字形式的 IPv4、安全路徑、有效連接埠、250–15000 ms 的逾時時間與 1–32 MiB 的快取。SMB 認證資訊需要指定使用者。"
+
+msgid "Server IPv4 and share / export are required. Enter them before saving."
+msgstr "伺服器 IPv4 與共用 / 匯出路徑為必填項目。請填寫後再儲存。"
+
+msgid "This network location already exists. Edit it instead."
+msgstr "此網路位置已存在。請直接編輯現有位置。"
+
+msgid "At most four network locations can be saved."
+msgstr "最多可儲存四個網路位置。"
+
+msgid "Network settings are unavailable while another protected job or a game is starting."
+msgstr "其他受保護的工作正在執行或遊戲正在啟動時，無法使用網路設定。"
+
+msgid "Reopen the network location before editing."
+msgstr "請重新開啟網路位置後再編輯。"
+
+msgid "Network location"
+msgstr "網路位置"
+
+msgid "SMB"
+msgstr "SMB"
+
+msgid "NFS v3 / AUTH_SYS"
+msgstr "NFS v3 / AUTH_SYS"
+
+msgid "Required (SMB3)"
+msgstr "必要 (SMB3)"
+
+msgid "Off (signing required with a user)"
+msgstr "關閉（指定使用者時必須簽章）"
+
+msgid "Replacement set"
+msgstr "已設定取代值"
+
+msgid "Set / keep existing"
+msgstr "已設定 / 保留現有值"
+
+msgid "Network location name"
+msgstr "網路位置名稱"
+
+msgid "Network server IPv4"
+msgstr "網路伺服器 IPv4"
+
+msgid "Network share / export"
+msgstr "網路共用 / 匯出路徑"
+
+msgid "Network games folder (relative)"
+msgstr "網路遊戲資料夾（相對路徑）"
+
+msgid "Network updates / DLC folder (relative)"
+msgstr "網路更新 / DLC 資料夾（相對路徑）"
+
+msgid "SMB user (empty = guest)"
+msgstr "SMB 使用者（留空 = 訪客）"
+
+msgid "SMB password (private replacement)"
+msgstr "SMB 密碼（私密取代）"
+
+msgid "SMB domain (optional)"
+msgstr "SMB 網域（選填）"
+
+msgid "NFS AUTH_SYS UID"
+msgstr "NFS AUTH_SYS UID"
+
+msgid "NFS AUTH_SYS GID"
+msgstr "NFS AUTH_SYS GID"
+
+msgid "NFS mount port (0 = portmapper)"
+msgstr "NFS 掛載連接埠 (0 = portmapper)"
+
+msgid "Network server TCP port"
+msgstr "網路伺服器 TCP 連接埠"
+
+msgid "Network cache (1-32 MiB)"
+msgstr "網路快取 (1-32 MiB)"
+
+msgid "Network timeout (250-15000 ms)"
+msgstr "網路逾時 (250-15000 ms)"
+
+msgid "Enter a replacement; Cancel keeps the current password"
+msgstr "輸入取代密碼；取消則保留目前密碼"
+
+msgid "Confirm to use this value; Cancel keeps the previous value"
+msgstr "確認以使用此值；取消則保留原值"

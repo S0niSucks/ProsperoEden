@@ -94,6 +94,16 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
 
 ### Reliability and diagnostics
 
+- **Current feature translations.** Added the 106 new network/Nextendo messages to all
+  30 existing catalogs, retaining earlier translations and removing the obsolete browser
+  confirmation. The template now covers all 764 source texts. Checks also preserve named
+  tokens such as `{port}` and the native prompt's UTF-16 bounds; console font coverage and
+  translated layout still need runtime qualification.
+- **Native keyboard ownership.** Dialog buffers remain alive if the system refuses to
+  terminate the keyboard. A second dialog cannot reuse them until release is acknowledged;
+  cancellation is preserved, late cancellation discards text and released buffers are wiped.
+  The previous lifetime defect reproduces under ASan, and the new synthetic regressions pass
+  in normal and ASan/UBSan builds. These are not physical-console results.
 - **GPU allocation refusal.** A failed GPU-address-space reservation is rejected before
   a page-table base can be exposed. This is a tested guard, not a verified Galaxy fix.
 - **Matching crash symbols.** Post-link executable identity, runtime/crash reporting,
