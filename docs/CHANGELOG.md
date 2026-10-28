@@ -119,11 +119,13 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
 ### Remaining work and test limits
 
 SMB/NFS caller/admission and scene-theme storage guards and focused sanitizer fixtures are
-integrated; complete build proof is pending. The 11 combined UI groups passed on `8090823`
-with ASan/UBSan at 720p/1080p using synthetic services, not native/PS5 execution. Native
-compilation reached a pre-link capture-path refusal, not a successful package. The host
-aggregate passed guest-idle with process-local no-ASLR but stopped at an outdated recent-games
-fixture, now repaired without changing runtime naming. Retained scenes and the bounded native NXTheme importer are
+integrated; complete build proof is pending. The 11 combined UI groups passed on `2bdedef`
+with ASan/UBSan at 720p/1080p using synthetic services, not native/PS5 execution. That native
+run linked successfully with capture enabled, then failed the mandatory translation gate;
+no package was produced. Its host aggregate passed guest-idle with process-local no-ASLR
+and Amiibo/cheat regressions, then stopped at an outdated Nextendo service fixture, since
+repaired with the real ledger and focused sanitizer proof without changing production. Retained
+scenes and the bounded native NXTheme importer are
 integrated, not full format/material/font/animation parity; #173/#239 stay open.
 Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed

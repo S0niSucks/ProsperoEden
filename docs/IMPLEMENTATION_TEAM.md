@@ -176,6 +176,64 @@ materials/relink and hardware limits must still be resolved before closing 1.006
   all 12 payload hashes, sizes, UID/GID and private modes were independently checked.
   The unchanged catalog checker still fails with 764 source texts and 30 catalogs on that
   freeze, byte-identical to the earlier failure. No import or waiver was attempted.
+* On `2bdedef`, all 11 UI groups passed with ASan/UBSan; all 154 selected receipt/capture
+  hashes were independently checked. The 245 notices/privacy/license calls also passed with
+  zero skips, and all 12 private receipt hashes/modes/UID/GID were checked. Source export,
+  verification and offline restoration passed; all 16 hashes were checked, including TAR
+  `b5aa2503d98bbaa15c3ae144d1b69b669088eb4b2a9939d16d8b19c9045505a4`.
+  This remains an inputs-only export with 22 provisional omissions, not binary-bound closure.
+* Both `2bdedef` aggregates completed and failed: native exit 2 after successful captured
+  link and all pre-localization checks, at the unchanged mandatory catalog checker
+  (764 texts, 30 catalogs); host exit 1 after compilation/link and Amiibo/cheat regressions,
+  at a Nextendo service fixture missing the composed theme ledger/network reservation members.
+  The raw unstamped native ELF hash is
+  `54ad33f7c1d0706bdbbc58cc2334f8a5d0b223663e562a9129937781ba146ae5`.
+  Nine capture events verify with zero failed/incomplete/missing selections, but all six
+  closure qualifications remain pending. Six host and 11 native exported metadata/log hashes
+  were independently checked. No package was produced by this failed aggregate.
+* The Nextendo adapter fixture repair `3600ed4` is integrated as `862c78b`, test-only.
+  It uses the real process theme ledger and RAII credit, checks refusal until the last copy
+  releases, and verifies active-network rejection before metadata/I/O/HTTP without clearing
+  competing busy flags. All 33 original asserts remain. The complete pinned Nextendo checker
+  and normal/ASan+UBSan/TSan fixture runs passed; the coordinator independently checked all
+  12 proof payload hashes and unchanged production inputs. This does not relabel either
+  failed aggregate as PASS or resolve the catalog gate.
+* A finite diagnostic of the remaining pre-localization host checks on frozen `2bdedef`
+  ended with 38 PASS, three PASS_WITH_LIMITS, six FAIL and four BLOCKED, not an aggregate PASS.
+  All 197 selected receipts/log hashes and before/after tracked manifests were independently
+  checked. Failures identify missing Docker Samba/rpcbind tools and the configure-only
+  network fixture failing to create its target before port injection (also reached by the
+  loader fixture). IME/editor/default composition and disk-backed Ganesha remain blocked;
+  no native/SDK/live-provider qualification follows from these diagnostics.
+* Network fixture/Docker repair `83fb4f7` is integrated as `9c25182`: the configure fixture
+  creates the real network target before injection, retains OFF/ON checks, verifies the core
+  link and rejects four production-guard negative controls. The host Docker recipe includes
+  Samba/rpcbind/Ganesha MEM test dependencies; no host/WSL tools were installed. A fresh
+  six-check repeat produced one PASS and five FAIL, with all 100 exported payload hashes
+  checked. Samba then refused `setgroups` under cap-drop ALL; the loader fixture exposed
+  missing fake-service/texture link dependencies, and Ganesha rejected its loopback bind
+  directive. These results remain failures, not a network suite or application PASS.
+* Follow-up `8ba4985`, integrated as `1a764f9`, completes the loader fixture's real USB
+  fake-service dependency and its inert renderer interface, and limits the Ganesha MEM
+  server to a verified loopback-only Docker namespace. A new isolated repeat with only
+  SETUID/SETGID added for the synthetic Samba daemon passed shares normal/ASan, security
+  and loader checks. All 68 exported hashes were independently checked. Ganesha's protocol
+  asserts completed, but its checker still failed when terminating the privilege-dropped
+  rpcbind process; that is not a complete-check PASS. Previous failures are retained.
+* Cleanup follow-up `b3b9bd8`, integrated as `fc4a3c6`, signals the exact unreaped child
+  through a same-UID/GID helper when the service drops privileges, then waits for both
+  daemons with bounded timeouts. No CAP_KILL or extra authority was added. A single fresh
+  MEM run exited 0, including both actual daemon waits; all 28 exported hashes were checked.
+  This closes that focused cleanup failure, not disk-backed NFS, PS5 or aggregate acceptance.
+
+The subsequent Nextendo/network/Docker repairs are test infrastructure only; production code
+is unchanged from the `2bdedef` build attempt. Results above retain their exact source/recipe
+identities. The later tree has not passed a complete host/native/package run; earlier UI,
+notices and input-source exports must not be relabelled as that tree's final qualification.
+No complete builds are resubmitted just to rediscover the unchanged mandatory catalog failure.
+Release work remains blocked there and at the explicitly unaccepted tasks. Resume final
+build, exact-source export and binary-bound closure/relink only after the applicable gates
+can be completed without retrying or routing around interrupted policy-blocked work.
 
 There is still no complete accepted host/native candidate, final binary-bound source/relink
 delivery or physical PS5 qualification. The catalog failure and interrupted tasks above remain
