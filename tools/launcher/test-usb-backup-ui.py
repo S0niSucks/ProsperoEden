@@ -3,10 +3,9 @@
 """Real Settings controller/renderer, synthetic USB service. Not a console test."""
 from pathlib import Path
 import json
-import os
-import subprocess
 import sys
 import tempfile
+from ui_test_helpers import PreviewSession, focus_settings, write_report
 
 binary, output = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
 root = Path(__file__).resolve().parents[2]
@@ -18,41 +17,21 @@ for width, height in ((1280, 720), (1920, 1080)):
         config = Path(data) / 'config'
         config.mkdir()
         (config / 'launcher.json').write_text(json.dumps({'schema': 1, 'selected': 'builtin'}))
-        env = dict(os.environ, EGL_PLATFORM='surfaceless', LIBGL_ALWAYS_SOFTWARE='1',
-                   GALLIUM_DRIVER='llvmpipe', PE_LAUNCHER_DATA=data)
-        with (output / f'usb-{height}.log').open('w') as log:
-            p = subprocess.Popen([str(binary), str(root / 'headless/prosperoeden/ui'), str(output), str(width), str(height)],
-                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=log, text=True, env=env)
-            assert p.stdout.readline().startswith('READY ')
-
-            def command(value):
-                p.stdin.write(value + '\n'); p.stdin.flush()
-                lines = []
-                while True:
-                    line = p.stdout.readline()
-                    assert line, 'Preview ended during ' + value
-                    lines.append(line)
-                    if line.startswith('OK '):
-                        assert 'GL=0' in line
-                        return ''.join(lines)
-
-            def key(value): command('key ' + value + ' 3')
+        with PreviewSession(binary, output, data, f'usb-{height}', width, height) as session:
+            command, key = session.command, session.key
             def state():
-                return json.loads(next(x[4:] for x in command('usb-state').splitlines() if x.startswith('USB ')))
+                return session.state('usb')
             def need(value, name):
                 assert value, name
-                checks.append({'height': height, 'check': name})
-            def capture(name):
-                command('tick 18')
-                command('capture ' + str(output / f'usb-{height}-{name}.png'))
+                checks.append({'height': height, 'check': name, 'passed': True})
+            capture = session.capture
             def open_usb(): key('cross')
             def estimate(restore=False):
                 if restore: key('down')
                 key('cross'); key('cross'); command('tick 8')
                 if restore: key('cross'); command('tick 8')
 
-            key('r1'); key('r1'); key('r1')
-            key('down'); key('down'); key('down'); key('right'); key('right')
+            focus_settings(key, 'USB backup'); capture('settings-combined')
             open_usb(); estimate()
             s = state()
             need(s['phase'] == 'estimate' and s['required'] > 0 and s['backups'] == 0, 'Space estimate precedes any copy')
@@ -81,9 +60,5 @@ for width, height in ((1280, 720), (1920, 1080)):
             capture('restart'); key('circle'); key('r1'); key('options')
             command('picker'); command('select builtin')
             need(state()['active'] and not state()['launch_allowed'], 'Restart requirement cannot be bypassed by navigation')
-            p.stdin.write('exit\n'); p.stdin.flush(); p.wait(timeout=20)
-            assert p.returncode == 0
-
-(output / 'report.json').write_text(json.dumps({'passed': True, 'checks': checks,
-    'scope': 'Actual Settings/controller/renderer with synthetic service; not PS5/filesystem qualification'}, indent=2))
+write_report(output, checks, 'Actual Settings/controller/renderer with synthetic service; not PS5/filesystem qualification', binary)
 print('USB UI PASS:', len(checks), 'checks at 720p/1080p, GL error-free')

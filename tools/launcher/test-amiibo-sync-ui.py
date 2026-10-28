@@ -3,11 +3,10 @@
 """Real builtin/Lua controller + Mesa renderer; explicitly simulated service. Not PS5 evidence."""
 from pathlib import Path
 import json
-import os
 import shutil
-import subprocess
 import sys
 import tempfile
+from ui_test_helpers import PreviewSession, focus_settings, write_report
 
 binary, output = Path(sys.argv[1]).resolve(), Path(sys.argv[2]).resolve()
 root = Path(__file__).resolve().parents[2]
@@ -17,59 +16,23 @@ with tempfile.TemporaryDirectory(prefix='amiibo-ui-') as tmp:
     data = Path(tmp)
     config = data / 'config'
     config.mkdir()
-    env = dict(os.environ, EGL_PLATFORM='surfaceless', LIBGL_ALWAYS_SOFTWARE='1',
-               GALLIUM_DRIVER='llvmpipe', PE_LAUNCHER_DATA=str(data))
-
-    class Session:
+    class Session(PreviewSession):
         def __init__(self, name, width=1280, height=720):
-            self.name = name
-            self.log = (output / (name + '.log')).open('w')
-            self.p = subprocess.Popen([str(binary), str(root / 'headless/prosperoeden/ui'), str(output),
-                                      str(width), str(height)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                     stderr=self.log, text=True, env=env)
-            assert self.p.stdout.readline().startswith('READY ')
-
-        def command(self, text):
-            self.p.stdin.write(text + '\n')
-            self.p.stdin.flush()
-            lines = []
-            while True:
-                line = self.p.stdout.readline()
-                assert line, text
-                lines.append(line)
-                if line.startswith('OK '):
-                    assert 'GL=0' in line
-                    return ''.join(lines)
-
-        def key(self, key):
-            return self.command('key ' + key + ' 3')
+            super().__init__(binary, output, data, name, width, height)
 
         def state(self):
-            return json.loads(next(line[7:] for line in self.command('amiibo-state').splitlines()
-                                   if line.startswith('AMIIBO ')))
-
-        def capture(self, name):
-            self.command('tick 24')
-            self.command('capture ' + str(output / (self.name + '-' + name + '.png')))
+            return super().state('amiibo')
 
         def need(self, value, label):
             assert value, label
             checks.append({'case': self.name, 'check': label, 'passed': True})
 
-        def close(self):
-            self.p.stdin.write('exit\n')
-            self.p.stdin.flush()
-            assert self.p.wait(timeout=15) == 0
-            self.log.close()
-
     for width, height in ((1280, 720), (1920, 1080)):
         (config / 'launcher.json').write_text(json.dumps({'schema': 1, 'selected': 'builtin'}))
         s = Session('builtin-' + str(height), width, height)
         s.need(s.state()['requests'] == 0, 'No startup network')
-        # R1 sections: Library, Multiplayer, Settings. Bottom row, third tile is Amiibo.
-        for _ in range(3): s.key('r1')
-        for _ in range(3): s.key('down')
-        s.key('right'); s.key('right'); s.key('cross')
+        focus_settings(s.key, 'Amiibo')
+        s.capture('settings-combined'); s.key('cross')
         s.need(s.state()['requests'] == 0 and s.state()['offline'], 'Opening Amiibo reads only offline catalog')
         s.capture('offline')
         s.key('cross'); s.need(s.state()['requests'] == 0, 'First selection requests confirmation only')
@@ -124,6 +87,5 @@ end}
     s.need(s.state()['busy'] and s.state()['requests'] == 1, 'Separate physical confirmation starts Lua-requested sync')
     s.key('circle'); s.need(result()['status']['phase'] == 'cancelled', 'Lua cancellation reaches service')
     s.close()
-(output / 'report.json').write_text(json.dumps({'passed': True, 'checks': checks,
-    'scope': 'Actual builtin/Lua controllers + Mesa renderer; simulated Amiibo service, not PS5/network'}, indent=2))
+write_report(output, checks, 'Actual builtin/Lua controllers + Mesa renderer; simulated Amiibo service, not PS5/network', binary)
 print(f'Amiibo UI PASS: {len(checks)} assertions, builtin 720p/1080p and Lua confirmation/offline/progress/cancel/failure paths')
