@@ -53,6 +53,8 @@ void Textures::load_wallpaper(const std::string&) {}
 void Textures::clear_wallpaper() {}
 void Textures::load_game_backdrop(const std::string&) {}
 void Textures::clear_game_backdrop() {}
+// This renderer fake has no queued covers; it does not qualify real cover cancellation.
+void Textures::discard_pending_covers() {}
 bool theme_from_kit(std::string_view, Theme*) { return false; }
 }
 

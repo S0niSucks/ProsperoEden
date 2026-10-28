@@ -67,7 +67,8 @@ def main():
                compile(ROOT / 'headless/network/metadata.cpp', 'metadata_bridge.cpp'),
                compile(ROOT / 'headless/network/loader_check.cpp', 'nro_metadata_check.cpp')]
     ui = ROOT / 'headless/prosperoeden'
-    ui_sources = [ROOT / 'headless/network/launcher_check.cpp', ui / 'host/fake_services.cpp', ui / 'pe/gfx/image.cpp',
+    ui_sources = [ROOT / 'headless/network/launcher_check.cpp', ui / 'host/fake_services.cpp',
+                  ui / 'host/usb_backup_fake.cpp', ui / 'pe/gfx/image.cpp',
                   *sorted((ui / 'pe/core').glob('*.cpp')),
                   *[p for p in sorted((ui / 'pe/ui').glob('*.cpp'))
                     if p.name not in ('theme_kit.cpp', 'textures.cpp', 'runtime_launcher.cpp', 'runtime_loading.cpp', 'launcher_updates.cpp', 'qr_code.cpp')]]

@@ -15,13 +15,18 @@ WORK = Path(os.environ.get('NETWORK_WORK', '/work/network-check')) / 'ganesha-me
 
 def main():
     if not Path('/.dockerenv').exists(): raise SystemExit('Docker only')
+    if {name for _, name in socket.if_nameindex()} != {'lo'}:
+        raise SystemExit('Ganesha MEM requires Docker --network none (loopback-only namespace)')
     WORK.mkdir(parents=True, exist_ok=True); Path('/run/ganesha').mkdir(exist_ok=True)
     build = WORK.parent / 'build'
     subprocess.run(['cmake', '-S', str(ROOT / 'headless/network'), '-B', str(build),
                     '-DEDEN_NETWORK_DEPS=/work/deps', '-DEDEN_NETWORK_CHECK=ON'], check=True)
     subprocess.run(['cmake', '--build', str(build), '--target', 'eden-network-nfs-server-check', '-j2'], check=True)
     conf = WORK / 'ganesha.conf'
-    conf.write_text(f'''NFS_CORE_PARAM {{ Protocols = 3; Bind_addr = 127.0.0.1; NFS_Port = 12050; MNT_Port = 12051; }}
+    # Explicit numeric Bind_addr uses AI_ADDRCONFIG, which rejects loopback-only namespaces.
+    # The server default bind is safe only in the isolated namespace required above; the
+    # client still connects to 127.0.0.1 and the fixture continues to use MEM, never disk VFS.
+    conf.write_text(f'''NFS_CORE_PARAM {{ Protocols = 3; NFS_Port = 12050; MNT_Port = 12051; }}
 MEM {{ Inode_Size = 1048576; }}
 EXPORT {{ Export_Id = 1; Path = /games; Pseudo = /games; Access_Type = RW;
 Protocols = 3; Transports = TCP; SecType = sys; Squash = No_Root_Squash;
