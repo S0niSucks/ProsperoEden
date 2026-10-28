@@ -28,9 +28,13 @@ def main():
     parser.add_argument('--sdk', type=Path)
     parser.add_argument('--boost', type=Path)
     parser.add_argument('--fmt', type=Path)
+    parser.add_argument('--json-include', type=Path, default=Path('/usr/include'),
+                        help='Portable nlohmann include prefix to stage for SDK checks')
     parser.add_argument('--cdeps', type=Path, help='Optional real PS5 PacBrew prefix, never host OpenSSL/curl')
     parser.add_argument('--regressions', action='store_true', help='Also run the existing host Nextendo/OAuth checks offline')
     args = parser.parse_args()
+    if args.cdeps and not args.sdk:
+        parser.error('--cdeps requires --sdk')
     root = Path(__file__).resolve().parents[1]
     build, out = args.build.resolve(), args.out.resolve()
     source = build.parent / 'source'
@@ -103,6 +107,14 @@ def main():
             return ''
         return (out / (name + '.log')).read_text()
 
+    def imports(table):
+        return sorted(line.strip()[2:] for line in table.splitlines()
+                      if line.strip().startswith(('U ', 'w ', 'v ')))
+
+    def check_target_abi(table):
+        assert not any(s in table for s in ('std::__cxx11::', '__errno_location', '__libc_start_main',
+                                            '__isoc23_', 'GLIBC_')), 'Host ABI leaked into SDK objects'
+
     try:
         record(Path(__file__))
         pin = source / 'GIT-COMMIT'
@@ -132,6 +144,14 @@ def main():
         end = '    write_derived("${PORT_BUILD_DIR}/network.cpp" "${network_source}")'
         assert cmake.count(begin) == 1 and cmake.count(end) == 1
         block = cmake[cmake.index(begin):cmake.index(end) + len(end)]
+        rename_block = ''
+        if args.cdeps:
+            begin = '            set(update_own\n'
+            end = '            endforeach()'
+            assert cmake.count(begin) == 1
+            start = cmake.index(begin)
+            rename_block = cmake[start:cmake.index(end, start) + len(end)]
+            rename_block += '\nfile(WRITE "${PORT_BUILD_DIR}/update-rename.args" "${update_rename}")\n'
         function = cmake[cmake.index('function(write_derived path content)'):]
         function = function[:function.index('endfunction()') + len('endfunction()')]
         generator = out / 'generate.cmake'
@@ -145,6 +165,7 @@ include("{root / 'headless/nextendo.cmake'}")
 include("{root / 'headless/nextendo_native.cmake'}")
 {function}
 {block}
+{rename_block}
 ''')
         record(generator)
         assert run(['cmake', '-P', generator], 'generate-overlays', cwd=out)
@@ -186,12 +207,13 @@ include("{root / 'headless/nextendo_native.cmake'}")
             record(sdk / 'target/include/c++/v1/__config')
             assert (args.boost / 'libs/container/include/boost/container/small_vector.hpp').is_file(), '--boost must be the Boost source root'
             assert (args.fmt / 'include/fmt/format.h').is_file()
-            # Stage the genuine portable JSON dependency alone. Never add /usr/include to a
-            # target command, which would silently mix Linux and SDK C/platform headers.
+            # Stage only the portable JSON dependency, not its enclosing host/native include
+            # directory. Keep Linux C/platform headers out of the SDK search path.
             json_headers = out / 'portable-include'
             json_headers.mkdir()
-            shutil.copytree('/usr/include/nlohmann', json_headers / 'nlohmann')
-            for file in Path('/usr/include/nlohmann').rglob('*'):
+            json_source = (args.json_include / 'nlohmann').resolve(strict=True)
+            shutil.copytree(json_source, json_headers / 'nlohmann')
+            for file in json_source.rglob('*'):
                 if file.is_file():
                     record(file)
             resource = subprocess.check_output(['clang-18', '-print-resource-dir'], text=True).strip()
@@ -211,7 +233,15 @@ include("{root / 'headless/nextendo_native.cmake'}")
                 if a.startswith('-I') and not any(s in a for s in ('/boost/', '/fmt/', '/work/ProsperoEden')):
                     target.append(a)
             if args.cdeps:
-                target += ['-isystem', str(args.cdeps.resolve() / 'include')]
+                cdeps = args.cdeps.resolve(strict=True)
+                assert os.statvfs(cdeps).f_flag & os.ST_RDONLY, 'PacBrew coordinator prefix must be read-only'
+                assert os.statvfs(sdk).f_flag & os.ST_RDONLY, 'Coordinator SDK must be read-only with --cdeps'
+                assert not cdeps.is_relative_to(Path('/usr')) and not cdeps.is_relative_to(Path('/lib'))
+                libraries = [cdeps / 'lib' / ('lib' + name + '.a') for name in ('curl', 'psl', 'ssl', 'crypto', 'z')]
+                for file in [cdeps / 'include/openssl/ssl.h', cdeps / 'include/openssl/opensslv.h',
+                             cdeps / 'include/curl/curl.h', cdeps / 'include/curl/curlver.h', *libraries]:
+                    record(file)
+                target += ['-isystem', str(cdeps / 'include')]
             native = []
             for file, name, missing in (
                 (root / 'headless/nextendo.cpp', 'ps5-nextendo', ()),
@@ -221,24 +251,29 @@ include("{root / 'headless/nextendo_native.cmake'}")
                 (nextendo / 'ssl_backend_openssl.cpp', 'ps5-tls', ('openssl/ssl.h',)),
             ):
                 obj = out / (name + '.o')
-                if run(['clang++-18', *target, '-MD', '-MF', out / (name + '.d'), '-c', file, '-o', obj], name, allow_missing=missing):
+                if run(['clang++-18', *target, '-MD', '-MF', out / (name + '.d'), '-c', file, '-o', obj], name,
+                       allow_missing=() if args.cdeps else missing):
                     native.append(obj)
                     symbols(obj, name + '-symbols')
             # Compile the ACTUAL native producer, not the header-only mock bridge check.
             cflags = ['--target=x86_64-sie-ps5', '-isysroot', str(sdk), '-nostdinc', '-isystem',
                       str(sdk / 'target/include'), '-isystem', resource + '/include', '-std=c11', '-O1',
-                      '-fPIC', '-fno-stack-protector', '-DCURL_STATICLIB=1', '-I' + str(root / 'headless/update_check')]
+                      '-fPIC', '-fno-stack-protector', '-fno-plt', '-femulated-tls',
+                      '-fvisibility-nodllstorageclass=default', '-DCURL_STATICLIB=1', '-I' + str(root / 'headless/update_check')]
             if args.cdeps:
                 cflags += ['-isystem', str(args.cdeps.resolve() / 'include')]
-            run(['clang-18', *cflags, '-c', root / 'headless/update_check/console_curl.c', '-o', out / 'ps5-console-curl.o'],
-                'ps5-console-curl', allow_missing=('curl/curl.h',))
+            producer = run(['clang-18', *cflags, '-MD', '-MF', out / 'ps5-console-curl.d', '-c',
+                            root / 'headless/update_check/console_curl.c', '-o', out / 'ps5-console-curl.o'],
+                           'ps5-console-curl', allow_missing=() if args.cdeps else ('curl/curl.h',))
+            if producer:
+                symbols(out / 'ps5-console-curl.o', 'ps5-console-curl-symbols')
             if len(native) >= 2:
                 assert run(['ld.lld-18', '-r', '-o', out / 'ps5-partial.o', *native], 'ps5-partial-link')
                 table = symbols(out / 'ps5-partial.o', 'ps5-partial-symbols')
                 assert not failures, 'Actual target object compilation failed: ' + ', '.join(failures)
                 assert not any(' U Eden::Nextendo::' in line for line in table.splitlines())
                 assert 'console_curl_getaddrinfo' in table and 'console_curl_freeaddrinfo' in table
-                assert 'std::__cxx11::' not in table and '__errno_location' not in table, 'Host ABI leaked into SDK objects'
+                check_target_abi(table)
                 # Confirm the portable shared_ptr atomics resolve to the genuine SDK runtime.
                 runtime = sdk / 'target/lib/libc++.a'
                 record(runtime)
@@ -247,6 +282,56 @@ include("{root / 'headless/nextendo_native.cmake'}")
                 table = symbols(linked, 'ps5-sdk-runtime-symbols')
                 for line in table.splitlines():
                     assert not (' U ' in line and any(s in line for s in ('std::__1::__sp_mut::', 'std::__1::__get_sp_mut('))), line
+                if args.cdeps:
+                    assert producer and len(native) == 5, 'All genuine-header target objects must compile'
+                    for tool in ('llvm-objcopy-18', 'llvm-readobj-18'):
+                        record(shutil.which(tool))
+                        assert run([tool, '--version'], tool + '-version', quiet=True)
+                    # Same production isolation order: combine the actual producer with curl/psl,
+                    # then rename libc definitions AND their internal references as one unit.
+                    isolated = out / 'ps5-console-curl-isolated.o'
+                    assert run(['ld.lld-18', '-r', '-o', out / 'ps5-console-curl-all.o',
+                                out / 'ps5-console-curl.o', *libraries[:2]], 'ps5-curl-producer-link')
+                    renames = (derived / 'update-rename.args').read_text().split(';')
+                    assert run(['llvm-objcopy-18', *renames, out / 'ps5-console-curl-all.o', isolated], 'ps5-curl-producer-isolation')
+                    table = symbols(isolated, 'ps5-curl-producer-isolated-symbols')
+                    bridge = ('console_curl_getaddrinfo', 'console_curl_freeaddrinfo', 'console_curl_ca_file')
+                    for name in bridge:
+                        assert any(line.endswith(' T ' + name) for line in table.splitlines()), name
+                    assert not any(line.endswith(' T ' + name) for line in table.splitlines()
+                                   for name in ('getaddrinfo', 'freeaddrinfo', 'fnmatch', 'gmtime_r'))
+                    contract = out / 'ps5-native-contract.o'
+                    assert run(['ld.lld-18', '-r', '-o', contract, out / 'ps5-partial.o', isolated,
+                                '--start-group', *libraries[2:], runtime, '--end-group'], 'ps5-native-contract-link')
+                    table = symbols(contract, 'ps5-native-contract-symbols')
+                    assert run(['llvm-nm-18', '--undefined-only', str(contract)], 'ps5-native-contract-undefined', quiet=True)
+                    check_target_abi(table)
+                    unresolved = imports(table)
+                    assert not any(name in unresolved for name in bridge), 'Native resolver/CA bridge unresolved'
+                    for name in ('SSL_set_verify', 'SSL_set1_host', 'SSL_ctrl', 'X509_STORE_new', 'X509_STORE_load_locations'):
+                        assert name in imports((out / 'ps5-tls-symbols.log').read_text()), 'Missing actual TLS call: ' + name
+                        assert name not in unresolved, 'Genuine OpenSSL API unresolved: ' + name
+                    assert not any(name.startswith(('SSL_', 'X509_', 'curl_', 'psl_', 'Eden::Nextendo::',
+                                                    'std::__1::__sp_mut::', 'std::__1::__get_sp_mut(')) for name in unresolved)
+                    (out / 'native-unresolved.json').write_text(json.dumps(unresolved, indent=2) + '\n')
+                    evidence['checks']['ps5-native-bridge-and-tls-symbols'] = 'PASS'
+                    # Export availability is a link-contract check, not a claim that these
+                    # modules/functions are usable from the console's runtime sandbox.
+                    for library, names in (
+                        ('libSceNet.so', ('sceNetPoolCreate', 'sceNetPoolDestroy', 'sceNetResolverCreate',
+                                          'sceNetResolverDestroy', 'sceNetResolverStartNtoa')),
+                        ('libkernel.so', ('sceKernelGetFsSandboxRandomWord',))):
+                        stub = sdk / 'target/lib' / library
+                        record(stub)
+                        name = 'ps5-producer-imports-' + library
+                        assert run(['llvm-nm-18', '-D', '--defined-only', str(stub)], name, quiet=True)
+                        exports = (out / (name + '.log')).read_text()
+                        for symbol in names:
+                            assert symbol in unresolved and any(line.endswith(' T ' + symbol) for line in exports.splitlines()), symbol
+                    assert run(['llvm-readobj-18', '--file-headers', out / 'ps5-tls.o', isolated, contract],
+                               'ps5-native-object-formats', quiet=True)
+                    say('Genuine-header TLS/CA producer and production-renamed bridge/OpenSSL partial-link contract PASS; '
+                        + str(len(unresolved)) + ' core/platform imports remain (not an executable link)')
         else:
             evidence['checks']['ps5'] = 'NOT RUN: no SDK requested'
 
@@ -260,7 +345,11 @@ include("{root / 'headless/nextendo_native.cmake'}")
 
         for dep in out.glob('*.d'):
             for file in shlex.split(dep.read_text().replace('\\\n', '').split(':', 1)[1]):
-                record(build / file)
+                path = (build / file).resolve()
+                if dep.name.startswith('ps5-'):
+                    assert not any(path.is_relative_to(Path(prefix)) for prefix in
+                                   ('/usr/include', '/usr/local/include', '/usr/lib/gcc')), 'Linux header in target dependencies: ' + str(path)
+                record(path)
         for file, expected in evidence['inputs'].items():
             assert sha(file) == expected, 'Input changed during qualification: ' + file
         assert not failures, 'Unexpected actual object compilation/link failures: ' + ', '.join(failures)
