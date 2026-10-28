@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Included in eden_services.cpp: uses its existing remote cover/lister callbacks.
 bool EdenServices::begin_usb_backup() {
+    const std::lock_guard admission(job_admission_mutex_);
     if (!Eden::FilesystemAccess() || launch_committed_ || usb_active_.exchange(true)) return false;
     if (usb_thread_.joinable()) usb_thread_.join();
     usb_stop_ = false;
@@ -13,6 +14,7 @@ bool EdenServices::begin_usb_backup() {
             Eden::UpdateNotice::Cancel();
             Eden::UpdateNotice::Finish();
             Eden::UpdateNotice::WaitForCheck(); // the checker persists its catalog sequence
+            amiibo_sync_.Stop(); // admission closed above; no catalog/photo writer may enter the snapshot
             cheat_manager_.Stop();
             usb_remote_resume_ = Eden::GamesDir() == Eden::AssetsDir() || Eden::DirectoryExists(Eden::GamesDir());
             Eden::Remote::Stop();
@@ -39,6 +41,7 @@ Eden::UsbBackup::Status EdenServices::usb_backup_status() {
     const std::lock_guard lock(usb_lock_); return usb_;
 }
 bool EdenServices::usb_backup_action(const std::string& action, const std::string& path) {
+    const std::lock_guard admission(job_admission_mutex_);
     std::string expected_manifest;
     {
         const std::lock_guard lock(usb_lock_);
@@ -88,6 +91,9 @@ bool EdenServices::usb_backup_action(const std::string& action, const std::strin
 }
 void EdenServices::cancel_usb_backup() { usb_stop_ = true; }
 void EdenServices::ResumeUsbJobs() {
+    // Called under job_admission_mutex_ only after an ordinary USB session closes.
+    // Stop is terminal until explicitly reopened; a launch/staged restore never calls here.
+    if (!launch_committed_) amiibo_sync_.AllowStart();
     if (usb_remote_resume_)
         Eden::Remote::Start({Eden::ConfigFile("remote"), Eden::CoversDir(), Eden::GamesPath("roms"),
                             Eden::GamesPath("updates"), Eden::GamesPath(".remote-downloads")}, WriteCover, ListFolder);
@@ -96,6 +102,7 @@ void EdenServices::ResumeUsbJobs() {
     if (!jobs.empty()) StartSync(std::move(jobs), false);
 }
 void EdenServices::end_usb_backup() {
+    const std::lock_guard admission(job_admission_mutex_);
     if (!usb_active_) return;
     { const std::lock_guard lock(usb_lock_); if (usb_.busy || usb_.restart) return; }
     if (usb_thread_.joinable()) usb_thread_.join();

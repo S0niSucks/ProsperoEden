@@ -1589,7 +1589,7 @@ void EdenServices::cancel_cheat_database() { cheat_manager_.Cancel(); }
 Eden::AmiiboSyncStatus EdenServices::amiibo_sync() { return amiibo_sync_.Status(); }
 bool EdenServices::start_amiibo_sync(const std::vector<std::string>& ids, bool offline, bool confirmed) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (launch_committed_ || (!offline && !Eden::FilesystemAccess())) return false;
+    if (usb_active_ || launch_committed_ || (!offline && !Eden::FilesystemAccess())) return false;
     Eden::AmiiboSyncRequest request;
     request.folder = Eden::AssetsPath("amiibo"); // snapshot on launcher thread, never on worker
     request.ids = ids; request.offline = offline; request.confirmed = confirmed;

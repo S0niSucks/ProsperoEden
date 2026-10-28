@@ -4,6 +4,16 @@ Feature workstream: `team/amiibo-sync-1006000`. This adds the console C++ worker
 Settings > Amiibo flow, without Python/subprocesses on the console. It does not qualify
 the feature on PS5 or change release/version metadata.
 
+Coordinator imported the initial worker and review fixes as `a72e26b`, `f8febee`, `8e8bdd6`.
+The combined USB service uses the same job-admission mutex as Amiibo/cheats/launch. It closes
+admission, joins Amiibo/cheat cache writers without holding the metadata bridge, then drains
+that bridge before a snapshot can be offered. Cancellation cannot reopen this barrier early.
+Ordinary USB closure explicitly reopens Amiibo admission; staged restore or terminal game
+launch cannot. The first composed test caught a real missing-reopen defect after USB closure,
+at the unchanged assertion requiring a fresh sync to start. That failed snapshot/log is retained
+under `.local/docker-release/amiibo-usb-integrated-20261027/`; the corrected snapshot is being
+tested separately, not represented as a pass yet. Neither test executes actual PS5 storage/NFC.
+
 ## User flow and privacy
 
 - Open **Settings > Amiibo** to read the offline catalog only. There is no startup sync

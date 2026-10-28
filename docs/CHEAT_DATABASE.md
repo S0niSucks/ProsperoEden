@@ -257,8 +257,14 @@ not every malformed table or every real game's update layout.
 ## Remaining qualification
 
 1. Encrypted/BKTR and game-folder native-VFS synthetic fixtures pass the focused runs above.
-   Complete the combined real-container/real-TLS/manager cross-layer test and final integrated
-   regression. Plaintext full
+   The combined real-container/real-TLS/manager cross-layer test passed in the worker's
+   read-only-archive run and is integrated as `8a126f4`; see
+   [cross-layer qualification](CHEAT_CROSS_LAYER_QUALIFICATION.md). Its verified exported bundle
+   is retained in `.local/docker-release/cheat-cross-layer-20261027/worker-evidence.zip`.
+   It exercises actual encrypted/BKTR/per-copy probes, 11 real HTTPS requests, exact offline
+   binding, mutation refusal and default-OFF Mods without fake identity callbacks. This is
+   not a full-core sanitizer or PS5 run. Repeat final integrated regression after the remaining
+   HTTP/service changes. Plaintext full
    NSP/CNMT/external-update/extracted-NSP fixtures passed isolated actual-core linking in
    `sh_17f6746d1001IAphtUmQ2rtAJ2`; the negative control subsequently passed in
    `sh_17f7317db00114Vy96zy3tBrm5`.

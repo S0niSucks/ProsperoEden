@@ -27,6 +27,6 @@ with tempfile.TemporaryDirectory(prefix='launcher-admission-') as tmp:
                         *flags, '-I', str(folder), '-I', str(root / 'headless'),
                         *[str(root / 'headless' / name) for name in ('launcher_admission_check.cpp',
                           'cheat_manager.cpp', 'cheat_store.cpp', 'cheat_catalog.cpp', 'cheat_download.cpp',
-                          'amiibo_sync.cpp', 'amiibo_sync_format.cpp')],
+                          'amiibo_sync.cpp', 'amiibo_sync_format.cpp', 'usb_backup.cpp')],
                         '-lcrypto', '-lz', '-pthread', '-o', str(folder / 'check')], check=True)
         subprocess.run([str(folder / 'check')], check=True, timeout=60)

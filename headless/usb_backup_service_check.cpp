@@ -75,10 +75,11 @@ public:
     void end_usb_backup();
     void ResumeUsbJobs();
     struct Cheat { std::atomic<unsigned> stops{}; void Stop() { ++stops; } } cheat_manager_;
+    struct Amiibo { std::atomic<unsigned> stops{}, resumes{}; void Stop() { ++stops; } void AllowStart() { ++resumes; } } amiibo_sync_;
     std::atomic<bool> usb_active_{false}, usb_stop_{false}, pair_stop_{false};
     bool launch_committed_ = false, usb_remote_resume_ = false;
     std::thread usb_thread_, sync_thread_, pair_thread_;
-    std::mutex usb_lock_, bridge_;
+    std::mutex job_admission_mutex_, usb_lock_, bridge_;
     Eden::UsbBackup::Status usb_;
     std::atomic<unsigned> sync_stops{};
     void stop_save_sync() { ++sync_stops; }
@@ -107,7 +108,7 @@ int main() {
         assert(!failed.usb_active_ && !failed.usb_remote_resume_);
         failed.end_usb_backup();
         assert(Eden::Remote::stops == 0 && Eden::Remote::starts == 0);
-        assert(failed.cheat_manager_.stops == 0 && failed.sync_stops == 0);
+        assert(failed.cheat_manager_.stops == 0 && failed.amiibo_sync_.stops == 0 && failed.sync_stops == 0);
         assert(Eden::UpdateNotice::cancels == 0 && Eden::UpdateNotice::finishes == 0);
     }
     EdenServices services;
@@ -115,6 +116,7 @@ int main() {
     auto state = Wait(services);
     assert(state.active && state.drives == std::vector<std::string>{"/mnt/usb0"});
     assert(Eden::Remote::stops == 1 && services.sync_stops == 1 && services.cheat_manager_.stops == 1);
+    assert(services.amiibo_sync_.stops == 1);
     assert(Eden::UpdateNotice::cancels == 1 && Eden::UpdateNotice::finishes == 1 && Eden::UpdateNotice::waits == 1);
     assert(!services.usb_backup_action("backup", "/mnt/usb0"));
     assert(!services.usb_backup_action("inspect", "/etc"));
@@ -131,12 +133,14 @@ int main() {
     state = Wait(services); assert(state.phase == "complete" && fs::exists(state.result + "/COMPLETE"));
     auto backup = state.result;
     services.end_usb_backup(); assert(!services.usb_active_ && Eden::Remote::starts == 1);
+    assert(services.amiibo_sync_.resumes == 1);
     assert(services.begin_usb_backup()); Wait(services);
     assert(services.usb_backup_action("inspect", "/mnt/usb0")); Wait(services);
     { const std::lock_guard lock(services.bridge_);
         assert(services.usb_backup_action("backup", "/mnt/usb0")); services.cancel_usb_backup(); }
     state = Wait(services); assert(state.phase == "failed" && state.error.find("Cancelled") != state.error.npos);
     services.end_usb_backup(); assert(Eden::Remote::starts == 2);
+    assert(services.amiibo_sync_.resumes == 2);
     assert(services.begin_usb_backup()); Wait(services);
     assert(services.usb_backup_action("list", "/mnt/usb0")); state = Wait(services);
     assert(state.backups.size() == 1 && state.backups.front() == backup);
@@ -146,6 +150,7 @@ int main() {
     assert(services.usb_backup_action("restore", backup)); state = Wait(services);
     assert(state.restart && services.usb_active_);
     services.end_usb_backup(); assert(services.usb_active_ && Eden::Remote::starts == 2);
+    assert(services.amiibo_sync_.resumes == 2); // never reopen admission for a staged restore
     assert(!services.usb_backup_action("inspect", "/mnt/usb0"));
     assert(fs::exists("/work/usb-service/.data-restores/pending.json"));
     std::cout << "USB service lifecycle/action gating tests passed (synthetic jobs, real filesystem)\n";

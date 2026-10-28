@@ -24,6 +24,11 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   paired PNGs, one-tag-folder `cover.png` and ID-keyed cached photos are supported. Selected
   thumbnails render in OpenGL and Vulkan with bounded decoding and textual fallback.
   The optional PC helper prepares public metadata/photos, never tags or keys.
+- **Opt-in Amiibo catalog/photo sync.** **Settings > Amiibo** reads local names offline and
+  separately confirms public-catalog or selected-photo HTTPS downloads. Local names/series and
+  custom artwork retain priority; bounded workers expose progress/cancellation. No tags or keys
+  are read/downloaded. Initial focused host/UI checks passed; combined service/UI and PS5
+  qualification remain in progress.
 - **Session-only live cheats.** **Left touchpad click + Square** opens the command strip;
   Up/Down switches to cheats, Left/Right selects and Cross toggles. Changes reach only
   the current session's loaded cheat VM; disabling a cheat does not undo earlier memory
@@ -38,7 +43,9 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   and masters default to off. **Game settings > Cheats** now has explicit check/cache/install
   actions, confirmation, progress and cancellation, also exposed to Lua launchers. The new
   workflow passed focused built-in/Lua preview checks and fresh-object native packaging;
-  final integrated regression and console qualification remain outstanding.
+  a further real-container/encrypted-BKTR → real TLS → worker/cache/default-off-install test
+  passed with stale-update/mod refusal. Final integrated regression and console qualification
+  remain outstanding.
 - **Cover Flow library.** **Settings > Appearance > Library view** selects a bounded,
   perspective-rendered cover browser or the existing default Grid. Selection, game options
   and launch checks retain their established paths; reduced motion, missing artwork and
@@ -47,6 +54,11 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   supports sticks/buttons, motion and coarse rumble, with bounded reconnect and DualSense
   fallback. Synthetic protocol/launcher and PS5-target compile/link checks passed after
   integration. Bluetooth is not implemented and physical PS5 operation remains unqualified.
+- **USB app-data backup/restore.** **Settings > USB backup** estimates space before a separate
+  confirmation, copies/validates app data with progress/cancellation and stages restore for the
+  next cold start. Existing destination data is retained in a recovery folder; no active state
+  is hot-replaced. Named Nextendo/network-share credentials and game content are excluded.
+  Backend and UI checks passed separately; composed-worker and PS5 filesystem validation remain.
 
 ### Reliability and diagnostics
 
@@ -63,10 +75,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 ### Remaining work and test limits
 
-Nextendo, SMB/NFS streaming, USB backup/restore and external/scene themes remain under
-team implementation/review, not accepted as complete
-by this changeset. In-launcher online Amiibo synchronization is also pending. The integrated
-cheat workflow and Cover Flow still need final combined regression and console qualification.
+Nextendo, SMB/NFS streaming and external/scene themes remain under team implementation/review,
+not accepted as complete by this changeset. Integrated USB/Amiibo sync still require combined
+lifecycle/UI verification and final localization. All newly integrated features still need final
+combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate
 from host tests. Adaptive polling PR #284 requires PS5 A/B; the supplied Galaxy crashes
 still require the documented cold-start and launch/return retests. Nothing was pushed

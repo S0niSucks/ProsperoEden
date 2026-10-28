@@ -136,6 +136,15 @@ failed/not busy, so it can be closed; it never claims publication or leaves an i
 modal. The remote-resume flag resets for each new session, rather than leaking across a failed
 start. No restore bytes are applied on the launcher thread.
 
+Amiibo/cheat/USB/launch admissions now share one mutex. USB preparation stops and joins both
+real cache workers before draining the metadata bridge; no bridge is held over either join.
+The first composed test passed the individual Amiibo/TLS suite but exposed that closing USB
+left Amiibo permanently closed. Ordinary USB closure now calls `AllowStart()` under admission;
+a staged restore never closes and a terminal launch cannot be reopened. Real workers with
+held synthetic transports test busy/cancellation, new-job refusal and races against launch/USB;
+the corrected combined run is pending. Initial failed evidence is retained under
+`.local/docker-release/amiibo-usb-integrated-20261027/`, not counted as a pass.
+
 ### Coordinator-required Amiibo/Nextendo integration hooks (not yet composed)
 
 These APIs are arriving in other deliveries, not present or imported here. Credential exclusion

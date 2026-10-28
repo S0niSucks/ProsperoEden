@@ -154,7 +154,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #148 Monster Hunter Generations Ultimate | PS5: current-version reproduction needed |
 | #149 Separate ROM/update folders | Implemented `games_folder` in the settings file (ROMs and updates together); independent picker and PS5 USB checks remain |
 | #150 Luigi's Mansion 3 | PS5: exact scene and graphics/guest logs needed |
-| #157 USB data backup | Feature: no bulk backup/restore implementation added |
+| #157 USB data backup | Integrated bulk backup/validation and cold-start restore; named credential exclusion and thread-creation recovery covered. Initial backend/UI checks passed; combined-worker/PS5 filesystem qualification pending. See `USB_BACKUP.md` |
 | #173 External/custom theme engine | Feature: investigation and existing launcher packs are not full acceptance evidence |
 | #195 Metroid Prime 4 | PS5: exact failure and current-version evidence needed |
 | #202 Switch Pro Controller | Experimental wired USB transport integrated with DualSense recovery, motion and coarse rumble. Integrated sanitizer/native-target checks passed; Bluetooth unimplemented and physical PS5 tests required. See `PRO_CONTROLLER.md` |
@@ -551,7 +551,10 @@ qualification of every integrated patch or of #284.
   fixes). Both passed focused integrated Docker regressions, with 720p/1080p GL/controller/Lua
   coverage for Cover Flow and PS5-target compile/link smoke for the USB backend. The five
   Cover Flow strings are translated across all 30 catalogs (581 texts; zero problems).
-  Nextendo, SMB/NFS and Amiibo sync initial deliveries need review/follow-up before acceptance;
+  USB backup/cold restore and opt-in Amiibo sync are now also integrated, with review fixes
+  for credential exclusion, failed worker creation and local catalog priority. Their combined
+  writer-admission/lifecycle and UI checks are in progress, not yet accepted as final.
+  Nextendo/OAuth and SMB/NFS deliveries need review/follow-up before acceptance;
   scene themes remain an explicit partial increment, not a completed Themezer implementation.
 
 Still active: verify the newest edits on host and native Docker builds and the real
