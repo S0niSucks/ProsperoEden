@@ -59,16 +59,33 @@ void Launcher::open_network_shares() {
     network_page_ = NetworkPage::locations; network_row_ = 0; network_remove_id_.clear();
     network_result(services_.network_editor_open());
 }
+void Launcher::start_network_job(std::function<EditorResult(NetworkReservation)> operation, bool commit, bool connection) {
+    if (network_job_.valid()) return;
+    try {
+        auto reservation = services_.reserve_network_job(); // BEFORE dispatch, visible to USB/launch/path/profile
+        if (!reservation) { network_result(EditorResult::blocked); return; }
+        network_stop_ = false; network_commit_job_ = commit; network_connection_job_ = connection;
+        network_job_ = std::async(std::launch::async,
+            [reservation = std::move(reservation), operation = std::move(operation)]() mutable {
+                return operation(std::move(reservation)); // worker consumes/releases only after its last join/callback
+            });
+    } catch (...) {
+        // std::async can fail before there is a future. Capture destruction still releases admission.
+        network_commit_job_ = network_connection_job_ = false;
+        network_result(EditorResult::unavailable);
+    }
+}
 void Launcher::update_network_shares() {
     if (!network_job_.valid() || network_job_.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
     EditorResult result;
     try { result = network_job_.get(); } catch (...) { result = EditorResult::unavailable; }
     network_result(result);
+    if (network_connection_job_) rescan_ = true;
     if (network_commit_job_ && Saved(result)) {
         network_page_ = NetworkPage::locations; network_row_ = 0; rescan_ = true;
         if (result == EditorResult::ok) message_ = tr("Network settings saved.");
     }
-    network_commit_job_ = false;
+    network_commit_job_ = network_connection_job_ = false;
 }
 void Launcher::press_network_shares(Key key) {
     if (network_job_.valid()) { if (key == Key::circle) network_stop_ = true; return; }
@@ -79,10 +96,9 @@ void Launcher::press_network_shares(Key key) {
                 services_.network_editor_cancel(); network_view_ = services_.network_editor_view();
                 network_page_ = NetworkPage::locations; network_row_ = 0; message_.clear();
             } else {
-                network_stop_ = false; network_commit_job_ = true;
-                network_job_ = std::async(std::launch::async, [this, id = network_remove_id_] {
-                    return services_.network_editor_remove(id, network_stop_);
-                });
+                start_network_job([this, id = network_remove_id_](NetworkReservation job) {
+                    return services_.network_remove_reserved(std::move(job), id, network_stop_);
+                }, true);
             }
         }
         return;
@@ -108,11 +124,16 @@ void Launcher::press_network_shares(Key key) {
         }
         if (key != Key::cross) return;
         if (network_row_ <= locations) {
-            const auto result = services_.network_editor_begin(network_row_ < locations ? network_view_.locations[network_row_].id : "");
+            const std::string id = network_row_ < locations ? network_view_.locations[network_row_].id : "";
+            // Resolve on the UI thread only, and only on creation. Existing/user names remain data.
+            const auto name = id.empty() ? tr(std::string{Eden::Network::DefaultNetworkLocationName()}) : std::string{};
+            const auto result = services_.network_editor_begin_named(id, name);
             network_result(result);
             if (result == EditorResult::ok) { network_page_ = NetworkPage::editor; network_row_ = 0; }
         } else {
-            network_result(services_.network_editor_connection(network_row_ == locations + 1)); rescan_ = true;
+            start_network_job([this, connect = network_row_ == locations + 1](NetworkReservation job) {
+                return services_.network_connection_reserved(std::move(job), connect, network_stop_);
+            }, false, true);
         }
         return;
     }
@@ -126,15 +147,18 @@ void Launcher::press_network_shares(Key key) {
             network_result(services_.network_editor_change(field));
             network_row_ = std::min(network_row_, static_cast<int>(network_view_.rows.size()) - 1);
         } else if (key == Key::cross) {
-            network_stop_ = false; network_commit_job_ = false;
-            network_job_ = std::async(std::launch::async, [this, field] { return services_.network_editor_enter(field, network_stop_); });
+            // No catalog access is retained by the provider, snapshot, callback or worker.
+            auto prompts = Eden::Network::PrepareKeyboardPrompts([](std::string_view key) { return tr(std::string{key}); });
+            if (!prompts) { network_result(EditorResult::invalid); return; }
+            start_network_job([this, field, prompts = *prompts](NetworkReservation job) {
+                return services_.network_enter_reserved(std::move(job), field, network_stop_, prompts);
+            }, false);
         }
     } else if (key == Key::cross) {
         if (network_row_ == fields + 2) { press_network_shares(Key::circle); return; }
-        network_stop_ = false; network_commit_job_ = true;
-        network_job_ = std::async(std::launch::async, [this, reconnect = network_row_ == fields + 1] {
-            return services_.network_editor_save(reconnect, network_stop_);
-        });
+        start_network_job([this, reconnect = network_row_ == fields + 1](NetworkReservation job) {
+            return services_.network_save_reserved(std::move(job), reconnect, network_stop_);
+        }, true);
     }
 }
 

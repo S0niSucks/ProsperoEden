@@ -22,10 +22,16 @@
 #include "../../../amiibo_sync.h"
 #include "../../../network/shares.h"
 #include "../../../network/editor.h"
+#include "../../../network/keyboard_prompt.h"
+#include <memory>
 
 namespace pe::ui
 {
 using CheatDatabase = Eden::CheatManagerStatus;
+// Move-only, credential-free admission handle. Acquire on the caller BEFORE std::async;
+// pass ownership to one network operation. Its backend destructor releases the reservation.
+struct NetworkJob { virtual ~NetworkJob() = default; };
+using NetworkReservation = std::unique_ptr<NetworkJob>;
 
 // One pressed button (a first press, or a repeat of a held direction or shoulder button).
 enum class Key : std::uint8_t
@@ -529,16 +535,29 @@ class Services
     virtual Eden::Network::Status network_shares() { return {}; }
     virtual void reconnect_network_shares() {}
     virtual void disconnect_network_shares() {}
+    virtual NetworkReservation reserve_network_job() { return {}; }
+    virtual bool network_job_busy() { return false; }
     // Built-in native editor only. No runtime/Lua binding, raw configuration or keyboard text.
     virtual Eden::Network::EditorResult network_editor_open() { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorView network_editor_view() { return {}; }
     virtual Eden::Network::EditorResult network_editor_begin(const std::string&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_begin_named(const std::string&, std::string) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_change(Eden::Network::Field) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_password(Eden::Network::PasswordChoice) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_enter(Eden::Network::Field, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_save(bool, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_remove(const std::string&, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
     virtual Eden::Network::EditorResult network_editor_connection(bool) { return Eden::Network::EditorResult::blocked; }
+    // Worker-only operations: consume the reservation acquired by the UI. No translator/callback
+    // into a mutable catalog, raw configuration or keyboard answer crosses this interface.
+    virtual Eden::Network::EditorResult network_enter_reserved(NetworkReservation, Eden::Network::Field,
+        const std::atomic<bool>&, Eden::Network::KeyboardPrompts) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_save_reserved(NetworkReservation, bool,
+        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_remove_reserved(NetworkReservation, const std::string&,
+        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_connection_reserved(NetworkReservation, bool,
+        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
     virtual void network_editor_cancel() {}
     virtual std::vector<Game> games() = 0; // reads every game file: slow
     // The value the launcher hands back to start a game.

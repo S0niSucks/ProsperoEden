@@ -77,7 +77,7 @@ public:
     void ResumeUsbJobs();
     struct Cheat { std::atomic<unsigned> stops{}; void Stop() { ++stops; } } cheat_manager_;
     struct Amiibo { std::atomic<unsigned> stops{}, resumes{}; void Stop() { ++stops; } void AllowStart() { ++resumes; } } amiibo_sync_;
-    std::atomic<bool> usb_active_{false}, usb_stop_{false}, pair_stop_{false}, nextendo_busy_{false};
+    std::atomic<bool> usb_active_{false}, usb_stop_{false}, pair_stop_{false}, nextendo_busy_{false}, network_mutation_active_{false};
     bool launch_committed_ = false, usb_remote_resume_ = false;
     std::thread usb_thread_, sync_thread_, pair_thread_;
     std::mutex job_admission_mutex_, usb_lock_, bridge_;
@@ -106,6 +106,9 @@ int main() {
         assert(!failed.begin_usb_backup() && !failed.usb_active_ && !failed.usb_thread_.joinable());
         assert(failed.cheat_manager_.stops == 0 && failed.amiibo_sync_.stops == 0);
         failed.nextendo_busy_ = false;
+        failed.network_mutation_active_ = true;
+        assert(!failed.begin_usb_backup() && !failed.usb_active_ && !failed.usb_thread_.joinable());
+        failed.network_mutation_active_ = false;
         fail_next_thread = true;
         assert(!failed.begin_usb_backup() && !fail_next_thread);
         auto status = failed.usb_backup_status();

@@ -31,9 +31,21 @@ public:
     std::string file;
     int connections = 0, saves = 0, removals = 0;
     bool blocked = false;
+    std::atomic<bool> busy{false};
+    struct Lease final : pe::ui::NetworkJob {
+        std::atomic<bool>& busy;
+        explicit Lease(std::atomic<bool>& busy) : busy(busy) {}
+        ~Lease() override { busy = false; }
+    };
+    pe::ui::NetworkReservation reserve_network_job() override {
+        if (blocked || busy.exchange(true)) return {};
+        return std::make_unique<Lease>(busy);
+    }
+    bool network_job_busy() override { return busy; }
     EditorResult network_editor_open() override { return editor.Open(file); }
     EditorView network_editor_view() override { return editor.View(); }
     EditorResult network_editor_begin(const std::string& id) override { return blocked ? EditorResult::blocked : editor.Begin(id); }
+    EditorResult network_editor_begin_named(const std::string& id, std::string name) override { return blocked ? EditorResult::blocked : editor.Begin(id, name); }
     EditorResult network_editor_change(Field field) override { return blocked ? EditorResult::blocked : editor.Change(field); }
     EditorResult network_editor_password(PasswordChoice choice) override { return blocked ? EditorResult::blocked : editor.Password(choice); }
     EditorResult network_editor_enter(Field field, const std::atomic<bool>& stop) override { return blocked ? EditorResult::blocked : editor.Enter(field, stop); }
@@ -48,6 +60,19 @@ public:
         const auto result = editor.Remove(id, stop); if (result == EditorResult::ok) ++removals; return result;
     }
     EditorResult network_editor_connection(bool connect) override { if (blocked) return EditorResult::blocked; connections += connect; return EditorResult::ok; }
+    EditorResult network_enter_reserved(pe::ui::NetworkReservation job, Field field, const std::atomic<bool>& stop, KeyboardPrompts prompts) override {
+        if (!job || blocked) return EditorResult::blocked;
+        return editor.Enter(field, stop, MakeNativeNetworkKeyboard(std::move(prompts)));
+    }
+    EditorResult network_save_reserved(pe::ui::NetworkReservation job, bool reconnect, const std::atomic<bool>& stop) override {
+        return job ? network_editor_save(reconnect, stop) : EditorResult::blocked;
+    }
+    EditorResult network_remove_reserved(pe::ui::NetworkReservation job, const std::string& id, const std::atomic<bool>& stop) override {
+        return job ? network_editor_remove(id, stop) : EditorResult::blocked;
+    }
+    EditorResult network_connection_reserved(pe::ui::NetworkReservation job, bool connect, const std::atomic<bool>& stop) override {
+        return !job ? EditorResult::blocked : stop ? EditorResult::cancelled : network_editor_connection(connect);
+    }
     void network_editor_cancel() override { editor.Cancel(); }
 };
 void Pump(pe::ui::Launcher& menu) {
@@ -136,10 +161,11 @@ int main(int argc, char** argv) {
     pe::ui::set_fit_report([](std::string_view value, float, bool) {
         assert(value.find("Synthetic-only-password") == value.npos && value.find("Replacement-only-secret") == value.npos);
     });
-    // Enter via actual Settings controller, adjacent to ROMs and updates; no direct modal injection.
+    // Enter via actual Settings controller, after the preserved USB/Amiibo slots. The coordinator
+    // owns the overflow-pagination fix needed to reach index 16; keep this assertion as a gate.
     menu.press(Key::l1); menu.press(Key::l1); // Home -> About -> Settings, as in the native preview
-    for (auto key : {Key::down, Key::down, Key::down, Key::right, Key::right}) menu.press(key);
-    assert(menu.screen_ == pe::ui::Launcher::Screen::settings && menu.settings_.selected == 14);
+    for (auto key : {Key::down, Key::down, Key::down, Key::down}) menu.press(key);
+    assert(menu.screen_ == pe::ui::Launcher::Screen::settings && menu.settings_.selected == 16);
     shoot("00-settings-network-entry");
     menu.press(Key::cross); assert(menu.modal_ == pe::ui::Launcher::Modal::network_shares);
     menu.press(Key::cross); assert(menu.network_view_.editing);

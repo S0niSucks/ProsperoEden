@@ -703,7 +703,7 @@ EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClie
                                  std::to_string(who.current + 1) + " of " + std::to_string(who.profiles.size()) +
                                  ")").c_str());
     KeepSaveSyncFile(who.profiles);
-    if (Eden::FilesystemAccess()) Eden::Network::Configure(Eden::ConfigFile("network-shares.json"));
+    if (Eden::FilesystemAccess()) (void)network_editor_connection(true); // reserves before async discovery
     setup_ = eden_startup_error();
     Eden::Report("setup", setup_.empty() ? "Keys and firmware startup checks passed" : setup_.c_str());
     // A games folder of its own that is not there (a USB drive not plugged in): the Library finds no
@@ -728,10 +728,10 @@ EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClie
 }
 
 EdenServices::~EdenServices() {
+    StopNetworkJobs(); // no admission/bridge held across network cancellation/joins
     usb_stop_ = true;
     if (usb_thread_.joinable()) usb_thread_.join();
     amiibo_sync_.Stop(); // no network/cache worker may outlive launcher settings or launch
-    Eden::Network::StopDiscovery(); // finished sessions remain owned by network VFS consumers
     cheat_manager_.Stop(); // no probe may outlive the metadata bridge or the launcher
     if (Eden::FilesystemAccess()) Eden::Remote::Stop();
     {
@@ -1053,7 +1053,7 @@ void EdenServices::finish_update() { Eden::UpdateNotice::Finish(); }
 
 std::vector<pe::ui::Profile> EdenServices::profiles() {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return {};
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return {};
     const std::lock_guard lock(bridge_); // Resolve may initialize or settle persisted profile choice
     const auto who = Eden::Profiles::Resolve(user_);
     std::vector<pe::ui::Profile> list;
@@ -1064,7 +1064,7 @@ std::vector<pe::ui::Profile> EdenServices::profiles() {
 
 std::string EdenServices::profile_key(int index) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return {};
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return {};
     const std::lock_guard lock(bridge_);
     const auto who=Eden::Profiles::Resolve(user_);
     return index>=0 && index<static_cast<int>(who.profiles.size()) ? who.profiles[index].Key() : std::string{};
@@ -1072,7 +1072,7 @@ std::string EdenServices::profile_key(int index) {
 
 bool EdenServices::choose_profile(int index) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
     const std::lock_guard lock(bridge_);
     if (rooms_.GetSnapshot().phase != Eden::Multiplayer::Phase::Idle) return false;
     const auto who = Eden::Profiles::Resolve(user_);
@@ -1085,7 +1085,7 @@ bool EdenServices::choose_profile(int index) {
 
 int EdenServices::add_profile() {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return -1;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return -1;
     const std::lock_guard lock(bridge_);
     auto list = Eden::Profiles::Read();
     if (list.empty() || list.size() >= Eden::Profiles::kMax) return -1;
@@ -1108,7 +1108,7 @@ int EdenServices::add_profile() {
 
 bool EdenServices::rename_profile(int index, int step) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
     const std::lock_guard lock(bridge_);
     auto list = Eden::Profiles::Read();
     if (index < 0 || index >= static_cast<int>(list.size())) return false;
@@ -1133,7 +1133,7 @@ bool EdenServices::rename_profile(int index, int step) {
 
 bool EdenServices::remove_profile(int index) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
     const std::lock_guard lock(bridge_);
     const auto who = Eden::Profiles::Resolve(user_);
     auto list = who.profiles;
@@ -1525,7 +1525,7 @@ std::string EdenServices::saved_games_folder() {
 }
 bool EdenServices::set_games_folder(const std::string& directory) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || cheat_manager_.Status().busy) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ || cheat_manager_.Status().busy) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveGamesDir(directory);
     if (!saved) Eden::Report("settings", "Could not write the independent games folder");
@@ -1535,7 +1535,7 @@ std::string EdenServices::default_files_folder() { return Eden::kDefaultAssetsDi
 
 bool EdenServices::set_files_folder(const std::string& directory) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || amiibo_sync_.Status().busy || cheat_manager_.Status().busy) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ || amiibo_sync_.Status().busy || cheat_manager_.Status().busy) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveAssetsDir(directory);
     if (!saved) Eden::Report("settings", "Could not write the game files folder");

@@ -19,6 +19,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <future>
 
 class EdenServices final : public pe::ui::Services {
 public:
@@ -43,15 +44,23 @@ public:
     Eden::Network::Status network_shares() override;
     void reconnect_network_shares() override;
     void disconnect_network_shares() override;
+    pe::ui::NetworkReservation reserve_network_job() override;
+    bool network_job_busy() override;
     Eden::Network::EditorResult network_editor_open() override;
     Eden::Network::EditorView network_editor_view() override;
     Eden::Network::EditorResult network_editor_begin(const std::string&) override;
+    Eden::Network::EditorResult network_editor_begin_named(const std::string&, std::string) override;
     Eden::Network::EditorResult network_editor_change(Eden::Network::Field) override;
     Eden::Network::EditorResult network_editor_password(Eden::Network::PasswordChoice) override;
     Eden::Network::EditorResult network_editor_enter(Eden::Network::Field, const std::atomic<bool>&) override;
     Eden::Network::EditorResult network_editor_save(bool, const std::atomic<bool>&) override;
     Eden::Network::EditorResult network_editor_remove(const std::string&, const std::atomic<bool>&) override;
     Eden::Network::EditorResult network_editor_connection(bool) override;
+    Eden::Network::EditorResult network_enter_reserved(pe::ui::NetworkReservation, Eden::Network::Field,
+        const std::atomic<bool>&, Eden::Network::KeyboardPrompts) override;
+    Eden::Network::EditorResult network_save_reserved(pe::ui::NetworkReservation, bool, const std::atomic<bool>&) override;
+    Eden::Network::EditorResult network_remove_reserved(pe::ui::NetworkReservation, const std::string&, const std::atomic<bool>&) override;
+    Eden::Network::EditorResult network_connection_reserved(pe::ui::NetworkReservation, bool, const std::atomic<bool>&) override;
     void network_editor_cancel() override;
     std::string game_path(const std::string& file) override;
     bool game_exists(const std::string& file) override;
@@ -167,11 +176,17 @@ public:
     std::optional<std::int64_t> ask_seed(std::int64_t, const std::atomic<bool>&) override;
     bool can_launch_game() override;
 private:
-    // Feature-local admission seam; see docs/NETWORK_EDITOR.md for the exact parent composition
-    // with job_admission_mutex_, usb_active_ and launch_committed_. No USB worker is present here.
-    Eden::Network::EditorResult WithNetworkMutation(const std::function<Eden::Network::EditorResult()>&);
-    std::mutex network_mutation_mutex_;
-    std::atomic<bool> network_mutation_active_{false};
+    struct NetworkAdmission final : pe::ui::NetworkJob {
+        EdenServices& owner;
+        const std::string file;
+        NetworkAdmission(EdenServices& owner, std::string file) : owner(owner), file(std::move(file)) {}
+        ~NetworkAdmission() override;
+    };
+    Eden::Network::EditorResult WithNetworkMutation(pe::ui::NetworkReservation,
+        const std::function<Eden::Network::EditorResult(const std::string&)>&);
+    Eden::Network::EditorResult WithNetworkMutation(
+        const std::function<Eden::Network::EditorResult(const std::string&)>&);
+    void StopNetworkJobs(); // teardown only; no admission/bridge held during cancellation/join
     Eden::Network::Editor network_editor_;
     // Post-processing: the presets as the menu lists them, and a name's place among them.
     // The presets for the general settings and the game whose settings were read last (title_id,
@@ -194,6 +209,8 @@ private:
     std::mutex job_admission_mutex_;
     // Admission -> ledger on acquisition; RAII release takes only ledger, never this object.
     std::shared_ptr<Eden::ThemeStorage::Ledger> theme_storage_ = Eden::ThemeStorage::ProcessLedger();
+    // Set under admission before dispatch; release is atomic only AFTER storage/IME/discovery join.
+    std::atomic<bool> network_mutation_active_{false};
     bool launch_committed_ = false; // guarded by job_admission_mutex_; no reopening after will_play
     std::atomic<bool> usb_active_{false}, usb_stop_{false};
     std::mutex usb_lock_;
@@ -242,4 +259,9 @@ private:
     pe::ui::PairingStatus pair_;
     std::chrono::steady_clock::time_point pair_until_;
     std::atomic<bool> pair_stop_{false};
+    std::atomic<const pe::ui::NetworkJob*> network_reservation_{nullptr};
+    std::atomic<bool> network_closing_{false}, network_background_stop_{false};
+    std::mutex network_background_lock_; // short future bookkeeping only, never HTTP/join
+    // Last member: constructor unwinding must join before admission/editor members are destroyed.
+    std::future<Eden::Network::EditorResult> network_background_;
 };

@@ -59,7 +59,12 @@ with tempfile.TemporaryDirectory(prefix='usb-writers-') as tmp:
     fixture = fixture.replace('std::atomic<bool> usb_active_{false}, usb_stop_{false};',
                               'ObservedAtomic usb_active_{false}; std::atomic<bool> usb_stop_{false};')
     (folder / 'usb_writer_class.h').write_text(fixture)
-    (folder / 'usb_writer_methods.inc').write_text('\n\n'.join(definition(source, 'EdenServices::' + name) for name in methods))
+    # SaveSyncWanted now recognizes network identities. Keep the actual production predicate,
+    # not a weakened stub; no SMB/NFS transport or dependency rebuild is needed for this seam.
+    network = (root / 'headless/network/transport.cpp').read_text()
+    (folder / 'usb_writer_methods.inc').write_text(
+        'namespace Eden::Network {\n' + definition(network, 'IsPath') + '\n}\n' +
+        '\n\n'.join(definition(source, 'EdenServices::' + name) for name in methods))
     # The helper block contains actual pending JSON, profile reconciliation, SyncSetupOf and pairing sources.
     (folder / 'usb_writer_helpers.inc').write_text(
         'void KeepSaveSyncFile(' + source.split('void KeepSaveSyncFile(', 1)[1].split('} // namespace', 1)[0])

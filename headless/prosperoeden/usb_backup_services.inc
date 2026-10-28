@@ -2,7 +2,7 @@
 // Included in eden_services.cpp: uses its existing remote cover/lister callbacks.
 bool EdenServices::begin_usb_backup() {
     const std::lock_guard admission(job_admission_mutex_);
-    if (nextendo_busy_ || !Eden::FilesystemAccess() || launch_committed_ || usb_active_.exchange(true)) return false;
+    if (nextendo_busy_ || network_mutation_active_ || !Eden::FilesystemAccess() || launch_committed_ || usb_active_.exchange(true)) return false;
     if (usb_thread_.joinable()) usb_thread_.join();
     usb_stop_ = false;
     usb_remote_resume_ = false;
