@@ -132,6 +132,7 @@ python3 -B "$root/tools/check-release-licenses.py" --output "$flow_out/release-l
 python3 -B "$root/tools/ci/test_source_bundle.py"
 python3 -B "$root/tools/ci/test_release_source_preparation.py"
 python3 -B "$root/tools/ci/test_source_bundle_policy.py"
+python3 -B "$root/tools/ci/native_evidence_test.py"
 python3 -B "$root/tools/check-gc-scan.py"
 "$scratch/build/bin/eden-scalar-check"
 "$scratch/build/bin/eden-memory-check"

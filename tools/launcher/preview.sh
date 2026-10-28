@@ -39,6 +39,7 @@ fi
 [[ -f $json/nlohmann/json.hpp ]] || { echo "nlohmann/json not found: install the host package or run make prepare" >&2; exit 1; }
 
 sources=("$source_dir"/host/*.cpp "$source_dir"/pe/core/*.cpp "$source_dir"/pe/gfx/*.cpp "$source_dir"/pe/ui/*.cpp
+    "$root/headless/network/editor.cpp" "$root/headless/network/config.cpp"
     "$kit/ui/theme.cpp")
 objects=()
 pids=()
@@ -55,7 +56,7 @@ for source in "${sources[@]}"; do
         [[ $relative == pe/gfx/harfbuzz.cpp ]] && warnings=(-w)
         "$cxx" -std=c++20 -O2 "${warnings[@]}" "${sanitize[@]}" -D_GLIBCXX_ASSERTIONS=1 -DGL_GLEXT_PROTOTYPES=1 -I"$source_dir" \
             -I"$source_dir/host" -I"$root/third_party/lua" -I"$root/tools/launcher/stb" -I"$root/third_party" -I"$root/third_party/miniz" -I"$harfbuzz" -I"$kit" -I"$json" \
-            -c "$source" -o "$object" &
+            -I"$root/headless" -c "$source" -o "$object" &
         pids+=($!)
         if [[ ${#pids[@]} -ge ${HOST_BUILD_JOBS:-2} ]]; then
             wait "${pids[0]}"
