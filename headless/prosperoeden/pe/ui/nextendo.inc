@@ -1,5 +1,33 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Included by multiplayer.cpp to reuse the established row/focus/frame vocabulary.
+// Mark the exact public-contract msgids here; workers return stable English IDs, not translations.
+static const char* NextendoUiText(std::string_view message) {
+    static constexpr const char* messages[]{
+        TR("Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."),
+        TR("Confirm identity and game matchmaking permission before linking a Nextendo game session."),
+        TR("Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."),
+        TR("The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."),
+        TR("Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."),
+        TR("Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."),
+        TR("Nextendo action cancelled.")};
+    for (const auto* text : messages) if (message == text) return tr(text);
+    // Never render arbitrary backend diagnostics, account text or response bodies.
+    return tr("Nextendo action failed. Retry or unlink the session.");
+}
+static bool NextendoStartUrl(std::string_view url) {
+    constexpr std::string_view prefix = "http://127.0.0.1:";
+    if (!url.starts_with(prefix) || !url.ends_with("/start")) return false;
+    url.remove_prefix(prefix.size()); url.remove_suffix(6);
+    unsigned port = 0;
+    const auto result = std::from_chars(url.data(), url.data() + url.size(), port);
+    return !url.empty() && result.ec == std::errc{} && result.ptr == url.data() + url.size() && port >= 1024 && port <= 65535;
+}
+std::string Launcher::nextendo_current_profile() {
+    const auto profiles = services_.profiles();
+    for (std::size_t i = 0; i < profiles.size(); ++i)
+        if (profiles[i].playing) return services_.profile_key(static_cast<int>(i));
+    return {};
+}
 void Launcher::press_nextendo(Key key) {
     if (nextendo_request_.valid()) return;
     if (key == Key::up || key == Key::down) {
@@ -12,47 +40,61 @@ void Launcher::press_nextendo(Key key) {
     }
     if (key != Key::cross) return;
     using Eden::Nextendo::Action;
-    Action action = Action::import_session;
-    if (room_row_ == 0 && nextendo_status_.linked && !nextendo_import_confirm_) {
-        nextendo_import_confirm_ = true;
-        cue(Cue::open);
-        return;
-    }
-    if (room_row_ == 1) action = nextendo_status_.enabled ? Action::disable : Action::enable;
-    if (room_row_ == 2) action = Action::check_account;
-    if (room_row_ == 3) {
-        if (!nextendo_unlink_confirm_) { nextendo_unlink_confirm_ = true; cue(Cue::open); return; }
-        action = Action::unlink;
-    }
-    if (room_row_ == 4) {
-        if (nextendo_status_.linked && !nextendo_browser_confirm_) {
-            nextendo_browser_confirm_ = true;
+    try {
+        // Bind both confirmation and eventual work to the local player on the UI thread.
+        const auto profile = nextendo_current_profile();
+        if (nextendo_browser_confirm_ && (profile.empty() || profile != nextendo_browser_confirm_.profile)) {
+            nextendo_browser_confirm_ = false;
+        }
+        Action action = Action::import_session;
+        bool confirmed_game_permissions = false;
+        if (room_row_ == 0 && nextendo_status_.linked && !nextendo_import_confirm_) {
+            nextendo_import_confirm_ = true;
             cue(Cue::open);
             return;
         }
-        action = Action::link_browser;
-    }
-    nextendo_unlink_confirm_ = false;
-    nextendo_import_confirm_ = false;
-    nextendo_browser_confirm_ = false;
-    nextendo_stop_ = false;
-    nextendo_status_.checked = false;
-    nextendo_status_.error.clear();
-    try {
-        // Bind the local player on the UI thread, before the worker can be delayed by scheduling.
-        const auto profiles = services_.profiles();
-        std::string profile;
-        for (std::size_t i = 0; i < profiles.size(); ++i)
-            if (profiles[i].playing) { profile = services_.profile_key(static_cast<int>(i)); break; }
-        nextendo_request_ = std::async(std::launch::async, [this, action, profile] {
-            return services_.nextendo_action(profile, action, nextendo_stop_);
+        if (room_row_ == 1) action = nextendo_status_.enabled ? Action::disable : Action::enable;
+        if (room_row_ == 2) action = Action::check_account;
+        if (room_row_ == 3) {
+            if (!nextendo_unlink_confirm_) { nextendo_unlink_confirm_ = true; cue(Cue::open); return; }
+            action = Action::unlink;
+        }
+        if (room_row_ == 4) {
+            if (profile.empty()) { nextendo_status_.error = Eden::Nextendo::GameLinkConsentRequired; return; }
+            if (!nextendo_browser_confirm_) {
+                nextendo_browser_confirm_ = true;
+                nextendo_browser_confirm_.profile = profile;
+                cue(Cue::open);
+                return;
+            }
+            if (!nextendo_browser_confirm_.shown) return; // cannot accept text not yet presented
+            confirmed_game_permissions = true;
+            action = Action::link_browser;
+        }
+        nextendo_unlink_confirm_ = false;
+        nextendo_import_confirm_ = false;
+        nextendo_browser_confirm_ = false;
+        nextendo_browser_active_ = confirmed_game_permissions;
+        nextendo_browser_url_.clear();
+        nextendo_stop_ = false;
+        nextendo_status_.checked = false;
+        nextendo_status_.error.clear();
+        nextendo_request_ = std::async(std::launch::async, [this, action, profile,
+            confirmed_game_permissions, stop = &nextendo_stop_] {
+            return services_.nextendo_action_with_consent(profile, action, *stop, confirmed_game_permissions);
         });
     } catch (const std::exception&) {
+        nextendo_browser_confirm_ = false;
+        nextendo_browser_active_ = false;
         nextendo_status_.error = "Could not start the Nextendo action. Retry.";
     }
 }
 
 void Launcher::draw_nextendo(Canvas& c) {
+    if (nextendo_browser_confirm_ && (rail_focus_ || room_row_ != 4 ||
+        nextendo_current_profile() != nextendo_browser_confirm_.profile)) {
+        nextendo_browser_confirm_ = false;
+    }
     const auto& t = th();
     const bool busy = nextendo_request_.valid();
     draw_frame(c, tr("Nextendo (experimental)"),
@@ -68,7 +110,7 @@ void Launcher::draw_nextendo(Canvas& c) {
         nextendo_status_.linked ? TR("Replace linked session") : TR("Import my session"),
         nextendo_status_.enabled ? TR("Turn routing off") : TR("Turn routing on"),
         TR("Check account"), nextendo_unlink_confirm_ ? TR("Confirm unlink") : TR("Unlink account"),
-        nextendo_browser_confirm_ ? TR("Confirm browser replacement") : TR("Link in this PS5's browser")};
+         nextendo_browser_confirm_ ? TR("Confirm") : TR("Link in this PS5's browser")};
     for (int row = 0; row < 5; ++row) {
         const Rect r{x, pane.y + 142 + row * 72.0f, w, 60};
         const float focus = row == room_row_ && !rail_focus_ ? 1.0f : 0.0f;
@@ -77,12 +119,15 @@ void Launcher::draw_nextendo(Canvas& c) {
                  busy ? t.meta : t.title, r.w - 56);
     }
     const char* help = TR("Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md.");
-    text_block(c, tr(help), x, baseline(pane.y + 520, 28, t.size_small), t.size_small, 28, t.copy, w, 4, kShrink);
+    text_block(c, nextendo_browser_confirm_ ? NextendoUiText(Eden::Nextendo::GameLinkConsentMessage) : tr(help),
+               x, baseline(pane.y + 520, 28, t.size_small), t.size_small, 28, t.copy, w, 4, kShrink);
+    if (nextendo_browser_confirm_ && in_multiplayer() && !transition_.running && !opening_on_ &&
+        intro_ >= (first_start_ ? 0.7f : 0.45f)) nextendo_browser_confirm_.shown = true;
     const std::string result = busy ? std::string(tr("Working... Circle cancels.")) :
-        !nextendo_status_.error.empty() ? nextendo_status_.error :
+        !nextendo_status_.error.empty() ? std::string(NextendoUiText(nextendo_status_.error)) :
         nextendo_status_.checked ? std::string(tr("Account accepted. This is not a game connection test.")) :
         std::string(tr("Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."));
-    const std::string instruction = busy && !nextendo_browser_url_.empty() ?
+    const std::string instruction = busy && nextendo_browser_active_ && !nextendo_stop_.load() && NextendoStartUrl(nextendo_browser_url_) ?
         std::string(tr("Open on THIS PS5 (expires in five minutes; Circle cancels):")) + "\n" + nextendo_browser_url_ + "\n" +
         std::string(tr("Keep ProsperoEden running. Do not open this on a phone or another device.")) : result;
     text_block(c, instruction, x, baseline(pane.y + 675, 28, t.size_small), t.size_small, 28,

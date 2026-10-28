@@ -384,12 +384,27 @@ class Launcher
     void draw_room_panel(Canvas& c, const Rect& pane);
     void press_nextendo(Key key);
     void draw_nextendo(Canvas& c);
+    std::string nextendo_current_profile();
     Eden::Nextendo::Status nextendo_status_;
     std::atomic<bool> nextendo_stop_{false};
     std::future<Eden::Nextendo::Status> nextendo_request_;
     bool nextendo_unlink_confirm_ = false;
     bool nextendo_import_confirm_ = false;
-    bool nextendo_browser_confirm_ = false;
+    // Existing cancel/re-entry paths assign false: clear the entire pending consent, not
+    // just its visible flag. No confirmation survives a navigation/profile cancellation.
+    struct NextendoConsent {
+        bool pending = false;
+        bool shown = false;
+        std::string profile;
+        explicit operator bool() const { return pending; }
+        NextendoConsent& operator=(bool value) {
+            pending = value;
+            shown = false;
+            profile.clear();
+            return *this;
+        }
+    } nextendo_browser_confirm_;
+    bool nextendo_browser_active_ = false;
     std::string nextendo_browser_url_;
     enum class RoomPage { choice, private_room, public_rooms, nextendo };
     RoomPage room_page_ = RoomPage::choice;

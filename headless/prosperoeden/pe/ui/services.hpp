@@ -851,6 +851,16 @@ class Services
     virtual std::string nextendo_link_url() { return {}; }
     virtual Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&)
     { return {false, false, false, 0, "Nextendo is unavailable in this frontend."}; }
+    // Native consent is per request, never inferred by legacy/Lua callers or cached preferences.
+    // A frontend must explicitly implement this entrypoint to opt in to game linking.
+    virtual Eden::Nextendo::Status nextendo_action_with_consent(const std::string& profile,
+        Eden::Nextendo::Action action, const std::atomic<bool>& stop, bool /*confirmed_game_permissions*/)
+    {
+        if (stop.load()) return {false, false, false, 0, "Nextendo action cancelled."};
+        if (action == Eden::Nextendo::Action::link_browser)
+            return {false, false, false, 0, Eden::Nextendo::GameLinkConsentRequired};
+        return nextendo_action(profile, action, stop);
+    }
     virtual Eden::Multiplayer::RoomDirectory public_rooms(const std::atomic<bool>&)
     { return {{}, "Public rooms are unavailable."}; }
     virtual Eden::Multiplayer::Connection room_connection() { return {}; }

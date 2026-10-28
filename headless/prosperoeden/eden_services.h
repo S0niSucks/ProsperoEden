@@ -28,6 +28,8 @@ public:
     Eden::Nextendo::Status nextendo_status() override;
     std::string nextendo_link_url() override;
     Eden::Nextendo::Status nextendo_action(const std::string& profile, Eden::Nextendo::Action action, const std::atomic<bool>& stop) override;
+    Eden::Nextendo::Status nextendo_action_with_consent(const std::string& profile, Eden::Nextendo::Action action,
+        const std::atomic<bool>& stop, bool confirmed_game_permissions) override;
 
     pe::ui::Home home() override;
     std::string clock() override;

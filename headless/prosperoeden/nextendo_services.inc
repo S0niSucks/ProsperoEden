@@ -21,6 +21,10 @@ std::string EdenServices::nextendo_link_url() {
 }
 Eden::Nextendo::Status EdenServices::nextendo_action(const std::string& profile, Eden::Nextendo::Action action,
                                                    const std::atomic<bool>& stop) {
+    return nextendo_action_with_consent(profile, action, stop, false);
+}
+Eden::Nextendo::Status EdenServices::nextendo_action_with_consent(const std::string& profile,
+    Eden::Nextendo::Action action, const std::atomic<bool>& stop, bool confirmed_game_permissions) {
     std::string bound_profile, root;
     {
         const std::lock_guard admission(job_admission_mutex_);
@@ -28,6 +32,8 @@ Eden::Nextendo::Status EdenServices::nextendo_action(const std::string& profile,
         if (launch_committed_) return {false, false, false, 0, "Nextendo actions are unavailable after launch commitment."};
         if (nextendo_busy_) return {false, false, false, 0, "A Nextendo action is already running."};
         if (stop.load()) return {false, false, false, 0, "Nextendo action cancelled."};
+        if (action == Eden::Nextendo::Action::link_browser && !confirmed_game_permissions)
+            return {false, false, false, 0, Eden::Nextendo::GameLinkConsentRequired};
         const std::lock_guard lock(bridge_);
         if (!Eden::FilesystemAccess()) return {false, false, false, 0, "Storage access is required for Nextendo."};
         if (profile != CurrentProfile(user_))
@@ -50,14 +56,9 @@ Eden::Nextendo::Status EdenServices::nextendo_action(const std::string& profile,
         result = LinkBrowser(store, bound_profile, stop, [this](const std::string& url) {
             const std::lock_guard lock(bridge_);
             nextendo_browser_url_ = url;
-        });
+        }, confirmed_game_permissions);
     } else if (action == Action::check_account) {
-        std::string bytes;
-        Registration registration;
-        if (store.ReadRegistration(bytes, result.error) && ParseRegistration(bytes, registration, result.error))
-            result = Store(root, [id = registration.client_id](const Account& account, const std::atomic<bool>& cancel) {
-                return CheckAccountHttpWithClient(account, id, cancel);
-            }).Apply(bound_profile, action, stop);
+        result = Store(root, CheckAccountHttp).Apply(bound_profile, action, stop);
     } else result = store.Apply(bound_profile, action, stop);
     if (!result.error.empty()) {
         auto current = store.Get(bound_profile); // failed replacement must not hide an existing link/consent
