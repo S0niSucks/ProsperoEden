@@ -4,6 +4,7 @@
 #include <atomic>
 #include <array>
 #include <cstdint>
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
@@ -15,8 +16,11 @@ struct Account {
     std::uint64_t pid = 0; // bearer-equivalent; never log, draw, or put in diagnostics
     std::string token;
     bool enabled = false;
+    // Only game credentials are persisted/snapshotted. Zero times denote a legacy import.
+    std::uint64_t issued_at = 0;
+    std::uint64_t expires_at = 0;
 };
-enum class AccountResult { accepted, rejected, failed, cancelled };
+enum class AccountResult { accepted, rejected, failed, cancelled, unavailable };
 using AccountCheck = AccountResult (*)(const Account&, const std::atomic<bool>&);
 using AccountCheckFunction = std::function<AccountResult(const Account&, const std::atomic<bool>&)>;
 using Routes = std::map<std::string, std::string>;
@@ -32,7 +36,8 @@ public:
     Store(std::string root, AccountCheckFunction check);
     Status Get(std::string_view profile) const;
     Status Apply(std::string_view profile, Action action, const std::atomic<bool>& stop);
-    Status Link(std::string_view profile, Account account, const std::atomic<bool>& stop);
+    Status Link(std::string_view profile, Account account, const std::atomic<bool>& stop,
+        std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max());
     bool ReadRegistration(std::string& bytes, std::string& error) const;
     std::shared_ptr<const Session> Load(std::string_view profile, std::string& error) const;
 private:
@@ -45,6 +50,7 @@ std::string CanonicalHost(std::string_view host);
 bool IsOfficialHost(std::string_view host);
 bool IsNextendoHost(std::string_view host);
 bool ParseAccount(std::string_view bytes, Account& account);
+bool GameSessionCurrent(const Account& account);
 bool ParseRoutes(std::string_view bytes, Routes& routes);
 // Empty means reject without falling through to the official service. A numeric literal is
 // unchanged; this is not an IP firewall. No wildcard or IP routing is inferred from a domain.

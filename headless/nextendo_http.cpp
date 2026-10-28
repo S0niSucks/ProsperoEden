@@ -1,52 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "nextendo_http.h"
-#include "nextendo_json.h"
-#include "remote/http.h"
 
 namespace Eden::Nextendo {
-namespace {
-constexpr std::size_t MaxReply = 32768;
-struct Reply { std::string bytes; const std::atomic<bool>& stop; };
-int Sink(void* p, const void* data, std::size_t size) {
-    auto& reply = *static_cast<Reply*>(p);
-    if (size > MaxReply - reply.bytes.size()) return 0;
-    reply.bytes.append(static_cast<const char*>(data), size);
-    return 1;
+AccountResult CheckAccountHttp(const Account&, const std::atomic<bool>& stop) {
+    // Public docs describe NEX as game-only, not a Bearer for account APIs. We retain no
+    // web credential and have no documented NEX introspection route. Never guess one or
+    // turn a 401 from the wrong API into deletion of a user's imported game session.
+    return stop.load() ? AccountResult::cancelled : AccountResult::unavailable;
 }
-int Stop(void* p) { return static_cast<Reply*>(p)->stop.load(); }
-}
-AccountResult CheckAccountHttp(const Account& account, const std::atomic<bool>& stop) {
-    (void)account;
-    return stop.load() ? AccountResult::cancelled : AccountResult::failed; // registration is mandatory
-}
-AccountResult CheckAccountHttpWithClient(const Account& account, const std::string& client_id,
+AccountResult CheckAccountHttpWithClient(const Account& account, const std::string&,
                                         const std::atomic<bool>& stop) {
-    if (stop.load()) return AccountResult::cancelled;
-    if (client_id.empty() || client_id.size() > 256 || client_id.find_first_of("\r\n") != client_id.npos)
-        return AccountResult::failed;
-    Reply reply{{}, stop};
-    const std::string authorization = "Bearer " + account.token;
-    remote_http_request request{};
-    request.url = "https://nextendo.network/api/profile";
-    request.authorization = authorization.c_str();
-    request.timeout_ms = 15000;
-    request.https_only = 1;
-    request.no_redirect = 1;
-    request.nextendo_client_id = client_id.empty() ? nullptr : client_id.c_str();
-    request.sink = Sink;
-    request.stop = Stop;
-    request.user = &reply;
-    remote_http_result response{};
-    const int code = remote_http_run(&request, &response);
-    if (stop.load()) return AccountResult::cancelled;
-    if (response.status == 401) return AccountResult::rejected;
-    if (code != 0 || response.status != 200) return AccountResult::failed;
-    try {
-        const auto json = Detail::ParseUniqueJson(reply.bytes);
-        if (!json.is_object() || !json.contains("username") || !json["username"].is_string())
-            return AccountResult::failed;
-    } catch (const nlohmann::json::exception&) { return AccountResult::failed; }
-    // Do not propagate server bodies/errors, even when they echo a PID or bearer token.
-    return AccountResult::accepted;
+    return CheckAccountHttp(account, stop);
 }
 } // namespace Eden::Nextendo

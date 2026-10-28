@@ -4,6 +4,12 @@
 #include <string>
 
 namespace Eden::Nextendo {
+// Stable msgids / integration contract: frontend must display the consent description and
+// pass explicit confirmation to LinkBrowser. No permission to change guest routing is implied.
+inline constexpr char GameLinkConsentMessage[] = "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately.";
+inline constexpr char GameLinkConsentRequired[] = "Confirm identity and game matchmaking permission before linking a Nextendo game session.";
+inline constexpr char GameCheckUnavailable[] = "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed.";
+inline constexpr char GameSessionExpired[] = "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching.";
 // Deliberately contains no account identifier, username or bearer credential.
 struct Status {
     bool linked = false;

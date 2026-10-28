@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// OAuth wire contract: GPL-2.0-or-later Citron-Nextendo 8e761924, nextendo_api.cpp:357-485.
+// Public PKCE -> web access -> identity -> NEX contract: see NEXTENDO_OAUTH_NEX_CONTRACT.md.
 // Local receiver, validation, lifecycle and fail-closed transport are ProsperoEden implementation.
 #include "nextendo_oauth.h"
 #include "nextendo_json.h"
@@ -38,7 +38,7 @@ bool Printable(std::string_view value, std::size_t max) {
 bool Redirect(const Registration& r, unsigned& port, std::string& path) {
     constexpr std::string_view prefix = "http://127.0.0.1:";
     std::string_view uri(r.redirect_uri);
-    if (!Printable(r.client_id, 256) || !Printable(r.app, 64) || !uri.starts_with(prefix)) return false;
+    if (!Printable(r.client_id, 256) || (!r.app.empty() && !Printable(r.app, 64)) || !uri.starts_with(prefix)) return false;
     uri.remove_prefix(prefix.size());
     const auto slash = uri.find('/');
     if (slash == uri.npos) return false;
@@ -203,6 +203,71 @@ int Stop(void* p) {
     const auto& reply = *static_cast<Reply*>(p);
     return reply.stop.load() || Clock::now() >= reply.deadline;
 }
+using Json = nlohmann::json;
+// RFC 6750 b64token: never interpolate arbitrary printable server text into a header.
+bool Bearer(std::string_view value) {
+    if (value.size() < 16 || value.size() > 8192 || value.front() == '=') return false;
+    bool padding = false;
+    for (const unsigned char c : value) {
+        if (c == '=') { padding = true; continue; }
+        if (padding || !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '.' || c == '_' || c == '~' || c == '+' || c == '/')) return false;
+    }
+    return true;
+}
+bool Lifetime(const Json& json, std::uint64_t max, std::uint64_t& seconds) {
+    if (!json.contains("expires_in") || !json["expires_in"].is_number_unsigned()) return false;
+    seconds = json["expires_in"].get<std::uint64_t>();
+    return seconds > 0 && seconds <= max;
+}
+bool GrantedScopes(const Json& json) {
+    // RFC 6749 5.1: omitted scope means unchanged from the exact request. Both protected
+    // reads must still succeed. An explicit narrowed, duplicate or expanded grant is refused.
+    if (!json.contains("scope")) return true;
+    if (!json["scope"].is_string()) return false;
+    const auto scope = json["scope"].get<std::string>();
+    return scope == "identity game.matchmaking" || scope == "game.matchmaking identity";
+}
+bool BearerType(const Json& json) {
+    if (!json.contains("token_type") || !json["token_type"].is_string()) return false;
+    auto type = json["token_type"].get<std::string>();
+    for (auto& c : type) if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
+    return type == "bearer"; // OAuth token type names are case-insensitive (RFC 6749 7.1).
+}
+Json Fetch(const char* url, const char* body, std::size_t size, const char* authorization,
+           const std::string& client, Clock::time_point deadline, const std::atomic<bool>& stop,
+           std::string& error) {
+    if (stop.load()) { error = "Nextendo action cancelled."; return {}; }
+    if (Clock::now() >= deadline) { error = "Browser sign-in expired. Start again on this PS5."; return {}; }
+    Reply reply{{}, stop, deadline};
+    remote_http_request request{};
+    request.url = url;
+    request.nextendo_client_id = client.c_str();
+    request.authorization = authorization;
+    if (body) {
+        request.method = "POST";
+        request.body = body;
+        request.body_size = size;
+        request.content_type = "application/x-www-form-urlencoded";
+    }
+    request.https_only = request.no_redirect = 1;
+    request.timeout_ms = std::max(1L, std::min(15000L, static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - Clock::now()).count())));
+    request.sink = Sink;
+    request.stop = Stop;
+    request.user = &reply;
+    remote_http_result response{};
+    const auto result = remote_http_run(&request, &response);
+    if (stop.load()) error = "Nextendo action cancelled.";
+    else if (Clock::now() >= deadline) error = "Browser sign-in expired. Start again on this PS5.";
+    else if (result != 0 || response.status != 200)
+        error = "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates.";
+    else {
+        auto json = Detail::ParseUniqueJson(reply.bytes.value);
+        if (json.is_object()) return json;
+        error = "The account server returned an incomplete or invalid session.";
+    }
+    return {};
+}
 } // namespace
 
 bool ParseRegistration(std::string_view bytes, Registration& r, std::string& error) {
@@ -212,13 +277,14 @@ bool ParseRegistration(std::string_view bytes, Registration& r, std::string& err
         if (bytes.size() <= 4096) {
             const auto json = Detail::ParseUniqueJson(bytes);
             Registration parsed{json.at("client_id").get<std::string>(), json.at("redirect_uri").get<std::string>(),
-                                json.at("app").get<std::string>()};
+                                 json.value("app", std::string{})};
             unsigned port;
             std::string path;
-            if (json.value("version", 0) == 1 && Redirect(parsed, port, path)) { r = std::move(parsed); return true; }
+            if ((!json.contains("app") || Printable(parsed.app, 64)) && json.at("version").is_number_unsigned() &&
+                json["version"] == 1 && Redirect(parsed, port, path)) { r = std::move(parsed); return true; }
         }
     } catch (const nlohmann::json::exception&) {} // never echo configuration or parser input
-    error = "Invalid oauth.json. Supply your registered client_id, app and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}).";
+    error = "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional.";
     return false;
 }
 std::string PkceChallenge(std::string_view verifier) {
@@ -237,6 +303,7 @@ struct BrowserLink::Impl {
 BrowserLink::BrowserLink(std::unique_ptr<Impl> impl) : impl_(std::move(impl)) {}
 BrowserLink::~BrowserLink() = default;
 std::string BrowserLink::StartUrl() const { return "http://" + impl_->host + "/start"; }
+Clock::time_point BrowserLink::Deadline() const { return impl_->deadline; }
 std::unique_ptr<BrowserLink> BrowserLink::Open(const Registration& r, std::string& error, std::chrono::milliseconds lifetime) {
     error.clear();
     auto impl = std::make_unique<Impl>();
@@ -267,7 +334,8 @@ std::unique_ptr<BrowserLink> BrowserLink::Open(const Registration& r, std::strin
     impl->host = "127.0.0.1:" + std::to_string(ntohs(address.sin_port));
     impl->redirect = "http://" + impl->host + impl->path;
     impl->authorize = std::string(Origin) + "/api/oauth/authorize?response_type=code&client_id=" + Encode(r.client_id) +
-        "&redirect_uri=" + Encode(impl->redirect) + "&scope=identity&app=" + Encode(r.app) + "&state=" + impl->state +
+        "&redirect_uri=" + Encode(impl->redirect) + "&scope=identity%20game.matchmaking" +
+        (r.app.empty() ? std::string{} : "&app=" + Encode(r.app)) + "&state=" + impl->state +
         "&code_challenge=" + PkceChallenge(impl->verifier.value) + "&code_challenge_method=S256";
     impl->deadline = Clock::now() + lifetime;
     return std::unique_ptr<BrowserLink>(new BrowserLink(std::move(impl)));
@@ -310,42 +378,56 @@ bool BrowserLink::Finish(Account& account, const std::atomic<bool>& stop, std::s
     else if (Clock::now() >= s.deadline) error = "Browser sign-in expired. Start again on this PS5.";
     else if (error.empty() && code.value.empty()) error = "Browser sign-in stopped after too many invalid local requests.";
     if (!error.empty()) return false;
-    Reply reply{{}, stop, s.deadline};
     Secret form{"grant_type=authorization_code&code=" + Encode(code.value) + "&client_id=" + Encode(s.registration.client_id) +
         "&redirect_uri=" + Encode(s.redirect) + "&code_verifier=" + Encode(s.verifier.value)};
-    remote_http_request request{};
-    request.url = "https://nextendo.network/api/oauth/token";
-    request.nextendo_client_id = s.registration.client_id.c_str();
-    request.method = "POST";
-    request.body = form.value.c_str();
-    request.body_size = form.value.size();
-    request.content_type = "application/x-www-form-urlencoded";
-    request.https_only = request.no_redirect = 1;
-    request.timeout_ms = std::max(1L, std::min(15000L, static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(s.deadline - Clock::now()).count())));
-    request.sink = Sink;
-    request.stop = Stop;
-    request.user = &reply;
-    remote_http_result response{};
-    const auto result = remote_http_run(&request, &response);
-    if (stop.load()) error = "Nextendo action cancelled.";
-    else if (Clock::now() >= s.deadline) error = "Browser sign-in expired. Start again on this PS5.";
-    else if (result != 0) error = "OAuth token exchange failed. Check connectivity and trusted certificates.";
-    else if (response.status != 200) error = "The provider refused the OAuth token exchange. Check client registration and redirect approval.";
-    else {
-        try {
-            const auto json = Detail::ParseUniqueJson(reply.bytes.value);
-            const Secret session{nlohmann::json{{"version", 1}, {"pid", json.at("account").at("pid")}, {"token", json.at("nex_token")}}.dump()};
-            if (ParseAccount(session.value, account)) return true;
-        } catch (const nlohmann::json::exception&) {}
+    try {
+        const auto began = Clock::now();
+        auto oauth = Fetch("https://nextendo.network/api/oauth/token", form.value.c_str(), form.value.size(), nullptr,
+                           s.registration.client_id, s.deadline, stop, error);
+        if (!error.empty()) return false;
+        std::uint64_t seconds = 0;
+        if (!BearerType(oauth) || !GrantedScopes(oauth) || !Lifetime(oauth, 3600, seconds))
+            throw Json::type_error::create(302, "invalid grant", &oauth);
+        const Secret access{oauth.at("access_token").get<std::string>()};
+        if (!Bearer(access.value) || access.value.starts_with("nx2.") || access.value.starts_with("nxt_bot_"))
+            throw Json::type_error::create(302, "invalid access type", &oauth);
+        // Discard refresh and every unused permission/identity field; no persistent web session.
+        oauth.clear();
+        const Secret authorization{"Bearer " + access.value};
+        const auto web_deadline = std::min(s.deadline, began + std::chrono::seconds{seconds});
+        auto identity = Fetch("https://nextendo.network/api/oauth/userinfo", nullptr, 0, authorization.value.c_str(),
+                              s.registration.client_id, web_deadline, stop, error);
+        if (!error.empty()) return false;
+        if (!identity.at("pid").is_number_unsigned() || identity["pid"] == 0)
+            throw Json::type_error::create(302, "invalid identity", &identity);
+        const auto pid = identity["pid"].get<std::uint64_t>();
+        const auto issued = std::chrono::duration_cast<std::chrono::seconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        auto nex = Fetch("https://nextendo.network/api/nex-token", nullptr, 0, authorization.value.c_str(),
+                         s.registration.client_id, web_deadline, stop, error);
+        if (!error.empty()) return false;
+        if (!nex.at("pid").is_number_unsigned() || nex["pid"] != pid || !Lifetime(nex, 86400, seconds) || issued <= 0)
+            throw Json::type_error::create(302, "invalid game identity", &nex);
+        const Secret game{nex.at("nex_token").get<std::string>()};
+        if (!Bearer(game.value) || !game.value.starts_with("nx2.") || game.value == access.value)
+            throw Json::type_error::create(302, "invalid game type", &nex);
+        Account result{pid, game.value, false, static_cast<std::uint64_t>(issued), static_cast<std::uint64_t>(issued) + seconds};
+        if (stop.load()) { error = "Nextendo action cancelled."; return false; }
+        if (Clock::now() >= web_deadline) { error = "Browser sign-in expired. Start again on this PS5."; return false; }
+        if (!GameSessionCurrent(result)) { error = GameSessionExpired; return false; }
+        account = std::move(result);
+        return true;
+    } catch (const Json::exception&) {
         error = "The account server returned an incomplete or invalid session.";
     }
     return false;
 }
 Status LinkBrowser(Store& store, std::string_view profile, const std::atomic<bool>& stop,
-                   const std::function<void(const std::string&)>& publish_url) {
+                   const std::function<void(const std::string&)>& publish_url, bool confirmed_game_permissions) {
     Status result;
     if (!ValidProfile(profile)) { result.error = "Choose a player profile first."; return result; }
     if (stop.load()) { result.error = "Nextendo action cancelled."; return result; }
+    if (!confirmed_game_permissions) { result.error = GameLinkConsentRequired; return result; }
     std::string bytes;
     Registration registration;
     if (!store.ReadRegistration(bytes, result.error) || !ParseRegistration(bytes, registration, result.error)) return result;
@@ -358,6 +440,6 @@ Status LinkBrowser(Store& store, std::string_view profile, const std::atomic<boo
     publish_url(flow->StartUrl());
     Account account;
     if (!flow->Finish(account, stop, result.error)) return result;
-    return store.Link(profile, std::move(account), stop);
+    return store.Link(profile, std::move(account), stop, flow->Deadline());
 }
 } // namespace Eden::Nextendo

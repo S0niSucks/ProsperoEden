@@ -17,6 +17,7 @@ public:
         std::chrono::milliseconds lifetime = std::chrono::minutes{5});
     ~BrowserLink();
     std::string StartUrl() const; // only the short local entry point; never a code/token/verifier
+    std::chrono::steady_clock::time_point Deadline() const;
     bool Finish(Account& account, const std::atomic<bool>& stop, std::string& error);
 private:
     struct Impl;
@@ -24,5 +25,6 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 Status LinkBrowser(Store&, std::string_view profile, const std::atomic<bool>& stop,
-                   const std::function<void(const std::string&)>& publish_url);
+                   const std::function<void(const std::string&)>& publish_url,
+                   bool confirmed_game_permissions = false);
 } // namespace Eden::Nextendo

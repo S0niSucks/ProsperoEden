@@ -110,13 +110,22 @@ bool ReadFile(int directory, const std::string& name, std::string& bytes, bool s
     if (!ok) bytes.clear();
     return ok;
 }
-bool Save(int directory, const std::string& name, const Account& account) {
+bool Save(int directory, const std::string& name, const Account& account,
+          const std::atomic<bool>* stop = nullptr,
+          std::chrono::steady_clock::time_point deadline = std::chrono::steady_clock::time_point::max(),
+          bool require_current_game = false) {
     // Exclusive staging refuses stale files/symlinks rather than truncating somebody else's file.
     const std::string staged = name + ".new";
     const int fd = openat(directory, staged.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0600);
     if (fd < 0) return false;
-    const std::string bytes = Json{{"version", 1}, {"pid", account.pid},
-                                  {"token", account.token}, {"enabled", account.enabled}}.dump();
+    Json json{{"version", account.expires_at ? 2 : 1}, {"pid", account.pid},
+              {"token", account.token}, {"enabled", account.enabled}};
+    if (account.expires_at) {
+        json["credential_kind"] = "nex";
+        json["issued_at"] = account.issued_at;
+        json["expires_at"] = account.expires_at;
+    }
+    const std::string bytes = json.dump();
     std::size_t at = 0;
     bool ok = true;
     while (at < bytes.size()) {
@@ -127,6 +136,10 @@ bool Save(int directory, const std::string& name, const Account& account) {
     }
     if (ok) ok = fsync(fd) == 0;
     if (close(fd) != 0) ok = false;
+    // Last check before the atomic commit: cancellation/deadline during fsync preserves
+    // the previous account. Cancellation after rename cannot roll back a committed link.
+    if ((stop && stop->load()) || std::chrono::steady_clock::now() >= deadline) ok = false;
+    if (require_current_game && !GameSessionCurrent(account)) ok = false;
     if (ok) ok = renameat(directory, staged.c_str(), directory, name.c_str()) == 0;
     if (!ok) unlinkat(directory, staged.c_str(), 0);
     return ok;
@@ -161,12 +174,21 @@ bool ParseAccount(std::string_view bytes, Account& account) {
         Account parsed;
         if (bytes.front() == '{') {
             const auto json = Detail::ParseUniqueJson(bytes);
-            if (!json.is_object() || json.value("version", 0) != 1 ||
+            if (!json.is_object() || !json.contains("version") || !json["version"].is_number_unsigned() ||
+                (json["version"] != 1 && json["version"] != 2) ||
                 !json.contains("pid") || !json["pid"].is_number_unsigned() ||
                 !json.contains("token") || !json["token"].is_string()) return false;
             parsed.pid = json["pid"].get<std::uint64_t>();
             parsed.token = json["token"].get<std::string>();
             parsed.enabled = json.value("enabled", false);
+            if (json["version"] == 2) {
+                if (json.value("credential_kind", std::string{}) != "nex" ||
+                    !json.at("issued_at").is_number_unsigned() || !json.at("expires_at").is_number_unsigned()) return false;
+                parsed.issued_at = json["issued_at"].get<std::uint64_t>();
+                parsed.expires_at = json["expires_at"].get<std::uint64_t>();
+                if (!parsed.issued_at || parsed.expires_at <= parsed.issued_at ||
+                    parsed.expires_at - parsed.issued_at > 86400 || !parsed.token.starts_with("nx2.")) return false;
+            }
         } else {
             // User-owned Citron-Nextendo session export. No password/official account input.
             bool have_pid = false, have_token = false;
@@ -197,6 +219,14 @@ bool ParseAccount(std::string_view bytes, Account& account) {
         account = std::move(parsed);
         return true;
     } catch (const Json::exception&) { return false; } // exceptions may contain secrets
+}
+bool GameSessionCurrent(const Account& account) {
+    if (!account.issued_at && !account.expires_at) return true; // legacy expiry is unknown
+    const auto now = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    return now > 0 && account.issued_at <= static_cast<std::uint64_t>(now) &&
+        static_cast<std::uint64_t>(now) < account.expires_at && account.expires_at > account.issued_at &&
+        account.expires_at - account.issued_at <= 86400;
 }
 bool ParseRoutes(std::string_view bytes, Routes& routes) {
     routes.clear();
@@ -253,19 +283,25 @@ bool Store::ReadRegistration(std::string& bytes, std::string& error) const {
     }
     return true;
 }
-Status Store::Link(std::string_view profile, Account account, const std::atomic<bool>& stop) {
+Status Store::Link(std::string_view profile, Account account, const std::atomic<bool>& stop,
+                   std::chrono::steady_clock::time_point deadline) {
     std::lock_guard lock(store_mutex);
     Status result;
     if (!ValidProfile(profile) || !account.pid || !SafeToken(account.token) ||
-        account.token == std::to_string(account.pid)) {
+        account.token == std::to_string(account.pid) || (account.expires_at && !account.token.starts_with("nx2."))) {
         result.error = "The account server returned an incomplete or invalid session.";
         return result;
     }
     if (stop.load()) { result.error = "Nextendo action cancelled."; return result; }
+    if (std::chrono::steady_clock::now() >= deadline) { result.error = "Browser sign-in expired. Start again on this PS5."; return result; }
+    if (!GameSessionCurrent(account)) { result.error = GameSessionExpired; return result; }
     const Directory directory(root_, true);
     account.enabled = false; // linking never consents to guest service routing
-    if (directory.fd < 0 || !Save(directory.fd, AccountName(profile), account)) {
-        result.error = "Cannot save the private Nextendo session. Check storage and stale .new files.";
+    if (directory.fd < 0 || !Save(directory.fd, AccountName(profile), account, &stop, deadline, true)) {
+        result.error = stop.load() ? "Nextendo action cancelled." :
+            std::chrono::steady_clock::now() >= deadline ? "Browser sign-in expired. Start again on this PS5." :
+            !GameSessionCurrent(account) ? GameSessionExpired :
+            "Cannot save the private Nextendo session. Check storage and stale .new files.";
         return result;
     }
     result.linked = true;
@@ -336,6 +372,8 @@ Status Store::Apply(std::string_view profile, Action action, const std::atomic<b
     }
     if (!error.empty()) return fail(error.c_str());
     if (!session) return fail("Import a Nextendo session for this profile first.");
+    if ((action == Action::enable || action == Action::check_account) && !GameSessionCurrent(session->account))
+        return fail(GameSessionExpired);
     if (action == Action::enable || action == Action::disable) {
         if (action == Action::enable && session->routes.empty()) return fail("Configure nextendo/routes.json with verified Nextendo endpoints before enabling.");
         auto account = session->account;
@@ -346,6 +384,7 @@ Status Store::Apply(std::string_view profile, Action action, const std::atomic<b
         if (!check_) return fail("Nextendo account checks are unavailable in this frontend.");
         const auto checked = check_(session->account, stop);
         if (stop.load() || checked == AccountResult::cancelled) return fail("Nextendo action cancelled.");
+        if (checked == AccountResult::unavailable) return fail(GameCheckUnavailable);
         if (checked == AccountResult::rejected) {
             if (!Remove(directory.fd, file) || !Remove(directory.fd, file + ".new"))
                 return fail("Session rejected. Could not remove it; unlink before retrying.");
@@ -367,6 +406,7 @@ bool BeginGame(const Store& store, std::string_view profile, bool local_room, st
     if (session && !session->account.enabled) { error.clear(); return true; }
     if (!error.empty()) return false; // never silently lose an explicit online configuration
     if (!session || !session->account.enabled) return true;
+    if (!GameSessionCurrent(session->account)) { error = GameSessionExpired; return false; }
     if (local_room) { error = "Leave the local room or turn Nextendo off before launching."; return false; }
     if (session->routes.empty()) { error = "Nextendo needs verified service routes before launching."; return false; }
     std::atomic_store_explicit(&guest, std::move(session), std::memory_order_seq_cst);
