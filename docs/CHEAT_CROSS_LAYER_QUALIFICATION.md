@@ -140,6 +140,8 @@ mutation refusal, real TLS cancellation and default-off installation. Source-man
 The input snapshot, raw output and exit-0 status are in
 `.local/docker-release/cheat-cross-layer-20261027/` (`source-snapshot.json`,
 `integrated-http-flow.log`, `integrated-http-status.json`). Full private commands/hash evidence
-is retained in Docker volume `prosperoeden-cheat-flow-nextendo-review-20261027`, under
+and all 11 request paths are also exported in its `integrated-provenance/` subfolder, with
+SHA-256s. The original complete private run is retained in Docker volume
+`prosperoeden-cheat-flow-nextendo-review-20261027`, under
 `/private/cheat-flow-nextendo-20261027/run/`. The reused older host-core archives were mounted
 read-only at their original paths; this is neither a rebuilt Nextendo core nor PS5 gameplay.

@@ -27,8 +27,8 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 - **Opt-in Amiibo catalog/photo sync.** **Settings > Amiibo** reads local names offline and
   separately confirms public-catalog or selected-photo HTTPS downloads. Local names/series and
   custom artwork retain priority; bounded workers expose progress/cancellation. No tags or keys
-  are read/downloaded. Initial focused host/UI checks passed; combined service/UI and PS5
-  qualification remain in progress.
+  are read/downloaded. Individual and combined USB/cheat-service host checks passed; final
+  all-feature UI/service and PS5 qualification remain in progress.
 - **Session-only live cheats.** **Left touchpad click + Square** opens the command strip;
   Up/Down switches to cheats, Left/Right selects and Cross toggles. Changes reach only
   the current session's loaded cheat VM; disabling a cheat does not undo earlier memory
@@ -58,7 +58,8 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   confirmation, copies/validates app data with progress/cancellation and stages restore for the
   next cold start. Existing destination data is retained in a recovery folder; no active state
   is hot-replaced. Named Nextendo/network-share credentials and game content are excluded.
-  Backend and UI checks passed separately; composed-worker and PS5 filesystem validation remain.
+  Backend/UI and composed Amiibo/cheat-worker checks passed; later-writer integration and PS5
+  filesystem validation remain.
 - **Nextendo integration (experimental, default-off).** Per-profile private session import,
   explicit checks/unlink, exact-host guest routing and registered-client browser OAuth with
   S256 PKCE are integrated. Missing registration refuses before network work. This is not

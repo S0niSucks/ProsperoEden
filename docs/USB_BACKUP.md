@@ -141,14 +141,22 @@ real cache workers before draining the metadata bridge; no bridge is held over e
 The first composed test passed the individual Amiibo/TLS suite but exposed that closing USB
 left Amiibo permanently closed. Ordinary USB closure now calls `AllowStart()` under admission;
 a staged restore never closes and a terminal launch cannot be reopened. Real workers with
-held synthetic transports test busy/cancellation, new-job refusal and races against launch/USB;
-the corrected combined run is pending. Initial failed evidence is retained under
+held synthetic transports test busy/cancellation, new-job refusal and races against launch/USB.
+The corrected clean/frozen `878d97c` snapshot **passed** the individual Amiibo/reader/TLS,
+actual composed service/worker, cheat-manager and full USB backend/lifecycle/update/syntax
+runners (`sh_17fd7b2c7001OEJMHG3xgCQKtV`), including normal/ASan/UBSan/TSan admission races,
+both credential exclusion/reinjection controls and unchanged restart-lock assertions.
+The raw logs/snapshot/status are in `.local/docker-release/amiibo-usb-integrated-frozen-20261027/`.
+Unrelated platform jobs and admission-test transports/probes are still simulated; dedicated
+worker TLS tests use actual libcurl/loopback TLS. This predates Nextendo's shared-service changes
+and is not a full frontend/core or PS5 execution. Initial failed evidence is retained under
 `.local/docker-release/amiibo-usb-integrated-20261027/`, not counted as a pass.
 
-### Coordinator-required Amiibo/Nextendo integration hooks (not yet composed)
+### Cross-delivery integration handoff
 
-These APIs are arriving in other deliveries, not present or imported here. Credential exclusion
-does **not** replace writer coordination. The coordinator must compose their real final APIs:
+The initial worker recorded the requirements below before the other APIs arrived. Amiibo/cheat
+coordination in items 1–2 is now implemented/tested above. Nextendo and later scene/network
+writers remain under integration review. Credential exclusion does **not** replace coordination:
 
 1. In this branch's `EdenServices::begin_usb_backup()` (the USB-enter hook), keep the existing
    `usb_active_` gate set **before** scheduling preparation. On the USB preparation worker,
@@ -161,9 +169,9 @@ does **not** replace writer coordination. The coordinator must compose their rea
 3. Gate all Nextendo async starts and profile/session/account mutators while `usb_active_`,
    before they resolve paths or write state: profile selection/create/rename/delete, imports,
    authentication/link/unlink/logout and any completion-triggered persistence. Use the delivery's
-   real entry points, not guessed method names. The USB preparation worker must cancel and
-   join/drain every in-flight Nextendo job, including queued completion/writeback callbacks,
-   before snapshotting. Detached jobs need an explicit completion barrier, not just cancellation.
+   real entry points, not guessed method names. Either refuse USB admission atomically while
+   an account job owns storage or cancel and join/drain it (including queued writeback callbacks)
+   before snapshotting. Detached jobs need a completion barrier, not just cancellation.
 4. No drained completion may publish afterward or restart a job during the session. Preserve
    generation/root checks for stale captured paths. Ordinary backup success/failure/cancellation
    may resume eligible jobs only after the USB worker is joined and the gate is released.

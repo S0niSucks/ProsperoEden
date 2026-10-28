@@ -11,8 +11,15 @@ that bridge before a snapshot can be offered. Cancellation cannot reopen this ba
 Ordinary USB closure explicitly reopens Amiibo admission; staged restore or terminal game
 launch cannot. The first composed test caught a real missing-reopen defect after USB closure,
 at the unchanged assertion requiring a fresh sync to start. That failed snapshot/log is retained
-under `.local/docker-release/amiibo-usb-integrated-20261027/`; the corrected snapshot is being
-tested separately, not represented as a pass yet. Neither test executes actual PS5 storage/NFC.
+under `.local/docker-release/amiibo-usb-integrated-20261027/`. The corrected clean `878d97c`
+snapshot (797 files, frozen before execution) **passed** the combined run
+`sh_17fd7b2c7001OEJMHG3xgCQKtV`: individual worker/reader/TLS tests, exact composed
+USB/Amiibo/cheat service/worker races and cheat-manager regressions passed normal,
+ASan/UBSan and TSan; the full USB backend/lifecycle/update-drain/syntax runner also passed.
+Evidence: `.local/docker-release/amiibo-usb-integrated-frozen-20261027/`. A separate second
+attempt stopped at snapshot-copy verification during a concurrent documentation edit, before
+tests; no test result is assigned to that attempt. The successful run used the later explicit
+prepare/verify/run split. It predates Nextendo integration and does not execute PS5 storage/NFC.
 
 All 54 new USB/Amiibo-source msgids now have additive translations in all 30 catalogs (1,620
 entries), with existing catalog bytes preserved. The 24 newer Nextendo strings remain pending,
