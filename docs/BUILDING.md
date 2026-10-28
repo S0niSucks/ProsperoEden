@@ -89,8 +89,9 @@ The USB runner resolves sources from its own script location, so it tests the co
 not the changing checkout. Its synthetic fixture clears `/mnt/usb0`; both Docker runners refuse
 before building unless that path is an independent tmpfs mount. Never bind-mount a physical USB,
 host directory or real app data there. The volume at `/work` must be private test/build scratch.
-These new suite invocations are wired and shell-syntax/unsafe-fixture refusal checks pass; the
-uninterrupted all-feature host build/run remains pending the outstanding integrations.
+These new suite invocations are wired; shell-syntax/unsafe-fixture refusal and copied-snapshot
+USB runner checks pass. The uninterrupted all-feature host build/run remains pending the
+outstanding integrations.
 Dependency downloads, generated
 fixtures and build outputs stay in Docker, not in the Windows checkout. The image provides CMake
 3.31.10, Clang 18, GCC and host development libraries. Rebuild the image when its Dockerfile changes.

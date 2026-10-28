@@ -39,7 +39,7 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | Scene themes | `b01f254` / `6a1bf96` are an **unaccepted partial increment**, not integrated. Worker is continuing complete linked frontend/updater validation, reference screens and console-native import/actual layout conversion. Offline lite conversion is not full #239 acceptance. |
 | Amiibo sync | `f596678` / `18fcf11` / `79fcf93` reviewed/cherry-picked as `a72e26b` / `f8febee` / `8e8bdd6`. Local-priority/fallback fixes and individual normal/ASan/UBSan/TSan/TLS tests passed. Combined real USB/Amiibo/cheat workers/services passed on frozen `878d97c` (`sh_17fd7b2c7001OEJMHG3xgCQKtV`) after fixing the USB-close resume defect. Combined UI remains running. No PS5 qualification. |
 | Nextendo | Initial/OAuth `cdaa6af` / `ab5f70d`, security `d96e8cc`, storage gates `dd3865c` and SDK snapshot compatibility `82b4ba4` integrated. Coordinator security/HTTP repeat passed 29 OAuth cases plus existing Nextendo/cheat/Amiibo TLS. Composed normal/TSan/ASan/UBSan Nextendo/Amiibo/cheat/USB and full USB/catalog repeat passed on frozen `5bd9d21` (`sh_17fe9989c0019XcJlwUBhCeLlP`). Actual six host/four PS5 objects passed on the worker snapshot; two genuine-target TLS/curl gaps remain under qualification. Live registration, BAAS/signing, operator trust/routes and PS5 game sign-in remain external requirements. |
-| SMB/NFS | `b057a17` / `dbaf12d` delivered real read-only VFS/protocols and initial launcher wiring, not integrated yet. Worker continues actual loader/library metadata, updates/DLC, recents and authenticated/encrypted SMB tests; JSON configuration alone is not full library/launch acceptance. |
+| SMB/NFS | Pinned sessions `b057a17` imported as `931522e` and export privacy `6d47104` as `ac4a0b1`; VFS/frontend `dbaf12d` and metadata/history/add-ons `20ea7c6` await shared-service composition. Worker real-loader, signed/encrypted authenticated SMB, Ganesha MEM, focused ASan/UBSan and SDK evidence is delivered, not full app/PS5 acceptance. Original #111 explicitly requires adding a share in Settings; the delivered JSON-only setup is insufficient. The worker continues a private native add/edit/remove flow without publishing credentials through generic Lua keyboard status. |
 | USB backup/restore | `884a8a4` / `ba1bb06` reviewed/cherry-picked as `afe7d80` / `01c6912`. Credential exclusion/injection controls, backend runner and initial 20 UI assertions passed; restore/restart captures coordinator-inspected. Worker-creation recovery passed real OS `EAGAIN` tests. Combined actual Amiibo/cheat/USB guards/workers plus full backend/update/syntax passed `sh_17fd7b2c7001OEJMHG3xgCQKtV` on frozen `878d97c`. Other new-feature writer coordination and final regression remain mandatory. |
 
 USB/Amiibo (54 msgids) and Nextendo (24 msgids) translations are now additively incorporated
@@ -56,6 +56,14 @@ ownership 32 assertions plus Cover Flow at 720p/1080p and Lua all passed using a
 archived Mesa/ASan/UBSan build. The worker inspected 22 of 63 captures; the coordinator also
 opened Settings 1080p and host-owned Amiibo consent 1080p. Source/hash/scope details are in
 `AMIIBO_USB_UI_VALIDATION.md`. This does not qualify actual workers or the later Nextendo UI.
+
+The uninterrupted host path now invokes the integrated Amiibo/Nextendo/admission/cheat-flow/
+Pro Controller/localization regressions and then the focused USB runner. Shell syntax and
+unsafe-fixture refusal checks pass. The copied-snapshot USB runner also passed on clean frozen
+`ede91f5`, 838 files (`.local/docker-release/usb-runner-snapshot-check-20261027/`, exit 0).
+Its foreground caller timed out; the container completed and saved exit 0. A later `docker wait`
+found it already auto-removed; that observation is not a failed test. No final uninterrupted
+all-feature host/native build has run yet.
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
