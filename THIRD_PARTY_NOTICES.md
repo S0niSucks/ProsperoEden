@@ -31,6 +31,70 @@ builds on the following projects, each under its own license.
   of a save sync's pairing with it.
 - **LLVM compiler-rt** `emutls.c`, Apache-2.0 WITH LLVM-exception.
 
+## Network client libraries
+
+- **[libsmb2](https://github.com/sahlberg/libsmb2)**, pinned tag `libsmb2-6.3`,
+  LGPL-2.1-or-later for the client library. Copyright Ronnie Sahlberg and
+  contributors, including Primary Data Inc., Brian Dodge and André Guilherme.
+  Used for read-only SMB access; the network build uses the static client library,
+  not the upstream example applications. Exact upstream licensing and copyright
+  notices are retained in [third_party/licenses/libsmb2](third_party/licenses/libsmb2).
+  Its MD4 code is derived from the **RSA Data Security, Inc. MD4 Message-Digest
+  Algorithm** and retains that implementation's attribution/license terms. The
+  pinned source also contains public-domain notices for its tiny-AES128-C,
+  Colin Plumb/Ian Jackson MD5 and portable-endian components; these are preserved
+  in `libsmb2/SOURCE_NOTICES.txt`, not replaced by a generic LGPL notice.
+- **[libnfs](https://github.com/sahlberg/libnfs)**, pinned tag `libnfs-8.0.0`,
+  LGPL-2.1-or-later for the client library, with simplified BSD terms for protocol
+  definitions and generated protocol code as described in upstream `COPYING`.
+  Copyright Ronnie Sahlberg and other upstream rightsholders; NFSv4 protocol
+  sources also retain The Internet Society's copyright notice. The application
+  selects NFSv3, but the library build still includes NFSv4 code. Exact upstream
+  texts and source notices are retained in
+  [third_party/licenses/libnfs](third_party/licenses/libnfs). Upstream GPL example
+  applications/utilities are not part of this client-only build.
+
+Both source archive URLs and SHA-256 pins are in `tools/deps.json`; verification
+and the additional file hashes are recorded in
+[third_party/licenses/SOURCES.json](third_party/licenses/SOURCES.json).
+
+## Adapted code and optional online data
+
+- **[Citron Neo / Citron-Nextendo](https://github.com/NextendoNetwork/citron-nextendo)**,
+  reference commit `8e76192472a3993a8f8fa6835e7ed061d443a9f7`. The account/API
+  files inspected for the Nextendo adaptation say `Copyright 2026 citron Emulator
+  Project`, GPL-2.0-or-later; the DNS/account-service reference files retain yuzu
+  (2018) and citron (2025) notices under the same license. Their later-version
+  option permits GPL-3.0-or-later adaptation in ProsperoEden; the reference README
+  itself declares GPL-3.0-or-later. The actual pinned GPL texts and SPDX headers
+  are retained in
+  [third_party/licenses/citron-nextendo](third_party/licenses/citron-nextendo).
+  This credits the bounded session/account/API and routing adaptation, not a
+  wholesale import or license audit of that repository. See
+  [Nextendo provenance](docs/features/NEXTENDO.md#source-and-license-provenance).
+  No Ryujinx-Nextendo/PolyForm Shield implementation, signing keys, credentials or
+  third-party server implementation is included by this feature.
+- **[TitleDB](https://github.com/blawar/titledb)** by Blake Warner,
+  MIT, reference commit `d424690446eec6f4484209b9a1c067c7f7511398`.
+  Its format informs the cheat-catalog reader and its public catalog is an
+  explicitly requested download source. The exact license, including
+  `Copyright (c) 2019 Blake Warner`, is retained in
+  [third_party/licenses/titledb/LICENSE](third_party/licenses/titledb/LICENSE).
+  No TitleDB catalog or third-party cheat payload is bundled with ProsperoEden;
+  tests use invented fixtures. A runtime download, selected-code installation or
+  later export is distinct from distributing this application and must retain
+  applicable source attribution and permissions. Other catalog URLs do not
+  inherit TitleDB's MIT declaration. See [CHEAT_DATABASE.md](docs/CHEAT_DATABASE.md).
+- **[AmiiboAPI](https://github.com/N3evin/AmiiboAPI)**, a public metadata service
+  and optional user-selected photo source (`amiiboapi.org` and
+  `raw.githubusercontent.com`). Its API software license is MIT, copyright
+  Nevin Vu; no API server code or artwork is bundled here. That software license
+  is not a blanket grant over third-party artwork, trademarks, game content or
+  tag data. The feature downloads public names only after opt-in and photos only
+  for explicitly selected models; it does not download tags or keys and preserves
+  local names/custom art. Users and redistributors must assess rights for any
+  separately obtained content. See [AMIIBO_LAUNCHER_SYNC.md](docs/AMIIBO_LAUNCHER_SYNC.md).
+
 ## Graphics
 
 - **[PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa)** and
@@ -85,6 +149,16 @@ builds on the following projects, each under its own license.
   [ElevenLabs](https://elevenlabs.io) and edited for this project.
 - `third_party/ps5_pad.hpp` and `third_party/native_audio.hpp` are this
   project's own platform declarations, GPL-3.0-or-later.
+
+## Release packaging boundary
+
+These notices and license copies do not by themselves satisfy source-delivery or
+static-link relinking obligations. The release must retain applicable notices,
+provide corresponding source/build materials through an appropriate license
+compliance route, and preserve recipients' modification/relinking rights. The
+new files still need to be included and checked in the final package; this notice
+change does not modify packaging tools or certify compliance. See
+[release license qualification](docs/features/RELEASE_LICENSE_NOTICES.md).
 
 ## Thanks
 
