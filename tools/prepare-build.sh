@@ -7,6 +7,7 @@
 set -euo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+source "$root/tools/ci/native-evidence.sh"
 cd "$root"
 step() { echo "== $*"; }
 
@@ -20,6 +21,7 @@ if [[ ! -f .local/headless-cache ]] || [[ ! -d "$(cat .local/headless-cache)" ]]
 fi
 scratch=$(cat .local/headless-cache)
 [[ "$(cat "$scratch/owner")" == "$root" ]] || { echo "Build cache $scratch belongs to another checkout" >&2; exit 1; }
+eden_native_capture --phase prepare-start --file "$root/tools/prepare-build.sh" --file "$root/tools/deps.json"
 
 eden="$scratch/source"
 eden_archive=eden-67bada77.tar.gz
@@ -112,4 +114,15 @@ if [[ ! -f build/radv-isolated/libvulkan_radeon.ps5.a ]]; then
     step "Isolating RADV beside the OpenGL Mesa"
     python3 -B tools/isolate-radv.py
 fi
+eden_native_capture --phase prepare-selected-outputs \
+    --file "$root/build/radv-isolated/libvulkan_radeon.ps5.a" \
+    --file "$root/build/radv-isolated/manifest.json" --file "$root/build/radv-isolated/symbols.map" \
+    --file "$root/build/host/ps5-native-tool" \
+    --file "$scratch/ffmpeg-native/config.h" --file "$scratch/ffmpeg-native/config_components.h" \
+    --file "$scratch/ffmpeg-native/ffbuild/config.mak" \
+    --file "$scratch/ffmpeg-native/install/lib/libavcodec.a" \
+    --file "$scratch/ffmpeg-native/install/lib/libavfilter.a" \
+    --file "$scratch/ffmpeg-native/install/lib/libavutil.a" \
+    --file "$scratch/ffmpeg-native/install/lib/libswscale.a" \
+    --pending sdk_runtime_and_reused_producer_match_pending
 step "Prepared: $scratch"

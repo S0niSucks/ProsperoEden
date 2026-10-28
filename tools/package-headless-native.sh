@@ -4,6 +4,7 @@ set -euo pipefail
 [[ $# == 0 || ( $# == 1 && ( "$1" == --integration || "$1" == --game ) ) ]]
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+source "$root/tools/ci/native-evidence.sh"
 scratch=$(cat "$root/.local/headless-cache")
 [[ "$(cat "$scratch/owner")" == "$root" ]]
 template="$root/../ps5-native-app-boilerplate"
@@ -20,7 +21,13 @@ test -x "$builder"
 (cd "$template/runtime" && sha256sum --check --strict libc.prx.sha256)
 mkdir -p "$out" "$app/sce_sys" "$app/sce_module"
 cp "$scratch/native-local/bin/eden-headless" "$out/llvm-pie.elf"
+eden_native_capture --phase package-before-stamp --file "$out/llvm-pie.elf" \
+    --file "$root/tools/build_identity.py" --file "$scratch/native-local/headless/emutls.c" \
+    --file "$scratch/native-local/headless/app_heap.c" --file "$scratch/native-local/headless/radv_app_crt.cpp" \
+    --file "$scratch/native-local/headless/version/app_version.h" \
+    --pending conditional_generated_source_selection_unverified
 python3 -B "$root/tools/build_identity.py" stamp "$out/llvm-pie.elf"
+eden_native_capture --phase package-after-stamp --file "$out/llvm-pie.elf"
 cp "$scratch/native-local/bin/eden-headless.map" "$out/link.map"
 cp "$scratch/native-local/CMakeCache.txt" "$out/CMakeCache.txt"
 stub_flags=(--stub-dir "$scratch/sdk/target/lib")
@@ -39,10 +46,21 @@ if grep -qx 'EDEN_PS5_OPENGL:BOOL=ON' "$out/CMakeCache.txt"; then
 fi
 # The PS5 keyboard's libSceCommonDialog import (tools/build-common-dialog-stub.sh).
 stub_flags+=(--stub "$root/build/stubs/libSceCommonDialog.so")
-"$builder" link --in "$out/llvm-pie.elf" --out "$out/eboot.elf" \
+native_stub_inputs=()
+if [[ -n ${EDEN_NATIVE_EVIDENCE_DIR:-} ]]; then
+    for ((i=0; i<${#stub_flags[@]}; i++)); do
+        if [[ ${stub_flags[i]} == --stub ]]; then
+            native_stub_inputs+=(--input "${stub_flags[i+1]}")
+        fi
+    done
+fi
+eden_native_run --phase package-convert --input "$out/llvm-pie.elf" "${native_stub_inputs[@]}" \
+    --output "$out/eboot.elf" --pending package_stub_directory_selection_pending -- \
+    "$builder" link --in "$out/llvm-pie.elf" --out "$out/eboot.elf" \
     "${stub_flags[@]}" --module-sdk 0x02000009 \
     --companion-sdk 0x08050001 --file-name eboot.elf
-"$builder" self --sign --in "$out/eboot.elf" --out "$app/eboot.bin" --magic 0x1D3D154F
+eden_native_run --phase package-self --input "$out/eboot.elf" --output "$app/eboot.bin" -- \
+    "$builder" self --sign --in "$out/eboot.elf" --out "$app/eboot.bin" --magic 0x1D3D154F
 cp "$template/runtime/libc.prx" "$app/sce_module/libc.prx"
 rm -f "$app/sandbox-elevator.elf"
 cp "$root/build/lapy-owned-helper/lapy.elf" "$app/lapy.elf"
@@ -133,3 +151,7 @@ llvm-readobj-18 --dyn-symbols --needed-libs "$out/llvm-pie.elf" > "$out/imports.
 sha256sum "$app/eboot.bin" "$app/core-homebrew.nro" "$app/sce_module/libc.prx" \
     "$app/sce_sys/param.json" "$app/sce_sys/icon0.png" "$app/sce_sys/pic0.dds" "$app/sce_sys/pic1.dds" \
     "$app/sce_sys/snd0.at9"
+eden_native_capture --phase package-final --file "$out/llvm-pie.elf" --file "$out/link.map" \
+    --file "$out/eboot.elf" --file "$app/eboot.bin" --file "$app/sce_module/libc.prx" \
+    --file "$app/sce_sys/param.json" --file "$out/imports.txt" --file "$out/fself-inspection.txt" \
+    --pending package_remaining_files_not_selected

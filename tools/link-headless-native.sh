@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+source "$root/tools/ci/native-evidence.sh"
 template="$root/../ps5-native-app-boilerplate"
 sdk="$PS5_PAYLOAD_SDK"
 output=$1
@@ -39,7 +40,8 @@ fi
 # entrypoint-table reference that resolves to 0 either way.
 # The SDK's dlfcn wrappers explicitly return unavailable when these optional
 # weak hooks are null. This static frontend supplies no dynamic-loader hooks.
-"$template/.deps/native/ps5-payload-sdk/bin/prospero-lld" \
+eden_native_run --phase native-link --link -- \
+    "$template/.deps/native/ps5-payload-sdk/bin/prospero-lld" \
     "${tls_flags[@]}" "${radv_link_flags[@]}" -L "$sdk/target/lib" \
     --defsym=__dlopen=0 --defsym=__dlsym=0 --defsym=__dladdr=0 \
     --defsym=__dlclose=0 --defsym=__dlerror=0 \
