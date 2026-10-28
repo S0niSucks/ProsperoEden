@@ -115,6 +115,17 @@ captured player, cancellation and existing launch/storage/job guards. Cancel/foc
 changes must not leave a reusable confirmation. Browser consent is additional, not a replacement
 for the frontend description. Do not tie confirmation to routing enable; that remains separate.
 
+Exact coordinator-owned composition points (not modified by this delivery):
+
+| Caller/surface | Required change |
+| --- | --- |
+| `headless/prosperoeden/pe/ui/nextendo.inc`, browser-link action | Present `GameLinkConsentMessage`; dispatch only after affirmative confirmation. Cancel dispatches nothing. Keep routing enable separate. |
+| UI → `nextendo_action` service request | Carry that one-shot confirmation with the captured player/request through the existing guarded job. Do not infer confirmation merely from `Action::link_browser`, a stored preference or an old browser URL. |
+| `headless/prosperoeden/nextendo_services.inc`, browser-link branch | Supply the confirmed request's value as the fifth `LinkBrowser(store, bound_profile, stop, publish_url, confirmed_game_permissions)` argument. Existing four-argument callers intentionally return `GameLinkConsentRequired` without network/listener. Keep the existing busy/launch/storage/profile/cancellation guards. |
+| Same adapter, account-check branch | Call the game-only Store check without first loading/parsing OAuth registration; report `GameCheckUnavailable` without network/deletion. Preserve the Store's expired/cancelled outcomes. |
+| UI localization/catalog composition | Add exactly the six msgids in the table above (four constants plus two literals); do not add secrets or server response text to translation/status payloads. |
+| Coordinator composition fixtures (`headless/launcher_admission_check.cpp`) | Carry explicit confirmation in positive browser-link requests and use code→web→userinfo→NEX fixtures with matching PIDs. Keep unconfirmed/cancelled/busy requests inert and game-only checks non-networking; do not restore legacy nested-account success as the public OAuth contract. |
+
 The unchanged service adapter currently loads `oauth.json` before its check callback. Parent
 may surface the game-only unavailable result directly, without requiring a registration merely
 to explain that no remote check exists. That wrapper's present missing-registration error is
@@ -224,6 +235,35 @@ python3 /scripts/nextendo-nex-sdk.py
 
 The second script, supplied in evidence, reads the first run's command/provenance and writes
 `oauth-sdk-02`; change both scratch names when reproducing rather than overwriting evidence.
+
+## Closed delivery — 2026-10-28
+
+The scoped implementation and offline contract proof are complete. Apply these commits in order
+on `9cfebff` (no push/publication was performed):
+
+1. `0699208fabf270024a287d8231d164af98c79f5b` — production OAuth→web→identity→NEX and game-only lifecycle.
+2. `6943832d3512287ded297dbcac0c02864a59cead` — 111-case fixture, regression coverage and consent/msgid contract.
+
+The final component was rebuilt in `closure-build-01/` with the already-qualified genuine SDK
+commands after checking the original core/SDK input hashes. All four generated objects are
+byte-identical to the qualified outputs: OAuth C++, game-only check C++, unchanged shared HTTP C,
+and their native relocatable partial link. The two ZIPs below are local deliverables under
+`C:/Users/Leonardo Mello/AppData/Local/Temp/opencode/`:
+
+| Deliverable | SHA-256 |
+| --- | --- |
+| Evidence: `nextendo-oauth-nex-contract-20261027.zip` | `318f623cdf5a1b2e17c9e18bcf778ad7a0dfe4cb5c24452ac68c7bf4bb3f3d6c` |
+| Build: `nextendo-oauth-nex-sdk-component-20261028.zip` | `0a02b489eae075387497ce13ae715ce0c3ee649539051cf2959ee59c7d26f9fe` |
+| Build ZIP's `build-receipt.json` | `555401e6504b57d1c7217e17e30283763a190fa219d64ba544950844ed8551ef` |
+
+The evidence ZIP contains 138 hash-verified payload files plus its manifest; the separate build
+ZIP contains the four objects, exact rebuild script, commands/dependencies/logs and receipt.
+The build ZIP is a **focused SDK component**, not a runnable app/package: the previously listed
+343 core/platform imports remain. Full application/UI composition belongs to the coordinator;
+neither it nor console/live qualification is required to close this worker's offline proof.
+No further audit, real credential, provider contact, toolchain install or shared-file edit is
+pending in this workstream. The caller/UI changes above are an explicit integration handoff,
+not a claim that the unchanged shared frontend is already wired for the new confirmation.
 
 ## Public sources and remaining limits
 
