@@ -125,6 +125,9 @@ shutil.copy2(root / 'build/fixture' / fixture_name, app / 'core-homebrew.nro')
 }, indent=2) + '\n')
 PY
 cp "$root/launcher-runtime.json" "$app/launcher-runtime.json"
+# App-folder installs and downstream PKG collectors need their own root-relative notices.
+# The tool is create-only, preserves licenses/Lapy-MIT.txt, and rejects private/unsafe input.
+python3 -B "$root/tools/package-license-notices.py" "$app"
 llvm-readobj-18 --dyn-symbols --needed-libs "$out/llvm-pie.elf" > "$out/imports.txt"
 "$builder" self --inspect --file "$app/eboot.bin" > "$out/fself-inspection.txt"
 sha256sum "$app/eboot.bin" "$app/core-homebrew.nro" "$app/sce_module/libc.prx" \
