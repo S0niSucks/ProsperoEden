@@ -59,6 +59,12 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   next cold start. Existing destination data is retained in a recovery folder; no active state
   is hot-replaced. Named Nextendo/network-share credentials and game content are excluded.
   Backend and UI checks passed separately; composed-worker and PS5 filesystem validation remain.
+- **Nextendo integration (experimental, default-off).** Per-profile private session import,
+  explicit checks/unlink, exact-host guest routing and registered-client browser OAuth with
+  S256 PKCE are integrated. Missing registration refuses before network work. This is not
+  verified online gameplay: the live registration, compatible BAAS/signing contract, operator
+  routes/trust and PS5 browser/network qualification are still required. Shared storage gates,
+  independent security review and actual changed-core object checks are in progress.
 
 ### Reliability and diagnostics
 
@@ -75,9 +81,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 ### Remaining work and test limits
 
-Nextendo, SMB/NFS streaming and external/scene themes remain under team implementation/review,
-not accepted as complete by this changeset. Integrated USB/Amiibo sync still require combined
-lifecycle/UI verification and final localization. All newly integrated features still need final
+SMB/NFS streaming and external/scene themes remain under team implementation/review, not
+accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
+authentication/operator boundaries. USB/Amiibo/Nextendo still require combined lifecycle/UI
+verification and final localization. All newly integrated features still need final
 combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate
 from host tests. Adaptive polling PR #284 requires PS5 A/B; the supplied Galaxy crashes

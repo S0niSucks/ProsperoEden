@@ -135,7 +135,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #83 Naruto Storm 4 memory crash | PS5: current-version crash report and symbols needed |
 | #84 Tomodachi frame generation | PS5: plugin/backend/configuration and real presentation measurements needed |
 | #86 Tears of the Kingdom crashes | PS5: exact crash, settings and mod isolation needed |
-| #89 Nextendo | Feature: guest networking/account services and external interoperability are not implemented |
+| #89 Nextendo | Experimental default-off profile/session/routing and real registered-client OAuth+PKCE integrated. Shared storage guards/security/core-object review pending; live registration, compatible BAAS/signing, operator trust/routes and PS5 game sign-in remain unqualified. See `features/NEXTENDO.md` |
 | #93 Graphics memory exhaustion | PS5: memory trace at default resolution and failing settings needed |
 | #97 Rest-mode freeze | Partial candidate: controller reopen/backoff integrated with mock coverage; GPU/resume lifetime and PS5 reproduction remain |
 | #99 Out-of-memory crash | PS5: distinguish host heap, graphics allocation and guest memory before changing limits |
