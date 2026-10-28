@@ -36,7 +36,7 @@ compile() {
     fi
 }
 for source in "$source_dir"/host/*.cpp "$source_dir"/pe/{core,gfx,ui,audio}/*.cpp "$kit/ui/theme.cpp" \
-    "$root/headless/network/editor.cpp" "$root/headless/network/config.cpp"; do
+    "$root/headless/network/editor.cpp" "$root/headless/network/config.cpp" "$root/headless/network/keyboard.cpp"; do
     relative=${source#"$root/"};name=${relative//\//_};language=cpp
     [[ $source == */harfbuzz.cpp ]] && language=harfbuzz
     compile "$source" "$build/obj/$name.o" "$language"

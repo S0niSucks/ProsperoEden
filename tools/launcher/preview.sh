@@ -40,6 +40,7 @@ fi
 
 sources=("$source_dir"/host/*.cpp "$source_dir"/pe/core/*.cpp "$source_dir"/pe/gfx/*.cpp "$source_dir"/pe/ui/*.cpp
     "$root/headless/network/editor.cpp" "$root/headless/network/config.cpp"
+    "$root/headless/network/keyboard.cpp"
     "$kit/ui/theme.cpp")
 objects=()
 pids=()
