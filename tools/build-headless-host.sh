@@ -125,6 +125,7 @@ python3 -B "$root/tools/launcher/strings.py" check
 python3 -B "$root/tools/launcher/test-strings.py"
 python3 -B "$root/tools/launcher/test-import-translations.py"
 python3 -B "$root/tools/check-network-privacy.py" --output "$flow_out/export-privacy"
+python3 -B "$root/tools/check-release-licenses.py" --output "$flow_out/release-licenses"
 python3 -B "$root/tools/check-gc-scan.py"
 "$scratch/build/bin/eden-scalar-check"
 "$scratch/build/bin/eden-memory-check"

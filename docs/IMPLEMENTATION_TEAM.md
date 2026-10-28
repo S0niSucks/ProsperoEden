@@ -39,7 +39,7 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | Scene themes | `b01f254` / `6a1bf96` are an **unaccepted partial increment**, not integrated. Worker is continuing complete linked frontend/updater validation, reference screens and console-native import/actual layout conversion. Offline lite conversion is not full #239 acceptance. |
 | Amiibo sync | `f596678` / `18fcf11` / `79fcf93` reviewed/cherry-picked as `a72e26b` / `f8febee` / `8e8bdd6`. Local-priority/fallback fixes and individual normal/ASan/UBSan/TSan/TLS tests passed. Combined real USB/Amiibo/cheat workers/services passed on frozen `878d97c` (`sh_17fd7b2c7001OEJMHG3xgCQKtV`) after fixing the USB-close resume defect. Combined UI remains running. No PS5 qualification. |
 | Nextendo | Initial/OAuth `cdaa6af` / `ab5f70d`, security `d96e8cc`, storage gates `dd3865c` and SDK snapshot compatibility `82b4ba4` integrated. Coordinator security/HTTP repeat passed 29 OAuth cases plus existing Nextendo/cheat/Amiibo TLS. Composed normal/TSan/ASan/UBSan Nextendo/Amiibo/cheat/USB and full USB/catalog repeat passed on frozen `5bd9d21` (`sh_17fe9989c0019XcJlwUBhCeLlP`). Worker `de3db59`, imported `5c77ed8`, closes both genuine-target dependency gaps: six host/six PS5 objects plus resolver/CA/OpenSSL partial-link checks pass on `62e99ba`. Bundle/provenance hashes coordinator-verified; 343 core/platform imports remain in the relocatable subset, not a complete executable. Live registration, BAAS/signing, operator trust/routes and PS5 game sign-in remain external requirements. |
-| SMB/NFS | Pinned sessions `b057a17` imported as `931522e` and export privacy `6d47104` as `ac4a0b1`; VFS/frontend `dbaf12d` and metadata/history/add-ons `20ea7c6` await shared-service composition. Worker real-loader, signed/encrypted authenticated SMB, Ganesha MEM, focused ASan/UBSan and SDK evidence is delivered, not full app/PS5 acceptance. Original #111 explicitly requires adding a share in Settings; the delivered JSON-only setup is insufficient. The worker continues a private native add/edit/remove flow without publishing credentials through generic Lua keyboard status. |
+| SMB/NFS | Pinned sessions `b057a17` imported as `931522e` and export privacy `6d47104` as `ac4a0b1`; VFS/frontend `dbaf12d`, metadata/history/add-ons `20ea7c6` and native editor `ad79973` / `251c732` await shared-service composition. The editor now implements Settings Add/Edit/Remove, private masked IME, keep/replace/clear, atomic `0600` persistence and explicit reconnect. Coordinator independently repeated the delivered branch's editor/Mesa ASan/UBSan, native-gated frontend and privacy runners on a frozen `251c732` archive: all exit 0 (`sh_1801274fa001UiBIdAQ7lzUiFU`). Two synthetic captures were opened. Parent USB/launch reservation remains required; this is neither acceptance of JSON-only setup nor a full app/PS5 result. |
 | USB backup/restore | `884a8a4` / `ba1bb06` reviewed/cherry-picked as `afe7d80` / `01c6912`. Credential exclusion/injection controls, backend runner and initial 20 UI assertions passed; restore/restart captures coordinator-inspected. Worker-creation recovery passed real OS `EAGAIN` tests. Combined actual Amiibo/cheat/USB guards/workers plus full backend/update/syntax passed `sh_17fd7b2c7001OEJMHG3xgCQKtV` on frozen `878d97c`. Other new-feature writer coordination and final regression remain mandatory. |
 
 USB/Amiibo (54 msgids) and Nextendo (24 msgids) translations are now additively incorporated
@@ -75,8 +75,8 @@ and older writer-admission reviews remain active.
 Verified dependency/license notices are imported as `f6c3f45`: all 11 retained file sizes and
 hashes match `third_party/licenses/SOURCES.json` (manifest SHA-256
 `fd79de67ad2fd83a6cd781b31d672f408a6c35dd15d060af823f48d1ab0588dc`). Upstream whitespace
-is intentionally preserved. **Package inclusion and corresponding-source/relink-material delivery
-are not yet complete**; file presence and attribution are not a compliance certification.
+is intentionally preserved. This notices import did not include package placement or
+corresponding-source/relink materials; file presence and attribution are not a compliance certification.
 
 Python collectors `df7cfdf` were reviewed/imported as `f1a92c6`. Both now deny private aliases,
 staged network configs and the complete Nextendo subtree before metadata/descent. Worker
@@ -84,8 +84,28 @@ actual CLI qualification passed 121 Linux / 35 Windows invocations including bas
 the coordinator independently verified 635 indexed artifacts and repeated 19 fixed-source
 Windows CLI cases successfully. `EXPORT_PRIVACY.md` preserves the demonstrated synthetic ZIP
 leaks and zero private-node accesses after the fix. The full host path includes these checks;
-the worker now integrates the complete license directory into actual release ZIPs, not ELF/native
-packaging. Corresponding-source/relink delivery and the final combined build remain outstanding.
+the follow-up release-ZIP license integration is recorded below. Corresponding-source/relink
+delivery and the final combined build remain outstanding.
+
+Release-ZIP notice integration `62068cb` is reviewed/imported as `00b1fdc`. It includes all
+12 license-tree files at their existing root-relative paths and refuses absent, altered,
+undeclared, linked or special-node inputs. The coordinator independently verified all 783
+exported artifact hashes, checked the scoped tested source hashes against the integrated
+files, retained the verified evidence and repeated 26 actual Windows license CLI cases
+successfully (report SHA-256 `51ee9d4a8d7e8f224a4d3f72d54d62b2696e9476faf9ba30fe673920c9037b57`).
+Worker qualification also covers 37 Linux license and 121 Linux / 35 Windows privacy CLI
+invocations. This is a synthetic app with real maintained notices, not a final release binary
+or a corresponding-source offer. The uninterrupted host runner now includes the license CLI
+test; that full runner has not yet passed. Native app-folder notice placement and source/relink
+material preparation are separate active workstreams. See `features/RELEASE_LICENSE_PACKAGING.md`.
+
+The delivered network editor's independent coordinator repeat is retained under
+`.local/docker-release/network-editor-review-20261027/`: immutable Git archive SHA-256
+`5a37fcbb57134b6e713891e4c9e20c0268755a45a17381845313c9394d430c91`, exact source/dependency
+inventories and per-run logs/status. Both reference volumes were read-only, all new objects
+were built in a private volume and source/dependency inventories remained unchanged. This
+repeat precedes parent composition and does not repeat the SDK or protocol-server runs.
+The editor's 89-msgid handoff is being translated separately; catalog integration is pending.
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
