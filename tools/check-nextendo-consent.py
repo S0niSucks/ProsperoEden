@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True, help='NEW private output directory')
     parser.add_argument('--sanitize', action='store_true')
+    parser.add_argument('--tsan', action='store_true', help='ThreadSanitizer instead of ASan/UBSan')
     args = parser.parse_args()
     assert Path('/.dockerenv').exists(), 'Docker only'
     root = Path(__file__).resolve().parents[1]
@@ -35,12 +36,15 @@ def main():
     (out / 'six-msgids.json').write_text(json.dumps({text: extracted[text] for text in expected}, indent=2) + '\n')
     sources = [root / 'headless/nextendo_consent_ui_check.cpp', ui / 'host/fake_services.cpp',
                ui / 'host/usb_backup_fake.cpp', root / 'headless/network/editor.cpp', root / 'headless/network/config.cpp',
+               root / 'headless/network/keyboard.cpp',
                *sorted((ui / 'pe/core').glob('*.cpp')),
                *[p for p in sorted((ui / 'pe/ui').glob('*.cpp')) if p.name not in
                  ('theme_kit.cpp', 'runtime_launcher.cpp', 'runtime_loading.cpp', 'launcher_updates.cpp')],
                *[p for p in sorted((ui / 'pe/gfx').glob('*.cpp')) if p.name not in ('harfbuzz.cpp', 'system_fonts.cpp')]]
     includes = [ui, ui / 'host', root / 'third_party', root / 'third_party/lua', root / 'headless', root / 'tools/launcher/stb']
     sanitizers = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer'] if args.sanitize else []
+    assert not (args.sanitize and args.tsan), 'Select one sanitizer mode'
+    if args.tsan: sanitizers = ['-fsanitize=thread', '-fno-omit-frame-pointer']
     cxx = os.environ.get('CXX', 'clang++-18')
     flags = [cxx, '-std=c++20', '-O0', '-g', '-Wall', '-Wextra', '-UNDEBUG', '-DGL_GLEXT_PROTOTYPES=1',
              '-ffunction-sections', '-fdata-sections', *sanitizers, *['-I' + str(p) for p in includes]]
@@ -74,7 +78,7 @@ def main():
             print(run([str(binary), str(ui / 'ui'), str(data), str(out / f'screens-{height}'), str(width), str(height)],
                       f'ui-{height}', env=env, timeout=90), end='', flush=True)
         assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == value for p, value in hashes.items())
-        receipt['result'] = 'PASS: native consent UI normal/ASan-UBSan as selected; six msgids extracted; no IME/provider'
+        receipt['result'] = 'PASS: native consent UI ' + ('TSan' if args.tsan else 'ASan/UBSan' if args.sanitize else 'normal') + '; six msgids extracted; no IME/provider'
     finally:
         (out / 'receipt.json').write_text(json.dumps(receipt, sort_keys=True, indent=2) + '\n')
 

@@ -38,6 +38,7 @@ struct ObservedMutex : std::mutex {
     }
 };
 #include "usb_writer_class.h"
+#include "admission_fixture_contract.inc"
 #include "assets_dir.h"
 #include "diagnostics.h"
 #include "profiles.h"
@@ -190,7 +191,7 @@ EdenServices::~EdenServices() {
     pair_stop_ = true; if (pair_thread_.joinable()) pair_thread_.join();
 }
 #include "usb_writer_methods.inc"
-#include "prosperoeden/usb_backup_services.inc"
+#include "admission_usb_services.inc"
 namespace {
 Eden::UsbBackup::Status Prepared(EdenServices& service) {
     Until([&] { return !service.usb_backup_status().busy; });
@@ -272,6 +273,29 @@ int main() {
     Write(Eden::ConfigFile("remote/sources.json"), R"({"sources":[{"type":"synthetic","url":"https://synthetic.invalid","name":"Local transport"}]})");
     Write(Eden::GamesPath("roms/local.nsp"), "synthetic ROM placeholder");
     Eden::UpdateNotice::Start(); Eden::UpdateNotice::WaitForCheck();
+#if ADMISSION_THEME_CONTRACT
+    {
+        Eden::Multiplayer::RoomClient rooms;
+        EdenServices service({}, rooms);
+        auto credit = Eden::ThemeStorage::Reserve(service.theme_storage_, Eden::ThemeStorage::MinRequest,
+            Eden::ThemeStorage::Headroom + Eden::ThemeStorage::MinRequest);
+        assert(credit);
+        const auto before = Snapshot();
+        const auto remotes = remote_calls.load(), starts = kit_starts.load(), applies = kit_applies.load();
+        const auto pairs = pair_calls.load(), syncs = sync_calls.load();
+        assert(!service.begin_usb_backup() && !service.usb_active_);
+        assert(!service.start_update() && !service.apply_update() && !service.start_pairing(0, 0));
+        pe::ui::Game game; game.key = "synthetic-key";
+        assert(!service.download(game, 0, false));
+        service.refresh_sources(); service.start_save_sync("local.nsp", true);
+        service.will_play("local.nsp"); assert(!service.launch_committed_);
+        assert(!service.sync_thread_.joinable() && !service.pair_thread_.joinable());
+        assert(before == Snapshot() && remotes == remote_calls && starts == kit_starts && applies == kit_applies);
+        assert(pairs == pair_calls && syncs == sync_calls);
+        auto last = credit; credit.reset(); assert(!service.start_update());
+        last.reset(); assert(!service.theme_storage_->busy());
+    }
+#endif
     const std::vector<std::pair<const char*, Action>> writers{
         {"set_docked", [](auto& s) { return s.set_docked(title, false); }},
         {"set_game_settings", [](auto& s) { pe::ui::GameSettings value; value.volume = 35; return s.set_game_settings(title, value); }},

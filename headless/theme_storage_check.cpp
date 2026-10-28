@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Actual EdenServices callback + actual NX installer/recovery. Synthetic worker status/capacity
-// only; parent USB admission hunk is composed in the generated fixture, never production here.
+// only; USB prefix is verbatim unless an explicitly reported private overlay was requested.
 #include "theme_storage.h"
+#include "admission_fixture_contract.inc"
 #include "storage_paths.h"
 #include "remote/remote.h"
 #include "update_notice.h"
@@ -185,8 +186,10 @@ int main() {
       assert(token); instance.reset(); token.reset(); assert(!ledger->busy()); }
     Rejects([&] { auto token = reserve(); assert(token); throw std::runtime_error("synthetic owner throw"); });
     assert(!ledger->busy());
-    // Both directions of USB admission, using the exact parent hunk in a generated fixture.
+    // Existing USB session always excludes the app callback. Reverse exclusion is tested
+    // only when the extracted production prefix (or explicitly labeled overlay) has the guard.
     assert(service.begin_usb_backup_admission()); assert(!reserve()); service.usb_active_ = false;
+#if ADMISSION_THEME_CONTRACT
     { auto token = reserve(); assert(token); assert(!service.begin_usb_backup_admission() && !service.usb_active_); }
     assert(service.begin_usb_backup_admission()); service.usb_active_ = false;
     for (int i = 0; i < 32; ++i) {
@@ -205,6 +208,7 @@ int main() {
         finish.arrive_and_wait(); theme.join(); usb.join();
         service.usb_active_ = false; assert(!ledger->busy());
     }
+#endif
     DefaultThemeServices defaults;
     const pe::ui::ThemeImportStorage denied = [&](const std::string& where, std::uint64_t bytes) {
         return defaults.reserve_theme_import_storage(where, bytes);
@@ -249,5 +253,5 @@ int main() {
     assert(installed == Snapshot(root + "/launchers/" + plan.id));
     assert(fs::exists(root + "/theme-import/staged")); // release does not pretend bytes disappeared
     observe = false; observed.reset();
-    std::cout << "Theme storage PASS: actual method/default-deny; exact root/bounds/access/capacity; concurrent process credits; USB before/after (parent-hunk fixture); RAII copy/owner/throw/final-write; actual cold recovery and failed-save preservation\n";
+    std::cout << "Theme storage PASS: actual method/default-deny; exact root/bounds/access/capacity; concurrent process credits; USB reverse exclusion exercised=" << ADMISSION_THEME_CONTRACT << "; RAII copy/owner/throw/final-write; actual cold recovery and failed-save preservation\n";
 }

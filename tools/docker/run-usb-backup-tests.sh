@@ -15,8 +15,12 @@ clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined 
     -o /work/usb_backup_check
 ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_check
 clang++-18 -std=c++20 -Wall -Wextra -Werror -D__PROSPERO__ -fsyntax-only headless/usb_backup.cpp
+theme_guard=()
+if grep -q 'theme_storage_->busy()' headless/prosperoeden/usb_backup_services.inc; then
+    theme_guard=(-DEDEN_TEST_THEME_GUARD)
+fi
 clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer \
-    headless/usb_backup.cpp headless/usb_backup_service_check.cpp -lcrypto -ldl -pthread -o /work/usb_backup_service_check
+    "${theme_guard[@]}" headless/usb_backup.cpp headless/usb_backup_service_check.cpp -lcrypto -ldl -pthread -o /work/usb_backup_service_check
 ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_service_check
 clang++-18 -std=c++20 -Wall -Wextra -Werror -fsyntax-only -Iheadless -Iheadless/prosperoeden \
     -Ithird_party -Ithird_party/lua headless/usb_backup_service_syntax.cpp
@@ -34,5 +38,5 @@ ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_update_check
 # Compile just the changed UI translation units, not the emulator or a native build.
 for source in usb_backup settings launcher runtime_launcher; do
     clang++-18 -std=c++20 -Wall -Wextra -Werror -fsyntax-only -Iheadless/prosperoeden \
-        -Ithird_party -Ithird_party/lua "headless/prosperoeden/pe/ui/$source.cpp"
+        -Ithird_party -Ithird_party/lua -Ithird_party/miniz "headless/prosperoeden/pe/ui/$source.cpp"
 done

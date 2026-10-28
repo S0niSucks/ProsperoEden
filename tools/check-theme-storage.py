@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+from admission_fixture import service_include, scope
 
 
 def main():
@@ -22,13 +23,13 @@ def main():
     declaration = re.search(r'    std::shared_ptr<void> reserve_theme_import_storage\([^;]+;', header).group()
     member = re.search(r'    std::shared_ptr<Eden::ThemeStorage::Ledger> theme_storage_[^;]+;', header).group()
     (out / 'theme_storage_members.inc').write_text(declaration.replace(' override;', ';') + '\n' + member + '\n')
-    # Exact existing USB admission prefix with ONE proposed parent guard, before active.exchange.
-    usb = (ui / 'usb_backup_services.inc').read_text().split('    if (usb_thread_.joinable())', 1)[0]
+    # Extract the actual admitted prefix. Parent guards are never unconditionally duplicated.
+    records = []
+    usb = service_include(ui / 'usb_backup_services.inc', records).split('    if (usb_thread_.joinable())', 1)[0]
     usb = usb[usb.index('bool EdenServices::begin_usb_backup()'):]
     usb = usb.replace('begin_usb_backup()', 'begin_usb_backup_admission()', 1)
-    usb = usb.replace('    const std::lock_guard admission(job_admission_mutex_);',
-        '    const std::lock_guard admission(job_admission_mutex_);\n    if (theme_storage_->busy()) return false;', 1)
     (out / 'theme_storage_usb_handoff.inc').write_text(usb + '\n    return true;\n}\n')
+    report = scope(out, records, ('begin_usb_backup',))
     # Use the actual Services default implementation, not a copied default/fake token.
     service = (ui / 'pe/ui/services.hpp').read_text()
     pure = re.findall(r'virtual\s+([^{};]+?)\s*=\s*0\s*;', service)
@@ -57,13 +58,14 @@ void CheckCaller(EdenServices& services, pe::ui::Textures& textures, const pe::u
 #include <cassert>
 int main() { std::uint64_t bytes = 7; assert(!Eden::ThemeStorage::AvailableBytes(-1, bytes) && bytes == 0); }
 ''')
-    inputs = {Path(__file__), root / 'headless/theme_storage_check.cpp', ui / 'frontend.cpp',
+    inputs = {Path(__file__), Path(__file__).with_name('admission_fixture.py'), root / 'headless/theme_storage_check.cpp', ui / 'frontend.cpp',
               ui / 'usb_backup_services.inc', ui / 'pe/audio/wav.cpp'}
     inputs.update(p for p in (root / 'headless').rglob('*') if p.is_file() and p.suffix in ('.h', '.hpp', '.inc'))
     inputs.update(p for p in (root / 'third_party').rglob('*') if p.is_file() and p.suffix in ('.h', '.hpp', '.inl'))
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(inputs)}
     receipt = {'inputs': hashes, 'commands': [], 'result': 'FAILED',
-        'scope': 'actual theme service method + installer/recovery; synthetic statuses/capacity; parent USB hunk fixture only; host caller expression syntax, not native app'}
+        'fixture_scope': report,
+        'scope': 'actual theme service method + installer/recovery; synthetic statuses/capacity; actual USB prefix, optionally labeled overlay; host caller expression syntax, not native app'}
     flags = [os.environ.get('CXX', 'clang++-18'), '-std=c++20', '-O1', '-g1', '-UNDEBUG', '-Wall', '-Wextra', '-Werror',
         '-Wno-unused-parameter', '-I' + str(out), '-I' + str(root / 'headless'), '-I' + str(ui),
         '-I' + str(root / 'third_party'), '-I' + str(root / 'third_party/miniz')]

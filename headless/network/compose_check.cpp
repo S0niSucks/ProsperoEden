@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Verbatim service/controller bodies, real Editor/writer/keyboard/USB; synthetic NAS/IME only.
 #include "prosperoeden/eden_services.h" // runner exposes actual members, removes unrelated vtable only
+#include "admission_fixture_contract.inc"
 #include "assets_dir.h"
 #include "profiles.h"
 #include "system_keyboard.h"
@@ -122,8 +123,8 @@ EdenServices::~EdenServices() { StopNetworkJobs(); usb_stop_ = true; if (usb_thr
 void EdenServices::stop_save_sync() {}
 void EdenServices::StartSync(std::vector<SyncJob>, bool) { assert(false); }
 bool EdenServices::SaveSyncWanted(const std::string&) { return false; }
-#include "network/services.cpp"
-#include "prosperoeden/usb_backup_services.inc"
+#include "compose_network_services.inc"
+#include "admission_usb_services.inc"
 #include "compose_service_methods.inc"
 
 namespace pe::ui {
@@ -193,7 +194,9 @@ void Excluded(EdenServices& service) {
 }
 void Idle(EdenServices& service) { assert(!service.network_job_busy() && !discovery.joinable()); }
 }
-int main() {
+int main(int argc, char** argv) {
+    const bool admission_only = argc == 2 && std::string_view(argv[1]) == "--admission-only";
+    assert(argc == 1 || admission_only);
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     struct statfs data{}, usb{};
     assert(statfs("/data", &data) == 0 && data.f_type == 0x01021994);
@@ -204,6 +207,22 @@ int main() {
     assert(Eden::Profiles::Write({profile}) && Eden::Profiles::Choose(profile, -1));
     Eden::Multiplayer::RoomClient rooms;
     EdenServices service({}, rooms);
+#if ADMISSION_THEME_CONTRACT
+    {
+        auto credit = Eden::ThemeStorage::Reserve(service.theme_storage_, Eden::ThemeStorage::MinRequest,
+            Eden::ThemeStorage::Headroom + Eden::ThemeStorage::MinRequest);
+        assert(credit && !service.reserve_network_job());
+        assert(!service.network_job_busy() && !service.network_reservation_.load());
+        assert(!service.begin_usb_backup() && !service.usb_active_ && !service.can_launch_game());
+        assert(!service.set_files_folder("/data/rejected") && !service.set_games_folder("/data/rejected"));
+        assert(!service.choose_profile(0) && service.add_profile() == -1);
+        assert(!service.rename_profile(0, 1) && !service.remove_profile(0));
+        service.will_play("synthetic.nsp"); assert(!service.launch_committed_);
+        assert(configurations == 0 && asks == 0);
+        auto last = credit; credit.reset(); assert(!service.reserve_network_job());
+        last.reset(); assert(!service.theme_storage_->busy());
+    }
+#endif
     // The gap BEFORE std::async is covered, and dropping an unstarted lease performs no I/O.
     auto lease = service.reserve_network_job(); assert(lease); Excluded(service);
     assert(configurations == 0 && asks == 0); lease.reset(); Idle(service);
@@ -220,7 +239,7 @@ int main() {
     fail_next_thread = true;
     assert(service.network_editor_connection(true) == EditorResult::unavailable && !fail_next_thread);
     Idle(service);
-    {
+    if (!admission_only) {
         pe::ui::Launcher menu(service); Catalog("A: "); menu.open_network_shares(); menu.press_network_shares(Key::cross);
         assert(menu.network_view_.editing && menu.network_view_.rows[0].value == "A: Network location");
         Enter(menu, Field::server, u"127.0.0.1"); Enter(menu, Field::share, u"games"); Enter(menu, Field::user, u"fixture-user");
@@ -268,7 +287,7 @@ int main() {
     }
     // Actual launcher network teardown contract: signal cancellation, wait, THEN cancel draft.
     // Even the cancelled native callback must finish before admission can open again.
-    {
+    if (!admission_only) {
         auto menu = std::make_unique<pe::ui::Launcher>(service);
         menu->open_network_shares(); menu->press_network_shares(Key::cross);
         Gate final_ime; ime_gate = &final_ime; ime_saw_stop = false; next_text = u"Never-publish-on-teardown";
@@ -305,5 +324,8 @@ int main() {
     }
     assert(races.can_launch_game()); races.will_play("synthetic.nsp");
     assert(races.launch_committed_ && !races.reserve_network_job() && !races.begin_usb_backup());
-    std::puts("Network/UI/USB composition PASS: pre-dispatch leases, actual controller/catalog/Editor/writer, masked private IME, final callback/Stop/Disconnect joins, failure/cancel/foreign-token release, launch/path/profile exclusion, atomic USB races. HOST ONLY; IME review NOT ACCEPTED.");
+    if (admission_only) {
+        assert(asks == 0);
+        std::puts("Network admission-only PASS: actual reservation/USB/service bodies, final discovery callback/join, failure/cancel release, launch/path/profile exclusion; zero keyboard/catalog/controller subtests. HOST FIXTURE ONLY.");
+    } else std::puts("Network/UI/USB composition PASS: pre-dispatch leases, actual controller/catalog/Editor/writer, masked private IME, final callback/Stop/Disconnect joins, failure/cancel/foreign-token release, launch/path/profile exclusion, atomic USB races. HOST ONLY; IME review NOT ACCEPTED.");
 }

@@ -6,7 +6,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
+from admission_fixture import extract, service_include, scope
 
 
 def main():
@@ -20,13 +22,14 @@ def main():
     header_path = root / 'headless/prosperoeden/eden_services.h'
     fixture_path = root / 'headless/launcher_admission_check.cpp'
     source, header, fixture = (p.read_text() for p in (source_path, header_path, fixture_path))
-    # Neutral metadata missing from the older shared fixture, not a production guard change.
-    # Keep these fixture-only additions here: network ownership is held by another worker.
-    assert fixture.count('bool remote = false;') == 1
-    assert fixture.count('class EdenServices {\npublic:\n') == 1
-    fixture = fixture.replace('bool remote = false;', 'bool remote = false; bool network = false;', 1)
-    fixture = fixture.replace('class EdenServices {\npublic:\n',
-        'class EdenServices {\npublic:\n    bool network_mutation_active_ = false; // neutral fixture metadata only\n', 1)
+    additions = []
+    # Compatibility with an older fixture only. The actual member block already owns the
+    # atomic network flag and real theme ledger: never synthesize duplicate shadow fields.
+    if not re.search(r'\bbool\s+network\s*=', fixture):
+        assert fixture.count('bool remote = false;') == 1
+        fixture = fixture.replace('bool remote = false;', 'bool remote = false; bool network = false;', 1)
+        additions.append('Game::network=false')
+    assert 'network_mutation_active_' in header
     (out / 'composed_check.cpp').write_text(fixture)
     methods = ('bool EdenServices::can_launch_game()', 'bool EdenServices::set_files_folder(',
                'bool EdenServices::set_games_folder(', 'bool EdenServices::check_cheat_database(',
@@ -35,19 +38,26 @@ def main():
                'bool EdenServices::choose_profile(', 'int EdenServices::add_profile(',
                'bool EdenServices::rename_profile(', 'bool EdenServices::remove_profile(',
                'void EdenServices::will_play(')
+    records = []
     (out / 'launcher_admission_methods.inc').write_text('\n'.join(
-        signature + source.split(signature, 1)[1].split('\n}', 1)[0] + '\n}' for signature in methods))
+        extract(source, 'EdenServices::' + signature.split('EdenServices::', 1)[1].split('(', 1)[0], records)
+        for signature in methods))
+    (out / 'admission_usb_services.inc').write_text(service_include(root / 'headless/prosperoeden/usb_backup_services.inc', records))
+    (out / 'admission_nextendo_services.inc').write_text(service_include(root / 'headless/prosperoeden/nextendo_services.inc', records))
+    report = scope(out, records, ('can_launch_game', 'set_files_folder', 'set_games_folder', 'choose_profile',
+        'add_profile', 'rename_profile', 'remove_profile', 'will_play', 'begin_usb_backup',
+        'check_cheat_database', 'install_cheat_database', 'start_amiibo_sync', 'nextendo_action_with_consent'))
     (out / 'launcher_admission_members.inc').write_text(
         'std::mutex bridge_;' + header.split('std::mutex bridge_;', 1)[1].split('Eden::CheatManagerRequest CheatRequest', 1)[0])
     sources = [root / 'headless' / name for name in ('cheat_manager.cpp', 'cheat_store.cpp', 'cheat_catalog.cpp',
         'cheat_download.cpp', 'amiibo_sync.cpp', 'amiibo_sync_format.cpp', 'usb_backup.cpp',
         'nextendo.cpp', 'nextendo_http.cpp', 'nextendo_oauth.cpp')]
-    inputs = set(sources) | {Path(__file__), source_path, header_path, fixture_path}
+    inputs = set(sources) | {Path(__file__), Path(__file__).with_name('admission_fixture.py'), source_path, header_path, fixture_path}
     inputs.update(p for p in (root / 'headless').rglob('*') if p.is_file() and p.suffix in ('.h', '.hpp', '.inc'))
     hashes = {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(inputs)}
     receipt = {'inputs': hashes, 'commands': [], 'result': 'FAILED',
-        'fixture_additions': ['Game::network=false', 'network_mutation_active_=false'],
-        'production_method_policy': 'verbatim; unchanged guards, USB/core worker code, and actual Nextendo adapter'}
+        'fixture_additions': additions, 'fixture_scope': report,
+        'production_method_policy': report['policy'] + '; exact core/worker code; no checkout production patching'}
     def run(command, name, **kw):
         result = subprocess.run(command, capture_output=True, text=True, **kw)
         (out / (name + '.log')).write_text(result.stdout + result.stderr)
@@ -64,7 +74,7 @@ def main():
             run([str(binary)], name + '-run', timeout=90)
             print('Nextendo composed admission ' + name + ': PASS (actual public web/userinfo/NEX, one-shot consent, final-callback busy, no game-token HTTP checks)', flush=True)
         assert all(hashlib.sha256(Path(p).read_bytes()).hexdigest() == value for p, value in hashes.items())
-        receipt['result'] = 'PASS: normal + TSan + ASan/UBSan; exact production methods, neutral fixture metadata only'
+        receipt['result'] = 'PASS: normal + TSan + ASan/UBSan; ' + report['policy']
     finally:
         (out / 'receipt.json').write_text(json.dumps(receipt, sort_keys=True, indent=2) + '\n')
 

@@ -6,6 +6,7 @@
 #include "pe/ui/launcher.hpp"
 #undef private
 #include "pe/core/file.hpp"
+#include "system_keyboard.h"
 #include "pe/gfx/gl_program.hpp"
 #include "pe/gfx/system_fonts.hpp"
 #include <EGL/egl.h>
@@ -77,6 +78,11 @@ bool SystemFonts::field(int, std::uint32_t, float, float, GlyphField*) { assert(
 std::string SystemFonts::loaded() const { return {}; }
 }
 namespace pe::ui { bool theme_from_kit(std::string_view, Theme*) { return false; } }
+namespace Eden {
+// Link the real network prompt helpers needed by current launcher headers, but this
+// Nextendo fixture must never execute/review a keyboard path or fabricate acceptance.
+TextAnswer AskSystemKeyboard(const TextRequest&, const std::atomic<bool>&) { std::abort(); }
+}
 
 int main(int argc, char** argv) {
     assert(argc == 6);
@@ -103,6 +109,8 @@ int main(int argc, char** argv) {
     assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
     {
         UnapprovedServices unapproved(root);
+        assert(!unapproved.reserve_network_job());
+        assert(!unapproved.reserve_theme_import_storage(root, 1024 * 1024));
         const std::atomic<bool> stop{false};
         // Legacy/Lua-style frontends cannot gain linking simply by accepting the new base method.
         assert(unapproved.nextendo_action_with_consent("synthetic", Action::link_browser, stop, false).error == Eden::Nextendo::GameLinkConsentRequired);

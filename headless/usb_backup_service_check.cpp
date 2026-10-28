@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Exact feature service implementation with synthetic launcher/job collaborators, real files.
 #include "usb_backup.h"
+#include "theme_storage.h"
 #include <algorithm>
 #include <atomic>
 #include <cassert>
@@ -81,6 +82,7 @@ public:
     bool launch_committed_ = false, usb_remote_resume_ = false;
     std::thread usb_thread_, sync_thread_, pair_thread_;
     std::mutex job_admission_mutex_, usb_lock_, bridge_;
+    std::shared_ptr<Eden::ThemeStorage::Ledger> theme_storage_ = Eden::ThemeStorage::ProcessLedger();
     Eden::UsbBackup::Status usb_;
     std::atomic<unsigned> sync_stops{};
     void stop_save_sync() { ++sync_stops; }
@@ -109,6 +111,16 @@ int main() {
         failed.network_mutation_active_ = true;
         assert(!failed.begin_usb_backup() && !failed.usb_active_ && !failed.usb_thread_.joinable());
         failed.network_mutation_active_ = false;
+#ifdef EDEN_TEST_THEME_GUARD
+        {
+            auto credit = Eden::ThemeStorage::Reserve(failed.theme_storage_, Eden::ThemeStorage::MinRequest,
+                Eden::ThemeStorage::Headroom + Eden::ThemeStorage::MinRequest);
+            assert(credit && !failed.begin_usb_backup() && !failed.usb_active_ && !failed.usb_thread_.joinable());
+            assert(failed.cheat_manager_.stops == 0 && failed.amiibo_sync_.stops == 0);
+            auto last = credit; credit.reset(); assert(!failed.begin_usb_backup());
+            last.reset(); assert(!failed.theme_storage_->busy());
+        }
+#endif
         fail_next_thread = true;
         assert(!failed.begin_usb_backup() && !fail_next_thread);
         auto status = failed.usb_backup_status();

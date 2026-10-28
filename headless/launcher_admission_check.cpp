@@ -7,6 +7,8 @@
 #include "nextendo.h"
 #include "nextendo_http.h"
 #include "nextendo_oauth.h"
+#include "theme_storage.h"
+#include "admission_fixture_contract.inc"
 #include "remote/http.h"
 #include <algorithm>
 #include <barrier>
@@ -109,7 +111,7 @@ struct RoomClient {
 }
 }
 namespace pe::ui {
-struct Game { std::string file = "local.nsp"; bool remote = false; };
+struct Game { std::string file = "local.nsp"; bool remote = false; bool network = false; };
 struct Profile { std::string name; bool playing; };
 }
 namespace {
@@ -166,8 +168,8 @@ public:
 #include "launcher_admission_members.inc"
 };
 #include "launcher_admission_methods.inc"
-#include "prosperoeden/usb_backup_services.inc"
-#include "prosperoeden/nextendo_services.inc"
+#include "admission_usb_services.inc"
+#include "admission_nextendo_services.inc"
 
 extern "C" int remote_http_get(const remote_http_request* request, remote_http_result* response) {
     ++requests; ++in_cheat;
@@ -520,6 +522,36 @@ int main() {
     assets = (root / "assets").string(); fs::create_directory(assets);
     Eden::kDataDir = assets;
     const pe::ui::Game game;
+#if ADMISSION_THEME_CONTRACT
+    {
+        EdenServices service;
+        auto credit = Eden::ThemeStorage::Reserve(service.theme_storage_, Eden::ThemeStorage::MinRequest,
+            Eden::ThemeStorage::Headroom + Eden::ThemeStorage::MinRequest);
+        assert(credit && service.theme_storage_->busy());
+        const auto paths = path_writes.load(), reads = profile_reads.load(), writes = profile_writes.load();
+        const auto before_requests = requests.load(), before_probes = probes.load();
+        assert(!service.can_launch_game() && !service.begin_usb_backup() && !service.usb_active_);
+        assert(!service.set_files_folder(assets) && !service.set_games_folder(assets));
+        assert(!service.choose_profile(1) && service.add_profile() == -1);
+        assert(!service.rename_profile(1, 1) && !service.remove_profile(1));
+        assert(!service.check_cheat_database(game, false) && !service.install_cheat_database(game));
+        assert(!service.start_amiibo_sync({}, false, true));
+        service.will_play(game.file); assert(!service.launch_committed_);
+        RefusedWithoutIo(service);
+        assert(paths == path_writes && reads == profile_reads && writes == profile_writes);
+        assert(before_requests == requests && before_probes == probes);
+        auto last = credit; credit.reset(); assert(!service.begin_usb_backup());
+        last.reset(); assert(!service.theme_storage_->busy() && service.can_launch_game());
+    }
+#endif
+#if ADMISSION_NEXTENDO_NETWORK_CONTRACT
+    {
+        EdenServices service; service.network_mutation_active_ = true;
+        RefusedWithoutIo(service);
+        assert(!service.begin_usb_backup() && !service.usb_active_);
+        service.network_mutation_active_ = false;
+    }
+#endif
     {
         EdenServices service;
         assert(service.can_launch_game());

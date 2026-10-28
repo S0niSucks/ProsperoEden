@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+from admission_fixture import extract, service_include, scope
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
@@ -49,6 +50,7 @@ if 'bool EdenServices::SaveSyncWanted(' in source:
 
 with tempfile.TemporaryDirectory(prefix='usb-writers-') as tmp:
     folder = Path(tmp)
+    records = []
     # Real member declarations, no vtable for unrelated console-only functions (not an ABI test).
     # ObservedMutex only pauses at acquisition in the test; it derives from std::mutex so the
     # real CheatManager retains its std::mutex collaborator. No production method is instrumented.
@@ -64,7 +66,10 @@ with tempfile.TemporaryDirectory(prefix='usb-writers-') as tmp:
     network = (root / 'headless/network/transport.cpp').read_text()
     (folder / 'usb_writer_methods.inc').write_text(
         'namespace Eden::Network {\n' + definition(network, 'IsPath') + '\n}\n' +
-        '\n\n'.join(definition(source, 'EdenServices::' + name) for name in methods))
+        '\n\n'.join(extract(source, 'EdenServices::' + name, records) for name in methods))
+    (folder / 'admission_usb_services.inc').write_text(service_include(root / 'headless/prosperoeden/usb_backup_services.inc', records))
+    scope(folder, records, ('will_play', 'begin_usb_backup', 'start_update', 'apply_update',
+        'download', 'refresh_sources', 'start_save_sync', 'start_pairing'))
     # The helper block contains actual pending JSON, profile reconciliation, SyncSetupOf and pairing sources.
     (folder / 'usb_writer_helpers.inc').write_text(
         'void KeepSaveSyncFile(' + source.split('void KeepSaveSyncFile(', 1)[1].split('} // namespace', 1)[0])
