@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include "pe/ui/scene/nx_import.hpp"
+#include "pe/ui/scene/nx_storage.hpp"
 #include <functional>
 
 namespace pe::ui::scene::nx {
@@ -39,19 +40,21 @@ inline void verify_manifest(const Json& m,const std::string& id) {
     require(!m.contains("entry")&&!m.contains("font")&&!m.contains("loading_scene")&&!m.contains("sounds")&&!m.contains("assets"),"imported pack must remain script-free");
     require(m.at("required_capabilities")==Json::array({"themes.scene.v1","actions.launch.v1"}),"invalid import capabilities");
 }
-inline std::string stage(const std::string& root,const Conversion& plan) {
+inline std::string stage(const std::string& root,const Conversion& plan,const ThemeImportStorage& reserve={},std::shared_ptr<void> credit={}) {
+    if(!credit)credit=reserve_storage(root,storage_bytes(plan.files),reserve);
     runtime_fs::Descriptor data(root,runtime_fs::Kind::directory);Fd imports(child_dir(data.get(),"theme-import"));Fd staged(child_dir(imports.value,"staged"));
     require(runtime_fs::entries(root+"/theme-import/staged").size()<64,"too many staged imports; inspect incomplete imports before continuing");
     std::string pattern=root+"/theme-import/staged/nx-XXXXXX";require(mkdtemp(pattern.data())!=nullptr,"cannot reserve import staging directory");
     runtime_fs::Descriptor directory(pattern,runtime_fs::Kind::directory);for(const auto& [name,bytes]:plan.files)publish(directory.get(),name,bytes);
     auto package=load(pattern);require(package.model.id==plan.id,"staged scene ID mismatch");verify_manifest(json(plan.files.at("manifest.json")),plan.id);sync_dir(directory.get());sync_dir(staged.value);return pattern;
 }
-inline void complete(const std::string& root,const std::string& id,const Json& journal) {
+inline void complete(const std::string& root,const std::string& id,const Json& journal,const ThemeImportStorage& reserve={},std::shared_ptr<void> credit={}) {
     require(journal.at("schema")==1&&journal.at("id")==id,"invalid import recovery journal");const auto name=text(journal,"staged","",32);
     require(name.starts_with("nx-")&&name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-")==name.npos,"invalid import recovery source");
     const auto staged=root+"/theme-import/staged/"+name,target=root+"/launchers/"+id;Reader source(staged),destination(target);runtime_fs::Descriptor dir(target,runtime_fs::Kind::directory);
     const auto manifest=json(source.read("manifest.json",512*1024));verify_manifest(manifest,id);
     const auto& hashes=journal.at("files");require(hashes.is_object()&&hashes.size()<=128&&hashes.contains("manifest.json"),"invalid import recovery file table");
+    if(!credit){std::uint64_t total=0,largest=0;for(auto it=hashes.begin();it!=hashes.end();++it){require(resource_name(it.key()),"unsafe import recovery resource");const auto bytes=source.read(it.key(),archive_limit);total+=bytes.size();largest=std::max(largest,std::uint64_t(bytes.size()));require(total<=128*1024*1024,"recovery storage byte budget");}credit=reserve_storage(root,2*total+largest+1024*1024,reserve);}
     for(auto it=hashes.begin();it!=hashes.end();++it) {
         require(resource_name(it.key())&&it.value().is_string(),"unsafe import recovery resource");if(it.key()=="manifest.json")continue;
         const auto bytes=source.read(it.key(),archive_limit);require(sha256(bytes)==it.value().get<std::string>(),"staged import changed: "+it.key());
@@ -65,23 +68,23 @@ inline void complete(const std::string& root,const std::string& id,const Json& j
     else {require(errno==ENOENT,"cannot inspect imported manifest");publish(dir.get(),"manifest.json",bytes);}
     require(unlinkat(dir.get(),"import-pending.json",0)==0,"cannot finish import journal");sync_dir(dir.get());
 }
-inline Json recover(const std::string& root) {
+inline Json recover(const std::string& root,const ThemeImportStorage& reserve={}) {
     Json result=Json::array();std::vector<std::string> installed;try{installed=runtime_fs::entries(root+"/launchers");}catch(...){return result;}
     for(const auto& id:installed)if(identifier(id)&&id!="builtin") {
         try {runtime_fs::Descriptor dir(root+"/launchers/"+id,runtime_fs::Kind::directory);struct stat s{};
             if(fstatat(dir.get(),"import-pending.json",&s,AT_SYMLINK_NOFOLLOW)!=0)continue;
-            Reader reader(root+"/launchers/"+id);const auto journal=reader.json("import-pending.json");complete(root,id,journal);result.push_back({{"id",id},{"recovered",true}});
+            Reader reader(root+"/launchers/"+id);const auto journal=reader.json("import-pending.json");complete(root,id,journal,reserve);result.push_back({{"id",id},{"recovered",true}});
         }catch(const std::exception& e){result.push_back({{"id",id},{"recovered",false},{"error",e.what()}});}
     }return result;
 }
-inline std::string install(const std::string& root,const Conversion& plan,bool consent,bool partial_consent=false) {
+inline std::string install(const std::string& root,const Conversion& plan,bool consent,bool partial_consent=false,const ThemeImportStorage& reserve={}) {
     require(consent,"explicit native import consent is required");require(plan.report.at("omissions").empty()||partial_consent,"explicit consent to listed omissions is required");
     verify_manifest(json(plan.files.at("manifest.json")),plan.id);runtime_fs::Descriptor data(root,runtime_fs::Kind::directory);Fd launchers(child_dir(data.get(),"launchers"));
     struct stat existing{};require(fstatat(launchers.value,plan.id.c_str(),&existing,AT_SYMLINK_NOFOLLOW)!=0&&errno==ENOENT,"launcher ID is already installed; no files changed");
-    const auto staged=stage(root,plan);Json hashes=Json::object();for(const auto& [name,bytes]:plan.files)hashes[name]=sha256(bytes);
+    auto credit=reserve_storage(root,storage_bytes(plan.files),reserve);const auto staged=stage(root,plan,reserve,credit);Json hashes=Json::object();for(const auto& [name,bytes]:plan.files)hashes[name]=sha256(bytes);
     const Json journal={{"schema",1},{"id",plan.id},{"staged",staged.substr(staged.find_last_of('/')+1)},{"files",hashes}};
     require(mkdirat(launchers.value,plan.id.c_str(),0755)==0,"launcher ID appeared during staging; refusing to replace it");sync_dir(launchers.value);
     Fd target(child_dir(launchers.value,plan.id,false));publish(target.value,"import-pending.json",journal.dump());
-    complete(root,plan.id,journal);sync_dir(launchers.value);return plan.id;
+    complete(root,plan.id,journal,reserve,credit);sync_dir(launchers.value);return plan.id;
 }
 } // namespace pe::ui::scene::nx

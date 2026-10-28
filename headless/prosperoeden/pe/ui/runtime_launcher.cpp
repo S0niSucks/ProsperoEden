@@ -166,15 +166,16 @@ struct RuntimeLauncher::Impl {
     int picker_row{}, draw_commands{}; float time{}, poll{}, catalog_poll{}; std::uint64_t source_generation{}; gfx::DrawList* drawing{};
     #include "pe/ui/scene/runtime.inc"
     #include "pe/ui/scene/import_runtime.inc"
-    Impl(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure)
+    Impl(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure, ThemeImportStorage storage)
         : cached_preferences(s.preferences()), services(s), covers(t), fonts(f), batch(b), mixer(m), data_root(std::move(root)), first_start(first) {
         configure_font=std::move(configure);
+        import_storage=std::move(storage);
         auto version=s.version(); if(version.starts_with("v")) version.erase(0,1);
         launcher_updates::Host host; host.version=version; host.capabilities=kCapabilities;
         pack_updates=std::make_unique<launcher_updates::Manager>(data_root,std::move(host));
         const auto recovery=pack_updates->status("");
         if(recovery.value("phase","")=="failed") last_error="Launcher recovery: "+recovery.value("error","");
-        for(const auto& item:scene::nx::recover(data_root))if(!item.value("recovered",false))last_error="Theme import recovery: "+item.value("error","");
+        for(const auto& item:scene::nx::recover(data_root,import_storage))if(!item.value("recovered",false))last_error="Theme import recovery: "+item.value("error","");
     }
     ~Impl() { stop = true; if (directory.valid()) directory.wait(); if (keyboard.valid()) keyboard.wait(); if(import_read.valid())import_read.wait();if(import_install.valid())import_install.wait(); release_textures(); }
     std::string current_profile() { const auto list=services.profiles(); for (int i=0;i<static_cast<int>(list.size());++i) if (list[i].playing) return services.profile_key(i); return {}; }
@@ -766,8 +767,8 @@ struct RuntimeLauncher::Impl {
     }
 };
 
-RuntimeLauncher::RuntimeLauncher(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure)
-    : impl_(std::make_unique<Impl>(s,t,f,b,first,std::move(root),m,std::move(configure))) {
+RuntimeLauncher::RuntimeLauncher(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure, ThemeImportStorage storage)
+    : impl_(std::make_unique<Impl>(s,t,f,b,first,std::move(root),m,std::move(configure),std::move(storage))) {
     auto& h=*impl_; h.discover(); h.refresh(); std::string selected="builtin";
     try { selected=read_json(h.data_root+"/config/launcher.json").value("selected","builtin"); }catch(...){}
     if(!h.last_error.empty()) selected="builtin";

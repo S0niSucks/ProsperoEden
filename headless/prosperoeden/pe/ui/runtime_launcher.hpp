@@ -2,6 +2,7 @@
 #pragma once
 #include "pe/ui/launcher.hpp"
 #include "pe/ui/runtime_loading.hpp"
+#include "pe/ui/theme_import_storage.hpp"
 #include <memory>
 
 namespace pe::ui {
@@ -10,7 +11,7 @@ class RuntimeLauncher {
 public:
     RuntimeLauncher(Services&, Textures&, const Fonts&, gfx::GlBatch&, bool first_start,
                     std::string data_root, audio::Mixer* mixer = nullptr,
-                    std::function<void(gfx::Font&)> configure_font = {});
+                    std::function<void(gfx::Font&)> configure_font = {}, ThemeImportStorage import_storage = {});
     ~RuntimeLauncher();
     RuntimeLauncher(const RuntimeLauncher&) = delete;
     RuntimeLauncher& operator=(const RuntimeLauncher&) = delete;

@@ -11,7 +11,7 @@ import subprocess
 import struct
 import wave
 from test_themezer import dds, sarc_bytes, zip_bytes
-from native_fixtures import material_flyt, animation
+from native_fixtures import material_flyt, picture_flyt, bntx, animation
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('binary',type=Path)
@@ -162,15 +162,20 @@ def import_fixture(s,kind):
     inbox=s.data/'theme-import/inbox';inbox.mkdir(parents=True)
     files={'info.json':b'{"Version":17,"Target":"home","ThemeName":"Native synthetic preview"}','image.dds':dds()}
     if kind=='partial':files['layout.json']=b'{"Files":[]}'
-    if kind=='firmware':
+    if kind in ['firmware','material']:
         firmware=s.data/'theme-import/firmware';firmware.mkdir()
-        (firmware/'home.szs').write_bytes(sarc_bytes({'blyt/test.bflyt':material_flyt(),'anim/test.bflan':animation()}))
+        members={'blyt/test.bflyt':material_flyt(),'anim/test.bflan':animation()}
+        if kind=='material':
+            members['blyt/test.bflyt']=picture_flyt(width=320,height=180);members['timg/original.bntx']=bntx(320,180)[0]
+            files.update({'settings.dds':dds(64,56),'apps.dds':dds(64,64),'user.dds':dds(48,48)})
+        (firmware/'home.szs').write_bytes(sarc_bytes(members))
         files['layout.json']=json.dumps({'Files':[{'FileName':'blyt/test.bflyt','Patches':[]}],
                                          'Anims':[{'FileName':'anim/test.bflan'}]}).encode()
     (inbox/'original.nxtheme').write_bytes(sarc_bytes(files))
-for kind in ['artwork','partial','firmware']:
+for kind in ['artwork','partial','firmware','material','material-1080']:
+    large=kind=='material-1080';kind='material' if large else kind
     partial=kind!='artwork'
-    s=Session('native-import-'+kind,mutate=lambda s:import_fixture(s,kind))
+    s=Session('native-import-'+kind+('-1080' if large else ''),1920 if large else 1280,1080 if large else 720,mutate=lambda s:import_fixture(s,kind))
     before=(s.data/'config/launcher.json').read_bytes()
     s.command('picker');s.key('square');s.capture('import-inbox');s.key('cross');status=s.importing('preview')
     s.need(not list((s.data/'launchers').glob('nx-*')),'preview has not installed or changed selection')
@@ -187,12 +192,16 @@ for kind in ['artwork','partial','firmware']:
     s.need(not (installed/'import-pending.json').exists(),'manifest-last publication completed and journal retired')
     s.capture('import-installed');s.key('cross');s.need(('active='+status['id']) in s.command('status'),'explicit post-install selection')
     s.capture('imported-native-scene')
-    if kind=='firmware':
+    if kind in ['firmware','material']:
         s.key('l1');s.capture('firmware-geometry-motion');s.command('look calm');s.capture('firmware-geometry-settled')
         s.need('active='+status['id'] in s.command('status'),'firmware-backed retained geometry and FLAN render without fallback')
         s.need(status['report']['mode']=='native-reconstruction-subset','report preserves subset/non-parity classification')
         s.need((s.work/'firmware-geometry-motion.png').read_bytes()!=(s.work/'firmware-geometry-settled.png').read_bytes(),
-               'supported FLAN translation is visibly different from reduced-motion settling')
+                'supported FLAN translation is visibly different from reduced-motion settling')
+        if kind=='material':
+            s.need(status['report']['reconstruction'][0]['panes'][-1]['rendered_material']=='material-0-2','firmware BNTX/material was converted to a retained image')
+            s.command('recreate');s.capture('firmware-material-context-recreated')
+            s.need('active='+status['id'] in s.command('status'),'converted texture survives actual EGL context recreation')
     s.close()
 
 captures=[]

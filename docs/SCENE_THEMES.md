@@ -212,8 +212,11 @@ patches use `common.szs`. Originals are not copied into a distributed pack.
 `nx_install.hpp` are the same C++ backend used by the console launcher and focused host driver.
 They read actual ZIP/SARC/Yaz0 metadata and DDS DXT1/3/5, PNG and JPEG from bounded memory
 (vendored stb, no optional installation). Wallpaper dimensions must be 1280×720. Native
-settings-icon DDS/PNG input is checked at 64×56 and mapped to a native settings focus control;
-that semantic remapping is explicitly reported. Other icon members are reported, not hidden.
+settings-icon DDS/PNG input is checked at 64×56 and mapped to a native settings focus control.
+Explicit `apps.dds/png` and `user.dds/png` roles (16–256 pixels per dimension) map to the
+native games/profiles screens, preserving aspect ratio. These are original native workflows,
+not Switch applets; every remapping is reported and requires partial-import consent. Unknown
+icon filenames are reported, never guessed from dimensions or silently dropped.
 
 Firmware-backed supported logic, exercised with original synthetic fixtures:
 
@@ -223,17 +226,27 @@ Firmware-backed supported logic, exercised with original synthetic fixtures:
   host Y orientation and canvas scaling are applied only at projection.
 - Versioned material headers, texture-name references, wrap values and texture SRT records;
   material color/reference/transform JSON edits resolve by exact material and texture name.
+- BNTX little-endian `NX` texture tables, bounded 64-bit pointers, uniquely named single-layer
+  2D base mips, pitch-linear and Tegra block-linear untile. RGBA8 UNORM and BC1/BC2/BC3 UNORM
+  decode into ordinary RGBA. sRGB, other channel/component swizzles/codecs, arrays, volumes
+  and unsupported tiling fail explicitly; no original BNTX is copied into the generated pack.
+- A bounded single-sampler material subset bakes affine UVs, clamp/repeat/mirror, matching
+  nearest/bilinear filter flags, translation/scale SRT, foreground/background colors and
+  uniform vertex tint into ordinary TGA images. Rotated samplers, four-corner gradients,
+  additional combiners/coordinate pipelines are reported, not approximated. Up to 32 images
+  and 64 MiB decoded generated images; each baked pane is at most 2048×2048. This is static
+  image reconstruction, not an original GPU material/TEV implementation.
 - Binary FLAN section/entry/tag/key readers and the actual `AnimJson` replacement schema.
   Supported leaf-pane FLPA X/Y translation curves retain their **relative-to-layout** values,
   integer step keys or floating Hermite slopes. The scene Player executes them; Reduce motion
   settles them at the last key. Animated parents, rotations, competing tracks, other tags
   and qlaunch event/group scheduling are explicitly unsupported.
-- Separate runnable **geometry-preview** screens retain patched pane bounds and supported
-  curves. They are diagnostics, not substitutes for missing material, text or firmware art.
-  Material records/patch results are retained in the report but full material blending,
-  BNTX GPU tiling/texture extraction, fonts, original applet bindings and firmware release
-  compatibility fixes are not implemented. Firmware identity is its actual SHA-256 and
-  structural/version evidence; a firmware release is never guessed from a filename.
+- Separate runnable **geometry-preview** screens retain patched pane bounds, supported
+  material images and curves. Unsupported panes remain visibly diagnostic geometry, not
+  substitutes for missing material, text or firmware art. Material records/patch results are
+  retained in the report; full material blending, fonts, original applet bindings and firmware
+  release compatibility fixes are not implemented. Firmware identity is its actual SHA-256
+  and structural/version evidence; a firmware release is never guessed from a filename.
 
 Missing firmware/layout/pane/material/texture/animation input fails precisely or appears in
 the omission report. Raw firmware/assets inside the NXTheme input, executable code, shaders,
@@ -373,9 +386,9 @@ release/version modification, push or issue closure was performed.
 
 | Requirement | Exact remaining gap |
 | --- | --- |
-| Full firmware-backed theme import | No BNTX texture extraction/untile, complete material blending/TEV, proprietary-font conversion, windows/parts/text rendering, animation parent composition or original event/group/app binding. A geometry preview is not this feature. |
+| Full firmware-backed theme import | BNTX base-mip UNORM extraction/untile and a static single-sampler material subset are runnable. Complete formats/color management/material blending/TEV, proprietary fonts, windows/parts/text, animation parent composition and original event/group/app binding remain absent. Diagnostic screens are not faithful reconstruction. |
 | Firmware compatibility | SHA-256/structural identity is supported; release compatibility profiles and automatic matching to the emulator's existing firmware store are not. The native workflow currently takes explicit user-extracted target SZS files. |
-| Full lite import | Wallpaper and the native Settings icon remap are usable; the remaining applet icon mappings, full color extraction and complete original console-style reference parity remain incomplete. |
+| Full lite import | Native wallpaper and explicit Settings/games/profiles artwork roles are usable; other applet mappings, full color extraction and complete original console-style reference parity remain incomplete. The separate PC tool remains lite. |
 | Complete Canopy reference | Eleven usable workflow screens are not the entire builtin launcher; setup, library-source management, pairing/network/multiplayer, downloaded-cheat management and advanced system tools still use builtin recovery. No copied reference artwork is substituted. |
 | Optional Lua event hooks | Scene packs remain script-free. No sandboxed optional scene event-hook contract is implemented. |
 | Accessibility/localization | Host overrides are implemented and captured by the linked harness; full controller-remapping, all languages/long names and human accessibility approval still require review. |
@@ -453,3 +466,173 @@ wallpapers; the bounded tiny-tile mutation fixture above replaces that throughpu
   both integration syntax checks and all four PC-lite Python test groups passed. Final Mesa
   pixel rerun, now including declared rectangle borders, passed at 1280×720 and 1920×1080
   (15 instances / 3 batches each).
+
+## Composition handoff — callers, storage and msgids
+
+### Callers and ownership boundaries
+
+- Apply the scene workstream commits in order (`b01f254`, `6a1bf96`, `37ca7fc`, then the
+  closing increment), without replacing other workers' versions of shared files wholesale.
+  Integration itself is not performed by this workstream.
+- `headless/prosperoeden/frontend.cpp` constructs `RuntimeLauncher` with eight arguments:
+  Services, Textures, Fonts, GlBatch, first-start, data root, optional mixer, font configurator.
+  This remains source-compatible. `host/runtime_preview.cpp` also retains its existing call.
+  The added **ninth** argument is `pe::ui::ThemeImportStorage`; omitted means the local bounded
+  filesystem reservation below. Rebuild callers when composing this C++ constructor change;
+  this is not a binary ABI promise or a Lua launcher API/version change.
+- Preserve the existing frontend loop: physical keys → `press`, `update`, `draw`, font atlas
+  synchronization and batch draw; cues/menu-volume use the native UI bus. Output recreation
+  releases pack textures before context loss, rebuilds fonts, calls `set_font_texture`, then
+  `reload_pack_textures`. Stop/drain the frontend's audio thread before launcher/retired PCM
+  owners are destroyed; keep the GL context valid while releasing pack textures. Do not
+  replace the launch/save-sync/host-confirmation path with a direct game-start call.
+- Keep `launcher-runtime.json`'s additive `themes.scene.v1`, updater pre-replacement validation
+  in `launcher_updates.cpp`, the Lua guard in `runtime_update_view.inc` and the source-local
+  OpenSSL include addition in `headless/CMakeLists.txt`. No new shader or renderer mode is
+  required. Preserve Cover Flow modes 9/10 and other workers' `Preferences.library_view` edits.
+- Parent coordination at `1c4bb61` / aggregate `1b63` and Settings fix `133f604` is not rebased
+  into this exclusive tree. Preserve the parent's **17** builtin Settings categories and
+  **16**-item grid pagination/previous positions, corrected network summary, USB/network/OAuth
+  and native-hook integrations. This workstream changes its separate scene Settings JSON and
+  runtime dispatch, not builtin `launcher.cpp` categories/grid; do not restore baseline totals
+  while composing shared runtime/updater hunks. The parent owns minimal conflict resolution.
+- `theme_import_status()` is read-only diagnostics, not a theme action or consent API.
+  Import preview/consent/install/selection remain host-owned. No EdenServices, USB or shared
+  admission implementation was edited for this adapter.
+
+### Storage reservation adapter
+
+The public type is in `headless/prosperoeden/pe/ui/theme_import_storage.hpp`:
+
+```cpp
+using ThemeImportStorage = std::function<std::shared_ptr<void>(
+    const std::string& root, std::uint64_t bytes)>;
+```
+
+The coordinator supplies a function with this exact signature, wrapping its existing global
+storage guard in an owning `shared_ptr`. Pass it as the ninth constructor argument:
+
+```cpp
+pe::ui::RuntimeLauncher launcher(services, textures, fonts, batch, first_start,
+    Eden::kDataDir, audio_ready ? mixer.get() : nullptr, LoadLanguage,
+    reserve_scene_storage); // coordinator-owned adapter, not an invented Services method
+```
+
+Contract for that adapter:
+
+1. `root` is the host-selected data root, never a path from theme JSON. Validate/map it to the
+   correct storage device/admission domain. A successful token owns a reservation for at
+   least `bytes`; null or an exception denies installation. Do not return a non-owning/dummy
+   token in production or fallback to the local ledger after a global denial.
+2. The amount is `2 * sum(converted file bytes) + largest file bytes + 1 MiB`: retained stage,
+   installed copy, publication temporary and metadata. Input/report bounds cap file count at
+   128 and total converted bytes at 128 MiB. The complete install shares **one** token across
+   staging and publication; destruction releases credit on success or exception. Published
+   and staged disk bytes remain real usage after credit release; staging is not deleted.
+3. Install invokes it on the async install worker. Startup recovery invokes it synchronously
+   on the constructing thread, before writing recovered resources, using the same conservative
+   bound calculated from staged files. It may run again after restart; it is not serialized
+   into the recovery journal. The callback and token deleter must be thread-safe, perform no
+   UI/GL calls, and keep referenced admission services alive until joined launcher destruction.
+4. Standalone `nx::stage`, `nx::complete` and `nx::recover` also accept the optional callback.
+   Callers using these directly must not split a production installation into unreserved
+   phases. Prefer `nx::install(root, plan, consent, partial_consent, callback)`.
+5. Without the callback, `nx_storage.hpp` checks `statvfs` capacity and tracks process-local
+   credits for the exact root string with RAII. This supports existing callers and focused
+   host use; it is **not** global admission across subsystems, root aliases or other processes.
+   Native SDK availability of `statvfs` and console filesystem hardlinks remains unqualified.
+
+### Exact importer literals for later msgid composition
+
+Do not edit POT/catalogs during this handoff. In addition to the action/save-sync ledger above,
+the host importer passes the following exact static strings through `tr()` (UTF-8 punctuation
+is significant):
+
+```text
+Import an offline NXTheme
+Copy your .nxtheme or theme-pack ZIP to:
+Optional user-extracted firmware: theme-import/firmware/<target>.szs
+No packages found. Back exits; reopen after copying your files.
+Reading bounded package and building import report…
+Installing validated staged package. Do not power off…
+Artwork preview — not faithful parity
+Source SHA-256:
+No Nintendo assets or keys are supplied.
+Converted data stays in this console's launcher folder.
+Up / Down: report · Confirm: continue without omissions · Secondary: explicitly accept partial import
+Install PARTIAL conversion with the listed omissions?
+Install this converted artwork and original native workflows?
+Confirm installs a NEW ID only. Existing launchers and your selection are never overwritten.
+Installed. Confirm selects this launcher; Back keeps your current launcher.
+Back: cancel / close · Options: built-in recovery picker
+Finish the pending operation before importing a theme
+Unsupported items remain. Review the report; secondary explicitly accepts a partial import.
+```
+
+`Unsupported / remapped items: <count>`, filename-prefixed diagnostic-screen titles and
+`path: code`/detail lines are currently composed strings, **not** interpolated gettext msgids.
+Do not invent `%s` catalog entries without also changing those call sites. Package names,
+paths, hashes, firmware identities and author text are data. Static scene screen text/labels
+live in `examples/canopy-scene/screens/*.json` and `scene/nx_import.hpp`; they fall back to
+literal text through the same host translation path. Backend errors in `nx_*.hpp` also fall
+back to their literal text. This ledger is an integration input, not localization completion.
+
+### PS5 package blocker (reproduced, not a successful build)
+
+In the exclusive tree, this bounded, network-disabled command exits **1** before compiling:
+
+```powershell
+docker run --rm --cpus 1 --memory 256m --network none `
+  --mount 'type=bind,src=D:/leonardommello/PS5/ProsperoEden/.local/agent-worktrees/scene-themes,dst=/src,readonly' `
+  prosperoeden-host:features bash /src/tools/build-package.sh release
+```
+
+Exact output: `cat: .local/headless-cache: No such file or directory`.
+The worktree has the pinned host UI dependencies, but no prepared native dependency cache or
+PS5 payload SDK/sysroot (`.deps/pacbrew-0.40.2/opt/ps5-payload-sdk/.../libcrypto.a` is also
+absent). `build-package.sh` obtains `PS5_PAYLOAD_SDK` from that cache; a Linux host preview
+cannot supply it. No shared/coordinator cache, native emulator build, dependency installation,
+version/catalog modification or release was attempted to bypass this boundary. The native
+owner must prepare the approved SDK/cache, compose the callers/global reservation adapter,
+then perform native compile/link and device/filesystem qualification separately. Until then,
+the runnable build/evidence from this workstream is **Linux host frontend only**, not a PS5
+package or #173/#239 acceptance.
+
+## Closing increment evidence — 2026-10-28
+
+- Native C++ backend finished **50 checks**, including 2,000 BNTX mutations plus 2,000
+  archive/metadata/image mutations under ASan/UBSan. Both FLYT byte orders produce checked
+  baked pixels; eight pitch/block-linear RGBA8/BC1/BC2/BC3 combinations match exact expected
+  RGBA hashes. Unsupported pointer/swizzle/sRGB/tile/size/codec/block-height and ambiguous
+  names are rejected. Patched colors/vertex tint/repeat/SRT affect real generated image bytes;
+  unsupported gradients/rotated samplers are reported. Storage denial precedes staged/live
+  resource writes; a shared credit releases on success and failed staging, local overcapacity
+  is refused, and recovery denial preserves its journal until a subsequent successful retry.
+- Complete Linux linked frontend built and finished **110 checks**. Updater finished **68
+  cases**, its **34** existing application-update compatibility/bounded-JSON checks and catalog
+  regressions. No test still running is counted here. Known vendored stb/self-update compiler
+  warnings remain; the focused integration syntax checks separately use `-Werror`.
+- Final linked binary SHA-256:
+  `81051d6b321ffcbfb27db2aa779fa521f8042020a89460dbafd038c7512fe783`.
+  Source, real GL/font/mixer and simulated game services have the same scope as the earlier
+  linked evidence. This is an ASan/UBSan Linux test frontend, not a PS5/release artifact.
+- **99 PNGs** (63 at 1280×720, 36 at 1920×1080), `report.json`, command/stderr logs and the
+  executable were exported to `.local/scene-close-20261028/`; all exported capture hashes and
+  the executable hash were verified against the report. Canonical volume evidence is
+  `/work/scene-linked/evidence.hDbAxq/`; host export is its `evidence.hDbAxq/` subdirectory.
+- The added firmware-material workflows exercise actual BNTX decoding/static material baking,
+  report/partial consent, install, explicit selection, leaf FLAN motion, Reduce motion and
+  real EGL context recreation at both resolutions. Representative material/report/native
+  icon-role images were inspected: synthetic colored pixels and diagnostic pane bounds are
+  visible after reload. The source diagnostic border intersects its title; these diagnostic
+  screens are **not** a reference-design/accessibility approval. Synthetic solid-color icon
+  tiles establish role mapping, not authentic reference artwork or full icon coverage.
+- Final parser/controller/resource run validated **11 screens**, passed **2,000 scene
+  mutations**, both runtime/updater `-Werror` syntax checks and all **four** PC-lite test groups.
+  Final GL pixel tests passed at **1280×720 and 1920×1080**, each with 15 instances / 3 batches.
+  Reproducible runners are listed above; exported logs are `native.log`, `frontend.log`,
+  `parser.log` and `render.log` under `.local/scene-close-20261028/`.
+- No parent/coordinator HEAD was built or integrated here. No publication, native compile,
+  PS5-live operation, credentials, IME review, aggregate catalog change or issue closure is
+  part of this closing increment. The parent runs its final composed-HEAD gates; this workstream
+  supplies the ordered commits, exact adapter contract and explicit acceptance gaps above.

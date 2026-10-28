@@ -9,7 +9,9 @@ inline void issue(Json& report,const std::string& path,const std::string& code,c
 }
 struct Pane {
     std::string name,type;int parent=-1;float x{},y{},z{},rx{},ry{},rz{},sx=1,sy=1,w{},h{},alpha=1;
-    bool visible=true,uniform_color=true;unsigned ox{},oy{},px{},py{},material{};std::uint32_t rgba=0xffffffff;
+    bool visible=true,uniform_color=true;unsigned ox{},oy{},px{},py{},material{},uvsets{};std::uint32_t rgba=0xffffffff;
+    std::array<std::uint32_t,4> colors{0xffffffff,0xffffffff,0xffffffff,0xffffffff};
+    std::array<float,8> uv{0,0,1,0,0,1,1,1};
 };
 struct Material {
     std::string name;std::uint32_t flags{},foreground{},background{};
@@ -31,11 +33,11 @@ inline Layout bflyt(std::string_view bytes,const std::string& path,Json& omissio
         else if(type=="pae1") {require(!parents.empty(),"unbalanced FLYT parent stack");parents.pop_back();}
         else if(type=="lyt1") {out.width=s.f32(12);out.height=s.f32(16);require(out.width>0&&out.height>0,"invalid FLYT canvas");}
         else if(type=="txl1") {
-            const auto n=s.u16(8);require(n<=256,"FLYT texture count limit");s.view(12,n*4);
+            const auto n=s.u16(8);require(out.textures.size()+n<=256,"FLYT texture count limit");s.view(12,n*4);
             for(unsigned t=0;t<n;++t){const auto pos=12+s.u32(12+t*4);require(pos<size,"FLYT texture offset outside section");out.textures.push_back(s.name(pos,std::min<unsigned>(241,size-pos)));}
         }
         else if(type=="mat1") {
-            const auto n=s.u16(8);require(n<=256,"FLYT material count limit");s.view(12,n*4);
+            const auto n=s.u16(8);require(out.materials.size()+n<=256,"FLYT material count limit");s.view(12,n*4);
             const auto rgba=[&](std::size_t pos){return (s.u8(pos)<<24)|(s.u8(pos+1)<<16)|(s.u8(pos+2)<<8)|s.u8(pos+3);};
             for(unsigned m=0;m<n;++m) {
                 const auto pos=s.u32(12+m*4),end=m+1<n?s.u32(16+m*4):size;require(pos>=12+n*4 && end>=pos && end<=size,"invalid FLYT material extent");
@@ -55,9 +57,10 @@ inline Layout bflyt(std::string_view bytes,const std::string& path,Json& omissio
             p.x=s.f32(44);p.y=s.f32(48);p.z=s.f32(52);p.rx=s.f32(56);p.ry=s.f32(60);p.rz=s.f32(64);p.sx=s.f32(68);p.sy=s.f32(72);p.w=s.f32(76);p.h=s.f32(80);
             require(p.w>=0&&p.h>=0,"negative FLYT size");
             if(type=="pic1") {
-                p.rgba=(s.u8(84)<<24)|(s.u8(85)<<16)|(s.u8(86)<<8)|s.u8(87);
-                for(unsigned c=1;c<4;++c)if(s.view(84+c*4,4)!=s.view(84,4)){p.uniform_color=false;issue(omissions,path+":"+p.name,"vertex-gradient","Four-corner colors require a supported material renderer");break;}
-                p.material=s.u16(100);
+                for(unsigned c=0;c<4;++c){const auto q=84+c*4;p.colors[c]=(s.u8(q)<<24)|(s.u8(q+1)<<16)|(s.u8(q+2)<<8)|s.u8(q+3);}
+                p.rgba=p.colors[0];p.uniform_color=std::all_of(p.colors.begin(),p.colors.end(),[&](auto c){return c==p.rgba;});
+                p.material=s.u16(100);p.uvsets=s.u8(102);require(p.uvsets<=3,"FLYT UV-set budget");s.view(104,p.uvsets*32);
+                if(p.uvsets)for(unsigned c=0;c<8;++c)p.uv[c]=s.f32(104+c*4);
             }
             if(type=="prt1"||type=="wnd1"||type=="txt1")issue(omissions,path+":"+p.name,"pane-type","Unconverted "+std::string(type)+" content; geometry is retained for patches");
             out.panes.push_back(std::move(p));last=int(out.panes.size())-1;
@@ -89,7 +92,10 @@ inline void patch(Layout& layout,const Json& file,const std::string& path,Json& 
         if(p.contains("Visible")&&!p.at("Visible").is_null())pane.visible=flag(p,"Visible");
         for(auto [key,target]:std::initializer_list<std::pair<const char*,unsigned*>>{{"OriginX",&pane.ox},{"OriginY",&pane.oy},{"ParentOriginX",&pane.px},{"ParentOriginY",&pane.py}})
             if(p.contains(key)&&!p.at(key).is_null()){require(p.at(key).is_number_integer()&&p.at(key).get<int>()>=0&&p.at(key).get<int>()<=2,"invalid patched origin");*target=p.at(key);}
-        for(auto key:{"ColorTL","ColorTR","ColorBL","ColorBR","UsdPatches"})if(p.contains(key)&&!p.at(key).is_null())issue(omissions,path+":"+pane.name,"pane-property",std::string(key)+" cannot yet be rendered exactly");
+        const char* color_keys[]{"ColorTL","ColorTR","ColorBL","ColorBR"};
+        for(unsigned c=0;c<4;++c)if(p.contains(color_keys[c])&&!p.at(color_keys[c]).is_null())pane.colors[c]=rgba_hex(text(p,color_keys[c]));
+        pane.rgba=pane.colors[0];pane.uniform_color=std::all_of(pane.colors.begin(),pane.colors.end(),[&](auto c){return c==pane.rgba;});
+        if(p.contains("UsdPatches")&&!p.at("UsdPatches").is_null())issue(omissions,path+":"+pane.name,"pane-property","UsdPatches cannot yet be rendered exactly");
     }
     if(file.contains("Materials")&&!file.at("Materials").is_null()) {
         const auto& materials=file.at("Materials");require(materials.is_array()&&materials.size()<=256,"material patch count limit");

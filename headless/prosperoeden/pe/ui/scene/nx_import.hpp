@@ -3,6 +3,7 @@
 #include "pe/ui/scene/nx_image.hpp"
 #include "pe/ui/scene/nx_layout.hpp"
 #include "pe/ui/scene/nx_animation.hpp"
+#include "pe/ui/scene/nx_material.hpp"
 
 namespace pe::ui::scene::nx {
 inline const std::map<std::string,std::string> targets{{"home","Library"},{"lock","Welcome"},{"apps","All games"},{"set","Settings"},{"news","News"},{"user","Profiles"},{"psl","Choose player"}};
@@ -44,7 +45,7 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
     auto files=container(source);std::vector<Files> parts;
     if(files.contains("info.json"))parts.push_back(std::move(files));
     else {require(files.size()>0&&files.size()<=7,"pack must contain at most seven NXTheme parts");for(const auto& [path,bytes]:files){require(folded(path).ends_with(".nxtheme"),"pack member is not .nxtheme: "+path);parts.push_back(container(bytes));}}
-    Json images=Json::object(),screens=Json::object(),models=Json::object(),reconstruction=Json::array(),animations=Json::object(),animation_files=Json::object();std::set<std::string> seen;
+    Json images=Json::object(),screens=Json::object(),models=Json::object(),reconstruction=Json::array(),animations=Json::object(),animation_files=Json::object();std::set<std::string> seen;std::size_t image_bytes=0;
     for(const auto& part:parts) {
         require(part.contains("info.json"),"NXTheme info.json missing");const auto info=json(part.at("info.json"));
         require(info.is_object() && info.contains("Version") && info.at("Version").is_number_integer() && info.at("Version").get<int>()>=1 && info.at("Version").get<int>()<=17,"unsupported NXTheme Version; supported 1–17");
@@ -55,6 +56,7 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
         require(*wallpaper,"NXTheme has no supported wallpaper; layout-only input requires complete firmware reconstruction");auto decoded=image(part.at(wallpaper));
         require(decoded.width==1280&&decoded.height==720,"NXTheme wallpaper must be 1280x720");if(out.preview.empty())out.preview=decoded;
         const auto asset="wallpaper-"+target,path="assets/"+target+".tga";out.files[path]=encode_tga(decoded);images[asset]=path;
+        image_bytes+=decoded.rgba.size();require(image_bytes<=64*1024*1024,"converted image budget exceeded");
         models[target]=screen(target,asset);screens[target]="screens/"+target+".json";
         auto& omissions=out.report["omissions"];
         for(const auto& [name,bytes]:part) {
@@ -63,7 +65,7 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
             if(name=="info.json"||name==wallpaper||lower=="preview.png")continue;
             if(name=="layout.json"||name=="common.json") {
                 const auto patch_json=json(bytes);require(patch_json.is_object(),"invalid layout patch");Files fw;
-                try {require(bool(firmware),"user-owned extracted firmware is not provided");const auto fwbytes=firmware(name=="common.json"?"common":target);fw=container(fwbytes);evidence["firmware_identity"]={{"target",name=="common.json"?"common":target},{"sha256",sha256(fwbytes)},{"members",fw.size()},{"firmware_release","not inferred from filenames or FLYT version"}};}
+                try {require(bool(firmware),"user-owned extracted firmware is not provided");const auto fwbytes=firmware(name=="common.json"?"common":target);fw=container(fwbytes);const Json identity={{"target",name=="common.json"?"common":target},{"sha256",sha256(fwbytes)},{"members",fw.size()},{"firmware_release","not inferred from filenames or FLYT version"}};evidence["firmware_identity"]=identity;if(!evidence.contains("firmware_identities"))evidence["firmware_identities"]=Json::array();evidence["firmware_identities"].push_back(identity);}
                 catch(const std::exception& e){issue(omissions,name,"missing-firmware",e.what());continue;}
                 const auto patches=patch_json.value("Files",Json::array());require(patches.is_array()&&patches.size()<=64,"layout Files limit");
                 for(const auto& file:patches) {
@@ -75,12 +77,19 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
                         Json pane={{"name",p.name},{"type",p.type},{"x",(layout.width/2+g.cx-g.w*g.sx/2)*1920/layout.width},{"y",(layout.height/2-g.cy-g.h*g.sy/2)*1080/layout.height},{"w",g.w*g.sx*1920/layout.width},{"h",g.h*g.sy*1080/layout.height},{"alpha",g.alpha},{"visible",g.visible}};panes.push_back(pane);
                         if(p.rx||p.ry||p.rz||p.z||g.sx<=0||g.sy<=0)continue;
                         auto node=pane;node.erase("name");node.erase("type");const auto id="pane-"+std::to_string(i);node_ids[p.name]=id;node["id"]=id;node["type"]="rect";node["color"]=0x182f3d;node["edge"]=0x9ed7cf;node["border"]=1;nodes.push_back(node);
-                        if(p.type=="pic1")issue(omissions,fname+":"+p.name,"material-pipeline","Material "+std::to_string(p.material)+" is parsed/patched but its texture/blend pipeline is not rendered");
+                        if(p.type=="pic1") {
+                            try {
+                                require(images.size()<32&&image_bytes+std::uint64_t(std::ceil(p.w))*std::uint64_t(std::ceil(p.h))*4<=64*1024*1024,"converted image budget exceeded");
+                                auto baked=bake_material(layout,p,fw);image_bytes+=baked.rgba.size();
+                                const auto aid="material-"+std::to_string(reconstruction.size())+"-"+std::to_string(i),image_path="assets/"+aid+".tga";
+                                out.files[image_path]=encode_tga(baked);images[aid]=image_path;auto& rendered=nodes.back();rendered.erase("color");rendered.erase("edge");rendered.erase("border");rendered["type"]="image";rendered["asset"]=aid;panes.back()["rendered_material"]=aid;
+                            }catch(const std::exception& e){issue(omissions,fname+":"+p.name,"material-pipeline",e.what());}
+                        }
                     }
                     Json materials=Json::array();for(const auto& material:layout.materials)materials.push_back({{"name",material.name},{"flags",material.flags},{"foreground",material.foreground},{"background",material.background},{"references",material.references},{"transforms",material.transforms}});
                     reconstruction.push_back({{"file",fname},{"version",layout.version},{"panes",panes},{"materials",materials}});
                     require(models.size()<14,"too many reconstructed screens for scene budget");const auto sid="fw-"+std::to_string(reconstruction.size());screens[sid]="screens/"+sid+".json";
-                    nodes.push_back(label("preview-title",fname+" — geometry preview, not material parity",80,70,1760,28));nodes.push_back(label("preview-footer","L1 / R1: screens · Back: native library · Options: recovery picker",80,1030,1760,24));
+                    nodes.push_back(label("preview-title",fname+" — supported materials / geometry, not faithful parity",80,70,1760,28));nodes.push_back(label("preview-footer","L1 / R1: screens · Back: native library · Options: recovery picker",80,1030,1760,24));
                     Json tracks=Json::array();
                     const auto anims=patch_json.value("Anims",Json::array());if(!anims.is_null())require(anims.is_array()&&anims.size()<=64,"layout animation count limit");
                     for(const auto& anim:anims) {
@@ -97,14 +106,19 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
                     }
                     models[sid]={{"nodes",nodes},{"input",{{"back",{{"screen","home"}}}}}};
                     if(!tracks.empty()){const auto aid="motion-"+sid;animations[aid]="animations/"+aid+".json";animation_files[aid]=tracks;out.files["animations/"+aid+".json"]=tracks.dump();models[sid]["animations"]=Json::array({aid});}
-                    issue(omissions,fname,"geometry-preview","Patched hierarchy/transforms are runnable on a separate diagnostic screen; original materials, fonts, service bindings are not impersonated");
+                    issue(omissions,fname,"geometry-preview","Patched hierarchy and supported material images are runnable; unsupported panes remain diagnostic geometry. Original fonts, service/event bindings are not impersonated");
                 }
                 for(auto it=patch_json.begin();it!=patch_json.end();++it)if(it.key()!="Files"&&it.key()!="Anims"&&it.key()!="PatchName"&&it.key()!="AuthorName"&&it.key()!="TargetName"&&it.key()!="ID")issue(omissions,name,"layout-metadata",it.key()+" compatibility/application semantics are not emulated");
-            } else if((name=="settings.dds"||name=="settings.png") && target=="home") {
-                auto icon=image(bytes);require(icon.width==64&&icon.height==56,"settings applet icon must be 64x56");const auto icon_path="assets/settings.tga";
-                out.files[icon_path]=encode_tga(icon);images["settings-icon"]=icon_path;
-                models[target]["nodes"].push_back({{"id","settings-button"},{"type","focus"},{"x",1660},{"y",80},{"w",110},{"h",110},{"activate",{{"screen","set"}}},{"children",Json::array({{{"id","settings-icon"},{"type","image"},{"asset","settings-icon"},{"x",7},{"y",13},{"w",96},{"h",84}}})}});
-                issue(omissions,name,"native-icon-remap","Settings artwork maps to ProsperoEden accessibility/sound controls, not Switch settings parity");
+            } else if(target=="home"&&(name=="settings.dds"||name=="settings.png"||name=="user.dds"||name=="user.png"||name=="apps.dds"||name=="apps.png")) {
+                const auto stem=name.substr(0,name.find('.')),icon_id=stem+"-icon",destination=stem=="settings"?"set":stem;
+                auto icon=image(bytes);require(icon.width>=16&&icon.height>=16&&icon.width<=256&&icon.height<=256,"native applet icon dimensions must be 16–256");
+                if(stem=="settings")require(icon.width==64&&icon.height==56,"settings applet icon must be 64x56");
+                require(!images.contains(icon_id),"duplicate native icon role");
+                image_bytes+=icon.rgba.size();require(image_bytes<=64*1024*1024,"converted image budget exceeded");const auto icon_path="assets/"+stem+".tga";out.files[icon_path]=encode_tga(icon);images[icon_id]=icon_path;
+                if(!models.contains(destination)){models[destination]=screen(destination,asset);screens[destination]="screens/"+destination+".json";}
+                const float scale=std::min(96.0f/icon.width,84.0f/icon.height),iw=icon.width*scale,ih=icon.height*scale,x=stem=="settings"?1660:stem=="user"?1530:1400;
+                models[target]["nodes"].push_back({{"id",stem+"-button"},{"type","focus"},{"x",x},{"y",80},{"w",110},{"h",110},{"activate",{{"screen",destination}}},{"children",Json::array({{{"id",icon_id},{"type","image"},{"asset",icon_id},{"x",(110-iw)/2},{"y",(110-ih)/2},{"w",iw},{"h",ih}}})}});
+                issue(omissions,name,"native-icon-remap",stem+" artwork maps to the original ProsperoEden "+destination+" workflow, not the Switch applet");
             } else issue(omissions,name,"unmapped-asset","No supported native semantic mapping for this member");
         }
         out.report["parts"].push_back(std::move(evidence));
@@ -113,6 +127,7 @@ inline Conversion convert(std::string_view source,const Firmware& firmware={}) {
     if(!models.contains("set")){models["set"]=screen("set",images.begin().key());screens["set"]="screens/set.json";}
     std::vector<std::string> order;for(auto it=models.begin();it!=models.end();++it)order.push_back(it.key());
     for(std::size_t i=0;i<order.size();++i) {auto& model=models[order[i]];model["input"]["l1"]={{"screen",order[(i+order.size()-1)%order.size()]}};model["input"]["r1"]={{"screen",order[(i+1)%order.size()]}};out.files[screens.at(order[i]).get<std::string>()]=model.dump();}
+    require(images.size()<=32,"converted image count budget exceeded");
     Json description={{"schema",1},{"id",out.id},{"name",out.name},{"entry","home"},{"images",images},{"screens",screens},{"animations",animations}};
     (void)parse(description,models,animation_files);out.files["theme.json"]=description.dump();
     out.report["mode"]=reconstruction.empty()?"native-artwork":"native-reconstruction-subset";out.report["reconstruction"]=reconstruction;

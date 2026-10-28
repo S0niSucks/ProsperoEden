@@ -8,6 +8,7 @@ std::unique_ptr<scene::nx::Conversion> import_plan;
 std::future<scene::nx::Conversion> import_read;
 std::future<std::string> import_install;
 std::uint32_t import_texture{};
+ThemeImportStorage import_storage;
 void release_import_texture(){batch.delete_texture(import_texture);import_texture=0;}
 void open_import() {
     if(!update_available() || pack_updates->busy() || updates_page || commit_started) {last_error="Finish the pending operation before importing a theme";return;}
@@ -55,8 +56,8 @@ void press_import(Key physical) {
         else if(key==Key::square){import_partial=true;import_phase="consent";}
         else if(key==Key::cross)import_error="Unsupported items remain. Review the report; secondary explicitly accepts a partial import.";
     } else if(import_phase=="consent" && key==Key::cross && import_plan) {
-        import_phase="installing";import_error.clear();const auto root=data_root;const auto plan=*import_plan;const auto partial=import_partial;
-        import_install=std::async(std::launch::async,[root,plan,partial]{return scene::nx::install(root,plan,true,partial);});
+        import_phase="installing";import_error.clear();const auto root=data_root;const auto plan=*import_plan;const auto partial=import_partial;const auto storage=import_storage;
+        import_install=std::async(std::launch::async,[root,plan,partial,storage]{return scene::nx::install(root,plan,true,partial,storage);});
     } else if(import_phase=="installed" && key==Key::cross && import_plan){const auto id=import_plan->id;import_page=false;release_import_texture();select(id);}
     else if(import_phase=="failed" && key==Key::cross)open_import();
 }
