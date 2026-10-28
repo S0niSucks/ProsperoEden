@@ -157,3 +157,16 @@ These artifacts contain only synthetic fixture material; leaking baseline ZIPs d
 retain that synthetic evidence and are not release packages to publish. This is host packaging
 qualification with Python-level access instrumentation, not kernel tracing, a race-hardening
 claim, hardware qualification or real-credential testing.
+
+## Coordinator import and bounded repeat
+
+Imported as `f1a92c6`. The coordinator independently verified all 635 Linux export-artifact
+hashes against the recorded index and preserved them under
+`.local/docker-release/export-privacy-worker-20261027/`, including the intentional synthetic
+baseline-leak controls. The integrated Windows fixed-source repeat also passed **19 actual
+CLI invocations** (no baseline requested), report SHA-256
+`1400cf42f34f89ff217ef645a4ad65ba79f90acd66bcd84b23d472d32a4746b8`, retained in
+`.local/docker-release/export-privacy-integrated-windows-20261027/`.
+The full host path now invokes this maintained CLI/ZIP suite. Subsequent license-package
+integration remains separate and must preserve the private-node guard and normal validations.
+None of these fixtures exercises optional symbol/ELF packaging or publishes a release.

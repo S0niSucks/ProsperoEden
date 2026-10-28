@@ -78,6 +78,15 @@ hashes match `third_party/licenses/SOURCES.json` (manifest SHA-256
 is intentionally preserved. **Package inclusion and corresponding-source/relink-material delivery
 are not yet complete**; file presence and attribution are not a compliance certification.
 
+Python collectors `df7cfdf` were reviewed/imported as `f1a92c6`. Both now deny private aliases,
+staged network configs and the complete Nextendo subtree before metadata/descent. Worker
+actual CLI qualification passed 121 Linux / 35 Windows invocations including baseline controls;
+the coordinator independently verified 635 indexed artifacts and repeated 19 fixed-source
+Windows CLI cases successfully. `EXPORT_PRIVACY.md` preserves the demonstrated synthetic ZIP
+leaks and zero private-node accesses after the fix. The full host path includes these checks;
+the worker now integrates the complete license directory into actual release ZIPs, not ELF/native
+packaging. Corresponding-source/relink delivery and the final combined build remain outstanding.
+
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
 Synthetic BKTR also passed in a separate coordinator-owned fixture worktree and was integrated

@@ -131,3 +131,9 @@ copy/estimate/progress/hash exclusions, zero forbidden probes, seven harmless co
 Snapshot, raw logs and exit-0 receipt are retained in
 `.local/docker-release/usb-staged-privacy-integrated-20261027/`. This does not qualify the
 separate Python collectors, later writer-admission changes or PS5 filesystem behavior.
+
+The later Python collector fix is now imported as `f1a92c6`; it prunes aliases and the entire
+Nextendo subtree before metadata/traversal, with actual CLI/ZIP fixture evidence in
+`EXPORT_PRIVACY.md`. Its broad `network-shares.json*` deny policy is intentionally retained for
+exports, whereas USB backups retain the explicit dot-suffix boundary described above. Thus
+`network-shares.json-safe` remains in a USB backup but is conservatively omitted from an export.
