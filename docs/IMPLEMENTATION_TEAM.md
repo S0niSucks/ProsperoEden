@@ -49,7 +49,10 @@ their test results to the current combined HEAD:
 * OAuth→web→identity→NEX `0699208` / `6943832` / `2ab6a4d` is integrated as `fafa43c` /
   `0378b8d` / `3dc04ed`. Its owner reported 111 offline cases and nine regression runners
   passed, plus SDK objects/partial link; that is not a combined application or live login.
-  One-shot explicit consent and game-only check callers/UI are now assigned for implementation.
+  One-shot explicit consent and game-only check callers/UI `df5dbaf` / `5bd2e1e` are
+  integrated as `ee96d24` / `a8835ac`. The owner completed 111 offline TLS cases,
+  admission normal/TSan/ASan+UBSan and actual consent UI normal/ASan+UBSan at 720p/1080p;
+  the six new texts are extracted but not imported. Final combined callers/gates remain pending.
 * Native-delta inventory `2007e8d` is integrated as `cc4489f`. Independent read-only review
   confirmed five indexed files, 175 hashes, 446 source contexts and 1,890 embedded OpenGL
   source files (content/executability). The unsafe partial example path filter is replaced
@@ -59,16 +62,27 @@ their test results to the current combined HEAD:
   transport/security/VFS/loader/frontend/editor/NFS-server checks. Its Docker entrypoint also
   requires private `/data` tmpfs. Shell syntax, two documentary Python AST blocks and inert
   aggregate runner ordering/refusal checks passed; these are **not** execution of those suites.
-* Scene themes are still assigned for final delivery. No unfinished worker report counts as PASS.
+* Scene themes' existing implementation is delivered and integrated as `d983547`, `1e27eda`,
+  `63777aa`, `022cb0d`; ownership is released. Conflict resolution preserves USB/Amiibo
+  dispatch, all capabilities, Cover Flow and builtin Settings pagination. The owner completed
+  110 frontend, 50 importer, 68 updater and 34 compatibility checks plus parser/mutation/pixel
+  proofs on its snapshot. The native storage callback/caller composition is now assigned;
+  full NXTheme material/font/animation parity and automatic compatibility are not implemented,
+  and #173/#239 remain open. This subset is not accepted as completion of those issues.
 * Settings integration now has 17 categories. `133f604` keeps the existing first 16 tile
   positions, pages overflow using the D-pad and supplies the missing network summary.
   Exact production navigation/geometry tests passed normal and ASan/UBSan. The frozen
   renderer compile then caught an enum/int deduction error in the new draw-loop bound;
   the explicit `std::min<int>` correction and exact production draw-loop regression
-  passed focused normal/ASan/UBSan. The real-renderer repeat is still pending, not PASS.
+  passed focused normal/ASan/UBSan. The next real-renderer attempt exposed missing
+  `EditorMessage` linkage in the general preview scripts; `fdc4a2d` adds the real editor/config
+  sources to both. The corrected renderer repeat is running, not PASS.
 * Native producer hooks `e3c62de` are integrated as `1c4bb61`. Their owner completed 44
   synthetic tests, syntax and README checks in offline Docker; independent frozen-merge
-  review is assigned. `EDEN_NATIVE_EVIDENCE_DIR` remains opt-in and requires a new explicit
+  review completed 44 tests and seven shell checks, and found split credential arguments
+  (`--token value`) were not refused. `788fc57` fixes that lexical check; all 46 tests passed,
+  including actual CLI refusal without execution, event, canary capture or echo.
+  `EDEN_NATIVE_EVIDENCE_DIR` remains opt-in and requires a new explicit
   root declaration. No actual SDK/configure/build/source-object correspondence or relink
   result follows from those synthetic tests.
 * The additive network-catalog import assignment was interrupted by a tool `cyber_policy`

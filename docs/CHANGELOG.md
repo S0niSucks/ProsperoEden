@@ -79,8 +79,9 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
    and curl-producer partial-link checks; the final complete build and console validation remain.
    The provider-contract repair now exchanges code → short-lived web credential → matching
    identity → separate NEX game session, persists only the default-off game session and checks
-   known expiry. It requires explicit identity/matchmaking consent; its UI/caller composition is
-   being completed. Game-only remote account checks are explicitly unavailable without network
+   known expiry. Explicit consent is captured per request with the local player and stop token,
+   reset on navigation/profile changes, and kept separate from routing enablement.
+   Game-only remote account checks are explicitly unavailable without network
    or deletion. The 111-case offline proof does not establish a working live provider sign-in.
 
 ### Reliability and diagnostics
@@ -109,8 +110,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 ### Remaining work and test limits
 
-SMB/NFS final caller/admission composition and external/scene themes remain under team
-implementation/review, not accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
+SMB/NFS final caller/admission composition and scene-theme storage composition remain under
+team implementation/review. Retained scenes and the bounded native NXTheme importer are
+integrated, not full format/material/font/animation parity; #173/#239 stay open.
+Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
 on their stated snapshots, including the composed Nextendo service repeat. The earlier 659-text
 launcher snapshot passed 30-catalog static checks. Newly integrated network and consent strings
