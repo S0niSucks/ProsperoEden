@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     const std::string root=argv[1], fixtures=argv[2], mode=argv[3], id=argc>4?argv[4]:"test-pack";
     try {
         Host host; host.version="1.003.000";
-        host.capabilities={"draw.atlas.v1","actions.launch.v1","audio.named-events.v1","loading.scene.v1","state.v1","updates.launcher-packs.v1"};
+        host.capabilities={"draw.atlas.v1","actions.launch.v1","audio.named-events.v1","loading.scene.v1","state.v1","updates.launcher-packs.v1","themes.scene.v1"};
         Fetch fetch=[&](const std::string& url, std::size_t limit, const Sink& sink, const std::atomic<bool>& cancel) {
             if (!https_url(url)) throw std::runtime_error("HTTPS required");
             std::ifstream file(fixtures+"/"+url.substr(url.find_last_of('/')+1),std::ios::binary);

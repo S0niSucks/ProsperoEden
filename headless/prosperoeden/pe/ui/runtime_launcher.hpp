@@ -31,6 +31,8 @@ public:
     const std::string& error() const;
     bool script_active() const;
     const RuntimeLoadingScene* loading_scene() const;
+    // Read-only diagnostic snapshot; cannot authorize or answer an import confirmation.
+    nlohmann::json theme_import_status() const;
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

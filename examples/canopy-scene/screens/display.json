@@ -1,0 +1,14 @@
+{
+  "focus":"renderer","input":{"back":{"screen":"settings"}},
+  "nodes":[
+    {"id":"base","type":"rect","w":1920,"h":1080,"color":395530},
+    {"id":"title","type":"text","x":200,"y":150,"w":1450,"size":48,"text":"Video and language"},
+    {"id":"renderer","type":"focus","x":200,"y":260,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"renderer"}},"children":[{"id":"renderer-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Renderer"},{"id":"renderer-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/renderer","labels":{"0":"OpenGL","1":"Vulkan"}}]},
+    {"id":"output","type":"focus","x":200,"y":360,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"output"}},"children":[{"id":"output-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Output resolution"},{"id":"output-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/output","labels":{"0":"1080p","1":"1440p","2":"2160p"}}]},
+    {"id":"resolution","type":"focus","x":200,"y":460,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"resolution"}},"children":[{"id":"res-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Game resolution scale"},{"id":"res-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/resolution_label"}]},
+    {"id":"filter","type":"focus","x":200,"y":560,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"filter"}},"children":[{"id":"filter-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Scaling filter"},{"id":"filter-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/filter_label"}]},
+    {"id":"refresh","type":"focus","x":200,"y":660,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"refresh"}},"children":[{"id":"refresh-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Game refresh rate"},{"id":"refresh-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/refresh","labels":{"0":"60 Hz","1":"120 Hz"}}]},
+    {"id":"language","type":"focus","x":200,"y":760,"w":1450,"h":80,"activate":{"action":"preferences.adjust","args":{"field":"language"}},"children":[{"id":"lang-label","type":"text","x":24,"y":52,"w":900,"size":30,"text":"Game language"},{"id":"lang-value","type":"text","x":1380,"y":52,"w":450,"align":"right","size":30,"bind":"/preferences/language_label"}]},
+    {"id":"back","type":"text","x":200,"y":1000,"w":1450,"size":28,"text":"Confirm: next value · Back: settings"}
+  ]
+}

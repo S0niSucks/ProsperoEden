@@ -8,6 +8,7 @@
 #include "pe/ui/launch_commit.hpp"
 #include "pe/ui/scene/package.hpp"
 #include "pe/ui/scene/player.hpp"
+#include "pe/ui/scene/nx_install.hpp"
 #include "pe/audio/wav.hpp"
 #include "pe/core/file.hpp"
 #include "pe/core/log.hpp"
@@ -164,6 +165,7 @@ struct RuntimeLauncher::Impl {
     std::string launch_file, launch_profile; bool sync_started{}, first_start{}, picker{}, exit_update{};
     int picker_row{}, draw_commands{}; float time{}, poll{}, catalog_poll{}; std::uint64_t source_generation{}; gfx::DrawList* drawing{};
     #include "pe/ui/scene/runtime.inc"
+    #include "pe/ui/scene/import_runtime.inc"
     Impl(Services& s, Textures& t, const Fonts& f, gfx::GlBatch& b, bool first, std::string root, audio::Mixer* m, std::function<void(gfx::Font&)> configure)
         : cached_preferences(s.preferences()), services(s), covers(t), fonts(f), batch(b), mixer(m), data_root(std::move(root)), first_start(first) {
         configure_font=std::move(configure);
@@ -172,8 +174,9 @@ struct RuntimeLauncher::Impl {
         pack_updates=std::make_unique<launcher_updates::Manager>(data_root,std::move(host));
         const auto recovery=pack_updates->status("");
         if(recovery.value("phase","")=="failed") last_error="Launcher recovery: "+recovery.value("error","");
+        for(const auto& item:scene::nx::recover(data_root))if(!item.value("recovered",false))last_error="Theme import recovery: "+item.value("error","");
     }
-    ~Impl() { stop = true; if (directory.valid()) directory.wait(); if (keyboard.valid()) keyboard.wait(); release_textures(); }
+    ~Impl() { stop = true; if (directory.valid()) directory.wait(); if (keyboard.valid()) keyboard.wait(); if(import_read.valid())import_read.wait();if(import_install.valid())import_install.wait(); release_textures(); }
     std::string current_profile() { const auto list=services.profiles(); for (int i=0;i<static_cast<int>(list.size());++i) if (list[i].playing) return services.profile_key(i); return {}; }
     Game& game(const Json& p) {
         const std::string file = p.value("game", "");
@@ -265,6 +268,7 @@ struct RuntimeLauncher::Impl {
         lua_setglobal(p.lua, "host");
     }
     void release_textures() {
+        release_import_texture();
         const auto release = [&](Pack& p) { for (auto& [id, texture] : p.textures) { batch.delete_texture(texture); texture = 0; } batch.delete_texture(p.font_texture); p.font_texture = 0; };
         if (pack) release(*pack);
         if(retained_update_view) release(*retained_update_view);
@@ -287,6 +291,7 @@ struct RuntimeLauncher::Impl {
     bool select(const std::string& id, bool save = true) {
         if(services.usb_backup_status().active) { last_error="Finish the pending operation before changing launchers"; return false; }
         if (amiibo_confirmation) { last_error = "Close the Amiibo confirmation before changing launchers"; return false; }
+        if(save && (import_read.valid()||import_install.valid())){last_error="Finish the theme import before changing launchers";return false;}
         if(save && updates_page) { last_error="Close launcher updates before changing launchers";return false; }
         if(save && pack_updates->busy() && pack_updates->status("").value("phase","")=="checking") pack_updates->cancel();
         else if(save && pack_updates->busy()) { last_error="Finish the launcher update before changing launchers"; return false; }
@@ -417,6 +422,7 @@ struct RuntimeLauncher::Impl {
         }
         if(name!="sound" && name!="state.save") query_cache.clear();
         if (name == "state.save") { if (!args.is_object() || args.dump().size()>131072) throw std::runtime_error("Invalid UI state"); p.state=args; ok=write_json(data_root+"/config/launcher-state/"+p.id+".json",p.state); }
+        else if(name=="theme_import.open")open_import();
         else if (name == "launcher.select") { const auto id=args.at("id").get<std::string>(); if (id!="builtin" && !identifier(id)) throw std::runtime_error("Invalid launcher ID"); next_id=id; }
         else if (name == "launcher.picker") { discover(); picker=true; picker_row=0; }
         else if (name == "library.refresh") refresh();
@@ -706,7 +712,7 @@ struct RuntimeLauncher::Impl {
         text(std::string(faces[binding[0]])+": confirm    "+faces[binding[1]]+": back / cancel    "+faces[binding[2]]+": rollback    "+faces[binding[3]]+": check    Options: automatic checks",1000,22);
     }
     void update(float dt) {
-        time+=dt; poll+=dt; catalog_poll+=dt;
+        time+=dt; poll+=dt; catalog_poll+=dt; poll_import();
         // A cancelled pack check can finish after switching to built-in. Its poll persists
         // checked-at settings: defer that write (and any new pack job) during a USB snapshot.
         if(!services.usb_backup_status().active) update_packs(dt);
@@ -728,7 +734,7 @@ struct RuntimeLauncher::Impl {
             launch["sync"]=status;
         }
         finish_update_close();sync_update_view();
-        if(updates_page || commit_started || amiibo_confirmation) return;
+        if(import_page || updates_page || commit_started || amiibo_confirmation) return;
         if(pack) {
             if(poll_services) { UpdateOffer found; if(services.take_update(&found)) offer=found; }
             if(!call(*pack,"update",{{"dt",std::min(dt,0.05f)},{"time",time}})) fallback();
@@ -738,6 +744,7 @@ struct RuntimeLauncher::Impl {
     }
     void draw(gfx::DrawList& list) {
         if (amiibo_confirmation) { draw_amiibo_confirmation(list); return; }
+        if(import_page){draw_import(list);return;}
         if(updates_page || commit_started) { if(!draw_update_view(list)) draw_updates(list); return; }
         if(pack) { drawing=&list; draw_commands=0; const bool ok=call(*pack,"draw",{{"time",time}},true); drawing=nullptr; if(!ok) {list.clear(); fallback(); if(builtin) builtin->draw(list);} else { if(pack->font_texture) batch.sync_font_texture(pack->font_texture,pack->font); if(pack->scene_player) draw_scene_dialog(list); } }
         else if(builtin) builtin->draw(list);
@@ -751,7 +758,7 @@ struct RuntimeLauncher::Impl {
                 list.text(*fonts.font,fonts.texture,i==0?"Built-in launcher":installed[i-1].value("name",""),300,r.y+52,{28,t.text}); }
             constexpr const char* faces[]{"Cross", "Circle", "Square", "Triangle"};
             const auto binding=services.preferences().menu_bind;
-            const auto hints=std::string(faces[binding[0]])+": select     "+faces[binding[1]]+": back     "+faces[binding[3]]+": updates";
+            const auto hints=std::string(faces[binding[0]])+": select     "+faces[binding[1]]+": back     "+faces[binding[2]]+": offline import     "+faces[binding[3]]+": updates";
             list.text(*fonts.font,fonts.texture,hints,260,1000,{24,t.meta});
             const auto& error = last_error.empty() ? discovery_error : last_error;
             if(!error.empty()) list.text(*fonts.font,fonts.texture,fonts.font->fit(error,24,1400),260,935,{24,t.warning});
@@ -772,13 +779,14 @@ void RuntimeLauncher::press(Key key) {
     auto& h=*impl_;
     if(h.services.usb_backup_status().active) { if(h.builtin) h.builtin->press(key); return; }
     if (h.amiibo_confirmation) { h.press_amiibo_confirmation(menu_key_for(key,h.cached_preferences.menu_bind)); return; }
+    if(h.import_page){h.press_import(key);return;}
     if(h.updates_page || h.commit_started) {
         if(h.custom_update_view) {
             if(!h.commit_started && !h.pack_updates->replacing()) h.call_update_view("updater_input",{{"key",key_name(key)}},true);
         } else h.press_updates(menu_key_for(key,h.cached_preferences.menu_bind));
         return;
     }
-    if(h.picker) { key=menu_key_for(key,h.services.preferences().menu_bind); if(key==Key::circle) h.picker=false; else if(key==Key::up || key==Key::down) h.picker_row=std::clamp(h.picker_row+(key==Key::down?1:-1),0,static_cast<int>(h.installed.size())); else if(key==Key::triangle && h.picker_row>0) h.open_updates(h.installed[h.picker_row-1].at("id").get<std::string>()); else if(key==Key::cross) h.select(h.picker_row==0?"builtin":h.installed[h.picker_row-1].at("id").get<std::string>()); return; }
+    if(h.picker) { key=menu_key_for(key,h.services.preferences().menu_bind); if(key==Key::circle) h.picker=false; else if(key==Key::square)h.open_import();else if(key==Key::up || key==Key::down) h.picker_row=std::clamp(h.picker_row+(key==Key::down?1:-1),0,static_cast<int>(h.installed.size())); else if(key==Key::triangle && h.picker_row>0) h.open_updates(h.installed[h.picker_row-1].at("id").get<std::string>()); else if(key==Key::cross) h.select(h.picker_row==0?"builtin":h.installed[h.picker_row-1].at("id").get<std::string>()); return; }
     if(h.pack) { h.amiibo_input_context=true; const bool ok=h.call(*h.pack,"input",{{"key",key_name(key)}}); h.amiibo_input_context=false; if(!ok) h.fallback(); }
     else if(h.builtin) { h.builtin->press(key); if(h.builtin->take_launcher_picker()) open_picker(); }
 }
@@ -808,4 +816,9 @@ const std::string& RuntimeLauncher::active_id()const{return impl_->active;}
 const std::string& RuntimeLauncher::error()const{return impl_->last_error;}
 bool RuntimeLauncher::script_active()const{return impl_->pack!=nullptr;}
 const RuntimeLoadingScene* RuntimeLauncher::loading_scene()const{return impl_->pack?impl_->pack->loading.get():nullptr;}
+nlohmann::json RuntimeLauncher::theme_import_status()const {
+    const auto& h=*impl_;Json status={{"open",h.import_page},{"phase",h.import_phase},{"error",h.import_error},{"sources",h.import_sources}};
+    if(h.import_plan){status["id"]=h.import_plan->id;status["report"]=h.import_plan->report;}
+    return status;
+}
 }

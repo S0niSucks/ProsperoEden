@@ -25,6 +25,13 @@ public:
     #include "nextendo_preview.inc"
     using FakeServices::FakeServices;
     nlohmann::json launches=nlohmann::json::array();
+    // Preview-only filesystem substitute: record native delete dispatch without touching files.
+    bool delete_game(const pe::ui::Game& game, std::string* message) override {
+        if(!game_exists(game.file))return false;
+        removed.push_back(game.file);
+        if(message)*message="Preview game removed";
+        return true;
+    }
     void will_play(const std::string& file) override {
         int profile=-1;
         for(int i=0;i<static_cast<int>(people.size());++i) if(people[i].playing) profile=i;
@@ -43,7 +50,7 @@ int main(int argc,char**argv) {
     EGLint count=0;EGLConfig config{};const EGLint attributes[]{EGL_SURFACE_TYPE,EGL_PBUFFER_BIT,EGL_RENDERABLE_TYPE,EGL_OPENGL_BIT,EGL_NONE};
     if(!eglChooseConfig(display,attributes,&config,1,&count) || count<1)return 4;
     const EGLint context_attributes[]{EGL_CONTEXT_MAJOR_VERSION,4,EGL_CONTEXT_MINOR_VERSION,5,EGL_CONTEXT_OPENGL_PROFILE_MASK,EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,EGL_NONE};
-    const auto context=eglCreateContext(display,config,EGL_NO_CONTEXT,context_attributes);
+    auto context=eglCreateContext(display,config,EGL_NO_CONTEXT,context_attributes);
     if(!eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,context))return 5;
     int width=1920,height=1080;
     if(argc>4 && std::string(argv[3])!="--interactive"){width=std::stoi(argv[3]);height=std::stoi(argv[4]);}
@@ -57,11 +64,14 @@ int main(int argc,char**argv) {
     pe::audio::Mixer mixer;
     {
         pe::ui::RuntimeLauncher launcher(services,textures,{&font,texture},batch,true,data,&mixer);
-        GLuint fbo=0,render=0;glGenFramebuffers(1,&fbo);glGenTextures(1,&render);glBindTexture(GL_TEXTURE_2D,render);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
-        glBindFramebuffer(GL_FRAMEBUFFER,fbo);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,render,0);
+        GLuint fbo=0,render=0;
+        auto target=[&]{glGenFramebuffers(1,&fbo);glGenTextures(1,&render);glBindTexture(GL_TEXTURE_2D,render);glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,width,height,0,GL_RGBA,GL_UNSIGNED_BYTE,nullptr);
+            glBindFramebuffer(GL_FRAMEBUFFER,fbo);glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,render,0);};
+        target();
         pe::gfx::DrawList list;std::vector<std::uint8_t> pixels(static_cast<std::size_t>(width)*height*4),flipped(pixels.size());
         const std::map<std::string,pe::ui::Key> keys{{"cross",pe::ui::Key::cross},{"circle",pe::ui::Key::circle},{"square",pe::ui::Key::square},{"triangle",pe::ui::Key::triangle},{"options",pe::ui::Key::options},{"l1",pe::ui::Key::l1},{"r1",pe::ui::Key::r1},{"up",pe::ui::Key::up},{"down",pe::ui::Key::down},{"left",pe::ui::Key::left},{"right",pe::ui::Key::right}};
-        auto tick=[&](int n){for(int i=0;i<n;++i){launcher.update(1.0f/60);list.clear();launcher.draw(list);glClearColor(0,0,0,1);glClear(GL_COLOR_BUFFER_BIT);batch.sync_font_texture(texture,font);batch.draw(list,pe::gfx::fit_viewport(width,height),width,height);std::int16_t audio[1600]{};mixer.render(audio,800);std::this_thread::sleep_for(std::chrono::milliseconds(1));}};
+        int audio_peak=0; bool audio_paused=false;
+        auto tick=[&](int n){for(int i=0;i<n;++i){launcher.update(1.0f/60);list.clear();launcher.draw(list);glClearColor(0,0,0,1);glClear(GL_COLOR_BUFFER_BIT);batch.sync_font_texture(texture,font);batch.draw(list,pe::gfx::fit_viewport(width,height),width,height);mixer.set_bus_gain(pe::audio::Bus::ui,float(launcher.menu_volume())/100);if(!audio_paused){std::int16_t audio[1600]{};mixer.render(audio,800);audio_peak=0;for(auto sample:audio)audio_peak=std::max(audio_peak,std::abs(int(sample)));}std::this_thread::sleep_for(std::chrono::milliseconds(1));}};
         auto capture=[&](const std::string& filename){glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,pixels.data());const auto row=static_cast<std::size_t>(width)*4;for(int y=0;y<height;++y)std::copy_n(pixels.data()+static_cast<std::size_t>(height-1-y)*row,row,flipped.data()+static_cast<std::size_t>(y)*row);stbi_write_png(filename.c_str(),width,height,4,flipped.data(),width*4);};
         auto loading=[&](float seconds){
             const auto* scene=launcher.loading_scene();if(!scene)throw std::runtime_error("Active pack has no loading scene");
@@ -95,9 +105,15 @@ int main(int argc,char**argv) {
             else if(command=="appearance"){std::cout<<"APPEARANCE "<<services.preferences().theme<<" "<<services.preferences().accent<<" "<<pe::ui::accent_index()<<std::endl;}
             else if(command=="crash"){services.crash_report=arg;launcher.select("builtin");tick(120);}
             else if(command=="prefs"){std::cout<<"PREFERENCES "<<nlohmann::json(services.preferences()).dump()<<std::endl;}
+            else if(command=="import-status"){std::cout<<"IMPORT "<<launcher.theme_import_status().dump()<<std::endl;}
+            else if(command=="look"){auto p=services.preferences();p.large_text=arg.find("large")!=arg.npos;p.high_contrast=arg.find("contrast")!=arg.npos;p.reduce_motion=arg.find("calm")!=arg.npos;services.set_preferences(p);tick(30);}
+            else if(command=="volume"){auto p=services.preferences();p.menu_volume=std::clamp(std::stoi(arg),0,100);services.set_preferences(p);tick(30);}
+            else if(command=="audio-pause"){audio_paused=arg=="on";}
+            else if(command=="audio"){std::cout<<"AUDIO "<<nlohmann::json({{"peak",audio_peak},{"voices",mixer.active_voices()},{"fence",mixer.completed_fence()},{"dropped",mixer.dropped_commands()}}).dump()<<std::endl;}
             else if(command=="profiles"){std::cout<<"PROFILES "<<nlohmann::json(services.profiles()).dump()<<std::endl;}
             else if(command=="launches"){std::cout<<"LAUNCHES "<<services.launches.dump()<<std::endl;}
             else if(command=="remove-first"){const auto games=services.games();if(!games.empty())services.removed.push_back(games.front().file);}
+            else if(command=="removed"){std::cout<<"REMOVED "<<nlohmann::json(services.removed).dump()<<std::endl;}
             else if(command=="offer"){services.update_version=arg;tick(30);}
             else if(command=="update-ready"){services.update_steps=600;tick(2);}
             else if(command=="sync"){services.save_sync_on=arg!="off";services.save_sync_conflict=arg=="conflict";services.save_sync_fails=arg=="failed";}
@@ -114,12 +130,23 @@ int main(int argc,char**argv) {
             else if(command=="nextendo-state"){std::lock_guard lock(services.nextendo_lock);const auto& s=services.nextendo;std::cout<<"NEXTENDO "<<nlohmann::json({{"linked",s.linked},{"enabled",s.enabled},{"checked",s.checked},{"calls",services.nextendo_calls},{"unlinks",services.nextendo_unlinks},{"error",s.error}}).dump()<<std::endl;}
             else if(command=="recreate"){
                 launcher.release_pack_textures();textures.release();batch.delete_texture(texture);batch.release();
-                if(!batch.init())return 10;texture=batch.create_font_texture(font);launcher.set_font_texture(texture);textures.load_art(assets);launcher.reload_pack_textures();tick(90);
+                glDeleteFramebuffers(1,&fbo);glDeleteTextures(1,&render);
+                eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT);eglDestroyContext(display,context);
+                context=eglCreateContext(display,config,EGL_NO_CONTEXT,context_attributes);
+                if(!eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,context)||!batch.init())return 10;
+                target();texture=batch.create_font_texture(font);launcher.set_font_texture(texture);textures.load_art(assets);
+                if(!launcher.reload_pack_textures())return 11;
+                tick(90);
             }
             std::cout<<"OK "<<command<<" GL="<<glGetError()<<std::endl;
         }
         glDeleteFramebuffers(1,&fbo);glDeleteTextures(1,&render);
+        // Same lifecycle contract as frontend.cpp: stop/drain audio before pack PCM destruction.
+        const auto fence=mixer.stop_all_fenced();std::int16_t silence[1600]{};mixer.render(silence,800);
+        if(!fence||mixer.completed_fence()<fence||mixer.active_voices())return 12;
     }
+    std::int16_t drained[1600]{};mixer.render(drained,800);
+    std::cout<<"TEARDOWN audio=stopped voices="<<mixer.active_voices()<<std::endl;
     textures.release();batch.delete_texture(texture);batch.release();eglMakeCurrent(display,EGL_NO_SURFACE,EGL_NO_SURFACE,EGL_NO_CONTEXT);eglDestroyContext(display,context);eglTerminate(display);return 0;
 }
 #endif

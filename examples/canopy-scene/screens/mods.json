@@ -1,0 +1,13 @@
+{
+  "focus":"mods","input":{"back":{"screen":"game"}},
+  "nodes":[
+    {"id":"base","type":"rect","w":1920,"h":1080,"color":395530},
+    {"id":"title","type":"text","x":200,"y":150,"w":1450,"size":48,"text":"Mods"},
+    {"id":"game-name","type":"text","x":200,"y":230,"w":1450,"size":30,"bind":"/game/name"},
+    {"id":"mods","type":"list","x":200,"y":300,"w":1500,"h":600,"rows":5,"cell_w":1450,"cell_h":90,"source":"/game/mods","empty":"No mods installed for this game","activate":{"action":"mod.enabled","args":{"game":{"$bind":"/game/handle"},"index":{"$bind":"/selected/index"},"enabled":{"$bind":"/selected/next_enabled"}}},"children":[
+      {"id":"name","type":"text","x":24,"y":58,"w":1120,"size":30,"bind":"/item/name"},
+      {"id":"value","type":"text","x":1380,"y":58,"w":200,"size":30,"align":"right","bind":"/item/enabled","labels":{"true":"On","false":"Off"}}
+    ]},
+    {"id":"back","type":"text","x":200,"y":1000,"w":1450,"size":28,"text":"Confirm: toggle with host confirmation · Back: game options"}
+  ]
+}

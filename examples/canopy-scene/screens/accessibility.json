@@ -1,0 +1,12 @@
+{
+  "focus":"large","input":{"back":{"screen":"settings"}},
+  "nodes":[
+    {"id":"base","type":"rect","w":1920,"h":1080,"color":395530},
+    {"id":"title","type":"text","x":200,"y":150,"w":1450,"size":48,"text":"Accessibility"},
+    {"id":"help","type":"text","x":200,"y":240,"w":1450,"size":28,"text":"Confirm changes a value. These options always override theme presentation."},
+    {"id":"large","type":"focus","x":200,"y":340,"w":1450,"h":100,"activate":{"action":"preferences.adjust","args":{"field":"large_text"}},"children":[{"id":"large-label","type":"text","x":24,"y":64,"w":1000,"size":32,"text":"Larger text"},{"id":"large-value","type":"text","x":1380,"y":64,"w":300,"align":"right","size":32,"bind":"/preferences/large_text","labels":{"true":"On","false":"Off"}}]},
+    {"id":"contrast","type":"focus","x":200,"y":480,"w":1450,"h":100,"activate":{"action":"preferences.adjust","args":{"field":"high_contrast"}},"children":[{"id":"contrast-label","type":"text","x":24,"y":64,"w":1000,"size":32,"text":"High contrast"},{"id":"contrast-value","type":"text","x":1380,"y":64,"w":300,"align":"right","size":32,"bind":"/preferences/high_contrast","labels":{"true":"On","false":"Off"}}]},
+    {"id":"motion","type":"focus","x":200,"y":620,"w":1450,"h":100,"activate":{"action":"preferences.adjust","args":{"field":"reduce_motion"}},"children":[{"id":"motion-label","type":"text","x":24,"y":64,"w":1000,"size":32,"text":"Reduce motion"},{"id":"motion-value","type":"text","x":1380,"y":64,"w":300,"align":"right","size":32,"bind":"/preferences/reduce_motion","labels":{"true":"On","false":"Off"}}]},
+    {"id":"back","type":"text","x":200,"y":1000,"w":1450,"size":28,"text":"Back: settings · Options: choose launcher"}
+  ]
+}

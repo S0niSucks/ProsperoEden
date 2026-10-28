@@ -42,8 +42,8 @@ inline bool flag(const Json& j, const char* key, bool fallback = false) {
     return j.at(key).get<bool>();
 }
 inline const std::set<std::string> actions{
-    "launcher.picker", "launcher.select", "library.refresh", "profile.choose", "profile.add", "profile.rename", "profile.remove",
-    "preferences.set", "game_settings.set", "game.docked", "mods.enabled", "mod.enabled", "cheats.enabled", "cheat.enabled",
+    "launcher.picker", "launcher.select", "theme_import.open", "library.refresh", "profile.choose", "profile.add", "profile.rename", "profile.remove",
+    "preferences.set", "preferences.adjust", "game_settings.set", "game_settings.adjust", "game.docked", "mods.enabled", "mod.enabled", "cheats.enabled", "cheat.enabled",
     "save.import", "save.export", "game.delete", "launch.request", "launch.cancel", "sync.answer", "sync.cancel"
 };
 inline void action(const Json& a) {
@@ -63,7 +63,7 @@ inline void action(const Json& a) {
                 if (arg.contains("$bind")) {
                     require(arg.size() == 1 && arg.at("$bind").is_string(), "invalid argument binding");
                     const auto pointer = arg.at("$bind").get<std::string>();
-                    require(pointer.starts_with("/selected/") && pointer.size() <= 256, "action bindings must identify the selected item");
+                    require((pointer.starts_with("/selected/") || pointer=="/game/handle") && pointer.size() <= 256, "action bindings must identify the selected item");
                     try { (void)Json::json_pointer(pointer); } catch (...) { require(false, "invalid action binding"); }
                 } else for (const auto& item : arg) self(self, item, depth + 1);
             } else if (arg.is_array()) for (const auto& item : arg) self(self, item, depth + 1);
@@ -75,7 +75,7 @@ inline void binding(const std::string& b) {
     require(b.size() <= 256 && b.starts_with('/'), "bindings use JSON pointers");
     const auto end = b.find('/', 1);
     const auto root = b.substr(1, end == b.npos ? b.size() - 1 : end - 1);
-    static const std::set<std::string> roots{"library", "home", "profiles", "status", "preferences", "item", "selected"};
+    static const std::set<std::string> roots{"library", "home", "profiles", "status", "preferences", "item", "selected", "game"};
     require(roots.contains(root), "unsupported binding root");
     try { (void)Json::json_pointer(b); } catch (...) { require(false, "invalid binding pointer"); }
 }
@@ -85,10 +85,11 @@ struct Node {
     std::vector<Node> children;
 };
 struct Track {
-    std::string node, property, trigger;
+    std::string node, property, trigger, interpolation = "linear";
     float duration{};
     bool loop{};
     std::vector<std::pair<float, float>> keys;
+    std::vector<float> tangents;
 };
 struct Screen {
     std::string id, initial_focus, music;
@@ -106,7 +107,7 @@ inline Node node(const Json& j, std::size_t& total, int depth, std::set<std::str
     require(++total <= 512 && depth <= 12, "node/depth budget exceeded");
     fields(j, {"id", "type", "x", "y", "w", "h", "alpha", "radius", "color", "edge", "border", "size", "text", "bind",
         "asset", "uv", "slice", "children", "activate", "nav", "source", "columns", "rows", "cell_w", "cell_h", "gap",
-        "empty", "count", "speed", "state", "visible", "focusable", "align", "thickness", "x2", "y2", "scale"});
+        "empty", "count", "speed", "state", "visible", "focusable", "align", "thickness", "x2", "y2", "scale", "labels"});
     Node n; n.id = text(j, "id"); n.type = text(j, "type"); n.properties = j;
     static const std::set<std::string> types{"group", "mask", "rect", "circle", "ring", "line", "triangle", "image", "text", "nineslice", "focus", "list", "grid", "particles", "cover"};
     require(identifier(n.id) && ids.insert(n.id).second, "invalid or duplicate node ID");
@@ -126,6 +127,10 @@ inline Node node(const Json& j, std::size_t& total, int depth, std::set<std::str
         require(j.at(key).is_number_integer() && j.at(key).get<long long>() >= 0 && j.at(key).get<long long>() <= 0xffffff, "invalid color");
     }
     for (auto key : {"text", "empty", "state"}) if (j.contains(key)) text(j, key);
+    if(j.contains("labels")) {
+        const auto& labels=j.at("labels");require(labels.is_object() && labels.size()<=32,"invalid value labels");
+        for(auto it=labels.begin();it!=labels.end();++it) {require(it.key().size()<=32,"invalid value label key");text(labels,it.key().c_str(),"",160);}
+    }
     for (auto key : {"visible", "focusable"}) flag(j, key, true);
     const auto align = text(j, "align", "left");
     require(align == "left" || align == "right" || align == "center", "invalid text alignment");
@@ -154,20 +159,23 @@ inline Node node(const Json& j, std::size_t& total, int depth, std::set<std::str
     return n;
 }
 inline Track track(const Json& j, const std::set<std::string>& ids) {
-    fields(j, {"node", "property", "trigger", "duration", "loop", "keys"});
+    fields(j, {"node", "property", "trigger", "duration", "loop", "keys", "interpolation"});
     Track t; t.node = text(j, "node"); t.property = text(j, "property"); t.trigger = text(j, "trigger", "enter");
     require(ids.contains(t.node), "animation targets missing node");
     require(t.property == "x" || t.property == "y" || t.property == "alpha" || t.property == "scale", "unsupported animation property");
     require(t.trigger == "enter" || t.trigger == "focus" || (t.trigger.starts_with("state:") && identifier(t.trigger.substr(6))), "invalid animation trigger");
     t.duration = number(j, "duration", 0.2f, 0.001f, 60); t.loop = flag(j, "loop");
+    t.interpolation=text(j,"interpolation","linear");
+    require(t.interpolation=="linear"||t.interpolation=="step"||t.interpolation=="hermite","unsupported keyframe interpolation");
     const auto& keys = j.at("keys"); require(keys.is_array() && keys.size() >= 2 && keys.size() <= 64, "invalid keyframes");
     float previous = -1;
     for (const auto& k : keys) {
-        fields(k, {"at", "value"}); const float at = number(k, "at", 0, 0, 1);
+        fields(k, {"at", "value", "tangent"}); const float at = number(k, "at", 0, 0, 1);
         require(at > previous && k.contains("value"), "keyframes must be ordered"); previous = at;
         const float low = t.property == "alpha" ? 0 : t.property == "scale" ? 0.25f : -8192;
         const float high = t.property == "alpha" ? 1 : t.property == "scale" ? 4 : 8192;
         t.keys.emplace_back(at, number(k, "value", 0, low, high));
+        t.tangents.push_back(number(k,"tangent",0,-65536,65536));
     }
     require(t.keys.front().first == 0 && t.keys.back().first == 1, "keyframes must include endpoints");
     return t;

@@ -27,7 +27,8 @@ int main() {
             {"id":"atlas","type":"image","asset":"image","x":700,"y":100,"w":300,"h":300,"uv":[0,0,0.49,0.49]},
             {"id":"panel","type":"nineslice","asset":"image","x":1200,"y":100,"w":400,"h":400,"slice":[0.2,0.2,0.2,0.2],"border":24},
             {"id":"moving","type":"rect","x":100,"y":700,"w":200,"h":150,"color":65280},
-            {"id":"dim","type":"rect","x":700,"y":700,"w":100,"h":100,"color":16711680,"alpha":0.5}
+            {"id":"dim","type":"rect","x":700,"y":700,"w":100,"h":100,"color":16711680,"alpha":0.5},
+            {"id":"border","type":"rect","x":1000,"y":700,"w":200,"h":150,"color":0,"edge":16777215,"border":16}
         ],"animations":["motion"]})");
         auto tracks = Json::parse(R"({"motion":[{"node":"moving","property":"x","duration":1,"keys":[{"at":0,"value":100},{"at":1,"value":400}]}]})");
         Player player(parse(description,{{"home",screen}},tracks)); player.update(0,true);
@@ -41,6 +42,7 @@ int main() {
             player.draw([](const auto&){return Json::object();},[&](const std::string& kind,const Json& p) {
                 const pe::gfx::Rect r{p.value("x",0.0f),p.value("y",0.0f),p.value("w",0.0f),p.value("h",0.0f)};
                 if(kind=="rect") list.rounded_rect(r,p.value("radius",0.0f),pe::gfx::Color::rgb(p.value("color",0xffffff),p.value("alpha",1.0f)));
+                else if(kind=="border") list.bordered_rect(r,p.value("radius",0.0f),pe::gfx::Color::rgb(p.value("color",0xffffff)),p.at("border"),pe::gfx::Color::rgb(p.at("edge").get<int>()));
                 else if(kind=="image") { const auto uv=p.value("uv",std::vector<float>{0,0,1,1}); list.image(image,r,{uv[0],uv[1],uv[2],uv[3]},pe::gfx::Color::rgb(0xffffff,p.value("alpha",1.0f))); }
                 else if(kind=="clip") list.push_clip(r);
                 else if(kind=="unclip") list.pop_clip();
@@ -62,7 +64,9 @@ int main() {
             assert((pixel(450,750)==std::array<int,3>{0,255,0})); // reduced motion settled x=400
             assert((pixel(150,750)==std::array<int,3>{0,0,0}));
             assert(pixel(750,750)[0]>=127 && pixel(750,750)[0]<=128); // subtree alpha is applied once
-            assert(list.instances().size()==14); // base + mask child + image + 9 slices + moving + alpha
+            assert((pixel(1010,750)==std::array<int,3>{255,255,255}));
+            assert((pixel(1100,750)==std::array<int,3>{0,0,0}));
+            assert(list.instances().size()==15); // base + mask child + image + 9 slices + moving + alpha + border
             std::cout<<"scene GL "<<width<<'x'<<height<<": "<<list.instances().size()<<" instances, "<<batch.last_draw_calls()<<" batches, pixels passed\n";
             glDeleteFramebuffers(1,&framebuffer); glDeleteTextures(1,&color);
         }

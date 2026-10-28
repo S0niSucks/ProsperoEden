@@ -16,6 +16,8 @@ public:
     const std::string& screen() const { return screen_; }
     const std::string& focus() const { return focus_; }
     const std::string& state() const { return state_; }
+    const Json& selected() const { return context_; }
+    const Json& selected_game() const { return game_context_; }
     std::size_t selected_index() const {
         const auto found = selection_.find(focus_); return found == selection_.end() ? 0 : found->second;
     }
@@ -83,6 +85,8 @@ private:
     std::map<std::string, std::size_t> selection_;
     std::map<std::string, std::string> handles_;
     Json data_ = Json::object();
+    Json context_ = nullptr;
+    Json game_context_ = nullptr;
     double elapsed_{}, focus_time_{}, state_time_{};
     bool reduced_{}, music_dirty_ = true;
     int commands_{};
@@ -115,7 +119,7 @@ private:
     }
     void snapshot(const Query& query) {
         data_ = Json::object();
-        for (const auto* root : {"library", "home", "profiles", "status", "preferences"}) data_[root] = query(root);
+        for (const auto* root : {"library", "home", "profiles", "status", "preferences", "game"}) data_[root] = query(root);
     }
     Json value(const std::string& pointer) const {
         try { return data_.at(Json::json_pointer(pointer)); } catch (...) { return nullptr; }
@@ -130,7 +134,8 @@ private:
         } catch (const Json::exception&) { return empty; }
     }
     void normalize_selection() {
-        data_["selected"] = nullptr;
+        // Detail/workflow screens retain the host row, never a package-provided file path.
+        data_["selected"] = context_;
         std::vector<const Node*> all; collect(screen_model().nodes, all);
         const auto* focused = find(focus_);
         if (!focused || !focusable(*focused)) {
@@ -157,6 +162,8 @@ private:
             const auto handle = rows[index].value("handle", "");
             if (!handle.empty()) handles_[n->id] = handle;
             data_["selected"] = rows[index];
+            context_ = rows[index];
+            if(n->properties.value("source",std::string{})=="/library/games") game_context_=rows[index];
         }
     }
     Json resolve(const Json& arg, int depth = 0) const {
@@ -188,7 +195,16 @@ private:
             auto right = std::upper_bound(t.keys.begin(), t.keys.end(), at, [](float v, auto k) { return v < k.first; });
             if (right == t.keys.end()) p[t.property] = t.keys.back().second;
             else if (right == t.keys.begin()) p[t.property] = right->second;
-            else { const auto left = right - 1; const float f = (at - left->first) / (right->first - left->first); p[t.property] = left->second + (right->second - left->second) * f; }
+            else {
+                const auto left=right-1;const float span=right->first-left->first,f=(at-left->first)/span;float v=left->second;
+                if(t.interpolation=="linear")v+=(right->second-left->second)*f;
+                else if(t.interpolation=="hermite") {
+                    const auto index=static_cast<std::size_t>(left-t.keys.begin());const float f2=f*f,f3=f2*f;
+                    v=(2*f3-3*f2+1)*left->second+(f3-2*f2+f)*span*t.tangents[index]+(-2*f3+3*f2)*right->second+(f3-f2)*span*t.tangents[index+1];
+                }
+                const float lo=t.property=="alpha"?0:t.property=="scale"?0.25f:-8192,hi=t.property=="alpha"?1:t.property=="scale"?4:8192;
+                p[t.property]=std::clamp(v,lo,hi);
+            }
         }
         return p;
     }
@@ -244,11 +260,15 @@ private:
             } else {
                 if (p.contains("bind")) {
                     const auto bound = value(p.at("bind"));
-                    if (n.type == "text") p["text"] = bound.is_string() ? bound.get<std::string>() : bound.is_primitive() && !bound.is_null() ? bound.dump() : "";
+                    if (n.type == "text") {
+                        p["text"] = bound.is_string() ? bound.get<std::string>() : bound.is_primitive() && !bound.is_null() ? bound.dump() : "";
+                        const auto labels=p.value("labels",Json::object());const auto key=p.at("text").get<std::string>();
+                        if(labels.contains(key)) {p["text"]=labels.at(key);p["translate"]=true;}
+                    }
                     else if (n.type == "cover") p["game"] = bound.is_string() ? bound.get<std::string>() : "";
                 }
                 if (n.type == "text") { p["width"] = w; if (!p.contains("bind")) p["translate"] = true; }
-                emit(draw, n.type, p);
+                emit(draw, n.type=="rect"&&p.value("border",0.0f)>0?"border":n.type, p);
             }
             emit(draw, "untransform", {}); emit(draw, "unopacity", {});
         }

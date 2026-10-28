@@ -6,5 +6,5 @@
   "images": {},
   "audio": {},
   "animations": {"arrival": "animations/arrival.json"},
-  "screens": {"home": "screens/home.json", "profiles": "screens/profiles.json", "settings": "screens/settings.json"}
+  "screens": {"home":"screens/home.json","profiles":"screens/profiles.json","settings":"screens/settings.json","display":"screens/display.json","audio":"screens/audio.json","accessibility":"screens/accessibility.json","game":"screens/game.json","game-video":"screens/game-video.json","saves":"screens/saves.json","mods":"screens/mods.json","cheats":"screens/cheats.json"}
 }

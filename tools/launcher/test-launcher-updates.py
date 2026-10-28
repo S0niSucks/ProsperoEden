@@ -178,4 +178,37 @@ with tempfile.TemporaryDirectory(prefix='pe-pack-updates-') as temporary:
     (pack/'manifest.json').write_text(json.dumps(original))
     assert run('install')['phase']=='installed';untouched();passed.append('publisher output installs through native updater')
 
+    # Scene packs traverse the same real download/stage/replace/rollback/recovery manager.
+    original = json.loads((root/'examples/canopy-scene/manifest.json').read_text())
+    original.update(id='test-pack',version='1.0.0',updates={'feed':'https://updates.example/launcher-updates.json'})
+    updated = dict(original,version='1.1.0')
+    description = json.loads((root/'examples/canopy-scene/theme.json').read_text())
+    description['id']='test-pack'
+    def scene_reset():
+        reset()
+        shutil.copytree(root/'examples/canopy-scene',pack,dirs_exist_ok=True)
+        (pack/'manifest.json').write_text(json.dumps(original))
+        (pack/'theme.json').write_text(json.dumps(description))
+    def scene_archive(bad=None):
+        files={str(p.relative_to(root/'examples/canopy-scene')):p.read_bytes()
+               for p in (root/'examples/canopy-scene').rglob('*') if p.is_file()}
+        files.update({'manifest.json':json.dumps(updated),'theme.json':json.dumps(description)})
+        files.update(bad or {})
+        output=io.BytesIO()
+        with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
+            for name,value in files.items():archive.writestr('test-pack/'+name,value)
+        return output.getvalue()
+    scene_reset();feed(scene_archive());assert run('install')['phase']=='installed';untouched()
+    assert run('rollback')['phase']=='installed';untouched();passed.append('scene install and rollback preserve state and library')
+    scene_reset();feed(scene_archive());assert run('stage')['phase']=='ready'
+    assert json.loads((pack/'manifest.json').read_text())['version']=='1.0.0'
+    assert run('cancel-ready')['phase']=='cancelled';untouched();passed.append('scene staging and cancellation leave live pack intact')
+    for label,patch in [('shader',{'nodes':[{'id':'evil','type':'shader'}]}),
+                        ('missing image',{'nodes':[{'id':'image','type':'image','asset':'missing'}]}),
+                        ('invalid focus',{'focus':'missing','nodes':[{'id':'base','type':'rect'}]})]:
+        scene_reset();feed(scene_archive({'screens/home.json':json.dumps(patch)}))
+        assert run('install')['phase']=='failed'
+        assert json.loads((pack/'manifest.json').read_text())['version']=='1.0.0'
+        untouched();passed.append('scene validation rejects '+label+' before replacement')
+
 print(json.dumps({'passed':len(passed),'cases':passed},indent=2))

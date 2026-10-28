@@ -48,13 +48,45 @@ void scene_sound(Pack& p,const std::string& name,bool music) {
 void scene_dispatch(Pack& p,const std::string& name,Json args) {
     scene::require(scene::actions.contains(name),"unsupported action");
     args.erase("confirmed");
-    static const std::set<std::string> direct{"launcher.picker","launcher.select","library.refresh","profile.choose","launch.request","launch.cancel","sync.cancel"};
+    // Confirmation snapshots are host-private, never fields accepted from pack bindings.
+    for(auto it=args.begin();it!=args.end();) {
+        if(!it.key().empty()&&it.key().front()=='_')it=args.erase(it);else ++it;
+    }
+    if(name=="preferences.adjust" || name=="game_settings.adjust") {
+        // Bounded host-owned value edits; schema/choice validation remains in action().
+        const bool global=name=="preferences.adjust";const std::string field=args.at("field");
+        static const std::set<std::string> toggles{"large_text","high_contrast","reduce_motion","vibration","docked","vsync","mods","cheats"};
+        const std::map<std::string,std::pair<int,int>> ranges{{"volume",{100,10}},{"menu_volume",{100,10}},{"renderer",{1,1}},{"output",{2,1}},
+            {"resolution",{int(services.resolution_labels().size())-1,1}},{"filter",{int(services.filter_labels().size())-1,1}},
+            {"astc",{1,1}},{"language",{int(services.language_labels().size())-1,1}},{"refresh",{1,1}}};
+        const auto values=global?Json(services.preferences()):Json(services.game_settings(game(args).title_id));
+        scene::require(values.contains(field) && (toggles.contains(field)||ranges.contains(field)),"unsupported setting control");
+        Json value;
+        if(values.at(field).is_boolean()) {scene::require(toggles.contains(field),"setting is not a toggle");value=!values.at(field).get<bool>();}
+        else {
+            scene::require(ranges.contains(field),"setting is not adjustable");const auto [max,step]=ranges.at(field);
+            const int direction=args.value("step",1);scene::require(direction==1 || direction==-1,"invalid setting step");
+            const int low=global?0:-1;int next=values.at(field).get<int>()+direction*step;if(next>max)next=low;if(next<low)next=max;value=next;
+        }
+        const Json patch={{field,value}};
+        const auto result=action(p,global?"preferences.set":"game_settings.set",global?patch:Json{{"game",args.at("game")},{"patch",patch}});
+        if(!result.value("ok",false)) scene_notice=result.value("message","Setting could not be saved");
+        return;
+    }
+    static const std::set<std::string> direct{"launcher.picker","launcher.select","theme_import.open","library.refresh","profile.choose","launch.request","launch.cancel","sync.cancel"};
     if(!direct.contains(name)) {
         // A theme can request but never draw or answer this host-owned confirmation.
         if(name=="profile.remove" || name=="profile.rename") {
-            const int index=args.at("index"); const auto profiles=services.profiles();
+            int index=args.value("index",-1); const auto profiles=services.profiles();
+            if(args.contains("handle")) {index=-1;for(int i=0;i<int(profiles.size());++i)if(services.profile_key(i)==args.at("handle").get<std::string>())index=i;}
             scene::require(index>=0 && index<static_cast<int>(profiles.size()),"invalid profile");
             args["_profile_handle"]=services.profile_key(index);
+        }
+        if(name=="mod.enabled"||name=="cheat.enabled") {
+            const auto& g=game(args);const int index=args.at("index");
+            const Json rows=name=="mod.enabled"?Json(services.mods(g.title_id)):Json(services.cheats(g.title_id));
+            scene::require(index>=0 && index<int(rows.size()),"mod/cheat changed before confirmation");
+            args["_entry_snapshot"]=rows.at(index);
         }
         scene_confirmation={{"action",name},{"args",std::move(args)}}; return;
     }
@@ -105,6 +137,11 @@ bool scene_dialog_input(Pack& p,const std::string& key) {
                 for(int i=0;i<static_cast<int>(profiles.size());++i) if(services.profile_key(i)==args.at("_profile_handle").get<std::string>()) index=i;
                 scene::require(index>=0,"profile changed while confirming"); args.erase("_profile_handle"); args["index"]=index;
             }
+            if(args.contains("_entry_snapshot")) {
+                const auto& g=game(args);const int index=args.at("index");
+                const Json rows=name=="mod.enabled"?Json(services.mods(g.title_id)):Json(services.cheats(g.title_id));
+                scene::require(index>=0&&index<int(rows.size())&&rows.at(index)==args.at("_entry_snapshot"),"mod/cheat changed while confirming");args.erase("_entry_snapshot");
+            }
             args["confirmed"]=true; const auto result=action(p,name,args);
             if(!result.value("ok",false)) scene_notice=result.value("message","Operation failed");
         }
@@ -134,7 +171,8 @@ void draw_scene_dialog(gfx::DrawList& list) {
     list.reset_state(); const auto& t=th();
     list.rounded_rect({0,0,1920,1080},0,t.base.with_alpha(0.97f));
     auto line=[&](const std::string& s,float y,float size=30.0f) {
-        list.text(*fonts.font,fonts.texture,fonts.font->fit(tr(s.c_str()),size,1360),280,y,size,t.text);
+        const auto actual=text_size(size);
+        list.text(*fonts.font,fonts.texture,fonts.font->fit(tr(s.c_str()),actual,1360),280,y,actual,t.text);
     };
     if(!scene_confirmation.is_null()) {
         line("Confirm launcher action",300,44);
@@ -146,6 +184,7 @@ void draw_scene_dialog(gfx::DrawList& list) {
             const auto profiles=services.profiles();
             for(int i=0;i<static_cast<int>(profiles.size());++i) if(services.profile_key(i)==args.at("_profile_handle").get<std::string>()) line(profiles[i].name,480);
         }
+        if(args.contains("_entry_snapshot"))line(args.at("_entry_snapshot").value("name",std::string{}),530,26);
         line("This action may change or remove your data.",580);
     } else if(!scene_notice.empty()) { line("Launcher action failed",300,44); line(scene_notice,430); }
     else {
@@ -162,10 +201,26 @@ void draw_scene_dialog(gfx::DrawList& list) {
     constexpr const char* faces[]{"Cross","Circle","Square","Triangle"};
     line(std::string(faces[cached_preferences.menu_bind[0]])+": confirm    "+faces[cached_preferences.menu_bind[1]]+": back / cancel",850,24);
 }
+Json scene_settings_labels(Json value) {
+    const auto label=[&](const char* key,const std::vector<std::string>& choices){const int index=value.value(key,-1);value[std::string(key)+"_label"]=index<0?tr("Default"):index<int(choices.size())?choices[index]:tr("Unavailable");};
+    label("resolution",services.resolution_labels());label("filter",services.filter_labels());label("language",services.language_labels());
+    return value;
+}
 bool call_scene(Pack& p,const char* method,const Json& argument) {
     try {
         const std::string name=method;
-        const auto query=[&](const std::string& q) -> Json { return query_cached(p,q,Json::object()); };
+        const auto query=[&](const std::string& q) -> Json {
+            if(q=="preferences")return scene_settings_labels(Json(cached_preferences));
+            if(q=="game") {
+                const auto& selected=p.scene_player->selected_game();
+                if(!selected.is_object() || !selected.contains("handle") || !catalog.find(selected.value("handle",std::string{}))) return Json::object();
+                const Json args={{"game",selected.at("handle")}};
+                auto mods=query_cached(p,"mods",args).at("mods"),cheats=query_cached(p,"cheats",args).at("cheats");
+                for(auto* rows:{&mods,&cheats})for(std::size_t i=0;i<rows->size();++i){(*rows)[i]["index"]=i;(*rows)[i]["next_enabled"]=!(*rows)[i].value("enabled",false);}
+                return {{"handle",selected.at("handle")},{"name",selected.value("name",std::string{})},{"settings",scene_settings_labels(query_cached(p,"game_settings",args))},{"mods",mods},{"cheats",cheats}};
+            }
+            return query_cached(p,q,Json::object());
+        };
         const auto sound=[&](const std::string& cue,bool music) { scene_sound(p,cue,music); };
         if(name=="input") {
             const auto physical=argument.at("key").get<std::string>();
