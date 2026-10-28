@@ -4,6 +4,7 @@
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 
@@ -44,11 +45,14 @@ with tempfile.TemporaryDirectory(prefix='prosperoeden-strings-') as temporary:
             'return TR("Adjacent " "backend");\n'
             'return "Unmarked private diagnostic";\n'
             '// TR("Backend comment")\n', encoding='utf-8')
-    (network / 'keyboard.cpp').write_text('return TR("Not an allowed backend");', encoding='utf-8')
+    (network / 'keyboard.cpp').write_text('return TR("Prompt title");\nreturn "Unmarked prompt";', encoding='utf-8')
+    (network / 'transport.cpp').write_text('return TR("Not an allowed backend");', encoding='utf-8')
+    (network / 'keyboard_prompt.h').write_text('return TR("Not an allowed backend header");', encoding='utf-8')
     (network / 'config.inc').write_text('return TR("Not an allowed extension");', encoding='utf-8')
     (root / 'headless/main.cpp').write_text('return TR("Not a UI source");', encoding='utf-8')
     marked = strings.marked_text()
-    assert set(marked) - set(texts) == {'Backend config', 'Backend editor', 'Adjacent backend'}
+    assert set(marked) - set(texts) == {'Backend config', 'Backend editor', 'Adjacent backend', 'Prompt title'}
+    assert marked['Prompt title'] == ['network/keyboard.cpp']
     assert marked['Backend config'] == ['network/config.cpp']
     assert marked['Backend editor'] == ['network/editor.cpp']
     assert marked['Adjacent backend'] == ['network/config.cpp', 'network/editor.cpp']
@@ -59,31 +63,45 @@ with tempfile.TemporaryDirectory(prefix='prosperoeden-strings-') as temporary:
 strings.ROOT, strings.LAUNCHER, strings.SETTINGS, strings.NETWORK_SOURCES = original
 strings.NETWORK_SOURCES = ()
 before = strings.marked_text()
+strings.NETWORK_SOURCES = strings.NETWORK_BACKEND_SOURCES
+backend = strings.marked_text()
 strings.NETWORK_SOURCES = original[3]
 after = strings.marked_text()
 handoff = {json.loads(line) for line in (strings.ROOT / 'docs/NETWORK_EDITOR_MSGIDS.txt').read_text(encoding='utf-8').splitlines()
            if line and not line.startswith('#')}
 assert len(handoff) == 83
 expected = handoff - before.keys()  # use the existing handoff, not a duplicate backend message table
+backend_added = backend.keys() - before.keys()
+original_added = backend_added - {'Network location'}
+assert len(expected) == 19 and original_added == expected, (expected, original_added)
+assert len(backend_added) == 20 and backend_added == expected | {'Network location'}
+# Independent frozen audit from 1ec3910: exact 14 titles + two hints, not a count inferred
+# merely from growing the allowlist. The runtime literals stay single-source in keyboard.cpp.
+audit = (strings.ROOT / 'docs/NETWORK_TEXT_EXTRACTION.md').read_text(encoding='utf-8')
+prompt_expected = set(re.findall(r'^\| line \d+, (?:title|password hint|other hint) \| `([^`]+)` \|$', audit, re.MULTILINE))
+prompt_added = after.keys() - backend.keys()
+assert len(prompt_expected) == 16 and prompt_added == prompt_expected, (prompt_expected, prompt_added)
 added = after.keys() - before.keys()
-assert len(expected) == 19 and added == expected, (expected, added)
+assert len(added) == 36
 for key, origins in before.items():
     assert after[key] == origins, (key, origins, after[key])
-assert all(set(after[key]) <= set(original[3]) for key in added)
+assert all(set(after[key]) <= set(strings.NETWORK_BACKEND_SOURCES) for key in backend_added)
+assert all(after[key] == ['network/keyboard.cpp'] for key in prompt_added)
+assert after['Network location'] == ['network/editor.cpp']
 
 # Optional external coverage receipt is read-only and independent of our marker implementation.
 if path := os.environ.get('NETWORK_TRANSLATION_COVERAGE'):
     coverage = json.loads(Path(path).read_text(encoding='utf-8'))
-    assert added == set(coverage['feature_needs_extraction_marking'])
+    assert original_added == set(coverage['feature_needs_extraction_marking'])
 
 # Compose only discovery in memory over the current parent sources; never edit the parent checkout.
 if path := os.environ.get('NETWORK_STRINGS_REFERENCE_ROOT'):
     reference = load(Path(path) / 'tools/launcher/strings.py', 'parent_strings')
     baseline = reference.marked_text()
     strings.LAUNCHER, strings.SETTINGS = reference.LAUNCHER, reference.SETTINGS
-    composed = strings.marked_text()  # ROOT still selects this branch's two marked backend sources
-    assert composed.keys() - baseline.keys() == added
-    assert all(composed[key] == origins for key, origins in baseline.items())
-    print(f'Parent source/provenance preservation PASS: {len(baseline)} existing msgids, .inc retained, exactly 19 added')
+    composed = strings.marked_text()  # ROOT still selects this branch's explicit network sources
+    assert composed.keys() - baseline.keys() == added - baseline.keys()
+    assert all(composed[key][:len(origins)] == origins for key, origins in baseline.items())
+    print(f'Parent source/provenance preservation PASS: {len(baseline)} existing msgids, .inc retained; 20 backend + 16 prompt keys scoped separately')
 
-print('Launcher strings PASS: C++/header/include discovery, shared msgids, adjacent literals, exact backend allowlist/provenance, and 19 handoff-matched additions')
+print('Launcher strings PASS: legacy discovery/provenance; original 19 exact handoff keys separately preserved; 20 backend keys + 16 exact native prompt keys (not full UI composition)')

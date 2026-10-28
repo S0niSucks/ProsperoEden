@@ -61,9 +61,15 @@ spec = importlib.util.spec_from_file_location('feature_strings', Path(__file__).
 strings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(strings)
 texts = strings.marked_text()
-backends = strings.NETWORK_SOURCES
+backends = strings.NETWORK_BACKEND_SOURCES
 keys = sorted(key for key, origins in texts.items() if any(origin in backends for origin in origins))
-assert len(keys) == 19
+assert len(keys) == 20 and 'Network location' in keys
+original_keys = set(keys) - {'Network location'}
+assert len(original_keys) == 19
+prompt_keys = {key for key, origins in texts.items() if 'network/keyboard.cpp' in origins}
+assert len(prompt_keys) == 16
+new_keys = prompt_keys | {'Network location'}
+assert len(new_keys) == 17 and not (new_keys & original_keys)
 with tempfile.TemporaryDirectory(prefix='prosperoeden-network-locales-') as temporary:
     root = Path(temporary)
     originals = {}
@@ -87,7 +93,8 @@ if handoff := os.environ.get('NETWORK_TRANSLATION_HANDOFF'):
     assert hashlib.sha256(raw).hexdigest() == '304bc230c8291da0912832a32a07a4f139911f264d8b7e61bf63fa4dcbdc5905'
     data = json.loads(raw, object_pairs_hook=module.unique_object)
     assert len(data['keys']) == 81 and len(data['translations']) == 30
-    assert set(keys) <= set(data['keys']) <= texts.keys()
+    assert original_keys <= set(data['keys']) <= texts.keys()
+    assert not (new_keys & set(data['keys']))  # the SHA-bound 81-key package is unchanged
     with tempfile.TemporaryDirectory(prefix='prosperoeden-network-handoff-') as temporary:
         root = Path(temporary)
         originals = {}
@@ -115,4 +122,23 @@ if handoff := os.environ.get('NETWORK_TRANSLATION_HANDOFF'):
         assert all(len(module.strings.parse_po(path)) == 82 for path in originals)
     print('SHA-bound handoff PASS: 81 keys x 30 fixture locales, all 19 backend keys, additive/no-op/placeholder refusal')
 
-print('Translation import PASS: validate-before-write, exact locales/source/placeholder binding, repeat no-op, existing bytes/provenance preserved; 19 network keys admitted from real extraction')
+with tempfile.TemporaryDirectory(prefix='prosperoeden-prompt-locales-') as temporary:
+    root = Path(temporary)
+    # Synthetic labels only, not advance translations or writes into real catalogs.
+    originals = {}
+    for index in range(30):
+        path = root / (f'fixture-{index}.po')
+        originals[path] = b'# Existing 81-key work must remain untouched\nmsgid "Existing"\nmsgstr "Original"\n'
+        path.write_bytes(originals[path])
+    data = {'keys': sorted(new_keys), 'translations': {path.stem: ['Fixture: ' + key for key in sorted(new_keys)] for path in originals}}
+    generated = module.prepare(data, root, texts)
+    assert len(generated) == 30
+    for path, content in generated.items():
+        assert path.read_bytes() == originals[path] and content.startswith(originals[path])
+        path.write_bytes(content)
+        entries = module.strings.parse_po(path)
+        assert len(entries) == 18 and entries['Existing'] == 'Original'
+        assert all(entries[key] == 'Fixture: ' + key for key in new_keys)
+    assert module.prepare(data, root, texts) == {}
+
+print('Translation import PASS: existing cases/81-key receipt preserved; original 19 separately bound, 20 backend keys and 17 new keys x 30 synthetic fixture locales admitted; no catalog publication')

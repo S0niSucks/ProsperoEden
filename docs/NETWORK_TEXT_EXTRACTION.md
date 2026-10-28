@@ -1,8 +1,10 @@
 # Network text extraction follow-up to 251c732
 
 Branch: `team/network-text-extraction-1006000`, based directly on `251c732`.
-This is extraction metadata and fixture coverage only. It does not compose or change USB/launch
+The initial `1ec3910` follow-up is extraction metadata and fixture coverage only. It does not compose or change USB/launch
 admission, `EdenServices`, native UI, keyboard behavior, CMake, catalog files or the POT.
+The separate continuation implements the private native prompt seam and creation-only name
+option; see `NETWORK_KEYBOARD_PROMPTS.md`. Actual UI/service/admission composition is **PENDING**.
 
 ## Exact coverage and counts
 
@@ -35,10 +37,12 @@ Only marked text from these two additional source paths is admitted:
 It does not recursively scan other headless/network sources, keyboard prompts or diagnostics.
 Missing optional backend source files are ignored, as absent launcher source matches are.
 
-## Native literals still missing from the translation input — audit only
+## Frozen 1ec3910 audit: 17 literals missing from the unchanged 81-key input
 
 All **16** native keyboard literals below are absent from the 81 new keys and from the complete
-86-key candidate union. `keyboard.cpp` is deliberately unchanged by this follow-up.
+86-key candidate union. The table/line numbers describe `1ec3910`, and are retained as the
+independent exact-match regression receipt. The continuation now marks these literals in
+`keyboard.cpp`; it does not merge translations or modify the original 81-key input.
 
 | Source in `headless/network/keyboard.cpp` | Exact visible English literal |
 | --- | --- |
@@ -60,21 +64,29 @@ All **16** native keyboard literals below are absent from the 81 new keys and fr
 | line 61, other hint | `Confirm to use this value; Cancel keeps the previous value` |
 
 One additional visible literal is outside those 16 prompts: `Network location`, the persisted
-default name at `editor.cpp:130`. It is absent from the same candidate union. This makes **17
-additional visible literals** found in this narrow audit, not 17 newly implemented translations.
+default name at `editor.cpp:130` in `1ec3910`. It is absent from the same candidate union. This makes **17
+additional visible literals** found in this narrow audit. Its continuation marks the key in
+`DefaultNetworkLocationName()` and accepts a copied creation-only label via `Begin(id, initial_name)`;
+this is still not 17 deployed UI translations.
 User-entered names/paths/credentials and internal protocol/JSON/error tokens are not msgids.
 This is not an audit of every transport/launcher diagnostic.
 
-**Proposal for parent review, not implemented:** resolve prompt title/hint keys synchronously on
+**Parent composition still pending:** resolve prompt title/hint keys synchronously on
 the UI thread using the active catalog, convert/copy the resolved UTF-16 strings, then pass an
 immutable, credential-free prompt snapshot into the private keyboard future. Do not read the
 mutable global catalog from the asynchronous backend or add a `pe::tr` stub/link workaround.
 Preserve masking, empty password initial text, private answer consumption and enum-only futures.
-The persisted default name needs a separate display-versus-storage decision; do not silently
-translate stored names when the language changes. No service/interface/admission change is made
-here while the USB audit owns that area.
+The continuation implements the creation-only display-versus-storage contract: never retranslate
+stored/user-entered names. No service/interface/admission change is made here while the USB audit
+owns that area. The exact future parent API/caller snippets are documentary only in
+`NETWORK_KEYBOARD_PROMPTS.md`.
 
-## Fixture validation and parent composition
+Current scoped extraction is **20 config/editor keys + 16 keyboard prompt keys = 36**, with the
+original **19** independently verified against the original handoff/coverage set. The 17-key
+continuation does not imply complete UI, native IME or 30-locale acceptance. Only
+`network/keyboard.cpp` is added to the explicit allowlist; no broad headless scan is introduced.
+
+## Initial 1ec3910 fixture validation and parent composition
 
 All tests ran Docker-only with read-only `/src` and `/parent`, private `/work`, 2 CPUs / 3 GiB.
 The Python reference container used `--network none` and disabled bytecode writes. No source

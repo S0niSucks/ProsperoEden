@@ -23,6 +23,25 @@ EditorResult Map(ConfigError error) {
 bool Clean(std::string_view value, std::size_t max) {
     return value.size() <= max && std::none_of(value.begin(), value.end(), [](unsigned char c) { return c < 32 || c == 127; });
 }
+bool ValidName(std::string_view value) {
+    if (value.empty() || !Clean(value, 256)) return false;
+    // New default labels and custom keyboard providers must be bounded, scalar UTF-8 too.
+    for (std::size_t i = 0; i < value.size();) {
+        const auto first = static_cast<unsigned char>(value[i++]);
+        unsigned code = first, count = 0, minimum = 0;
+        if (first >= 0xc2 && first <= 0xdf) { code = first & 31; count = 1; minimum = 0x80; }
+        else if (first >= 0xe0 && first <= 0xef) { code = first & 15; count = 2; minimum = 0x800; }
+        else if (first >= 0xf0 && first <= 0xf4) { code = first & 7; count = 3; minimum = 0x10000; }
+        else if (first >= 0x80) return false;
+        while (count > 0) {
+            --count;
+            if (i == value.size() || (static_cast<unsigned char>(value[i]) & 0xc0) != 0x80) return false;
+            code = (code << 6) | (static_cast<unsigned char>(value[i++]) & 63);
+        }
+        if (code < minimum || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) return false;
+    }
+    return true;
+}
 bool Duplicate(const std::vector<Share>& shares, const Share& draft, const std::string& old) {
     return std::any_of(shares.begin(), shares.end(), [&](const auto& s) {
         return s.id != old && (s.id == draft.id || (s.protocol == draft.protocol && s.server == draft.server &&
@@ -69,7 +88,7 @@ bool Assign(Share& s, Field f, const std::string& value) {
         return true;
     }
     switch (f) {
-    case Field::name: if (value.empty()) return false; s.name = value; break;
+    case Field::name: if (!ValidName(value)) return false; s.name = value; break;
     case Field::server: { Share check = s; check.server = value; check.share = s.protocol == "smb" ? "games" : "/games";
         check.folder.clear(); check.updates_dir.clear(); check.user.clear(); check.domain.clear(); check.password.clear(); check.encrypt = false;
         if (!Valid(check)) return false;
@@ -111,8 +130,13 @@ EditorResult Editor::Open(const std::string& path) {
     selected.clear(); file = path; source = ReadConfiguration(file, true); return error = Map(source.error);
 }
 EditorResult Editor::Begin(const std::string& id) {
+    return Begin(id, DefaultNetworkLocationName());
+}
+std::string_view DefaultNetworkLocationName() { return TR("Network location"); }
+EditorResult Editor::Begin(const std::string& id, std::string_view initial_name) {
     std::lock_guard lock(mutex);
     if (source.error != ConfigError::none) return error = Map(source.error);
+    if (id.empty() && !ValidName(initial_name)) return error = EditorResult::invalid;
     ++generation; draft = {}; selected = id; existing = !id.empty(); replaced = false;
     if (existing) {
         const auto found = std::find_if(source.shares.begin(), source.shares.end(), [&](const auto& s) { return s.id == id; });
@@ -127,7 +151,7 @@ EditorResult Editor::Begin(const std::string& id) {
                << '-' << static_cast<unsigned>(getpid()) << '-' << ++sequence;
             draft.id = id.str(); // do not reuse a deleted location's URI identity for another NAS
         } while (std::any_of(source.shares.begin(), source.shares.end(), [&](const auto& s) { return s.id == draft.id; }));
-        draft.name = "Network location";
+        draft.name = initial_name;
     }
     editing = true; dirty = false; return error = EditorResult::ok;
 }

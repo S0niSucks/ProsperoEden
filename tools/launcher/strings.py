@@ -35,7 +35,9 @@ TEMPLATE = ROOT / "tools/launcher/launcher.pot"
 FONT = LAUNCHER / "ui/fonts/montserrat-medium.pefont"
 SETTINGS = ROOT / "headless/settings_store.h"
 SETTING_LABELS = ("kResolutionLabels", "kUpscalingFilterLabels", "kAstcTextureLabels", "kLanguageLabels")
-NETWORK_SOURCES = ("network/config.cpp", "network/editor.cpp")
+NETWORK_BACKEND_SOURCES = ("network/config.cpp", "network/editor.cpp")
+NETWORK_PROMPT_SOURCES = ("network/keyboard.cpp",)
+NETWORK_SOURCES = NETWORK_BACKEND_SOURCES + NETWORK_PROMPT_SOURCES
 
 LITERALS = r'((?:"(?:[^"\\]|\\.)*"\s*)+)'
 MARKED = re.compile(r"\b(?:tr|TR)\(\s*" + LITERALS)
@@ -251,7 +253,7 @@ def marked_text():
     found = {}
     sources = [(p, p.relative_to(LAUNCHER).as_posix())
                for p in sorted(p for pattern in ("*.cpp", "*.hpp", "*.h", "*.inc") for p in LAUNCHER.rglob(pattern))]
-    # Only these two backend sources return marked UI text; do not scan all headless diagnostics.
+    # Explicit backend/prompt allowlist only; never scan all headless diagnostics.
     sources += [(ROOT / "headless" / name, name) for name in NETWORK_SOURCES
                 if (ROOT / "headless" / name).is_file()]
     for path, origin in sources:

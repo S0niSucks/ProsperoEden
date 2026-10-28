@@ -2,6 +2,7 @@
 #pragma once
 #include "config.h"
 #include <mutex>
+#include <string_view>
 
 namespace Eden::Network {
 enum class Field { name, protocol, server, share, folder, updates, enabled, port, user, password, domain,
@@ -26,10 +27,12 @@ struct PrivateAnswer { EditorResult result = EditorResult::unavailable; std::str
 using PrivateKeyboard = std::function<PrivateAnswer(const PrivateText&, const std::atomic<bool>&)>;
 PrivateAnswer NativeNetworkKeyboard(const PrivateText&, const std::atomic<bool>&);
 std::string EditorMessage(EditorResult);
+std::string_view DefaultNetworkLocationName(); // English key: resolve once on UI thread for new locations only.
 class Editor {
 public:
     EditorResult Open(const std::string& file);
     EditorResult Begin(const std::string& id); // empty ID: a new, stable generated identity
+    EditorResult Begin(const std::string& id, std::string_view initial_name); // used only for creation, persisted byte-exact
     EditorView View() const;
     EditorResult Change(Field field); // protocol/boolean choices only
     EditorResult Password(PasswordChoice choice);
