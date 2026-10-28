@@ -4,7 +4,9 @@
 #include "nextendo_http.h"
 #include "nextendo_oauth.h"
 #include "remote/http.h"
+#include "theme_storage.h"
 #include <cassert>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -16,11 +18,12 @@ const std::string second = "1123456789ABCDEF23456789ABCDEF01";
 std::string config;
 bool storage_access = true;
 int checks = 0;
-std::string CurrentProfile(int user) { return user == 0 ? first : second; }
+int metadata_queries = 0;
+std::string CurrentProfile(int user) { ++metadata_queries; return user == 0 ? first : second; }
 }
 namespace Eden {
-bool FilesystemAccess() { return storage_access; }
-std::string ConfigDir() { return config; }
+bool FilesystemAccess() { ++metadata_queries; return storage_access; }
+std::string ConfigDir() { ++metadata_queries; return config; }
 namespace Multiplayer {
 enum class Phase { Idle, Connected };
 struct Snapshot { Phase phase = Phase::Idle; };
@@ -38,6 +41,8 @@ public:
     Eden::Nextendo::Status nextendo_action_with_consent(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&, bool);
     std::mutex bridge_;
     std::mutex job_admission_mutex_;
+    std::shared_ptr<Eden::ThemeStorage::Ledger> theme_storage_ = Eden::ThemeStorage::ProcessLedger();
+    std::atomic<bool> network_mutation_active_{false};
     std::atomic<bool> usb_active_{false};
     bool launch_committed_ = false;
     std::atomic<bool> nextendo_busy_{false};
@@ -59,6 +64,63 @@ int main(int argc, char** argv) {
     const std::atomic<bool> stop{false};
     using Eden::Nextendo::Action;
     const auto root = std::filesystem::path(config) / "nextendo";
+    // Compile the unmodified production include against the actual process ledger and
+    // atomic network flag. Refusal must precede profile/storage lookup, Store I/O and HTTP,
+    // and must not acquire/clear a busy flag owned by a different request.
+    const auto refused_without_io = [&] {
+        const auto before_queries = metadata_queries, before_checks = checks;
+        const auto before_busy = services.nextendo_busy_.load();
+        const auto before_network = services.network_mutation_active_.load();
+        const auto before_held = services.theme_storage_->held.load();
+        const auto before_url = services.nextendo_browser_url_;
+        for (const auto action : {Action::import_session, Action::enable, Action::disable,
+                                  Action::check_account, Action::unlink, Action::link_browser}) {
+            for (const auto& result : {services.nextendo_action(first, action, stop),
+                    services.nextendo_action_with_consent(first, action, stop, true)}) {
+                assert(result.error == "Nextendo action failed. Retry or unlink the session.");
+                assert(!result.linked && !result.enabled && !result.checked && result.routes == 0);
+            }
+            assert(services.nextendo_busy_.load() == before_busy);
+            assert(services.network_mutation_active_.load() == before_network);
+            assert(services.theme_storage_->held.load() == before_held);
+        }
+        assert(metadata_queries == before_queries && checks == before_checks);
+        assert(services.nextendo_browser_url_ == before_url && !std::filesystem::exists(root));
+    };
+    const auto consent_gate_reached = [&] {
+        const auto before_queries = metadata_queries, before_checks = checks;
+        assert(services.nextendo_action(first, Action::link_browser, stop).error ==
+            Eden::Nextendo::GameLinkConsentRequired);
+        assert(metadata_queries == before_queries && checks == before_checks);
+        assert(!services.nextendo_busy_ && !std::filesystem::exists(root));
+    };
+    assert(services.theme_storage_ == Eden::ThemeStorage::ProcessLedger());
+    assert(!services.theme_storage_->busy() && !services.network_mutation_active_);
+    {
+        auto credit = Eden::ThemeStorage::Reserve(services.theme_storage_, Eden::ThemeStorage::MinRequest,
+            Eden::ThemeStorage::Headroom + Eden::ThemeStorage::MinRequest);
+        assert(credit && services.theme_storage_->held == Eden::ThemeStorage::MinRequest);
+        refused_without_io();
+        auto last = credit;
+        credit.reset();
+        assert(services.theme_storage_->busy());
+        refused_without_io();
+        services.nextendo_busy_ = true;
+        refused_without_io();
+        assert(services.nextendo_busy_);
+        services.nextendo_busy_ = false;
+        last.reset();
+        assert(!services.theme_storage_->busy() && services.theme_storage_->held == 0);
+        consent_gate_reached();
+    }
+    services.network_mutation_active_ = true;
+    refused_without_io();
+    services.nextendo_busy_ = true;
+    refused_without_io();
+    assert(services.nextendo_busy_ && services.network_mutation_active_);
+    services.nextendo_busy_ = false;
+    services.network_mutation_active_ = false;
+    consent_gate_reached();
     // The worker was scheduled for the first player, but another player was selected before it ran.
     services.user_ = 1;
     assert(!services.nextendo_action(first, Action::import_session, stop).error.empty());
@@ -121,4 +183,5 @@ int main(int argc, char** argv) {
     services.user_ = 1;
     assert(!services.nextendo_status().linked);
     assert(!services.nextendo_action(first, Action::check_account, stop).checked && checks == 0);
+    std::puts("Nextendo service fixture PASS: real process theme credit/last-copy release; active network refusal before metadata/I/O/HTTP; competing busy flags preserved; all existing adapter cases retained.");
 }
