@@ -19,10 +19,7 @@ namespace {
 const std::string profile = "0123456789ABCDEF23456789ABCDEF01";
 const std::string other = "1123456789ABCDEF23456789ABCDEF01";
 const std::string token = "nx2.synthetic-test-only-never-accepted-by-a-server";
-int response_status = 200;
-std::string response_body = R"({"username":"synthetic"})";
 int requests = 0;
-bool cancel_during_request = false;
 std::atomic<bool> stop{false};
 AccountResult SyntheticCheck(const Account& account, const std::atomic<bool>& cancel) {
     return CheckAccountHttpWithClient(account, "synthetic-registered-client", cancel);
@@ -106,16 +103,10 @@ bool Handshake(std::string_view host, bool trust, bool expired, bool try_bypass)
 }
 
 extern "C" int remote_http_run(const remote_http_request* request, remote_http_result* result) {
+    (void)request; (void)result;
     ++requests;
-    assert(std::string(request->url) == "https://nextendo.network/api/profile");
-    assert(std::string(request->authorization) == "Bearer " + token);
-    assert(request->https_only && request->no_redirect && request->timeout_ms == 15000);
-    assert(std::string(request->nextendo_client_id) == "synthetic-registered-client");
-    if (cancel_during_request) stop = true;
-    if (request->stop(request->user)) { result->stopped = 1; return -1; }
-    result->status = response_status;
-    if (!request->sink(request->user, response_body.data(), response_body.size())) return -1;
-    return 0;
+    assert(false && "Never send a saved NEX/import credential to an account API");
+    return -1;
 }
 
 int main(int argc, char** argv) {
@@ -134,7 +125,7 @@ int main(int argc, char** argv) {
     assert(!Store(alias / "nextendo").Get(profile).error.empty());
     fs::remove(alias);
     Account account;
-    assert(CheckAccountHttp(account, stop) == AccountResult::failed && requests == 0);
+    assert(CheckAccountHttp(account, stop) == AccountResult::unavailable && requests == 0);
     assert(ParseAccount("pid=9\ntoken=" + token, account) && account.pid == 9);
     assert(!ParseAccount("pid=9oops\ntoken=" + token, account));
     assert(!ParseAccount("pid=9\npid=8\ntoken=" + token, account));
@@ -152,6 +143,16 @@ int main(int argc, char** argv) {
     }
     assert(ParseAccount(R"({"version":1,"pid":9,"token":"synthetic-test-token","metadata":{"pid":1},"other":[{"pid":2},{"pid":3}]})", account));
     assert(!ParseAccount(std::string(32769, 'x'), account));
+    for (const char* invalid_v2 : {
+        R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"web","issued_at":1,"expires_at":2})",
+        R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"nex","issued_at":1,"expires_at":86402})",
+        R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"nex","issued_at":2,"expires_at":1})",
+        R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"nex","issued_at":1,"expires_at":"2"})",
+        R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"nex","issued_at":1,"expires_at":2,"expires_at":3})",
+        R"({"version":2,"pid":9,"token":"synthetic-web-access-only","credential_kind":"nex","issued_at":1,"expires_at":2})"})
+        assert(!ParseAccount(invalid_v2, account));
+    assert(ParseAccount(R"({"version":2,"pid":9,"token":"nx2.synthetic-test-token","credential_kind":"nex","issued_at":1,"expires_at":2})", account));
+    assert(!GameSessionCurrent(account));
     assert(!ValidProfile("../../session") && !ValidProfile(std::string(32, '0')));
     Routes routes;
     assert(ParseRoutes(R"({"AUTH.LP1.NINTENDO.NET.":"game.nextendo.network"})", routes));
@@ -201,19 +202,19 @@ int main(int argc, char** argv) {
     EndGame();
     assert(!GuestEnabled() && GuestHost("auth.lp1.nintendo.net") == "auth.lp1.nintendo.net");
     assert(BeginGame(store, other, false, error) && !GuestEnabled());
-    assert(store.Apply(profile, Action::check_account, stop).checked);
-    response_body = std::string(32769, 'x');
-    assert(!store.Apply(profile, Action::check_account, stop).checked);
-    response_body = "{\"token\":\"" + token + "\"}";
-    const auto malformed = store.Apply(profile, Action::check_account, stop);
-    assert(!malformed.checked && malformed.error.find(token) == malformed.error.npos);
-    response_status = 302;
+    const auto preserved = Read(root / (profile + ".account"));
+    assert(store.Apply(profile, Action::check_account, stop).error == GameCheckUnavailable && requests == 0);
+    assert(Read(root / (profile + ".account")) == preserved && store.Get(profile).linked);
+    stop = true;
+    assert(CheckAccountHttp(account, stop) == AccountResult::cancelled);
     assert(!store.Apply(profile, Action::check_account, stop).checked && store.Get(profile).linked);
-    cancel_during_request = true;
-    assert(!store.Apply(profile, Action::check_account, stop).checked && store.Get(profile).linked);
-    cancel_during_request = false; stop = false;
-    response_status = 401;
-    assert(!store.Apply(profile, Action::check_account, stop).linked && !store.Get(profile).linked);
+    stop = false;
+    // The generic callback contract is still honored, without pretending an account API
+    // can validate a game credential. Only an explicitly authoritative rejection deletes.
+    Store accepted(root, AccountCheckFunction{[](const Account&, const std::atomic<bool>&) { return AccountResult::accepted; }});
+    assert(accepted.Apply(profile, Action::check_account, stop).checked);
+    Store rejected(root, AccountCheckFunction{[](const Account&, const std::atomic<bool>&) { return AccountResult::rejected; }});
+    assert(!rejected.Apply(profile, Action::check_account, stop).linked && !store.Get(profile).linked);
     Import(store, root);
     const auto file = root / (profile + ".account");
     const auto before = Read(file);
@@ -241,7 +242,7 @@ int main(int argc, char** argv) {
     fs::create_symlink(root / "held.account", file);
     assert(!store.Get(profile).linked);
     assert(store.Apply(profile, Action::unlink, stop).error.empty() && fs::exists(root / "held.account"));
-    assert(requests > 0);
+    assert(requests == 0);
     std::cout << "Nextendo: profile isolation, private atomic storage, import/off/unlink, routing, cancellation, revoked sessions: PASS\n"
                  "Nextendo TLS: trusted hostname accepted; wrong hostname, untrusted/expired cert, missing SNI and bypass rejected: PASS\n";
 }

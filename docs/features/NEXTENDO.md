@@ -13,7 +13,7 @@ Implemented:
   exchanges the code over verified HTTPS and atomically links only the captured local profile.
   The launcher shows a short **same-PS5** loopback entry URL, never a token, verifier or callback code.
 - Import a **user-owned existing Citron-Nextendo session**, link it to the selected emulated player,
-  explicitly enable/disable service routing, explicitly check the account, and unlink locally.
+  explicitly enable/disable service routing, explain game-only check limitations, and unlink locally.
   Import/replacement always switches routing **off**. Replacement and unlink require confirmation.
 - Per-profile private storage; no PID, username, friend code or bearer appears in launcher status,
   logs or errors. A PID is bearer-equivalent, not harmless diagnostic metadata.
@@ -70,27 +70,34 @@ choices. It displays local linkage/routing state and explicitly says game sign-i
 
 ### Browser linking
 
+The current public-contract implementation and parent consent integration are described in
+[NEXTENDO_OAUTH_NEX_CONTRACT.md](NEXTENDO_OAUTH_NEX_CONTRACT.md). The default high-level
+entrypoint refuses linking until the frontend explicitly confirms identity/game matchmaking
+permissions; an older frontend does not silently gain these scopes.
+
 1. Using a trusted transfer path, create the app-owned `config/nextendo/` directory with mode 0700
    (the existing import action can also create it). Put **your registered** configuration in
    `config/nextendo/oauth.json`, owner-only mode 0600. Schema, with placeholders **not credentials
    and not usable registrations**:
 
    ```json
-   {"version":1,"client_id":"<YOUR_REGISTERED_CLIENT_ID>","app":"<YOUR_REGISTERED_APP_NAME>","redirect_uri":"http://127.0.0.1:{port}/callback"}
+   {"version":1,"client_id":"<YOUR_REGISTERED_CLIENT_ID>","redirect_uri":"http://127.0.0.1:{port}/callback"}
    ```
 
    The registered redirect must explicitly permit this loopback template/ephemeral port, as in the
    GPL reference, or configure an exact registered port (1024–65535). Only `http://127.0.0.1:` plus
    a port or `{port}` and a simple absolute callback path is accepted. No LAN IP, localhost DNS,
    phone callback, arbitrary origin, redirect query, client secret or borrowed Citron app ID.
-   `app` must be the registered application name; ProsperoEden does not send `app=citron`.
+   The legacy `app` field is optional, omitted from requests when absent, and strictly
+   validated when present. No borrowed application name or client ID is supplied.
 2. Select **Link in this PS5's browser**. Replacing an existing link requires confirmation. Missing,
    malformed or non-private registration fails **before binding a listener or making any request**.
    The listener binds only 127.0.0.1; an occupied configured port fails, never silently picks another.
 3. On **this PS5**, open the displayed `http://127.0.0.1:<port>/start` while keeping ProsperoEden
    running. This is a short local entry point, not a phone code or a LAN service. It redirects the
    browser to `https://nextendo.network/api/oauth/authorize` with the configured registration,
-   `response_type=code`, scope `identity`, random state and S256 challenge. No automatic account
+   `response_type=code`, scopes `identity game.matchmaking`, random state and S256 challenge,
+   after explicit frontend confirmation and then provider consent. No automatic account
    creation, form filling or credential collection is performed by ProsperoEden.
 4. Complete the provider's browser consent. Its registered callback must return to the same
    loopback listener. The callback page says only that authorization was received; final linkage
@@ -98,9 +105,14 @@ choices. It displays local linkage/routing state and explicitly says game sign-i
 5. The code is consumed once via form POST to `/api/oauth/token` with `grant_type`, `code`,
    `client_id`, the **same actual redirect URI**, and the private `code_verifier`.
    `X-Nextendo-Client-Id` is included, as required by the GPL reference. Both server chain and hostname
-   are verified; redirects are refused. Only nonzero unsigned `account.pid` and a bounded printable
-   `nex_token` are retained; username/friend code are discarded. Success saves private credentials
+   are verified; redirects are refused. Web access is used in memory for `/api/oauth/userinfo`
+   and then `/api/nex-token`; their nonzero unsigned PIDs must match. Only the game credential,
+   PID and bounded expiry metadata are retained in private version-2 storage; web/refresh
+   credentials, scopes and username/friend code are discarded. Success saves private credentials
    directly, without an import/guest bridge file, and switches routing **off**.
+   Refresh is not implemented: link again after game-session expiry. Remote account checks
+   of a saved game-only session explicitly fail without network or deletion. Legacy imports
+   remain supported with unknown expiry; their game tokens are never sent to `/api/profile`.
 6. Circle cancels. The overall lifetime is five minutes including the bounded token exchange
    (at most 15 seconds and never past the overall deadline). A client gets at most two seconds to
    supply at most 8192 bytes of HTTP headers; at most 64 local requests are serviced. Invalid
@@ -109,11 +121,11 @@ choices. It displays local linkage/routing state and explicitly says game sign-i
    a failed replacement or cancellation observed before its storage commit preserves the previous
    session and routing consent.
 
-The public OAuth contract is `web_service/nextendo_api.cpp:277–284,357–485` at the pinned reference.
-The reference requests wider scopes; this implementation requests only identity. The registration
-must authorize that scope and the configured `app`/redirect. It does not infer a refresh-token or
-device-code grant. Account checks also require the configured registered client header; a missing
-client does not provoke a credential-bearing request or erase a good imported session.
+The earlier legacy wire contract came from `web_service/nextendo_api.cpp:277–284,357–485` at
+the pinned reference. The current public web-to-NEX contract and its limits are cited in
+`NEXTENDO_OAUTH_NEX_CONTRACT.md`. Registration must authorize the two requested scopes and
+redirect. No device-code grant is inferred, and refresh is not retained or used. Game-only
+checks do not make requests, regardless of whether a client registration is present.
 
 ### Existing-session import, checking and routing
 
@@ -130,11 +142,11 @@ client does not provoke a credential-bearing request or erase a good imported se
    `nextendo/<emulated-profile-key>.account`; the import is deleted after success. Only PID/token
    are retained; username/friend code are discarded. Existing linkage requires a second Cross to
    confirm replacement. Import/replacement never consents to online traffic.
-4. **Check account**, with the registration above, explicitly makes an HTTPS GET to
-   `https://nextendo.network/api/profile`, with `X-Nextendo-Client-Id`,
-   a 15-second deadline, bounded response, cancellation and **no redirects**. A valid profile
-   response means only the session was accepted by that API, not that a game connected. A 401
-   removes local linkage and disables routing. Server response/error bodies never reach the UI.
+4. **Check account** reports that remote validation is unavailable for a game-only session,
+   without sending its NEX value to an account API or deleting it. There is no documented
+   NEX introspection route. Link again to acquire a fresh game session. The unchanged service
+   wrapper may still ask for registration before surfacing this result; parent integration is
+   tracked in `NEXTENDO_OAUTH_NEX_CONTRACT.md`. No check claims game connectivity.
 5. Supply `nextendo/routes.json` from an independently verified operator contract: a JSON object
    mapping each **exact official-service DNS name** to its **exact certificate-valid Nextendo DNS
    name**. Keys must be under `nintendo.net`, `nintendo.com`, or `nintendowifi.net`; destinations must
@@ -187,13 +199,13 @@ proxy tracing or credential-bearing browser history exports during account opera
 
 ## Focused evidence
 
-Use `prosperoeden-host:features` and **only** the private volume
-`prosperoeden-team-nextendo-20261027`. Mount this worktree read-only. Do not reuse coordinator build
-volumes. Tests use synthetic sessions, a stub account server, loopback HTTP redirects, and generated
+Use `prosperoeden-host:features` and the assigned private volume
+`prosperoeden-team-pro-controller-20261027`. Mount this worktree and any coordinator cache inputs
+read-only; never use a coordinator volume for outputs. Tests use synthetic sessions, a stub account server, loopback HTTP redirects, and generated
 certificates; none contacts a public account/game server.
 
 ```
-TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo.py --source /pinned
+TMPDIR=/private CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo.py --source /pinned
 ```
 
 `/pinned` is Eden `67bada77f8a43a90da2e94e89b8e7da73c256989` (the three service files and
@@ -201,8 +213,8 @@ TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo.py --
 
 - Checked patch counts against the actual pinned acc, DNS, TLS and native network source.
 - ASan/UBSan account parsing, bounds, profile isolation, default-off behavior, atomic replacement,
-  stale staging protection, ancestor/file symlink, hardlink and permissive-mode refusal, unlink, 401, cancellation,
-  bounded/malformed replies, no response-body credential disclosure and launch snapshots.
+  stale staging protection, ancestor/file symlink, hardlink and permissive-mode refusal, unlink,
+  cancelled/unavailable game checks, version-2 expiry, no credential-bearing requests and launch snapshots.
 - Real in-memory OpenSSL handshakes: trusted matching certificate succeeds; wrong hostname,
   unknown CA, expiry, missing/stale SNI, numeric-only TLS name and guest verification bypass fail.
 - Real curl loopback redirect refusal, full-length (8192-byte) synthetic bearer transport and
@@ -211,7 +223,7 @@ TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo.py --
 - Actual service adapter with synthetic platform dependencies: a changed profile before worker
   execution is rejected without touching storage; busy/storage/room guards and profile isolation.
 
-`TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo-oauth.py` compiles the actual
+`TMPDIR=/private CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo-oauth.py` compiles the actual
 receiver, token exchange, curl transport and store with ASan/UBSan. A synthetic browser follows the
 real local entry redirect through a generated-certificate **HTTPS authorization endpoint**, then the
 actual callback; a loopback HTTPS token endpoint checks the RFC 7636 proof and registered header.
@@ -274,8 +286,9 @@ review, not a proof that no further private/undiscovered specification exists.
 
 Exact outstanding inputs, rather than a generic TODO:
 
-1. **OAuth live configuration/qualification:** owner-issued client ID, registered app value, identity
-   scope and approved exact loopback redirect/ephemeral-port rule; PS5 evidence that the chosen
+1. **OAuth live configuration/qualification:** owner-issued public client ID, explicit identity/game
+   matchmaking consent and approved loopback redirect/ephemeral-port rule (legacy app value optional);
+   parent frontend confirmation handoff and PS5 evidence that the chosen
    same-device browser can load the local entry/callback while this title's receiver continues running.
    The implementation and synthetic real-transport flow do not depend on receiving these inputs.
 2. **BAAS implementation contract:** a redistributable GPL-compatible normative claim/header schema
@@ -292,6 +305,9 @@ Exact outstanding inputs, rather than a generic TODO:
    traces and successful/negative test cases on the target PS5 build. None is inferred from host tests.
 
 ## Integration / shared-file touchpoints
+
+The following shared-file integration was delivered earlier, not edited by the current OAuth/NEX
+contract task. Its separate parent UI/service handoff is in `NEXTENDO_OAUTH_NEX_CONTRACT.md`.
 
 Small shared edits: `headless/CMakeLists.txt` includes the feature overlays, account HTTP and OAuth
 sources, composing the native network derivative after existing socketpair changes;

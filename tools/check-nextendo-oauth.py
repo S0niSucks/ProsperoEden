@@ -40,7 +40,7 @@ def main():
                             "-subj", f"/CN={host}", "-addext", f"subjectAltName=DNS:{host}",
                             "-keyout", str(out / f"{name}.key"), "-out", str(out / f"{name}.pem")],
                            check=True, capture_output=True)
-        state = {"mode": "", "challenge": "", "posts": 0, "gets": 0, "failure": None}
+        state = {"mode": "", "challenge": "", "posts": 0, "gets": 0, "auths": 0, "api": [], "failure": None}
         token_started = threading.Event()
 
         class Server(ThreadingHTTPServer):
@@ -67,17 +67,54 @@ def main():
             def do_GET(self):
                 state["gets"] += 1
                 url = urlsplit(self.path)
-                if url.path == "/api/profile":
+                mode = state["mode"]
+                if url.path in ("/api/oauth/userinfo", "/api/nex-token"):
+                    stage = "identity" if url.path.endswith("userinfo") else "nex"
+                    state["api"].append(stage)
                     assert self.headers["X-Nextendo-Client-Id"] == "synthetic+registered&client"
-                    if self.headers.get("Authorization") != "Bearer old-synthetic-local-session":
-                        return self.reply(401, b'{"error":"missing bearer"}')
-                    assert state["mode"] == "profile-duplicate"
-                    return self.reply(200, b'{"username":null,"username":"synthetic"}')
+                    assert self.headers.get("Authorization") == "Bearer synthetic-web-access-not-a-game-token"
+                    if mode == "cancel-" + stage:
+                        token_started.set()
+                        time.sleep(1)
+                    if mode == "expiry-" + stage or (mode == "web-expiry" and stage == "identity"):
+                        time.sleep(1.1)
+                    if mode == "shared-deadline":
+                        time.sleep(0.35)
+                    if mode == "nex-expired-in-transit" and stage == "nex": time.sleep(1.1)
+                    fault = mode.removeprefix(stage + "-") if mode.startswith(stage + "-") else ""
+                    if fault == "redirect": return self.reply(302, location="https://nextendo.network/must-not-follow")
+                    if fault == "oversize": return self.reply(200, b"x" * 32769)
+                    if fault == "malformed": return self.reply(200, b"{")
+                    if fault == "duplicate": return self.reply(200, b'{"pid":0,"p\\u0069d":9}')
+                    if fault in ("401", "403"): return self.reply(int(fault), b'{"error":"synthetic-web-access-not-a-game-token"}')
+                    response = {"pid": 9, "username": "discard-me"}
+                    if stage == "nex": response.update(nex_token="nx2.synthetic-proof-not-a-real-session", expires_in=86400)
+                    if fault == "wrong-pid": response["pid"] = 10
+                    if fault == "zero-pid": response["pid"] = 0
+                    if fault == "pid-type": response["pid"] = "9"
+                    if fault == "missing-pid": del response["pid"]
+                    if fault == "negative-pid": response["pid"] = -1
+                    if fault == "float-pid": response["pid"] = 9.0
+                    if fault == "overflow-pid": response["pid"] = 2**64
+                    if fault == "expiry-zero": response["expires_in"] = 0
+                    if fault == "expiry-type": response["expires_in"] = "86400"
+                    if fault == "expiry-large": response["expires_in"] = 86401
+                    if fault == "expiry-missing": del response["expires_in"]
+                    if fault == "expiry-float": response["expires_in"] = 2.5
+                    if fault == "expiry-bool": response["expires_in"] = True
+                    if fault == "expired-in-transit": response["expires_in"] = 1
+                    if fault == "expiry-save": response["expires_in"] = 2
+                    if fault == "wrong-type": response["nex_token"] = "synthetic-web-access-not-a-game-token"
+                    if fault == "token-header": response["nex_token"] = "nx2.bad\\r\\nInjected: bad"
+                    if fault == "missing-token": response.pop("nex_token", None)
+                    return self.reply(200, json.dumps(response).encode())
                 assert url.path == "/api/oauth/authorize"
+                state["auths"] += 1
                 params = parse_qs(url.query, strict_parsing=True)
-                assert params["response_type"] == ["code"] and params["scope"] == ["identity"]
+                assert params["response_type"] == ["code"] and params["scope"] == ["identity game.matchmaking"]
                 assert params["client_id"] == ["synthetic+registered&client"]
-                assert params["app"] == ["synthetic-prosperoeden"]
+                if mode == "no-app": assert "app" not in params
+                else: assert params["app"] == ["synthetic-prosperoeden"]
                 assert params["code_challenge_method"] == ["S256"]
                 assert len(params["state"][0]) == 43 and len(params["code_challenge"][0]) == 43
                 state["challenge"] = params["code_challenge"][0]
@@ -87,6 +124,7 @@ def main():
 
             def do_POST(self):
                 state["posts"] += 1
+                state["api"].append("token")
                 assert self.path == "/api/oauth/token"
                 assert self.headers["X-Nextendo-Client-Id"] == "synthetic+registered&client"
                 assert self.headers["Content-Type"] == "application/x-www-form-urlencoded"
@@ -103,9 +141,10 @@ def main():
                 proof = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
                 assert proof == state["challenge"]
                 mode = state["mode"]
-                token_started.set()
+                if mode == "cancel-token": token_started.set()
                 if mode in ("cancel-token", "expiry-token"):
                     time.sleep(1)
+                if mode == "shared-deadline": time.sleep(0.35)
                 if mode == "redirect":
                     return self.reply(302, location="https://nextendo.network/must-not-follow")
                 if mode == "oversize":
@@ -122,8 +161,37 @@ def main():
                     return self.reply(200, b'{"account":{"pid":0,"pid":9},"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
                 if mode == "escaped-duplicate-token":
                     return self.reply(200, b'{"account":{"pid":9},"nex_token":null,"nex_\\u0074oken":"nx2.synthetic-proof-not-a-real-session"}')
-                self.reply(200, json.dumps({"account": {"pid": 9, "username": "discard-me", "friend_code": "discard-me"},
-                                           "nex_token": "nx2.synthetic-proof-not-a-real-session"}).encode())
+                if mode == "legacy-only":
+                    return self.reply(200, b'{"account":{"pid":9},"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
+                response = {"access_token": "synthetic-web-access-not-a-game-token", "refresh_token": "synthetic-refresh-discard-me",
+                            "token_type": "Bearer", "expires_in": 3600, "scope": "identity game.matchmaking"}
+                if mode == "access-duplicate":
+                    raw = json.dumps(response).removesuffix("}") + ',"access_\\u0074oken":"synthetic-web-access-not-a-game-token"}'
+                    return self.reply(200, raw.encode())
+                if mode == "scope-omitted": del response["scope"]
+                if mode == "scope-reordered": response["scope"] = "game.matchmaking identity"
+                if mode == "scope-missing": response["scope"] = "identity"
+                if mode == "scope-expanded": response["scope"] = "identity game.matchmaking friends"
+                if mode == "scope-duplicate": response["scope"] = "identity identity game.matchmaking"
+                if mode == "scope-type": response["scope"] = ["identity", "game.matchmaking"]
+                if mode == "access-expiry-zero": response["expires_in"] = 0
+                if mode == "access-expiry-type": response["expires_in"] = "3600"
+                if mode == "access-expiry-large": response["expires_in"] = 3601
+                if mode == "access-expiry-missing": del response["expires_in"]
+                if mode == "access-expiry-float": response["expires_in"] = 1.5
+                if mode == "access-expiry-bool": response["expires_in"] = True
+                if mode == "access-missing-type": del response["token_type"]
+                if mode == "access-wrong-type": response["token_type"] = "MAC"
+                if mode == "access-lowercase-type": response["token_type"] = "bearer"
+                if mode == "access-missing": del response["access_token"]
+                if mode == "access-nonstring": response["access_token"] = 42
+                if mode == "access-oversized-field": response["access_token"] = "a" * 8193
+                if mode == "access-nex": response["access_token"] = "nx2.synthetic-proof-not-a-real-session"
+                if mode == "access-bot": response["access_token"] = "nxt_bot_synthetic-not-issued"
+                if mode == "access-header": response["access_token"] = "synthetic\\r\\nInjected: bad"
+                if mode == "access-padding-only": response["access_token"] = "=" * 16
+                if mode == "web-expiry": response["expires_in"] = 1
+                self.reply(200, json.dumps(response).encode())
 
         servers = []
         for name in ("good", "bad"):
@@ -164,20 +232,30 @@ def main():
                  "wrong-host", "storage-failure", "cancel-before-save", "cancel-in-save", "flood",
                  "duplicate-token", "duplicate-account", "duplicate-pid", "escaped-duplicate-token",
                  "profile-duplicate", "profile-header-oom", "profile-auth-oom", "profile-client-oom",
-                 "token-header-oom", "expiry-token")
+                  "token-header-oom", "expiry-token", "no-app", "scope-omitted", "scope-reordered", "stored-expiry",
+                  "legacy-only", "scope-missing", "scope-expanded", "scope-duplicate", "scope-type",
+                  "access-expiry-zero", "access-expiry-type", "access-expiry-large", "access-missing-type", "access-wrong-type",
+                  "access-nex", "access-bot", "access-header", "web-expiry", "expiry-save", "shared-deadline",
+                  "cancel-identity", "cancel-nex", "expiry-identity", "expiry-nex", "snapshot-v2", "access-lowercase-type",
+                  "access-duplicate", "access-missing", "access-nonstring", "access-oversized-field", "access-expiry-missing",
+                  "access-expiry-float", "access-expiry-bool", "access-padding-only", "token-client-oom", "token-accept-oom") + tuple(
+                      stage + "-" + fault for stage in ("identity", "nex") for fault in
+                      ("redirect", "oversize", "malformed", "duplicate", "401", "403", "zero-pid", "pid-type", "missing-pid", "negative-pid", "float-pid", "overflow-pid",
+                       "auth-oom", "client-oom", "accept-oom", "wrong-host", "unknown-ca")) + tuple("nex-" + fault for fault in
+                      ("wrong-pid", "expiry-zero", "expiry-type", "expiry-large", "expiry-missing", "expiry-float", "expiry-bool", "expired-in-transit", "expiry-save", "wrong-type", "token-header", "missing-token"))
         parser = argparse.ArgumentParser(description=__doc__)
         parser.add_argument("--case", action="append", choices=modes, help="Run only selected cases")
         args = parser.parse_args()
         seen_states = set()
         try:
             for mode in args.case or modes:
-                state.update(mode=mode, posts=0, gets=0, failure=None)
+                state.update(mode=mode, posts=0, gets=0, auths=0, api=[], failure=None)
                 token_started.clear()
                 data = out / mode
                 data.mkdir()
                 token_port = servers[1 if mode == "wrong-host" else 0][0].server_port
                 ca = out / ("bad.pem" if mode in ("wrong-host", "unknown-ca") else "good.pem")
-                process = subprocess.Popen([str(binary), str(data / "nextendo"), str(token_port), str(ca), mode],
+                process = subprocess.Popen([str(binary), str(data / "nextendo"), str(token_port), str(ca), mode, str(servers[1][0].server_port)],
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 try:
                     ready = process.stdout.readline().strip()
@@ -187,14 +265,14 @@ def main():
                         assert process.returncode == 0 and not stderr, (mode, stderr)
                         assert stdout.strip() == f"DONE {mode} PASS", mode
                         assert state["failure"] is None and state["posts"] == 0
-                        assert state["gets"] == (0 if mode.endswith("-oom") else 1)
+                        assert state["gets"] == 0
                         print(f"OAuth regression {mode}: PASS")
                         continue
                     assert ready.startswith("START http://127.0.0.1:"), mode
                     start = ready[6:]
                     if mode == "cancel-wait":
                         process.stdin.write("cancel\n"); process.stdin.flush()
-                    elif mode != "cancel-token":
+                    elif mode not in ("cancel-token", "cancel-identity", "cancel-nex"):
                         process.stdin.write("continue\n"); process.stdin.flush()
                     if mode == "slow-client":
                         address = urlsplit(start)
@@ -249,7 +327,7 @@ def main():
                         if mode == "declined":
                             callback = callback.replace("code=synthetic-code-only", "error=access_denied")
                         assert local(callback)[0] == 200
-                        if mode == "cancel-token":
+                        if mode in ("cancel-token", "cancel-identity", "cancel-nex"):
                             assert token_started.wait(3)
                             process.stdin.write("cancel\n"); process.stdin.flush()
                     if mode == "slow-client":
@@ -258,8 +336,15 @@ def main():
                     assert process.returncode == 0 and not stderr, (mode, stderr)
                     assert stdout.strip() == f"DONE {mode} PASS", mode
                     assert state["failure"] is None, mode
-                    assert state["posts"] == (0 if mode in ("declined", "expiry", "cancel-wait", "unknown-ca", "wrong-host", "flood", "token-header-oom") else 1), mode
-                    assert state["gets"] == (0 if mode in ("expiry", "cancel-wait", "flood") else 1), mode
+                    assert state["posts"] == (0 if mode in ("declined", "expiry", "cancel-wait", "unknown-ca", "wrong-host", "flood", "token-header-oom", "token-client-oom", "token-accept-oom") else 1), mode
+                    assert state["auths"] == (0 if mode in ("expiry", "cancel-wait", "flood") else 1), mode
+                    assert state["api"] == ["token", "identity", "nex"][:len(state["api"])], mode
+                    if mode.startswith("scope-") and mode not in ("scope-omitted", "scope-reordered"):
+                        assert state["api"] == ["token"], mode
+                    if mode.startswith("identity-") or mode in ("cancel-identity", "expiry-identity", "web-expiry"):
+                        assert state["api"] == (["token"] if mode.endswith(("-oom", "wrong-host", "unknown-ca")) else ["token", "identity"]), mode
+                    if mode.startswith("nex-"):
+                        assert state["api"] == (["token", "identity"] if mode.endswith(("-oom", "wrong-host", "unknown-ca")) else ["token", "identity", "nex"]), mode
                     print(f"OAuth regression {mode}: PASS")
                 finally:
                     if process.poll() is None:
@@ -270,7 +355,7 @@ def main():
                 server.shutdown()
                 worker.join()
                 server.server_close()
-        print("OAuth actual loopback/HTTPS: S256 proof, state/host/parser bounds, expiry/cancel, one-use callback, registered client header, strict TLS/no redirects, private default-off replacement and failure preservation: PASS")
+        print("OAuth actual loopback/HTTPS: S256 + identity/game.matchmaking consent, code->web->identity->NEX, PID/type/scope/expiry checks, shared deadlines/cancel, one-use callback, header safety, strict TLS/no redirects, private v2 game-only storage, immutable snapshots/default-off and failure preservation: PASS")
 
 
 if __name__ == "__main__":
