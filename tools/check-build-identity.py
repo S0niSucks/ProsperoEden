@@ -46,8 +46,12 @@ with tempfile.TemporaryDirectory(prefix='eden-build-identity-') as tmp:
     # The packaging script runs in a disposable miniature repository, not this checkout's dist.
     repo = work / 'repo'
     (repo / 'tools/ci').mkdir(parents=True)
-    for name in ['ci/make-dist.py', 'build_identity.py']:
+    for name in ['ci/make-dist.py', 'build_identity.py', 'network_privacy.py', 'release_licenses.py']:
         shutil.copy2(root / 'tools' / name, repo / 'tools' / name)
+    # Exercise the actual current exporter and its verified notice inputs, not stubs.
+    for name in ('LICENSE', 'THIRD_PARTY_NOTICES.md'):
+        shutil.copy2(root / name, repo / name)
+    shutil.copytree(root / 'third_party/licenses', repo / 'third_party/licenses')
     (repo / 'docs').mkdir()
     (repo / 'docs/CHANGELOG.md').write_text('## v1.005.000\n\nFixture notes.\n')
     (repo / 'build/headless-native').mkdir(parents=True)

@@ -28,7 +28,7 @@ EdenServices::NetworkAdmission::~NetworkAdmission() {
 pe::ui::NetworkReservation EdenServices::reserve_network_job() {
     // Try, don't queue the UI behind an incumbent writer's bridge/HTTP/Stop. A retry is explicit.
     const std::unique_lock admission(job_admission_mutex_, std::try_to_lock);
-    if (!admission || usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ ||
+    if (!admission || theme_storage_->busy() || usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ ||
         network_closing_ || !Eden::FilesystemAccess()) return {};
     auto job = std::make_unique<NetworkAdmission>(*this, Eden::ConfigFile("network-shares.json"));
     network_reservation_ = job.get();

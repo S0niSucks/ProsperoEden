@@ -28,6 +28,8 @@ Eden::Nextendo::Status EdenServices::nextendo_action_with_consent(const std::str
     std::string bound_profile, root;
     {
         const std::lock_guard admission(job_admission_mutex_);
+        if (theme_storage_->busy() || network_mutation_active_)
+            return {false, false, false, 0, "Nextendo action failed. Retry or unlink the session."};
         if (usb_active_) return {false, false, false, 0, "Close USB backup before changing Nextendo."};
         if (launch_committed_) return {false, false, false, 0, "Nextendo actions are unavailable after launch commitment."};
         if (nextendo_busy_) return {false, false, false, 0, "A Nextendo action is already running."};

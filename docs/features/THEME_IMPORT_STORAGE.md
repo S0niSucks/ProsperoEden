@@ -51,6 +51,14 @@ hardlink support or native runtime acceptance. This task installs no toolchain o
 
 ## Required parent composition — not applied here
 
+Coordinator follow-up: `90f3a39` is integrated as `50c3a2d`, followed by network composition
+`3d78049`. The coordinator has added the reciprocal production predicates described below,
+including the central `reserve_network_job()` acquisition (not the obsolete network patch
+hunk), large-writer admission and Nextendo's network/theme busy check. The historical patch
+remains a handoff against its stated base, not a script to reapply to the combined source.
+Combined real-source fixture/build results are still pending; the worker's earlier test
+results below are not relabeled as final HEAD evidence.
+
 [`THEME_STORAGE_PARENT_GUARDS.patch`](THEME_STORAGE_PARENT_GUARDS.patch) is the **exact minimal
 additive handoff against this base**. Apply/merge it only after the network owner's shared
 composition. It inserts `theme_storage_->busy()` under the existing real admission mutex in:

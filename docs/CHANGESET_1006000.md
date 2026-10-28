@@ -25,7 +25,8 @@ generated build-identity receipt, not invented in this changeset before the buil
 
 ## Acceptance still required
 
-1. Finish reciprocal network/USB/theme admission composition and freeze one clean Git HEAD/tree.
+1. Freeze one clean Git HEAD/tree after reciprocal network/USB/theme admission composition and
+   its fixture integration. The production guards are composed; their combined proof is pending.
 2. Run the complete host suite, all-feature UI and native build on that same immutable snapshot,
    invalidating launcher-dependent cache objects. No running or partial test counts as PASS.
 3. Resolve the actual current translation gate: `4a33dc9` found 764 source texts/30 catalogs

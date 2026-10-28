@@ -73,8 +73,9 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
 - **SMB/NFS network locations.** Settings provides a built-in private editor for named SMB/NFS
    shares, with native password entry, atomic configuration saves and explicit connect/disconnect.
    The integrated read-only VFS streams game content and bounded metadata/add-ons without turning
-   it into a download-source entry. Shared admission and localized caller composition are still
-   being completed; full-app launch and real-server PS5 qualification remain outstanding.
+    it into a download-source entry. A shared lease is acquired before async dispatch and held
+    through the last save/discovery/disconnect callback, while localized prompts are prepared on
+    the UI thread. Final combined proof, full-app launch and real-server PS5 qualification remain.
 - **Nextendo integration (experimental, default-off).** Per-profile private session import,
   explicit checks/unlink, exact-host guest routing and registered-client browser OAuth with
   S256 PKCE are integrated. Missing registration refuses before network work. This is not
@@ -117,8 +118,8 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
 
 ### Remaining work and test limits
 
-SMB/NFS final caller/admission composition and scene-theme storage composition remain under
-team implementation/review. Retained scenes and the bounded native NXTheme importer are
+SMB/NFS caller/admission and scene-theme storage guards are composed, with final combined
+fixture/build proof pending. Retained scenes and the bounded native NXTheme importer are
 integrated, not full format/material/font/animation parity; #173/#239 stay open.
 Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
