@@ -32,8 +32,9 @@ Excluded game content, regenerable data and explicitly named credentials:
 - the entire secret `config/nextendo/` subtree, including imports, account/session files,
   routes/OAuth configuration and all unknown, hidden or staging names; it is excluded before
   opening/enumerating the directory, not inspected for tokens or selectively filtered;
-- the exact `config/network-shares.json` credential node, which can hold plaintext SMB/NFS
-  passwords; if supplied as a directory, none of its children are traversed either;
+- `config/network-shares.json` and its dot-suffixed siblings (`.json.tmp`, `.json.bak`,
+  `.json.staged.foo`, etc.), which can hold plaintext SMB credentials; if any protected node
+  is supplied as a directory, none of its children are traversed either;
 - files ending in `.nsp`, `.xci`, `.nsz`, `.xcz` or `.nro` (case insensitive), anywhere in the tree.
 
 Custom covers and wallpapers **inside the data root are kept**, not treated as disposable caches.
@@ -41,9 +42,12 @@ Both explicit credential policies conservatively fold ASCII case and trailing-do
 on their first two components, covering case-insensitive USB namespaces without changing nonsecret paths.
 Dot segments, backslashes, absolute paths and malformed components are rejected, not resolved.
 Restore manifests cannot reintroduce either credential node; progress/diagnostics never scan or
-hash their contents. Harmless siblings such as `config/network-shares.json.bak`,
-`config/network-shares-public.json` and `config/nextendo-public.json` remain included. There is
+hash their contents. Non-dot-suffixed siblings such as `config/network-shares.json-safe`,
+`config/network-shares.jsonx`, `config/network-shares-public.json` and
+`config/nextendo-public.json` remain included. There is
 no heuristic scanning for passwords/tokens and no exclusion of unknown config files generally.
+Older backups containing the now-excluded staged credentials are refused on restore; this
+does not scrub previously exported secrets or revoke a password. Keep existing backups private.
 
 ## Backup format and safety boundary
 
@@ -210,12 +214,24 @@ case and trailing-dot/space aliases, and hostile children that would fail any ac
 They verify nonsecret siblings are backed up, progress/payload omit secrets, restore leaves live
 sessions untouched, and self-consistent manifests are rejected by the exclusion policy before
 payload validation; dot-segment/backslash/absolute aliases are rejected as unsafe paths.
-They cover exact network-share config files, hostile directory/symlink aliases, absent credential
+They cover exact and dot-suffixed network-share config files, hostile directory/symlink aliases, absent credential
 hashes in manifests, untouched live credentials and file/directory restore-injection attempts.
 The final 2026-10-27 Docker run passed the filesystem/Nextendo/network-share, service lifecycle
 and actual update-check drain suites under ASan/UBSan with leak detection, plus all focused
 syntax checks (complete runner exit 0; a preceding 120-second invocation exhausted its wall-time
 budget after the runtime suites, so the complete runner was repeated with a 300-second budget).
+
+Staged-credential follow-up `bc95255`, imported as `99f257c`, extends the policy before
+inventory/traversal and strict restore validation. Its new regression first produced an actual
+COMPLETE backup containing six synthetic credential files (13 inventory files / 530 bytes),
+then failed the unchanged no-credential assertion. The fixed worker runner passed ASan/UBSan
+with leak detection, leaving exactly the seven harmless control files / 236 bytes, identical
+space estimates/manifests and zero forbidden open/stat/read probes. The coordinator retrieved
+the raw baseline/fixed logs and is repeating the full runner on a separate frozen integrated
+snapshot. Evidence and exact limits: `features/USB_NETWORK_PRIVACY.md` and
+`.local/docker-release/usb-staged-privacy-integrated-20261027/`. The Python package collectors
+are a separate review; the worker identified a missing `CONFIG.` alias defense there, not an
+observed real credential leak from a published release.
 
 Coordinator focused run `sh_17fcaef8c0011cEcLmxb76dgSB` passed the exact service include with
 ASan/UBSan, real filesystem operations and real `pthread_create` failure injection (`EAGAIN`),
