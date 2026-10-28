@@ -78,7 +78,8 @@ Fd Root(const std::string& path) {
 }
 Fd Parent(int root, const std::string& path, bool create = false) {
     auto parts = Parts(path);
-    Fd fd{dup(root)};
+    // Reopen the held directory, never its pathname: the native libc dup is a denied syscall.
+    Fd fd{openat(root, ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)};
     Need(fd.n >= 0, "Cannot duplicate directory descriptor.");
     for (std::size_t i = 0; i + 1 < parts.size(); ++i) {
         struct stat parent{}, child{};
@@ -383,7 +384,8 @@ bool Exists(int root, const std::string& path) {
 void TargetPlan(int data, Entries& entries) {
     for (auto& e : entries) {
         // Missing directories are created at apply, not while active data is open.
-        Fd parent{dup(data)}; bool missing = false;
+        Fd parent{openat(data, ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)}; bool missing = false;
+        Need(parent.n >= 0, "Cannot reopen restore directory descriptor.");
         const auto parts = Parts(e.path);
         for (std::size_t i = 0; i + 1 < parts.size(); ++i) {
             if (!Exists(parent.n, parts[i])) { missing = true; break; }

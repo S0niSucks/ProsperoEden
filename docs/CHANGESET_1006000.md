@@ -28,6 +28,8 @@ generated build-identity receipt, not invented in this changeset before the buil
   producer/link evidence capture. These mechanisms alone do not establish source closure.
 - Native package inventory composed with the maintained no-follow notice verifier: staged
   license files are required and byte-checked, not silently ignored as arbitrary extras.
+- Descriptor-relative directory reopening for Amiibo, backup/restore and themes, avoiding
+  the native libc's unsupported direct `dup` syscall while retaining pinned directory roots.
 
 ## Acceptance still required
 

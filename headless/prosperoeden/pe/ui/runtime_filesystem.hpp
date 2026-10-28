@@ -111,7 +111,7 @@ inline std::vector<std::string> entries(const std::string& path) {
         }
     }
 #else
-    const int duplicate = dup(directory.get());
+    const int duplicate = openat(directory.get(), ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     if (duplicate < 0) throw std::system_error(errno, std::generic_category(), "Cannot duplicate " + path);
     DIR* raw = fdopendir(duplicate);
     if (!raw) {

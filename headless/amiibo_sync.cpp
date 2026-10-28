@@ -210,7 +210,7 @@ void AmiiboSync::Run(const AmiiboSyncRequest& request) {
     // Keep the images descriptor alive until staged files have been cleaned up.
     if (!ids.empty() && mkdirat(root.fd, "images", 0777) && errno != EEXIST)
         throw std::runtime_error("Cannot create the Amiibo images cache");
-    const int image_fd = ids.empty() ? dup(root.fd) : openat(root.fd, "images", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+    const int image_fd = openat(root.fd, ids.empty() ? "." : "images", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
     File images(image_fd);
     std::vector<std::unique_ptr<Staged>> staged;
     for (const auto& id : ids) {

@@ -94,6 +94,9 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
 
 ### Reliability and diagnostics
 
+- **Native directory handles.** Amiibo sync, USB backup/restore and theme readers/importers
+  reopen already pinned directories with `openat(fd, ".", ...)`, rather than linking the
+  SDK libc's unsupported direct `dup` syscall. No pathname fallback or link checks are removed.
 - **Current feature translations.** Added the 106 new network/Nextendo messages to all
   30 existing catalogs, retaining earlier translations and removing the obsolete browser
   confirmation. The template now covers all 764 source texts. Checks also preserve named

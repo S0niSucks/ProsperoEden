@@ -21,7 +21,7 @@ inline bool resource_name(const std::string& name) {
     return name.ends_with(".json")||name.ends_with(".tga");
 }
 inline void publish(int root,const std::string& path,std::string_view bytes) {
-    require(resource_name(path),"invalid converted resource path");Fd parent(dup(root));const auto slash=path.find('/');int fd=parent.value;std::unique_ptr<Fd> child;
+    require(resource_name(path),"invalid converted resource path");Fd parent(openat(root,".",O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC));const auto slash=path.find('/');int fd=parent.value;std::unique_ptr<Fd> child;
     if(slash!=path.npos){child=std::make_unique<Fd>(child_dir(fd,path.substr(0,slash)));fd=child->value;}
     const auto name=slash==path.npos?path:path.substr(slash+1);std::string tmp;int raw=-1;
     for(int i=0;i<16&&raw<0;++i){tmp=".nx-tmp-"+std::to_string(i)+"-"+name;raw=openat(fd,tmp.c_str(),O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW,0600);if(raw<0&&errno!=EEXIST)break;}

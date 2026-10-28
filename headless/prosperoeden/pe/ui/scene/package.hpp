@@ -15,7 +15,8 @@ public:
     explicit Reader(const std::string& root) : root_(root, runtime_fs::Kind::directory) {}
     std::string read(const std::string& name, std::size_t limit) {
         require(runtime_fs::relative_path(name), "unsafe resource path");
-        int fd = dup(root_.get()); require(fd >= 0, "cannot pin package directory");
+        // A fresh descriptor to the same pinned inode; no pathname fallback or native libc dup.
+        int fd = openat(root_.get(), ".", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC); require(fd >= 0, "cannot pin package directory");
         for (std::size_t at = 0; at < name.size();) {
             const auto end = name.find('/', at); const auto component = name.substr(at, end == name.npos ? name.size() - at : end - at);
             const auto next = openat(fd, component.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | (end == name.npos ? 0 : O_DIRECTORY));
