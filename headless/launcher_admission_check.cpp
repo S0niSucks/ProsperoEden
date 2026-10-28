@@ -143,6 +143,7 @@ public:
     Eden::Nextendo::Status nextendo_status();
     std::string nextendo_link_url();
     Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&);
+    Eden::Nextendo::Status nextendo_action_with_consent(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&, bool);
     void will_play(const std::string&);
     bool begin_usb_backup();
     Eden::UsbBackup::Status usb_backup_status();
@@ -255,6 +256,7 @@ void Authorize(EdenServices& service) {
     const std::string state = Field(query, "state"), callback = Field(query, "redirect_uri");
     assert(state.size() == 43 && Field(query, "code_challenge_method") == "S256");
     assert(Field(query, "client_id") == "synthetic-admission-client");
+    assert(Field(query, "scope") == "identity game.matchmaking");
     {
         const std::lock_guard lock(provider_lock);
         challenge = Field(query, "code_challenge");
@@ -294,7 +296,7 @@ void RefusedWithoutIo(EdenServices& service) {
         // Actually queue the UI-owned work and release it only after USB/terminal commitment.
         std::barrier scheduled(2);
         Eden::Nextendo::Status result;
-        std::thread delayed([&] { scheduled.arrive_and_wait(); result = service.nextendo_action(first, action, stop); });
+        std::thread delayed([&] { scheduled.arrive_and_wait(); result = service.nextendo_action_with_consent(first, action, stop, true); });
         scheduled.arrive_and_wait(); delayed.join();
         assert(!result.error.empty() && !service.nextendo_busy_ && service.nextendo_link_url().empty());
     }
@@ -309,7 +311,7 @@ void QueuedRefusal(EdenServices& service, bool usb) {
     Eden::Nextendo::Status result;
     std::thread delayed([&] {
         queued = true; scheduled.arrive_and_wait();
-        result = service.nextendo_action(first, Eden::Nextendo::Action::link_browser, stop);
+        result = service.nextendo_action_with_consent(first, Eden::Nextendo::Action::link_browser, stop, true);
     });
     Until([&] { return queued.load(); });
     // The UI captured the request first; only execution is delayed until storage/launch commits.
@@ -321,7 +323,7 @@ void QueuedRefusal(EdenServices& service, bool usb) {
 }
 }
 extern "C" int remote_http_run(const remote_http_request* request, remote_http_result* response) {
-    // Synthetic provider transport only. Store, LinkBrowser, PKCE/callback and HTTP-account parsers are production.
+    // Synthetic public provider transport only. Store, PKCE/state and all three parsers are production.
     assert(request->https_only && request->no_redirect && request->nextendo_client_id);
     assert(std::string(request->nextendo_client_id) == "synthetic-admission-client");
     const bool token = std::string(request->url) == "https://nextendo.network/api/oauth/token";
@@ -335,12 +337,14 @@ extern "C" int remote_http_run(const remote_http_request* request, remote_http_r
         assert(Field(form, "code") == "synthetic-admission-code" && Field(form, "grant_type") == "authorization_code");
         assert(Field(form, "client_id") == "synthetic-admission-client" && Field(form, "redirect_uri") == redirect);
         assert(Eden::Nextendo::PkceChallenge(Field(form, "code_verifier")) == challenge);
-        reply = R"({"account":{"pid":17},"nex_token":"nx2.synthetic-validated-admission-proof"})";
+        reply = R"({"access_token":"synthetic-web-admission-access-only","token_type":"Bearer","expires_in":3600,"scope":"identity game.matchmaking"})";
     } else {
         ++account_requests;
-        assert(std::string(request->url) == "https://nextendo.network/api/profile");
-        assert(std::string(request->authorization) == "Bearer nx2.synthetic-local-" + first);
-        reply = R"({"username":"synthetic-admission-profile"})";
+        assert(std::string(request->authorization) == "Bearer synthetic-web-admission-access-only");
+        const auto url = std::string(request->url);
+        assert(url == "https://nextendo.network/api/oauth/userinfo" || url == "https://nextendo.network/api/nex-token");
+        reply = url.ends_with("userinfo") ? R"({"pid":17,"username":"synthetic-unused"})" :
+            R"({"pid":17,"nex_token":"nx2.synthetic-validated-admission-proof","expires_in":86400})";
     }
     ++in_nextendo;
     while (hold_nextendo && !request->stop(request->user)) std::this_thread::sleep_for(1ms);
@@ -366,11 +370,26 @@ void CheckNextendoAdmission() {
     const auto other_first = Read(others / (first + ".account"));
     {
         EdenServices service;
+        const std::atomic<bool> stop{false};
+        const auto configs = config_reads.load(), tokens = token_requests.load(), reads = account_requests.load();
+        for (unsigned n = 0; n < 2; ++n) {
+            assert(service.nextendo_action(first, Action::link_browser, stop).error == Eden::Nextendo::GameLinkConsentRequired);
+            assert(service.nextendo_action_with_consent(first, Action::link_browser, stop, false).error == Eden::Nextendo::GameLinkConsentRequired);
+            assert(!service.nextendo_busy_ && service.nextendo_link_url().empty());
+        }
+        assert(config_reads == configs && token_requests == tokens && account_requests == reads);
+        assert(service.nextendo_action(first, Action::check_account, stop).error == Eden::Nextendo::GameCheckUnavailable);
+        assert(token_requests == tokens && account_requests == reads && Read(accounts / (first + ".account")) == old_first);
+    }
+    {
+        EdenServices service;
         std::atomic<bool> stop{false};
         Eden::Nextendo::Status result;
         hold_nextendo = true; nextendo_cancelled = false;
         const auto configs = config_reads.load();
-        std::thread worker([&] { result = service.nextendo_action(first, Action::check_account, stop); });
+        std::thread worker([&] { result = service.nextendo_action_with_consent(first, Action::link_browser, stop, true); });
+        Until([&] { return !service.nextendo_link_url().empty(); });
+        Authorize(service);
         Until([] { return in_nextendo != 0; });
         assert(service.nextendo_busy_ && config_reads == configs + 1);
         MutationsRefused(service, alternate.string());
@@ -402,7 +421,7 @@ void CheckNextendoAdmission() {
         Eden::Nextendo::Status result;
         hold_nextendo = true; nextendo_cancelled = false;
         const auto configs = config_reads.load();
-        std::thread worker([&] { result = service.nextendo_action(first, Action::link_browser, stop); });
+        std::thread worker([&] { result = service.nextendo_action_with_consent(first, Action::link_browser, stop, true); });
         Until([&] { return !service.nextendo_link_url().empty(); });
         MutationsRefused(service, alternate.string());
         assert(!service.begin_usb_backup());
@@ -444,7 +463,8 @@ void CheckNextendoAdmission() {
         assert(service.set_files_folder(alternate.string()));
         hold_nextendo = true;
         const auto before = config_reads.load();
-        std::thread oauth([&] { result = service.nextendo_action(first, Action::link_browser, stop); });
+        const auto tokens = token_requests.load(), reads = account_requests.load();
+        std::thread oauth([&] { result = service.nextendo_action_with_consent(first, Action::link_browser, stop, true); });
         Until([&] { return !service.nextendo_link_url().empty(); });
         Authorize(service); Until([] { return in_nextendo != 0; });
         MutationsRefused(service, primary.string());
@@ -456,6 +476,8 @@ void CheckNextendoAdmission() {
         const auto linked = Eden::Nextendo::Store(others.string()).Load(first, error);
         assert(linked && error.empty() && !linked->account.enabled && linked->account.pid == 17);
         assert(linked->account.token == "nx2.synthetic-validated-admission-proof");
+        assert(token_requests == tokens + 1 && account_requests == reads + 2);
+        assert(linked->account.expires_at > linked->account.issued_at);
         assert(Read(accounts / (first + ".account")) == old_first && Read(accounts / (second + ".account")) == old_second);
         assert(service.rename_profile(1, 1) && service.add_profile() == 2);
         assert(service.remove_profile(1) && !fs::exists(others / (second + ".account")));
