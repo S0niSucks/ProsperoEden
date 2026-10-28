@@ -39,7 +39,7 @@ for source in "${sources[@]}"; do
     object="$build/obj/${relative//\//_}.o"
     objects+=("$object")
     # Rebuild when the source or any launcher header is newer than the object.
-    if [[ ! -e $object || $source -nt $object ]] ||
+    if [[ ! -e $object || $source -nt $object || ${BASH_SOURCE[0]} -nt $object ]] ||
         [[ $relative != pe/gfx/harfbuzz.cpp && -n $(find "$source_dir/pe" "$source_dir/host" \( -name '*.hpp' -o -name '*.inc' \) -newer "$object" -print -quit) ]] ||
         [[ -n $(find "$root/headless" -maxdepth 1 -name '*.h' -newer "$object" -print -quit) ]]; then
         # HarfBuzz is not ours to tidy: its warnings are off.
@@ -47,7 +47,7 @@ for source in "${sources[@]}"; do
         [[ $relative == pe/gfx/harfbuzz.cpp ]] && warnings=(-w)
         "$cxx" -std=c++20 -O2 "${warnings[@]}" "${sanitize[@]}" -DGL_GLEXT_PROTOTYPES=1 -I"$source_dir" \
             -I"$source_dir/host" -I"$root/third_party/lua" -I"$root/tools/launcher/stb" -I"$root/third_party" -I"$root/third_party/miniz" -I"$harfbuzz" -I"$kit" -I"$json" \
-            -I"$root/headless" -c "$source" -o "$object" &
+            -I"$root/headless" -ffunction-sections -fdata-sections -c "$source" -o "$object" &
         pids+=($!)
         if [[ ${#pids[@]} -ge ${HOST_BUILD_JOBS:-2} ]]; then
             wait "${pids[0]}"
@@ -73,7 +73,7 @@ for source in "$source_dir"/pe/audio/*.cpp; do
     objects+=("$object")
 done
 source "$root/tools/launcher/update-deps.sh"
-"$cxx" "${sanitize[@]}" "${objects[@]}" -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$build/pe_preview"
+"$cxx" "${sanitize[@]}" -Wl,--gc-sections "${objects[@]}" -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$build/pe_preview"
 
 run() {
     EGL_PLATFORM=surfaceless LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe MESA_GL_VERSION_OVERRIDE=4.6 MESA_GLSL_VERSION_OVERRIDE=460 "$build/pe_preview" "$@"

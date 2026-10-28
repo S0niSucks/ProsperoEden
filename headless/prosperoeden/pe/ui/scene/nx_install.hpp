@@ -75,7 +75,8 @@ inline Json recover(const std::string& root,const ThemeImportStorage& reserve={}
             if(fstatat(dir.get(),"import-pending.json",&s,AT_SYMLINK_NOFOLLOW)!=0)continue;
             Reader reader(root+"/launchers/"+id);const auto journal=reader.json("import-pending.json");complete(root,id,journal,reserve);result.push_back({{"id",id},{"recovered",true}});
         }catch(const std::exception& e){result.push_back({{"id",id},{"recovered",false},{"error",e.what()}});}
-    }return result;
+    }
+    return result;
 }
 inline std::string install(const std::string& root,const Conversion& plan,bool consent,bool partial_consent=false,const ThemeImportStorage& reserve={}) {
     require(consent,"explicit native import consent is required");require(plan.report.at("omissions").empty()||partial_consent,"explicit consent to listed omissions is required");

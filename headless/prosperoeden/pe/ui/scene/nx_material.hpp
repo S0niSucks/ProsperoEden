@@ -32,6 +32,7 @@ inline gfx::Image bake_material(const Layout& layout,const Pane& pane,const File
         require(std::isfinite(u)&&std::isfinite(v)&&std::abs(u)<1000000&&std::abs(v)<1000000,"material UV range exceeded");
         for(unsigned c=0;c<4;++c){const unsigned shift=24-c*8;const float fore=(m.foreground>>shift)&255,back=(m.background>>shift)&255,vertex=(pane.rgba>>shift)&255;
             const float value=source.empty()?fore:back+(fore-back)*sample(u,v,c)/255;out.rgba[(std::size_t(y)*out.width+x)*4+c]=std::uint8_t(std::clamp(std::lround(value*vertex/255),0l,255l));}
-    }return out;
+    }
+    return out;
 }
 } // namespace pe::ui::scene::nx

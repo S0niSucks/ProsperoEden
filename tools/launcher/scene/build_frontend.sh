@@ -18,23 +18,25 @@ if [[ ! -f $build/scene-inputs || $(cat "$build/scene-inputs") != "$scene_hash" 
 fi
 cxx=${HOST_CXX:-c++}
 san=(-fsanitize=address,undefined -fno-omit-frame-pointer)
-includes=(-I"$source_dir" -I"$source_dir/host" -I"$root/third_party" -I"$root/third_party/miniz" -I"$root/third_party/lua" -I"$root/tools/launcher/stb" -I"$harfbuzz" -I"$kit")
+includes=(-I"$source_dir" -I"$source_dir/host" -I"$root/headless" -I"$root/third_party" -I"$root/third_party/miniz" -I"$root/third_party/lua" -I"$root/tools/launcher/stb" -I"$harfbuzz" -I"$kit")
 objects=()
 compile() {
     local source=$1 object=$2 language=$3 dirty=false
     objects+=("$object")
     [[ -e $object && -e $object.d ]] || dirty=true
+    [[ ${BASH_SOURCE[0]} -nt $object ]] && dirty=true
     if [[ $dirty == false ]]; then
         while IFS= read -r dep; do [[ -f $dep && $dep -nt $object ]] && dirty=true; done < <(tr ' \\\n' '\n' < "$object.d")
     fi
     if [[ $dirty == true ]]; then
-        local flags=(-O0 -g1 -Wall -Wextra "${san[@]}")
+        local flags=(-O0 -g1 -Wall -Wextra -ffunction-sections -fdata-sections "${san[@]}")
         [[ $language == lua ]] && flags=(-O1 -w "${san[@]}" -x c++ -include "$root/third_party/lua/runtime_api.hpp")
         [[ $language == harfbuzz ]] && flags=(-O1 -w)
         "$cxx" -std=c++20 "${flags[@]}" -DPE_RUNTIME_PREVIEW=1 -DGL_GLEXT_PROTOTYPES=1 "${includes[@]}" -MMD -MF "$object.d" -c "$source" -o "$object"
     fi
 }
-for source in "$source_dir"/host/*.cpp "$source_dir"/pe/{core,gfx,ui,audio}/*.cpp "$kit/ui/theme.cpp"; do
+for source in "$source_dir"/host/*.cpp "$source_dir"/pe/{core,gfx,ui,audio}/*.cpp "$kit/ui/theme.cpp" \
+    "$root/headless/network/editor.cpp" "$root/headless/network/config.cpp"; do
     relative=${source#"$root/"};name=${relative//\//_};language=cpp
     [[ $source == */harfbuzz.cpp ]] && language=harfbuzz
     compile "$source" "$build/obj/$name.o" "$language"
@@ -47,6 +49,6 @@ done
 source "$root/tools/launcher/update-deps.sh"
 current_hash=$(find "$source_dir/pe/ui/scene" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum)
 [[ $scene_hash == "$current_hash" ]] || { echo 'Scene headers changed during compilation; refusing a mixed-layout link. Run again from a stable snapshot.' >&2; exit 1; }
-"$cxx" "${san[@]}" "${objects[@]}" -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$build/pe_preview"
+"$cxx" "${san[@]}" -Wl,--gc-sections "${objects[@]}" -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$build/pe_preview"
 printf '%s\n' "$scene_hash" > "$build/scene-inputs"
 echo "$build/pe_preview"
