@@ -2683,3 +2683,100 @@ msgstr "Foto model yang dipilih secara eksplisit: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} dari {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (eksperimental)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Tautkan akun komunitas. Terpisah dari ruang lokal; nonaktif secara bawaan."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Perutean layanan aktif"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Perutean layanan nonaktif"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Akun tertaut ke profil ini"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Tidak ada akun tertaut"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Layanan komunitas, bukan ruang lokal. Masuk akun di gim dan bermain daring di PS5 belum diverifikasi."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Konfirmasi penggantian"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Ganti sesi tertaut"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Impor sesi saya"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Nonaktifkan perutean"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Aktifkan perutean"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Periksa akun"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Konfirmasi lepas tautan"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Lepas tautan akun"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Konfirmasi penggantian via peramban"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Tautkan di peramban PS5 ini"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Penautan via peramban memerlukan klien terdaftar Anda di nextendo/oauth.json (0600). Atau impor sesi milik Anda sebagai nextendo/import.txt. Penautan tetap menonaktifkan perutean. Rute terverifikasi wajib tersedia sebelum mengaktifkannya. Lihat docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Memproses... Lingkaran membatalkan."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Akun diterima. Ini bukan uji koneksi gim."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Gunakan peramban di PS5 ini sementara ProsperoEden tetap berjalan. Ponsel atau perangkat lain tidak dapat menjangkau alamat panggilan balik lokal ini."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Buka di PS5 INI (kedaluwarsa dalam lima menit; Lingkaran membatalkan):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Biarkan ProsperoEden berjalan. Jangan buka ini di ponsel atau perangkat lain."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Kembali / batal"

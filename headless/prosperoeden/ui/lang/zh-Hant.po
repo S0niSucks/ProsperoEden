@@ -2683,3 +2683,100 @@ msgstr "明確選取的型號照片：{0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0}，共 {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo（實驗性）"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "連結社群帳號。獨立於本機房間，預設關閉。"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "服務路由已開啟"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "服務路由已關閉"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "帳號已連結至此使用者設定檔"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "尚未連結帳號"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "這是社群服務，不是本機房間。遊戲內登入與 PS5 線上遊玩尚未經過驗證。"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "確認取代"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "取代已連結的工作階段"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "匯入我的工作階段"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "關閉路由"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "開啟路由"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "檢查帳號"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "確認解除連結"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "解除帳號連結"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "確認透過瀏覽器取代"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "在這台 PS5 的瀏覽器中連結"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "透過瀏覽器連結需要在 nextendo/oauth.json（0600）中設定你已註冊的用戶端。也可將自己的工作階段匯入為 nextendo/import.txt。連結後路由仍保持關閉。開啟前必須有經過驗證的路由。請參閱 docs/features/NEXTENDO.md。"
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "正在處理... 按圓圈鍵取消。"
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "帳號已接受。這不是遊戲連線測試。"
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "請使用這台 PS5 上的瀏覽器，並保持 ProsperoEden 執行。手機或其他裝置無法存取此本機迴路回呼位址。"
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "僅在這台 PS5 上開啟（五分鐘後到期；按圓圈鍵取消）："
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "請保持 ProsperoEden 執行。不要在手機或其他裝置上開啟。"
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "返回 / 取消"

@@ -22,9 +22,9 @@ tests; no test result is assigned to that attempt. The successful run used the l
 prepare/verify/run split. It predates Nextendo integration and does not execute PS5 storage/NFC.
 
 All 54 new USB/Amiibo-source msgids now have additive translations in all 30 catalogs (1,620
-entries), with existing catalog bytes preserved. The 24 newer Nextendo strings remain pending,
-so the current whole-catalog check is intentionally **not passing**: 635 translated of 659
-source texts per locale. USB/Amiibo introduce no checked-font/placeholder errors and five
+entries), with existing catalog bytes preserved. The 24 newer Nextendo strings have since been
+added in all 30 catalogs (720 more entries), and the whole-catalog checker now **passes**:
+659 source texts, 30 catalogs, zero problems. USB/Amiibo introduce no checked-font/placeholder errors and five
 known heuristic label-length advisories, not measured clipping. Console-font coverage and
 localized layout require separate evidence. Reviewed input SHA-256:
 `32491564fc5a24cb498e262b8a4d9fd17c3ada0adb55aeb395412bbfdffaf071`.

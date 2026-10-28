@@ -321,10 +321,15 @@ account files via general-purpose backup, diagnostics or source-snapshot collect
 
 ### New msgids for coordinator catalog integration
 
-Source: `headless/prosperoeden/pe/ui/multiplayer.cpp` and `pe/ui/nextendo.inc` (the current strings
-extractor scans cpp/hpp/h, so **include the feature's .inc strings** when consolidating catalogs).
+Source: `headless/prosperoeden/pe/ui/multiplayer.cpp` and `pe/ui/nextendo.inc`. The extractor now
+includes `.inc` sources, covered by `tools/launcher/test-strings.py`.
 All existing strings retain their msgids. English service errors follow the existing backend-error
-convention and are sanitized; catalog work is intentionally not performed independently here.
+convention and are sanitized. The coordinator additively imported all 24 feature msgids across
+all 30 catalogs (720 translations), preserving existing bytes. The checker passes at 659 total
+source texts, zero problems; eight new heuristic length advisories are not measured clipping.
+Console system-font coverage and localized layout remain unqualified. Reviewed batch SHA-256:
+`130349ccb695c5ae99ad7957c2741bb66b5d9be896a84b0eb78ff841d728a4d3`.
+Validation log: `.local/upstream-audit/strings-usb-amiibo-nextendo-complete.log`.
 
 - `Nextendo (experimental)`
 - `Link a community account. Separate from local rooms; off by default.`

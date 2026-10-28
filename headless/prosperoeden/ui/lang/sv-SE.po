@@ -2683,3 +2683,100 @@ msgstr "Foton av uttryckligen valda modeller: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} av {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (experimentellt)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Länka ett gemenskapskonto. Skilt från lokala rum; av som standard."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Tjänsteroutning på"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Tjänsteroutning av"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Konto länkat till den här profilen"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Inget konto länkat"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Gemenskapstjänster, inte lokala rum. Inloggning i spel och onlinespel på PS5 är ännu inte verifierade."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Bekräfta ersättning"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Ersätt länkad session"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Importera min session"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Stäng av routning"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Slå på routning"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Kontrollera konto"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Bekräfta avlänkning"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Avlänka konto"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Bekräfta ersättning via webbläsare"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Länka i webbläsaren på denna PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Webbläsarlänkning kräver din registrerade klient i nextendo/oauth.json (0600). Eller importera din egen session som nextendo/import.txt. Länkning lämnar routning avstängd. Verifierade rutter krävs före aktivering. Se docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Arbetar... Cirkel avbryter."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Konto godkänt. Detta är inte ett test av spelanslutningen."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Använd en webbläsare på denna PS5 medan ProsperoEden fortsätter köras. En telefon eller annan enhet kan inte nå denna lokala återanropsadress."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Öppna på DENNA PS5 (giltigt i fem minuter; Cirkel avbryter):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Låt ProsperoEden köras. Öppna inte detta på en telefon eller annan enhet."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Tillbaka / avbryt"

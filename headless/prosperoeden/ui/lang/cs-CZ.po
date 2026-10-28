@@ -2683,3 +2683,100 @@ msgstr "Fotografie výslovně vybraných modelů: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} z {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (experimentální)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Propojte komunitní účet. Oddělené od místních místností; ve výchozím stavu vypnuto."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Směrování služeb zapnuto"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Směrování služeb vypnuto"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Účet propojen s tímto profilem"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Žádný propojený účet"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Komunitní služby, nikoli místní místnosti. Přihlášení ve hrách ani online hraní na PS5 zatím nejsou ověřeny."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Potvrdit nahrazení"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Nahradit propojenou relaci"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Importovat mou relaci"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Vypnout směrování"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Zapnout směrování"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Ověřit účet"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Potvrdit odpojení"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Odpojit účet"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Potvrdit nahrazení přes prohlížeč"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Propojit v prohlížeči této PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Propojení přes prohlížeč vyžaduje vašeho registrovaného klienta v nextendo/oauth.json (0600). Nebo importujte vlastní relaci jako nextendo/import.txt. Po propojení zůstává směrování vypnuté. Před zapnutím jsou nutné ověřené trasy. Viz docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Pracuji... Kolečko zruší akci."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Účet přijat. Nejde o test připojení hry."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Použijte prohlížeč na této PS5 a nechte ProsperoEden spuštěný. Telefon ani jiné zařízení se k této místní zpětné adrese nedostanou."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Otevřete na TÉTO PS5 (platí pět minut; kolečko zruší akci):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Nechte ProsperoEden spuštěný. Neotevírejte to na telefonu ani jiném zařízení."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Zpět / zrušit"

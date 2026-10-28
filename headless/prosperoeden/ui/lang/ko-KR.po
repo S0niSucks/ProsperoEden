@@ -2683,3 +2683,100 @@ msgstr "명시적으로 선택한 모델 사진: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{1} 중 {0}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (실험적 기능)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "커뮤니티 계정을 연결합니다. 로컬 방과는 별개이며 기본적으로 꺼져 있습니다."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "서비스 라우팅 켜짐"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "서비스 라우팅 꺼짐"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "이 프로필에 계정이 연결됨"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "연결된 계정 없음"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "로컬 방이 아닌 커뮤니티 서비스입니다. 게임 내 로그인과 PS5 온라인 플레이는 아직 검증되지 않았습니다."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "교체 확인"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "연결된 세션 교체"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "내 세션 가져오기"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "라우팅 끄기"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "라우팅 켜기"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "계정 확인"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "연결 해제 확인"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "계정 연결 해제"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "브라우저로 세션 교체 확인"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "이 PS5의 브라우저에서 연결"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "브라우저 연결에는 등록을 마친 본인의 클라이언트를 nextendo/oauth.json (0600)에 설정해야 합니다. 또는 본인 세션을 nextendo/import.txt로 가져오세요. 연결해도 라우팅은 꺼진 상태로 유지됩니다. 켜기 전에 검증된 경로가 필요합니다. docs/features/NEXTENDO.md를 참고하세요."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "처리 중... 동그라미 버튼으로 취소."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "계정이 승인되었습니다. 게임 연결 테스트가 아닙니다."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "ProsperoEden을 실행한 채로 이 PS5의 브라우저를 사용하세요. 휴대전화나 다른 기기에서는 이 루프백 콜백 주소에 접근할 수 없습니다."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "반드시 이 PS5에서 여세요 (5분 후 만료, 동그라미 버튼으로 취소):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "ProsperoEden을 계속 실행하세요. 휴대전화나 다른 기기에서 열지 마세요."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "뒤로 / 취소"

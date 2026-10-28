@@ -2683,3 +2683,100 @@ msgstr "Ảnh các mẫu được chọn rõ ràng: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} trên {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (thử nghiệm)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Liên kết tài khoản cộng đồng. Tách biệt với phòng cục bộ; mặc định tắt."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Định tuyến dịch vụ bật"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Định tuyến dịch vụ tắt"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Tài khoản đã liên kết với hồ sơ này"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Chưa liên kết tài khoản"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Dịch vụ cộng đồng, không phải phòng cục bộ. Đăng nhập trong trò chơi và chơi trực tuyến trên PS5 chưa được xác minh."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Xác nhận thay thế"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Thay phiên đã liên kết"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Nhập phiên của tôi"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Tắt định tuyến"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Bật định tuyến"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Kiểm tra tài khoản"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Xác nhận hủy liên kết"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Hủy liên kết tài khoản"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Xác nhận thay thế qua trình duyệt"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Liên kết trong trình duyệt của PS5 này"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Liên kết qua trình duyệt cần ứng dụng khách đã đăng ký của bạn trong nextendo/oauth.json (0600). Hoặc nhập phiên của chính bạn dưới dạng nextendo/import.txt. Liên kết vẫn giữ định tuyến ở trạng thái tắt. Cần các tuyến đã xác minh trước khi bật. Xem docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Đang xử lý... Nút Tròn để hủy."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Tài khoản được chấp nhận. Đây không phải kiểm tra kết nối trò chơi."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Dùng trình duyệt trên PS5 này trong khi vẫn chạy ProsperoEden. Điện thoại hoặc thiết bị khác không thể truy cập địa chỉ gọi lại vòng lặp cục bộ này."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Mở trên CHÍNH PS5 NÀY (hết hạn sau năm phút; nút Tròn để hủy):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Giữ ProsperoEden đang chạy. Không mở trên điện thoại hoặc thiết bị khác."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Quay lại / hủy"

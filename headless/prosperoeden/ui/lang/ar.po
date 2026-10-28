@@ -2683,3 +2683,100 @@ msgstr "صور طرازات مختارة صراحة: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} من {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (تجريبي)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "اربط حسابا مجتمعيا. منفصل عن الغرف المحلية؛ معطل افتراضيا."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "توجيه الخدمات مفعل"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "توجيه الخدمات معطل"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "الحساب مرتبط بهذا الملف الشخصي"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "لا يوجد حساب مرتبط"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "خدمات مجتمعية وليست غرفا محلية. لم يتم التحقق بعد من تسجيل الدخول داخل الألعاب أو اللعب عبر الإنترنت على PS5."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "تأكيد الاستبدال"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "استبدال الجلسة المرتبطة"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "استيراد جلستي"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "تعطيل التوجيه"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "تفعيل التوجيه"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "فحص الحساب"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "تأكيد إلغاء الربط"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "إلغاء ربط الحساب"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "تأكيد الاستبدال عبر المتصفح"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "الربط في متصفح جهاز PS5 هذا"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "يتطلب الربط بالمتصفح عميلك المسجل في nextendo/oauth.json (0600). أو استورد جلستك الخاصة باسم nextendo/import.txt. يبقى التوجيه معطلا بعد الربط. يلزم التحقق من المسارات قبل تفعيله. راجع docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "جار العمل... زر الدائرة يلغي العملية."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "تم قبول الحساب. هذا ليس اختبارا لاتصال اللعبة."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "استخدم متصفحا على جهاز PS5 هذا مع إبقاء ProsperoEden قيد التشغيل. لا يمكن لهاتف أو جهاز آخر الوصول إلى اتصال الرجوع المحلي هذا."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "افتح على جهاز PS5 هذا فقط (تنتهي الصلاحية بعد خمس دقائق؛ زر الدائرة يلغي العملية):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "أبقِ ProsperoEden قيد التشغيل. لا تفتح هذا على هاتف أو جهاز آخر."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "رجوع / إلغاء"

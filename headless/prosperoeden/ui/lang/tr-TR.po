@@ -2683,3 +2683,100 @@ msgstr "Açıkça seçilmiş modellerin fotoğrafları: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} / {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (deneysel)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Topluluk hesabı bağlayın. Yerel odalardan ayrıdır; varsayılan olarak kapalıdır."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Hizmet yönlendirmesi açık"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Hizmet yönlendirmesi kapalı"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Hesap bu profile bağlı"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Bağlı hesap yok"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Yerel odalar değil, topluluk hizmetleri. Oyun içi oturum açma ve PS5 çevrimiçi oyun henüz doğrulanmadı."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Değiştirmeyi onayla"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Bağlı oturumu değiştir"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Kendi oturumumu içe aktar"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Yönlendirmeyi kapat"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Yönlendirmeyi aç"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Hesabı denetle"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Bağı kaldırmayı onayla"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Hesap bağlantısını kaldır"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Tarayıcıyla değiştirmeyi onayla"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Bu PS5'in tarayıcısında bağla"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Tarayıcıyla bağlama için nextendo/oauth.json (0600) içinde kayıtlı istemciniz gerekir. Ya da kendi oturumunuzu nextendo/import.txt olarak içe aktarın. Bağlama, yönlendirmeyi kapalı tutar. Açmadan önce doğrulanmış rotalar gerekir. Bkz. docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "İşleniyor... Daire iptal eder."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Hesap kabul edildi. Bu bir oyun bağlantısı testi değildir."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "ProsperoEden çalışmaya devam ederken bu PS5'te bir tarayıcı kullanın. Telefon veya başka bir cihaz bu yerel geri döngü çağrısına erişemez."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "BU PS5'te açın (beş dakika sonra sona erer; Daire iptal eder):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "ProsperoEden çalışmaya devam etsin. Bunu telefonda veya başka bir cihazda açmayın."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Geri / iptal"

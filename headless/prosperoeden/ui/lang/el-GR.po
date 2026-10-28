@@ -2683,3 +2683,100 @@ msgstr "Φωτογραφίες ρητά επιλεγμένων μοντέλων:
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} από {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (πειραματικό)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Συνδέστε λογαριασμό κοινότητας. Χωριστά από τοπικά δωμάτια· ανενεργό από προεπιλογή."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Δρομολόγηση υπηρεσιών ενεργή"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Δρομολόγηση υπηρεσιών ανενεργή"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Λογαριασμός συνδεδεμένος με αυτό το προφίλ"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Χωρίς συνδεδεμένο λογαριασμό"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Υπηρεσίες κοινότητας, όχι τοπικά δωμάτια. Η σύνδεση λογαριασμού σε παιχνίδια και το διαδικτυακό παιχνίδι στο PS5 δεν έχουν ακόμη επαληθευτεί."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Επιβεβαίωση αντικατάστασης"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Αντικατάσταση συνδεδεμένης συνεδρίας"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Εισαγωγή συνεδρίας μου"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Απενεργοποίηση δρομολόγησης"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Ενεργοποίηση δρομολόγησης"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Έλεγχος λογαριασμού"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Επιβεβαίωση αποσύνδεσης"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Αποσύνδεση λογαριασμού"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Επιβεβαίωση αντικατάστασης μέσω φυλλομετρητή"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Σύνδεση στον φυλλομετρητή αυτού του PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Η σύνδεση μέσω φυλλομετρητή απαιτεί το καταχωρισμένο πρόγραμμα-πελάτη σας στο nextendo/oauth.json (0600). Ή εισαγάγετε τη δική σας συνεδρία ως nextendo/import.txt. Η σύνδεση αφήνει τη δρομολόγηση ανενεργή. Απαιτούνται επαληθευμένες διαδρομές πριν την ενεργοποίηση. Δείτε docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Σε εξέλιξη... Ο κύκλος ακυρώνει."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Ο λογαριασμός έγινε δεκτός. Δεν είναι δοκιμή σύνδεσης παιχνιδιού."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Χρησιμοποιήστε φυλλομετρητή σε αυτό το PS5 ενώ το ProsperoEden παραμένει σε λειτουργία. Τηλέφωνο ή άλλη συσκευή δεν μπορεί να φτάσει αυτή την τοπική διεύθυνση επιστροφής."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Ανοίξτε σε ΑΥΤΟ το PS5 (λήγει σε πέντε λεπτά· ο κύκλος ακυρώνει):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Αφήστε το ProsperoEden σε λειτουργία. Μην το ανοίξετε σε τηλέφωνο ή άλλη συσκευή."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Πίσω / ακύρωση"

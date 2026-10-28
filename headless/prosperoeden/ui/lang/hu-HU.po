@@ -2683,3 +2683,100 @@ msgstr "Kifejezetten kijelölt modellek fotói: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} / {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (kísérleti)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Közösségi fiók összekapcsolása. Külön a helyi szobáktól; alapból kikapcsolva."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Szolgáltatás-útválasztás: be"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Szolgáltatás-útválasztás: ki"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Fiók ehhez a profilhoz kapcsolva"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Nincs kapcsolt fiók"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Közösségi szolgáltatások, nem helyi szobák. A játékbeli bejelentkezés és a PS5 online játék még nincs ellenőrizve."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Csere megerősítése"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Kapcsolt munkamenet cseréje"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Saját munkamenet importálása"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Útválasztás kikapcsolása"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Útválasztás bekapcsolása"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Fiók ellenőrzése"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Leválasztás megerősítése"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Fiók leválasztása"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Böngészős csere megerősítése"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Összekapcsolás e PS5 böngészőjében"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "A böngészős összekapcsoláshoz regisztrált kliensed kell a nextendo/oauth.json fájlban (0600). Vagy importáld saját munkamenetedet nextendo/import.txt néven. Az összekapcsolás nem kapcsolja be az útválasztást. Bekapcsolás előtt ellenőrzött útvonalak kellenek. Lásd: docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Folyamatban... A kör megszakítja."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Fiók elfogadva. Ez nem a játék kapcsolatának tesztje."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Ezen a PS5 konzolon használj böngészőt, miközben a ProsperoEden fut. Telefon vagy másik eszköz nem érheti el ezt a helyi visszahívási címet."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "EZEN a PS5 konzolon nyisd meg (öt perc múlva lejár; a kör megszakítja):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Hagyd futni a ProsperoEden alkalmazást. Ne nyisd meg telefonon vagy másik eszközön."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Vissza / megszakítás"

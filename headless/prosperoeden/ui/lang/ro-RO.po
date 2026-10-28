@@ -2683,3 +2683,100 @@ msgstr "Fotografii ale modelelor selectate explicit: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} din {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (în fază experimentală)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Asociază un cont comunitar. Separat de camerele locale; dezactivat implicit."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Rutarea serviciilor activată"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Rutarea serviciilor dezactivată"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Cont asociat acestui profil"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Niciun cont asociat"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Servicii comunitare, nu camere locale. Autentificarea în jocuri și jocul online pe PS5 nu sunt încă verificate."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Confirmă înlocuirea"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Înlocuiește sesiunea asociată"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Importă sesiunea mea"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Dezactivează rutarea"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Activează rutarea"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Verifică contul"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Confirmă dezasocierea"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Dezasociază contul"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Confirmă înlocuirea prin navigator"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Asociază în navigatorul acestui PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Asocierea prin navigator necesită clientul tău înregistrat în nextendo/oauth.json (0600). Sau importă propria sesiune ca nextendo/import.txt. Asocierea lasă rutarea dezactivată. Sunt necesare rute verificate înainte de activare. Vezi docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Se procesează... Cerc anulează."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Cont acceptat. Acesta nu este un test al conexiunii jocului."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Folosește un navigator pe acest PS5 cât timp ProsperoEden rulează. Un telefon sau alt dispozitiv nu poate accesa această adresă locală de retur."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Deschide pe ACEST PS5 (expiră în cinci minute; Cerc anulează):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Lasă ProsperoEden să ruleze. Nu deschide pe un telefon sau alt dispozitiv."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Înapoi / anulare"

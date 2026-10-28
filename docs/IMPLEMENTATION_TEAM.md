@@ -42,6 +42,14 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | SMB/NFS | `b057a17` / `dbaf12d` delivered real read-only VFS/protocols and initial launcher wiring, not integrated yet. Worker continues actual loader/library metadata, updates/DLC, recents and authenticated/encrypted SMB tests; JSON configuration alone is not full library/launch acceptance. |
 | USB backup/restore | `884a8a4` / `ba1bb06` reviewed/cherry-picked as `afe7d80` / `01c6912`. Credential exclusion/injection controls, backend runner and initial 20 UI assertions passed; restore/restart captures coordinator-inspected. Worker-creation recovery passed real OS `EAGAIN` tests. Combined actual Amiibo/cheat/USB guards/workers plus full backend/update/syntax passed `sh_17fd7b2c7001OEJMHG3xgCQKtV` on frozen `878d97c`. Other new-feature writer coordination and final regression remain mandatory. |
 
+USB/Amiibo (54 msgids) and Nextendo (24 msgids) translations are now additively incorporated
+in all 30 catalogs, with existing entries untouched. Source/include extraction and import tests
+pass; the whole checker reports **659 source texts, 30 catalogs, zero problems**. Thirteen new
+heuristic length advisories (five USB/Amiibo, eight Nextendo) and console-font/layout coverage
+remain distinct from the passing static checker. The Nextendo security audit found and fixed
+header-allocation omission and ambiguous duplicate JSON (`6ece3f1`, imported `d96e8cc`);
+integrated shared-HTTP regression on the clean frozen snapshot is in progress.
+
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
 Synthetic BKTR also passed in a separate coordinator-owned fixture worktree and was integrated

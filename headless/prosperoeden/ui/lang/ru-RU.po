@@ -2683,3 +2683,100 @@ msgstr "Фото явно выбранных моделей: {0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} из {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (экспериментально)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "Привяжите учётную запись сообщества. Отдельно от локальных комнат; по умолчанию выключено."
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "Маршрутизация служб включена"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "Маршрутизация служб выключена"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "Учётная запись привязана к этому профилю"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "Учётная запись не привязана"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "Службы сообщества, не локальные комнаты. Вход в играх и сетевая игра на PS5 пока не проверены."
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "Подтвердить замену"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "Заменить привязанный сеанс"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "Импортировать мой сеанс"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "Выключить маршрутизацию"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "Включить маршрутизацию"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "Проверить учётную запись"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "Подтвердить отвязку"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "Отвязать учётную запись"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "Подтвердить замену через браузер"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "Привязать в браузере этой PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "Привязка через браузер требует вашего зарегистрированного клиента в nextendo/oauth.json (0600). Либо импортируйте свой сеанс как nextendo/import.txt. После привязки маршрутизация остаётся выключенной. Для включения нужны проверенные маршруты. См. docs/features/NEXTENDO.md."
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "Обработка... Круг отменяет."
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "Учётная запись принята. Это не тест подключения игры."
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "Используйте браузер на этой PS5, не закрывая ProsperoEden. Телефон или другое устройство не может обратиться к этому локальному адресу обратного вызова."
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "Откройте на ЭТОЙ PS5 (истекает через пять минут; Круг отменяет):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "Оставьте ProsperoEden запущенным. Не открывайте на телефоне или другом устройстве."
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "Назад / отмена"

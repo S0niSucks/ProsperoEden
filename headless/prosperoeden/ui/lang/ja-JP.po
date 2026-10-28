@@ -2683,3 +2683,100 @@ msgstr "明示的に選択したモデルの写真：{0}"
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{1} 中 {0}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo（実験的機能）"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "コミュニティアカウントを連携します。ローカルルームとは別の機能で、初期設定では無効です。"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "サービス経路制御：有効"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "サービス経路制御：無効"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "このプロフィールにアカウントを連携済み"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "連携済みアカウントなし"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "コミュニティサービス用で、ローカルルームではありません。ゲーム内ログインとPS5でのオンラインプレイはまだ検証されていません。"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "置き換えを確認"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "連携済みセッションを置き換え"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "自分のセッションをインポート"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "経路制御を無効にする"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "経路制御を有効にする"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "アカウントを確認"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "連携解除を確認"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "アカウントの連携を解除"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "ブラウザーでの置き換えを確認"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "このPS5のブラウザーで連携"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "ブラウザー連携には、登録済みのクライアントをnextendo/oauth.json（0600）に設定する必要があります。または、自分のセッションをnextendo/import.txtとしてインポートしてください。連携しても経路制御は無効のままです。有効にするには検証済みの経路が必要です。docs/features/NEXTENDO.mdを参照してください。"
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "処理中... 丸ボタンでキャンセル。"
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "アカウントは受理されました。これはゲームの接続テストではありません。"
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "ProsperoEdenを起動したまま、このPS5のブラウザーを使用してください。スマートフォンや別の機器からは、このループバックの戻り先に接続できません。"
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "必ずこのPS5で開いてください（5分で期限切れ。丸ボタンでキャンセル）："
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "ProsperoEdenを起動したままにしてください。スマートフォンや別の機器では開かないでください。"
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "戻る / キャンセル"

@@ -2683,3 +2683,100 @@ msgstr "รูปภาพของรุ่นที่เลือกอย่
 #: pe/ui/usb_backup.cpp
 msgid "{0} of {1}"
 msgstr "{0} จาก {1}"
+
+
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr "Nextendo (ทดลอง)"
+
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr "เชื่อมโยงบัญชีชุมชน แยกจากห้องภายในเครือข่าย และปิดไว้ตามค่าเริ่มต้น"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr "เปิดการกำหนดเส้นทางบริการ"
+
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr "ปิดการกำหนดเส้นทางบริการ"
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr "บัญชีเชื่อมโยงกับโปรไฟล์นี้แล้ว"
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
+msgstr "ยังไม่มีบัญชีที่เชื่อมโยง"
+
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr "บริการชุมชน ไม่ใช่ห้องภายในเครือข่าย ยังไม่ได้ยืนยันการเข้าสู่ระบบในเกมและการเล่นออนไลน์บน PS5"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr "ยืนยันการแทนที่"
+
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr "แทนที่เซสชันที่เชื่อมโยง"
+
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr "นำเข้าเซสชันของฉัน"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr "ปิดการกำหนดเส้นทาง"
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr "เปิดการกำหนดเส้นทาง"
+
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr "ตรวจสอบบัญชี"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
+msgstr "ยืนยันเลิกเชื่อมโยง"
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
+msgstr "ยกเลิกการเชื่อมโยงบัญชี"
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr "ยืนยันการแทนที่ผ่านเบราว์เซอร์"
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr "เชื่อมโยงในเบราว์เซอร์ของ PS5 เครื่องนี้"
+
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr "การเชื่อมโยงผ่านเบราว์เซอร์ต้องใช้ไคลเอนต์ที่คุณลงทะเบียนไว้ใน nextendo/oauth.json (0600) หรือนำเข้าเซสชันของคุณเองเป็น nextendo/import.txt การเชื่อมโยงจะยังคงปิดการกำหนดเส้นทางไว้ ต้องมีเส้นทางที่ตรวจสอบแล้วก่อนเปิดใช้งาน ดู docs/features/NEXTENDO.md"
+
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr "กำลังทำงาน... ปุ่มวงกลมใช้ยกเลิก"
+
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr "ยอมรับบัญชีแล้ว นี่ไม่ใช่การทดสอบการเชื่อมต่อเกม"
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr "ใช้เบราว์เซอร์บน PS5 เครื่องนี้โดยเปิด ProsperoEden ไว้ โทรศัพท์หรืออุปกรณ์อื่นไม่สามารถเข้าถึงที่อยู่เรียกกลับแบบวนกลับในเครื่องนี้ได้"
+
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr "เปิดบน PS5 เครื่องนี้เท่านั้น (หมดอายุในห้านาที ปุ่มวงกลมใช้ยกเลิก):"
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
+msgstr "เปิด ProsperoEden ไว้ อย่าเปิดลิงก์นี้บนโทรศัพท์หรืออุปกรณ์อื่น"
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr "ย้อนกลับ / ยกเลิก"
