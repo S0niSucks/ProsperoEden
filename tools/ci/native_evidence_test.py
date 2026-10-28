@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -362,6 +363,32 @@ class NativeEvidenceTests(unittest.TestCase):
             with self.subTest(token=token), self.assertRaises(ne.Refused):
                 ne.record(self.evidence, 'bad-argv', [], [], [], [tool, token])
         self.assertFalse((self.app / 'should-not-exist').exists())
+
+    def test_separate_credential_options_refused_before_probes_or_producer(self):
+        tool = self.producer('touch should-not-exist\n')
+        before = self.phases()
+        for option in ('--token', '--access-token', '--password', '--secret', '--credential',
+                       '--api-key', '--api_key', '--api.key', '--TOKEN,synthetic-canary'):
+            with self.subTest(option=option), mock.patch.object(ne, 'inspect') as probe:
+                with self.assertRaises(ne.Refused):
+                    ne.record(self.evidence, 'bad-argv', [], [], [], [tool, option, 'synthetic-canary'])
+                probe.assert_not_called()
+        self.assertEqual(self.phases(), before)
+        self.assertFalse((self.app / 'should-not-exist').exists())
+
+    def test_cli_separate_credential_never_recorded_or_executed(self):
+        tool = self.producer('touch should-not-exist\n')
+        marker = 'synthetic-private-argv-canary'
+        result = subprocess.run([sys.executable, str(HERE / 'native_evidence.py'),
+                                 '--dir', str(self.destination), 'run', '--phase', 'refused-cli',
+                                 '--', tool, '--token', marker], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn(marker.encode(), result.stdout + result.stderr)
+        self.assertEqual(self.phases(), [])
+        self.assertFalse((self.app / 'should-not-exist').exists())
+        for path in self.destination.rglob('*'):
+            if path.is_file():
+                self.assertNotIn(marker.encode(), path.read_bytes())
 
     def test_private_permissions_and_transport_symlinks_refused(self):
         self.capture([self.file('source.c')])

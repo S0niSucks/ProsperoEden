@@ -297,7 +297,7 @@ def argv_privacy(arguments):
         require(isinstance(argument, str) and not any(ord(c) < 32 or ord(c) == 127 for c in argument),
                 'control character in argv')
         require('://' not in argument, 'network argv refused')
-        require(not re.search(r'(?i)(?:^|[-_])(?:password|token|secret|credential|api.key)=', argument),
+        require(not re.search(r'(?i)(?:^|[-_])(?:password|token|secret|credential|api.key)(?:=|,|$)', argument),
                 'credential argv refused')
         for token in re.split('[=,]', argument):
             token = token.lstrip('@')

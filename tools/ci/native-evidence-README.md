@@ -100,7 +100,9 @@ Unresolved search/scripts/options/providers remain in the `pending` ledger.
 Actual input argv and response bytes are private evidence: never pass credentials
 or secret values to this API. It rejects the shared private-name classes and
 credential-like options, but cannot determine whether arbitrary innocuous-named
-file contents are confidential. Only explicitly approved public/build artifacts
+file contents are confidential. Credential-like options are refused in both
+joined (`--token=value`) and separate (`--token value`) forms, before producer
+execution or event capture. Only explicitly approved public/build artifacts
 belong in the selections. There is no environment dump or environment receipt.
 
 ## Implemented hooks and exact changed paths
