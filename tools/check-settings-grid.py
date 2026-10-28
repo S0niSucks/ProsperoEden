@@ -15,6 +15,8 @@ assert category
 geometry = source[source.index('constexpr int kTileColumns'):source.index('// The Video dialog')]
 method = source[source.index('void Launcher::press_settings'):source.index('void Launcher::draw_settings')]
 navigation = method[method.index('    case Key::up:'):method.index('    case Key::cross:')]
+draw_loop = re.search(r'for \(int i = first; i < std::min(?:<int>)?\(first \+ kTilesPerPage, kCategoryCount\); \+\+i\)', source)
+assert draw_loop
 fixture = r'''
 #include <algorithm>
 #include <cassert>
@@ -59,6 +61,13 @@ int main() {
     assert(reached.size()==kCategoryCount);
     // All first-page positions stay exactly where they were before composition.
     for(int at=0;at<kCategoryCount;++at) {
+        const int first=at/kTilesPerPage*kTilesPerPage;
+        int drawn=0;
+        @DRAW_LOOP@ {
+            assert(i>=first && i<kCategoryCount);
+            ++drawn;
+        }
+        assert(drawn>0 && drawn<=kTilesPerPage && at>=first && at<first+drawn);
         const auto r=tile_rect(at);
         const int local=at%kTilesPerPage;
         assert(r.x==layout::kLeft+(kTileWidth+kTileGap)*(local%kTileColumns));
@@ -81,7 +90,7 @@ int main() {
     for(int i=1;i<kCategoryCount;++i) list.press(Key::down);
     assert(list.settings_.selected==kCategoryCount-1);
 }
-'''.replace('@CATEGORY@', category[0]).replace('@GEOMETRY@', geometry).replace('@NAVIGATION@', navigation)
+'''.replace('@CATEGORY@', category[0]).replace('@GEOMETRY@', geometry).replace('@NAVIGATION@', navigation).replace('@DRAW_LOOP@', draw_loop[0])
 with tempfile.TemporaryDirectory(prefix='settings-grid-') as temporary:
     folder = Path(temporary)
     test = folder / 'check.cpp'

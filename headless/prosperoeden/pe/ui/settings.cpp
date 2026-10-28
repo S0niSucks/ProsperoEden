@@ -448,7 +448,7 @@ void Launcher::draw_settings(Canvas &c)
     else
     {
         const int first = settings_.selected / kTilesPerPage * kTilesPerPage;
-        for (int i = first; i < std::min(first + kTilesPerPage, kCategoryCount); ++i)
+        for (int i = first; i < std::min<int>(first + kTilesPerPage, kCategoryCount); ++i)
         {
             const Rect r = tile_rect(i);
             const float f = tween::clamp01(settings_springs_[static_cast<std::size_t>(i)].value);

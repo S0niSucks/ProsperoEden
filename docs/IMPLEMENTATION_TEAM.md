@@ -60,11 +60,30 @@ their test results to the current combined HEAD:
   requires private `/data` tmpfs. Shell syntax, two documentary Python AST blocks and inert
   aggregate runner ordering/refusal checks passed; these are **not** execution of those suites.
 * Scene themes are still assigned for final delivery. No unfinished worker report counts as PASS.
+* Settings integration now has 17 categories. `133f604` keeps the existing first 16 tile
+  positions, pages overflow using the D-pad and supplies the missing network summary.
+  Exact production navigation/geometry tests passed normal and ASan/UBSan. The frozen
+  renderer compile then caught an enum/int deduction error in the new draw-loop bound;
+  the explicit `std::min<int>` correction and exact production draw-loop regression
+  passed focused normal/ASan/UBSan. The real-renderer repeat is still pending, not PASS.
+* Native producer hooks `e3c62de` are integrated as `1c4bb61`. Their owner completed 44
+  synthetic tests, syntax and README checks in offline Docker; independent frozen-merge
+  review is assigned. `EDEN_NATIVE_EVIDENCE_DIR` remains opt-in and requires a new explicit
+  root declaration. No actual SDK/configure/build/source-object correspondence or relink
+  result follows from those synthetic tests.
 * The additive network-catalog import assignment was interrupted by a tool `cyber_policy`
   error. It has not been retried, rephrased or routed around. This is not a translation-test
   failure or a completed import; original handoffs remain preserved, and final coverage is pending.
 
 New private host/native workspace preparation uses read-only old caches only as seeds.
+Host seed SHA-256: `2187466c0b5589b49fe985a0a3c1b02407aa24a1262ec8c4becab861f79e5988`.
+Native seed SHA-256: `6846dfa7a2777b540f6ede995f2fcbd812c90a34a7f0c1796e98c3a50dee2cc7`.
+The two pinned network source archives were restored offline into each new private workspace
+with their original SHA-256 checks. Four pinned native sibling inputs were also seeded RO→RW;
+their old derivative outputs are caches only, not final evidence. The first native seed attempt
+failed to preserve upstream Unix ownership under dropped container capabilities and is retained;
+the new successful workspace preserves bytes/modes/times, not original UID/GID. No source
+transport or evidence original was changed.
 No seeded old object/package is accepted as the final build. All remaining composition,
 catalogs, final version/changeset, one frozen HEAD's host/UI/native gates, binary-bound
 materials/relink and hardware limits must still be resolved before closing 1.006.000.
