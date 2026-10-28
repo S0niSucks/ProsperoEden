@@ -3,8 +3,11 @@
 #include "usb_backup.h"
 #include <nlohmann/json.hpp>
 #include <openssl/evp.h>
+#include <algorithm>
 #include <cassert>
 #include <cerrno>
+#include <cstdarg>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -18,12 +21,43 @@ bool fail_write = false, fail_complete_sync = false, read_eintr = false, write_e
 bool fail_pending_sync = false, fail_pending_unlink = false;
 bool fail_next_sync = false;
 int fail_rename = 0, fail_sync_after_rename = 0;
+bool privacy_probe = false;
+std::size_t forbidden_probes = 0;
+std::vector<std::string> protected_paths;
+bool PrivateProbe(int fd, const char* name = nullptr) {
+    if (!privacy_probe) return false;
+    std::string path;
+    if (name && name[0] == '/') path = name;
+    else {
+        char target[4096]{};
+        const auto n = readlink(("/proc/self/fd/" + std::to_string(fd)).c_str(), target, sizeof(target) - 1);
+        if (n <= 0) return false;
+        path.assign(target, n);
+        if (name && *name) path += "/" + std::string(name);
+    }
+    path = fs::path(path).lexically_normal().string();
+    while (!path.empty() && path.back() == '/') path.pop_back();
+    for (const auto& secret : protected_paths) {
+        if (path == secret || path.starts_with(secret + "/")) {
+            ++forbidden_probes; errno = EACCES; return true;
+        }
+    }
+    return false;
+}
+extern "C" int __real_openat(int, const char*, int, ...);
+extern "C" int __wrap_openat(int fd, const char* name, int flags, ...) {
+    mode_t mode = 0;
+    if (flags & O_CREAT) { va_list args; va_start(args, flags); mode = va_arg(args, mode_t); va_end(args); }
+    if (PrivateProbe(fd, name)) return -1;
+    return __real_openat(fd, name, flags, mode);
+}
 extern "C" int __real_fstatvfs(int, struct statvfs*);
 extern "C" int __wrap_fstatvfs(int fd, struct statvfs* s) {
     int n = __real_fstatvfs(fd, s); if (!n && low_space) s->f_bavail = 0; return n;
 }
 extern "C" int __real_fstatat(int, const char*, struct stat*, int);
 extern "C" int __wrap_fstatat(int fd, const char* path, struct stat* s, int flags) {
+    if (PrivateProbe(fd, path)) return -1;
     if (deny_stat) { errno = ENOSYS; return -1; } return __real_fstatat(fd, path, s, flags);
 }
 extern "C" int __real_fsync(int);
@@ -39,6 +73,7 @@ extern "C" int __wrap_fsync(int fd) {
 }
 extern "C" ssize_t __real_read(int, void*, size_t);
 extern "C" ssize_t __wrap_read(int fd, void* p, size_t n) {
+    if (PrivateProbe(fd)) return -1;
     if (read_eintr) { read_eintr = false; errno = EINTR; return -1; }
     if (fail_read) { errno = EIO; return -1; } return __real_read(fd, p, n);
 }
@@ -206,29 +241,60 @@ int main() {
     assert(locked && fs::exists(marker)); fail_pending_sync = fail_pending_unlink = false;
     fail_sync = true; assert(!B::ApplyPending(data, error)); fail_sync = false;
     assert(B::ApplyPending(data, error));
-    // Nextendo is a whole-tree policy; network-shares.json is an exact credential node. A hostile child
-    // makes any accidental traversal fail, and progress/manifest/payload must contain no secret.
+    // Exercise real inventory/copy/hash/restore, not the private Excluded predicate.
     const auto private_data = root / "nextendo-fixture";
     const std::string synthetic_secret = "SYNTHETIC_BEARER_EQUIVALENT_DO_NOT_COPY";
     const std::string synthetic_credentials = "{\"password\":\"SYNTHETIC_SMB_PASSWORD_DO_NOT_COPY\"}";
-    Write(private_data / "config/prosperoeden.json", "nonsecret settings");
-    Write(private_data / "config/nextendo-public.json", "nonsecret sibling stays included");
-    Write(private_data / "config/network-shares.json.bak", "harmless exact-name sibling");
-    Write(private_data / "config/network-shares-public.json", "harmless network-share sibling");
+    const std::vector<std::pair<std::string, std::string>> public_files = {
+        {"config/prosperoeden.json", "nonsecret settings"},
+        {"config/nextendo-public.json", "nonsecret sibling stays included"},
+        {"config/network-shares-public.json", "harmless network-share sibling"},
+        {"config/network-shares.json-safe", "hyphen is not the staging suffix boundary"},
+        {"config/network-shares.jsonx", "longer extension is not the staging suffix boundary"},
+        {"config/network-shares.json-safe-dir/public", "harmless directory child"},
+        {"config/unrelated.json.tmp", "do not generically exclude staged config"}};
+    std::uint64_t public_bytes = 0;
+    for (const auto& [path, bytes] : public_files) { Write(private_data / path, bytes); public_bytes += bytes.size(); }
+    const auto protect = [&](const std::string& path) { protected_paths.push_back((private_data / path).string()); };
     for (const auto* subtree : {"config/nextendo", "CONFIG/NeXtEnDo", "config./NEXTENDO ", "config/Nextendo."}) {
+        protect(subtree);
         for (const auto* file : {"import.txt", "account.json", "routes/oauth.json", ".hidden", ".staging/unknown-name"})
             Write(private_data / subtree / file, synthetic_secret);
         fs::create_symlink("/missing-must-not-be-traversed", private_data / subtree / "must-not-scan");
     }
     fs::create_directory_symlink("/missing-must-not-be-opened", private_data / "config/NEXTENDO");
-    for (const auto* file : {"config/network-shares.json", "CONFIG/Network-Shares.Json", "config./NETWORK-SHARES.JSON "})
-        Write(private_data / file, synthetic_credentials);
+    protect("config/NEXTENDO");
+    for (const auto* file : {"config/network-shares.json", "CONFIG/Network-Shares.Json", "config./NETWORK-SHARES.JSON "}) {
+        Write(private_data / file, synthetic_credentials); protect(file);
+    }
     Write(private_data / "config/Network-Shares.Json./.staging/unknown", synthetic_credentials);
     fs::create_symlink("/missing-must-not-be-traversed", private_data / "config/Network-Shares.Json./must-not-scan");
     fs::create_symlink("/missing-must-not-be-opened", private_data / "config/NETWORK-SHARES.JSON");
-    assert(B::Inspect(private_data, usb, stop).files == 4);
-    std::vector<std::string> reported_paths;
-    const auto private_backup = B::Backup(private_data, usb, stop, [&](const B::Progress& p) { reported_paths.push_back(p.path); });
+    protect("config/Network-Shares.Json."); protect("config/NETWORK-SHARES.JSON");
+    fs::create_directories(private_data / "CONFIG. "); // include alias parents in the control estimate
+    const auto public_estimate = B::Inspect(private_data, usb, stop);
+    assert(public_estimate.files == public_files.size() && public_estimate.bytes == public_bytes);
+    const std::vector<std::string> staged_files = {
+        "config/network-shares.json.tmp", "config/network-shares.json.bak", "config/network-shares.json.staged.foo",
+        "CONFIG/NeTwOrK-ShArEs.JsOn.TmP", "config./NETWORK-SHARES.JSON.BAK  ", "CONFIG. /network-shares.json.staged.foo. "};
+    for (const auto& path : staged_files) { Write(private_data / path, synthetic_credentials); protect(path); }
+    const auto private_estimate = B::Inspect(private_data, usb, stop);
+    std::vector<B::Progress> reported;
+    const auto report = [&](const B::Progress& p) { reported.push_back(p); };
+    const auto private_backup = B::Backup(private_data, usb, stop, report);
+    // On the unmodified backend this is a COMPLETE backup containing six synthetic passwords.
+    std::size_t copied_credentials = 0;
+    for (const auto& path : staged_files) {
+        if (fs::exists(fs::path(private_backup) / "data" / path)) {
+            assert(Read(fs::path(private_backup) / "data" / path) == synthetic_credentials);
+            ++copied_credentials;
+        }
+    }
+    if (copied_credentials) std::cerr << "USB privacy baseline: actual COMPLETE backup copied " << copied_credentials
+        << " synthetic credential files; inventory counted " << private_estimate.files << " files / " << private_estimate.bytes << " bytes\n";
+    assert(!copied_credentials);
+    assert(private_estimate.files == public_estimate.files && private_estimate.bytes == public_estimate.bytes &&
+           private_estimate.required == public_estimate.required);
     const auto private_manifest = fs::path(private_backup) / "manifest.json";
     const auto clean_manifest = Read(private_manifest);
     assert(clean_manifest.find(synthetic_secret) == std::string::npos);
@@ -242,27 +308,78 @@ int main() {
             assert(Read(entry.path()).find(synthetic_credentials) == std::string::npos);
         }
     }
-    for (const auto& path : reported_paths)
-        assert(path.empty() || path == "config/prosperoeden.json" || path == "config/nextendo-public.json" ||
-               path == "config/network-shares.json.bak" || path == "config/network-shares-public.json");
-    assert(Read(fs::path(private_backup) / "data/config/nextendo-public.json") == "nonsecret sibling stays included");
-    assert(Read(fs::path(private_backup) / "data/config/network-shares.json.bak") == "harmless exact-name sibling");
-    assert(Read(fs::path(private_backup) / "data/config/network-shares-public.json") == "harmless network-share sibling");
+    const auto check_reports = [&] {
+        for (const auto& p : reported) {
+            assert(p.total == public_bytes && p.done <= public_bytes);
+            assert(p.path.empty() || std::any_of(public_files.begin(), public_files.end(), [&](const auto& file) { return file.first == p.path; }));
+        }
+    };
+    check_reports();
+    for (const auto& [path, bytes] : public_files) assert(Read(fs::path(private_backup) / "data" / path) == bytes);
+    // Hostile aliases contain invalid names, unknown/hidden/staging files, broken links and a FIFO.
+    // Any attempted open/stat/read of these exact fixture nodes is counted and denied, independent
+    // of the production policy; the guarded backup must still succeed with an identical manifest.
+    for (const auto* subtree : {"config/network-shares.json.tmp.dir", "CONFIG/NETWORK-SHARES.JSON.BAK. ",
+                                "config./Network-Shares.Json.Staged.Foo. "}) {
+        protect(subtree);
+        for (const auto* file : {"unknown", ".hidden", ".staging/anything", "invalid:name"})
+            Write(private_data / subtree / file, synthetic_credentials);
+        fs::create_symlink("/missing-must-not-be-traversed", private_data / subtree / "must-not-scan");
+        assert(mkfifo((private_data / subtree / "fifo").c_str(), 0600) == 0);
+    }
+    fs::create_symlink("/missing-must-not-be-opened", private_data / "config/NETWORK-SHARES.JSON.TMP ");
+    protect("config/NETWORK-SHARES.JSON.TMP ");
+    const auto probe_path = (private_data / staged_files.front()).string();
+    const int probe_fd = open(probe_path.c_str(), O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+    assert(probe_fd >= 0);
+    privacy_probe = true;
+    struct stat probe_stat{}; char probe_byte{};
+    assert(openat(AT_FDCWD, probe_path.c_str(), O_RDONLY) == -1 && errno == EACCES);
+    assert(fstatat(AT_FDCWD, probe_path.c_str(), &probe_stat, AT_SYMLINK_NOFOLLOW) == -1 && errno == EACCES);
+    assert(read(probe_fd, &probe_byte, 1) == -1 && errno == EACCES);
+    assert(forbidden_probes == 3); close(probe_fd); forbidden_probes = 0;
+    const auto guarded_estimate = B::Inspect(private_data, usb, stop);
+    assert(guarded_estimate.files == public_estimate.files && guarded_estimate.bytes == public_bytes &&
+           guarded_estimate.required == public_estimate.required);
+    const auto guarded_backup = B::Backup(private_data, usb, stop, report);
+    assert(Read(fs::path(guarded_backup) / "manifest.json") == clean_manifest);
+    check_reports();
+    assert(!forbidden_probes);
+    // Even an unchanged valid manifest cannot legitimize extra credential payload nodes.
+    for (const auto& path : staged_files) {
+        const auto injected = fs::path(private_backup) / "data" / path;
+        Write(injected, synthetic_credentials); protected_paths.push_back(injected.string());
+    }
+    Fails([&] { B::InspectRestore(private_data, private_backup, stop); });
+    Fails([&] { B::StageRestore(private_data, private_backup, stop); });
+    assert(!forbidden_probes && !fs::exists(root / ".nextendo-fixture-restores/pending.json"));
+    for (const auto& path : staged_files) assert(fs::remove(fs::path(private_backup) / "data" / path));
     const auto private_recovery = B::StageRestore(private_data, private_backup, stop);
     assert(B::ApplyPending(private_data, error));
     assert(Read(private_data / "config/nextendo/import.txt") == synthetic_secret);
     assert(Read(private_data / "config/network-shares.json") == synthetic_credentials);
     assert(!fs::exists(fs::path(private_recovery) / "config/nextendo"));
     assert(!fs::exists(fs::path(private_recovery) / "config/network-shares.json"));
+    for (const auto& path : staged_files) {
+        assert(Read(private_data / path) == synthetic_credentials);
+        assert(!fs::exists(fs::path(private_recovery) / path));
+    }
+    assert(!forbidden_probes);
     // Self-consistent malicious manifests must be rejected before opening any payload file.
+    protected_paths.push_back((fs::path(private_backup) / "data").string());
     for (const auto* alias : {"config/nextendo", "CONFIG/NeXtEnDo", "config./Nextendo ", "config/nextendo.",
                               "config/./nextendo", "config/x/../nextendo", "config\\nextendo", "/config/nextendo",
                               "config/network-shares.json", "CONFIG/Network-Shares.Json", "config./NETWORK-SHARES.JSON ", "config/network-shares.json.",
-                              "config/./network-shares.json", "config/x/../network-shares.json", "config\\network-shares.json", "/config/network-shares.json"}) {
+                              "config/./network-shares.json", "config/x/../network-shares.json", "config\\network-shares.json", "/config/network-shares.json",
+                              "config/network-shares.json.tmp", "config/network-shares.json.bak", "config/network-shares.json.staged.foo",
+                              "CONFIG/NeTwOrK-ShArEs.JsOn.TmP", "config./NETWORK-SHARES.JSON.BAK  ", "CONFIG. /network-shares.json.staged.foo. ",
+                              "config/network-shares.json.tmp/unknown", "config./NETWORK-SHARES.JSON.BAK. /.hidden",
+                              "config/./network-shares.json.tmp", "config/x/../network-shares.json.bak",
+                              "config\\network-shares.json.staged.foo", "/config/network-shares.json.tmp"}) {
         for (bool directory : {true, false}) {
             auto injected = nlohmann::json::parse(clean_manifest);
-            injected["entries"] = nlohmann::json::array({{{"path", alias}, {"directory", directory},
-                {"size", directory ? 0u : synthetic_credentials.size()}, {"sha256", directory ? "" : Digest(synthetic_credentials)}, {"had", false}}});
+            injected["entries"].push_back({{"path", alias}, {"directory", directory},
+                {"size", directory ? 0u : synthetic_credentials.size()}, {"sha256", directory ? "" : Digest(synthetic_credentials)}, {"had", false}});
             Write(private_manifest, injected.dump()); Write(fs::path(private_backup) / "COMPLETE", Digest(injected.dump()));
             const bool policy_alias = std::string(alias).find("..") == std::string::npos &&
                 std::string(alias).find("/./") == std::string::npos && std::string(alias).find('\\') == std::string::npos && alias[0] != '/';
@@ -279,10 +396,13 @@ int main() {
             rejects([&] { B::InspectRestore(private_data, private_backup, stop); });
             rejects([&] { B::StageRestore(private_data, private_backup, stop); });
             assert(!fs::exists(root / ".nextendo-fixture-restores/pending.json"));
+            assert(!forbidden_probes);
         }
     }
+    privacy_probe = false;
     Write(private_manifest, clean_manifest); Write(fs::path(private_backup) / "COMPLETE", Digest(clean_manifest));
     std::cout << "Nextendo whole-tree exclusion/alias/restore-injection tests passed (synthetic secrets)\n";
-    std::cout << "Network-share exact-config exclusion/alias/restore-injection tests passed (synthetic credentials)\n";
+    std::cout << "Network-share config/staged-sibling exclusion: actual copy/estimate/progress/hash, zero forbidden open/stat/read probes, hostile aliases and restore reinjection passed (synthetic credentials)\n";
+    std::cout << "USB privacy control inventory: " << public_estimate.files << " harmless files / " << public_bytes << " bytes, unchanged after adding credential files/hostile subtrees\n";
     std::cout << "USB backup/restore synthetic filesystem tests passed\n";
 }

@@ -99,13 +99,14 @@ std::uint64_t Available(int fd, std::uint64_t& allocation) {
     return info.f_bavail * info.f_frsize;
 }
 bool Excluded(const std::string& path) {
-    // Never open/enumerate these exact credential nodes (including any hostile children).
+    // Never open/enumerate credential nodes or dot-suffixed network staging siblings/children.
     // Be conservative across the case-insensitive USB namespace and adapters that alias a
     // trailing dot/space. Dot segments, backslashes and absolute paths are rejected by Parts.
-    const auto policy_name = [](std::string_view part, std::string_view expected) {
+    const auto policy_name = [](std::string_view part, std::string_view expected, bool dot_suffix = false) {
         while (!part.empty() && (part.back() == '.' || part.back() == ' ')) part.remove_suffix(1);
-        if (part.size() != expected.size()) return false;
-        for (std::size_t i = 0; i < part.size(); ++i) {
+        if (part.size() < expected.size() || (part.size() > expected.size() &&
+            (!dot_suffix || part[expected.size()] != '.'))) return false;
+        for (std::size_t i = 0; i < expected.size(); ++i) {
             char c = part[i]; if (c >= 'A' && c <= 'Z') c += 'a' - 'A';
             if (c != expected[i]) return false;
         }
@@ -116,7 +117,7 @@ bool Excluded(const std::string& path) {
     if (slash != relative.npos && policy_name(relative.substr(0, slash), "config")) {
         const auto tail = relative.substr(slash + 1);
         const auto node = tail.substr(0, tail.find('/'));
-        if (policy_name(node, "nextendo") || policy_name(node, "network-shares.json")) return true;
+        if (policy_name(node, "nextendo") || policy_name(node, "network-shares.json", true)) return true;
     }
     const auto under = [&](std::string_view p) { return path == p || (path.starts_with(p) && path[p.size()] == '/'); };
     for (auto p : {"roms", "updates", "switch", "logs", "cache", "radv-shader-cache", ".remote-downloads",

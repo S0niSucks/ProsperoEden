@@ -11,7 +11,7 @@ root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 cd "$root"
 clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer \
     headless/usb_backup.cpp headless/usb_backup_check.cpp -lcrypto -pthread \
-    -Wl,--wrap=fstatvfs,--wrap=fstatat,--wrap=fsync,--wrap=read,--wrap=write,--wrap=renameat,--wrap=unlinkat \
+    -Wl,--wrap=openat,--wrap=fstatvfs,--wrap=fstatat,--wrap=fsync,--wrap=read,--wrap=write,--wrap=renameat,--wrap=unlinkat \
     -o /work/usb_backup_check
 ASAN_OPTIONS=detect_leaks=1 /work/usb_backup_check
 clang++-18 -std=c++20 -Wall -Wextra -Werror -D__PROSPERO__ -fsyntax-only headless/usb_backup.cpp
