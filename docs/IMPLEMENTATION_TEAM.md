@@ -96,8 +96,9 @@ successfully (report SHA-256 `51ee9d4a8d7e8f224a4d3f72d54d62b2696e9476faf9ba30fe
 Worker qualification also covers 37 Linux license and 121 Linux / 35 Windows privacy CLI
 invocations. This is a synthetic app with real maintained notices, not a final release binary
 or a corresponding-source offer. The uninterrupted host runner now includes the license CLI
-test; that full runner has not yet passed. Native app-folder notice placement and source/relink
-material preparation are separate active workstreams. See `features/RELEASE_LICENSE_PACKAGING.md`.
+test; that full runner has not yet passed. Native app-folder notice placement and the source/relink
+mechanism are now integrated separately below; final material collection remains active.
+See `features/RELEASE_LICENSE_PACKAGING.md`.
 
 The delivered network editor's independent coordinator repeat is retained under
 `.local/docker-release/network-editor-review-20261027/`: immutable Git archive SHA-256
@@ -105,7 +106,14 @@ The delivered network editor's independent coordinator repeat is retained under
 inventories and per-run logs/status. Both reference volumes were read-only, all new objects
 were built in a private volume and source/dependency inventories remained unchanged. This
 repeat precedes parent composition and does not repeat the SDK or protocol-server runs.
-The editor's 89-msgid handoff is being translated separately; catalog integration is pending.
+The handoff has 83 distinct msgids, not 89 (the latter counted file lines). Its additive
+translation delivery supplies **81 new msgids × 30 locales = 2,430 translations**, plus five
+existing reused keys from the expanded source inventory. The coordinator verified the 40
+reference hashes, real-importer schema/private idempotence and unchanged catalog bytes, and
+retained input SHA-256 `304bc230c8291da0912832a32a07a4f139911f264d8b7e61bf63fa4dcbdc5905`.
+The current-source importer correctly refuses it before composition. Nineteen backend texts
+still need extraction markers/scanner coverage; that narrow follow-up is active. Catalog/POT
+import, eleven length advisories and actual localized font/layout checks remain pending.
 
 Public Nextendo OAuth contract review `e3c4791` is imported as `9cfebff`. It finds no proven
 authorization-path defect (official examples use both paths), and `profil` is a documented
@@ -117,6 +125,29 @@ web-access/NEX acquisition and credential-type handling; no fix is integrated ye
 public identifier does not establish registration approval, and no exposed secret was used.
 See `features/NEXTENDO_PUBLIC_OAUTH_CONTRACT_REVIEW.md`; the reviewed evidence archive SHA-256
 is `c43e572defff0bdc24f33f3f463e55edccd93d8552cae68292bd464ae7d98517`.
+
+Native app-folder notices `ac09f52` are reviewed/imported as `b8c3345`. The coordinator verified
+and retained all **1,128 indexed worker artifact hashes**, matched the tested inputs to the
+integration and independently repeated **122 native-notice CLI cases** (115 adverse) plus
+**87 fixed-source privacy cases** on a clean frozen `b8c3345` archive as unprivileged UID 65534.
+All passed, with no forbidden accesses. The snapshot archive SHA-256 is
+`5e4eecd68b1b041a2cdd3e704c79f5cb872e0c028766512614e7fa418cf2acd0`; the notice report SHA-256 is
+`04a23c25acfb5ec3f692e04fecc53a3148cc7ffbc91a86ee7936c0453cbc1934`. Evidence stays private under
+`.local/docker-release/native-license-review-20261027/`, including deliberate synthetic leak
+controls. Bytes, internal notice links and Lapy preservation are checked; actual native build,
+install, PKG and corresponding-source/relink delivery are not. See
+`features/NATIVE_LICENSE_PACKAGING.md`. This unprivileged notice test is a separate final gate,
+not silently skipped or represented as run by the root-owned whole-host runner.
+
+Offline source/relink mechanism `b037e54` is reviewed/imported as `3e0fb73`. The coordinator
+independently repeated all **39 CLI tests** in offline Docker (log SHA-256
+`5f45a1f40a07a44c280d1903251d67d0f92c3e751c9e84eb1332739f03a8ba84`). The whole-host path now
+invokes that test too; its updated shell syntax passes, not the complete runner. The real
+baseline plan discovers 81 input requirements and refuses missing materials without producing
+a partial bundle. A worker is collecting the actual hash-pinned inputs and recording concrete
+source-closure gaps; this is not a completed final source bundle or a modified-library relink
+trial. `RELEASE_SOURCE_RELINK.md` keeps relink `PENDING` / `COLLECTED_UNVERIFIED_RELINK` until
+the final binary-bound materials are supplied and independently exercised.
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
