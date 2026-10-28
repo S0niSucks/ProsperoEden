@@ -67,7 +67,8 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   routes/trust and PS5 browser/network qualification are still required. Shared storage guards
   are integrated; security/HTTP regressions passed, including header-allocation faults and
   duplicate JSON rejection. Focused host/SDK object checks found and fixed SDK snapshot-type
-  compatibility; native TLS/curl dependency qualification and the final combined run continue.
+  compatibility. Six host and six PS5-target objects now pass, including genuine-target TLS/CA
+  and curl-producer partial-link checks; the final complete build and console validation remain.
 
 ### Reliability and diagnostics
 

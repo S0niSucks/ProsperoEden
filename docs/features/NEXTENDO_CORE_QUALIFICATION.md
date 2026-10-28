@@ -141,6 +141,13 @@ change. No shared service/UI/HTTP/OAuth/store/overlay files or cached archives c
 changes to CMake composition or isolation markers require a fresh run, not reuse of this
 base-specific result.
 
+Coordinator review imported this follow-up as `5c77ed8`. The exported bundle SHA-256
+`19e312772a16c360123948be01134e72edb0e3bbbb32d0ae9441d87cde17e4e3`, provenance JSON hash
+and manifest binding above were independently verified, together with the recorded PASS
+checks. The original ZIP and verification receipt are retained in
+`.local/docker-release/nextendo-native-tls-qualification-20261027/`. This imports evidence
+from the stated worker snapshot; it does not silently count as a fresh combined-HEAD run.
+
 ## Earlier qualification: result and scope
 
 2026-10-27, base `30724082bcca4824d64bcebfc84e2891493a1686`, pinned Eden
