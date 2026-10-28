@@ -4,3 +4,4 @@ dist/
 results/
 .local/
 __pycache__/
+**/config/network-shares.json*

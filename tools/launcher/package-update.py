@@ -7,8 +7,12 @@ import json
 from pathlib import Path
 import re
 import stat
+import sys
 from urllib.parse import urlsplit
 import zipfile
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from network_privacy import private_network_path
 
 
 def version(value):
@@ -44,6 +48,8 @@ def package(folder, output, url, previous=None, notes='', min_app=None):
     total = 0
     for path in sorted(folder.rglob('*')):
         relative = path.relative_to(folder).as_posix()
+        if private_network_path(relative):
+            continue
         mode = path.lstat().st_mode
         if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
             raise ValueError(f'Links and special files are forbidden: {relative}')
