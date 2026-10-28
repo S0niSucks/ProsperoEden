@@ -167,6 +167,30 @@ source-closure gaps; this is not a completed final source bundle or a modified-l
 trial. `RELEASE_SOURCE_RELINK.md` keeps relink `PENDING` / `COLLECTED_UNVERIFIED_RELINK` until
 the final binary-bound materials are supplied and independently exercised.
 
+Real source preparation `8ee544e` is reviewed/imported as `0bc00f9`: 59 actual initial inputs,
+22 provisional CPM non-use decisions and 15 selected source/recipe supplements. The material
+index SHA-256 `35f79c0398074667598bab13bb5b7ce163521ffb7cc53bb52b1f5dcc0c2c2277` is independently
+confirmed. The coordinator's frozen offline repeat **passed** all 17 preparation and 39 original
+collector CLI tests, re-audited the 59 initial / 15 supplemental inputs, retained the 12 indexed
+evidence hashes and restored the limited six-archive / 17-file / five-patch subset independently.
+Its audit/restore JSONs match the original worker bytes exactly. Actual bundle creation still
+refuses without leaving an output, as expected. Status SHA-256 is
+`62cc49e05379d66343795e707ae392e30f786c0227f60aacc92a9775799a9463`; evidence stays under
+`.local/docker-release/source-preparation-review-20261027/`. The input volume was read-only;
+new work used a private volume. The whole-host runner now invokes the preparation CLI tests,
+and its shell syntax passes; that is not a whole-host PASS. Five initial-input policy refusals (two public
+`.env.example` templates, Git symlinks and a pacbrew hardlink), supplemental Git delivery,
+transitive source closure and final relink still block a complete source delivery. The owner
+is implementing narrowly hash-bound reviewed public-source policies and link-graph checks;
+private-path exclusions remain mandatory. See `RELEASE_SOURCE_MATERIALS_1006000.md`.
+
+Native keyboard seam `b207941` is delivered above `1ec3910`, not integrated. It reports an
+immutable, credential-free prompt snapshot, synchronous-only translation, bounded Unicode,
+masked private input and creation-only localized names; its shared UI/service callers remain
+documentary proposals. An independent reviewer is replaying the real backend and extraction
+against both actual translation batches. Neither that review nor parent USB/launch composition
+or actual PS5 IME execution is established yet.
+
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
 Synthetic BKTR also passed in a separate coordinator-owned fixture worktree and was integrated
