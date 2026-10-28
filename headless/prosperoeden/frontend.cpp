@@ -246,7 +246,11 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         if (!input_ready) Eden::Report("menu failure", "The controller could not be opened");
         // Once per launch: is a newer release listed? The launcher shows the answer when it comes.
         Eden::UpdateNotice::Start();
-        pe::ui::RuntimeLauncher launcher(services, textures, fonts, batch, first_start, Eden::kDataDir, audio_ready ? mixer.get() : nullptr, LoadLanguage);
+        pe::ui::RuntimeLauncher launcher(services, textures, fonts, batch, first_start, Eden::kDataDir,
+            audio_ready ? mixer.get() : nullptr, LoadLanguage,
+            [&services](const std::string& root, std::uint64_t bytes) {
+                return services.reserve_theme_import_storage(root, bytes);
+            });
         int menu_volume = launcher.menu_volume();
         mixer->set_bus_gain(pe::audio::Bus::ui, MenuGain(menu_volume));
         std::fprintf(stderr, "EDEN_LAUNCHER display=%dx%d sounds=%d audio=%d ready_ms=%lld\n", display.width(),

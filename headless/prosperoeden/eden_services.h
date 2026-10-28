@@ -7,6 +7,7 @@
 #include "cheat_manager.h"
 #include "pe/ui/services.hpp"
 #include "remote/remote.h"
+#include "theme_storage.h"
 
 #include <atomic>
 #include <chrono>
@@ -25,6 +26,7 @@ public:
     explicit EdenServices(std::string launch_error, Eden::Multiplayer::RoomClient& rooms);
     // Downloads from the download sources stop while a game runs (the menu is gone then).
     ~EdenServices() override;
+    std::shared_ptr<void> reserve_theme_import_storage(const std::string& root, std::uint64_t bytes) override;
     Eden::Nextendo::Status nextendo_status() override;
     std::string nextendo_link_url() override;
     Eden::Nextendo::Status nextendo_action(const std::string& profile, Eden::Nextendo::Action action, const std::atomic<bool>& stop) override;
@@ -190,6 +192,8 @@ private:
     // One guard for all launcher filesystem writers and worker starts vs USB/launch admission.
     // Lock order: admission -> bridge. Workers never take admission; never hold bridge across Stop/join.
     std::mutex job_admission_mutex_;
+    // Admission -> ledger on acquisition; RAII release takes only ledger, never this object.
+    std::shared_ptr<Eden::ThemeStorage::Ledger> theme_storage_ = Eden::ThemeStorage::ProcessLedger();
     bool launch_committed_ = false; // guarded by job_admission_mutex_; no reopening after will_play
     std::atomic<bool> usb_active_{false}, usb_stop_{false};
     std::mutex usb_lock_;

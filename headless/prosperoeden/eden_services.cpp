@@ -655,6 +655,7 @@ std::optional<std::string> EdenServices::room_text(int field, const std::string&
 }
 
 #include "nextendo_services.inc"
+#include "theme_storage_services.inc"
 
 std::optional<std::int64_t> EdenServices::ask_seed(std::int64_t current, const std::atomic<bool>& stop) {
     Eden::TextRequest request;

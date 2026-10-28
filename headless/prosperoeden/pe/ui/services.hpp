@@ -5,6 +5,7 @@
 #pragma once
 
 #include "pe/gfx/image.hpp"
+#include <memory>
 
 #include <array>
 #include <cstdint>
@@ -848,6 +849,9 @@ class Services
 
     virtual Eden::Multiplayer::Snapshot room_status() { return {}; }
     virtual Eden::Nextendo::Status nextendo_status() { return {}; }
+    // Host-owned theme install/cold-recovery credit. A missing implementation denies;
+    // callers must pass a nonempty callback and must not fall back after this denial.
+    virtual std::shared_ptr<void> reserve_theme_import_storage(const std::string&, std::uint64_t) { return {}; }
     virtual std::string nextendo_link_url() { return {}; }
     virtual Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&)
     { return {false, false, false, 0, "Nextendo is unavailable in this frontend."}; }

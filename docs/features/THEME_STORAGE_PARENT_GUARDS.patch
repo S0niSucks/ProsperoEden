@@ -1,0 +1,75 @@
+diff --git a/headless/prosperoeden/eden_services.cpp b/headless/prosperoeden/eden_services.cpp
+--- a/headless/prosperoeden/eden_services.cpp
++++ b/headless/prosperoeden/eden_services.cpp
+@@ -632,3 +632,4 @@
+ bool EdenServices::can_launch_game() {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ ||
+@@ -1073,3 +1074,4 @@
+ bool EdenServices::choose_profile(int index) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+@@ -1086,3 +1088,4 @@
+ int EdenServices::add_profile() {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return -1;
+     if (usb_active_ || launch_committed_ || nextendo_busy_) return -1;
+@@ -1109,3 +1112,4 @@
+ bool EdenServices::rename_profile(int index, int step) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+@@ -1134,3 +1138,4 @@
+ bool EdenServices::remove_profile(int index) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_) return false;
+@@ -1526,3 +1531,4 @@
+ bool EdenServices::set_games_folder(const std::string& directory) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_ || cheat_manager_.Status().busy) return false;
+@@ -1536,3 +1542,4 @@
+ bool EdenServices::set_files_folder(const std::string& directory) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (usb_active_ || launch_committed_ || nextendo_busy_ || amiibo_sync_.Status().busy || cheat_manager_.Status().busy) return false;
+@@ -2141,3 +2148,4 @@
+ void EdenServices::will_play(const std::string& file) {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return;
+     if (usb_active_ || nextendo_busy_ || network_mutation_active_) return;
+diff --git a/headless/prosperoeden/usb_backup_services.inc b/headless/prosperoeden/usb_backup_services.inc
+--- a/headless/prosperoeden/usb_backup_services.inc
++++ b/headless/prosperoeden/usb_backup_services.inc
+@@ -3,3 +3,4 @@
+ bool EdenServices::begin_usb_backup() {
+     const std::lock_guard admission(job_admission_mutex_);
++    if (theme_storage_->busy()) return false;
+     if (nextendo_busy_ || !Eden::FilesystemAccess() || launch_committed_ || usb_active_.exchange(true)) return false;
+diff --git a/headless/prosperoeden/nextendo_services.inc b/headless/prosperoeden/nextendo_services.inc
+--- a/headless/prosperoeden/nextendo_services.inc
++++ b/headless/prosperoeden/nextendo_services.inc
+@@ -28,4 +28,6 @@
+     std::string bound_profile, root;
+     {
+         const std::lock_guard admission(job_admission_mutex_);
++        if (theme_storage_->busy())
++            return {false, false, false, 0, "Nextendo action failed. Retry or unlink the session."};
+         if (usb_active_) return {false, false, false, 0, "Close USB backup before changing Nextendo."};
+diff --git a/headless/network/services.cpp b/headless/network/services.cpp
+--- a/headless/network/services.cpp
++++ b/headless/network/services.cpp
+@@ -13,4 +13,8 @@
+     const std::lock_guard lock(network_mutation_mutex_);
+-    if (!Eden::FilesystemAccess() || launch_committed_) return Eden::Network::EditorResult::blocked;
+-    network_mutation_active_ = true;
++    {
++        const std::lock_guard admission(job_admission_mutex_);
++        if (theme_storage_->busy()) return Eden::Network::EditorResult::blocked;
++        if (!Eden::FilesystemAccess() || launch_committed_) return Eden::Network::EditorResult::blocked;
++        network_mutation_active_ = true;
++    }
+     struct Finish { std::atomic<bool>& active; ~Finish() { active = false; } } finish{network_mutation_active_};
