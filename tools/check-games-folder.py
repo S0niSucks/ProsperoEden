@@ -19,7 +19,16 @@ settings = (root / 'headless/prosperoeden/pe/ui/settings.cpp').read_text()
 assert 'enter_files(true);' in settings and 'TR("ROMs and updates")' in settings
 backend = (root / 'headless/prosperoeden/eden_services.cpp').read_text()
 assert 'Eden::SaveGamesDir(directory)' in backend
-assert 'EdenServices::saved_games_folder() { return Eden::LoadSavedGamesDir(); }' in backend
+saved_start = backend.index('std::string EdenServices::saved_games_folder() {')
+saved_body = backend[saved_start:backend.index('\n}', saved_start) + 2]
+# Shared storage admission now precedes path resolution; retain both contracts.
+saved_order = [saved_body.index(text) for text in (
+    'const std::lock_guard admission(job_admission_mutex_);',
+    'if (usb_active_) return {};',
+    'const std::lock_guard lock(bridge_);',
+    'return Eden::LoadSavedGamesDir();',
+)]
+assert saved_order == sorted(saved_order)
 assert 'browse_games_ ? services_.games_folder() : services_.files_folder()' in browse
 
 code = r'''

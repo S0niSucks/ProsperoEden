@@ -9,7 +9,16 @@ import tempfile
 root = Path(__file__).resolve().parents[1]
 services = (root / 'headless/prosperoeden/eden_services.cpp').read_text()
 assert 'ListEntries(Eden::LauncherWallpapersDir(), false, ok)' in services
-assert 'EdenServices::wallpapers_folder() { return Eden::LauncherWallpapersDir(); }' in services
+folder_start = services.index('std::string EdenServices::wallpapers_folder() {')
+folder_body = services[folder_start:services.index('\n}', folder_start) + 2]
+# First path resolution may write settings, so USB admission must come first.
+folder_order = [folder_body.index(text) for text in (
+    'const std::lock_guard admission(job_admission_mutex_);',
+    'if (usb_active_) return {};',
+    'const std::lock_guard lock(bridge_);',
+    'return Eden::LauncherWallpapersDir();',
+)]
+assert folder_order == sorted(folder_order)
 code = r'''
 #include "wallpaper_paths.h"
 #include <cassert>

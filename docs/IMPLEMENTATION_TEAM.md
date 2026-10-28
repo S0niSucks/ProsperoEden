@@ -163,6 +163,19 @@ materials/relink and hardware limits must still be resolved before closing 1.006
   failed because the recent-games fixture omitted the new production network-path predicate.
   The fixture now includes that exact predicate and retains local cases plus exact network
   identities; production naming and runtime policies are unchanged. A fresh full run is required.
+* The next `d326e26` native run executed the real linker successfully with capture enabled.
+  Its nine events verify with zero failed commands, incomplete events or missing selections;
+  all six closure/relink qualifications remain pending. The raw, unstamped ELF SHA-256 is
+  `bad72b08c2f1475531a6d18b98c4c9a427ca0ef60d3323c6fe6658fad6c0e1d8`.
+  The aggregate then failed an outdated Load-error fixture, so no package is accepted.
+  That fixture now tests core and network failures plus success. Folder/wallpaper fixtures
+  now verify the actual admission→USB refusal→bridge→path-return ordering instead of obsolete
+  one-line implementations. All 14 existing post-link checks before localization passed
+  with only those three fixtures overlaid; this is not a frozen aggregate result.
+* The 245 unprivileged notices/privacy/license calls also passed with no skips on `d326e26`;
+  all 12 payload hashes, sizes, UID/GID and private modes were independently checked.
+  The unchanged catalog checker still fails with 764 source texts and 30 catalogs on that
+  freeze, byte-identical to the earlier failure. No import or waiver was attempted.
 
 There is still no complete accepted host/native candidate, final binary-bound source/relink
 delivery or physical PS5 qualification. The catalog failure and interrupted tasks above remain

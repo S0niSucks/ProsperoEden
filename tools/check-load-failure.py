@@ -17,18 +17,37 @@ with tempfile.TemporaryDirectory(prefix='eden-load-failure-') as tmp:
  src.write_text('''#include <cstdio>
 #include <stdexcept>
 #include <cassert>
+#include <string>
+#include "network/shares.h"
+bool core_failure=false, network_failure=false;
+namespace Eden::Network {
+std::string GameError() { return network_failure ? "injected network read failure" : ""; }
+}
 namespace Core { enum class SystemResultStatus { Success }; }
-struct System { Core::SystemResultStatus Load(int,int,int) { throw std::runtime_error("injected load failure"); } };
-int main() { System system; int window=0,guest=0,params=0; try {
+struct System { Core::SystemResultStatus Load(int,int,int) {
+ if (core_failure) throw std::runtime_error("injected load failure");
+ return Core::SystemResultStatus::Success;
+} };
+int main(int argc, char** argv) {
+ assert(argc==2);
+ core_failure=std::string(argv[1])=="core";
+ network_failure=std::string(argv[1])=="network";
+ System system; int window=0,guest=0,params=0; try {
 '''+body+'''
- return 2;
- } catch(const std::runtime_error& e) { return 0; }
+ return core_failure || network_failure ? 2 : 0;
+ } catch(const std::runtime_error& e) {
+  const std::string expected=core_failure ? "injected load failure" :
+      network_failure ? "injected network read failure" : "";
+  return !expected.empty() && e.what()==expected ? 0 : 3;
+ }
 }
 ''')
- subprocess.run(['g++','-std=c++20',str(src),'-o',str(exe)],check=True)
- run=subprocess.run([str(exe)],capture_output=True,text=True)
- assert run.returncode==0 and run.stderr=='Game load failed: injected load failure\n'
-print('Backing outlives kernel; original Load exception reported and rethrown PASS')
+ subprocess.run(['g++','-std=c++20','-I',str(r/'headless'),str(src),'-o',str(exe)],check=True)
+ for mode,error in [('core','injected load failure'),('network','injected network read failure'),('success','')]:
+  run=subprocess.run([str(exe),mode],capture_output=True,text=True)
+  expected=f'Game load failed: {error}\n' if error else ''
+  assert run.returncode==0 and run.stderr==expected, (mode,run.returncode,run.stderr)
+print('Backing outlives kernel; core/network Load failures reported and rethrown, success retained PASS')
 
 # Exercise the generated Load failure branch with a process owner whose
 # destructor requires a live kernel, matching Service::OS::Process::Finalize.
