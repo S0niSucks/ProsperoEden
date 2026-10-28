@@ -16,7 +16,8 @@ namespace Eden::Nextendo {
 namespace {
 constexpr std::size_t MaxFile = 32768;
 std::mutex store_mutex;
-std::atomic<std::shared_ptr<const Session>> guest;
+// SDK 0.42 libc++ supports shared_ptr atomic free functions, not atomic<shared_ptr>.
+std::shared_ptr<const Session> guest;
 using Json = nlohmann::json;
 
 bool Domain(std::string_view value) {
@@ -359,7 +360,7 @@ Status Store::Apply(std::string_view profile, Action action, const std::atomic<b
 
 bool BeginGame(const Store& store, std::string_view profile, bool local_room, std::string& error) {
     std::lock_guard lock(store_mutex);
-    guest.store({});
+    std::atomic_store_explicit(&guest, std::shared_ptr<const Session>{}, std::memory_order_seq_cst);
     error.clear();
     if (!ValidProfile(profile)) return true; // CLI/no user chosen: cannot activate an account
     auto session = store.Load(profile, error);
@@ -368,11 +369,15 @@ bool BeginGame(const Store& store, std::string_view profile, bool local_room, st
     if (!session || !session->account.enabled) return true;
     if (local_room) { error = "Leave the local room or turn Nextendo off before launching."; return false; }
     if (session->routes.empty()) { error = "Nextendo needs verified service routes before launching."; return false; }
-    guest.store(std::move(session));
+    std::atomic_store_explicit(&guest, std::move(session), std::memory_order_seq_cst);
     return true;
 }
-void EndGame() { guest.store({}); }
-std::shared_ptr<const Session> GuestSession() { return guest.load(); }
+void EndGame() {
+    std::atomic_store_explicit(&guest, std::shared_ptr<const Session>{}, std::memory_order_seq_cst);
+}
+std::shared_ptr<const Session> GuestSession() {
+    return std::atomic_load_explicit(&guest, std::memory_order_seq_cst);
+}
 bool GuestEnabled() { return static_cast<bool>(GuestSession()); }
 std::uint64_t GuestPid() { const auto s = GuestSession(); return s ? s->account.pid : 0; }
 std::uint64_t GuestPidForUser(const std::array<std::uint8_t, 16>& user) {
