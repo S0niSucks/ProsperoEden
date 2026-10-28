@@ -178,11 +178,29 @@ refuses without leaving an output, as expected. Status SHA-256 is
 `62cc49e05379d66343795e707ae392e30f786c0227f60aacc92a9775799a9463`; evidence stays under
 `.local/docker-release/source-preparation-review-20261027/`. The input volume was read-only;
 new work used a private volume. The whole-host runner now invokes the preparation CLI tests,
-and its shell syntax passes; that is not a whole-host PASS. Five initial-input policy refusals (two public
-`.env.example` templates, Git symlinks and a pacbrew hardlink), supplemental Git delivery,
-transitive source closure and final relink still block a complete source delivery. The owner
-is implementing narrowly hash-bound reviewed public-source policies and link-graph checks;
-private-path exclusions remain mandatory. See `RELEASE_SOURCE_MATERIALS_1006000.md`.
+and its shell syntax passes; that is not a whole-host PASS. The initial policy refusals and
+supplemental Git delivery are resolved by the reviewed follow-up below; transitive source
+closure and final relink remain outstanding. Private-path exclusions remain mandatory.
+See `RELEASE_SOURCE_MATERIALS_1006000.md` for the preserved historical preparation record.
+
+Source-policy follow-up `3b2ffdf` / `ee0bfc2` is reviewed/imported as `970b884` / `b6909bb`.
+The coordinator repeated **39 + 17 + 23 = 79 tests** offline from an immutable delivery archive,
+confirmed all **23 indexed evidence hashes**, independently verified and recreated the real
+integration TAR, and repeated restoration in a new private volume. Its TAR is byte-identical
+by SHA-256 `540dcdae30b5045f7b4fc691960e9015b029e208e3fa755563bef0a4b2939ac5`;
+all three restore inventory/result JSONs match the worker bytes exactly. The restored inputs
+cover 13 Git components plus app, 17 direct/supplemental archives, 22 CPM caches, five Eden
+patches and the source-header Xbyak overlay. Original inputs and worker evidence were read-only.
+Status SHA-256: `bc88e4c4957615232b03ce4b9e7495cda2e14b171f7e50d2731004b4bf38147e`;
+evidence stays under `.local/docker-release/source-policy-review-20261028/` and private Docker
+volume `prosperoeden-coordinator-source-policy-review-20261028`. A synthetic diagnostic also
+confirmed that a modified link containing CRLF is refused, without modifying received bytes.
+The original 39/17 tests and license files are unchanged; the new policy suite is now included
+in the whole-host path. This is **integration snapshot `8ee544e`**, not the final coordinator
+source/binary identity, top-level native configure, complete source closure or relink trial.
+Relink remains **PENDING**. The source owner is separately mapping remaining applied SDK/driver
+and generated-source deltas, without changing delivered evidence. See
+`RELEASE_SOURCE_POLICY_FOLLOWUP.md`.
 
 Native keyboard seam `b207941` is delivered above `1ec3910`, not integrated. It reports an
 immutable, credential-free prompt snapshot, synchronous-only translation, bounded Unicode,
