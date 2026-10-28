@@ -12,6 +12,10 @@
 
 This is an early alpha. Video, audio, controller input, and saves have been confirmed working. Compatibility and performance will vary between games. The current release is **v1.005.000**. What changed in it, and in every release before, is in the [changelog](docs/CHANGELOG.md#v1005000).
 
+This integration branch targets **v1.006.000**, which is **not yet qualified or published**.
+See its [changeset and remaining gates](docs/CHANGESET_1006000.md); the previously confirmed
+package does not validate the newly integrated features.
+
 > This local integration branch has additional, unreleased work. See the
 > [draft changeset](docs/CHANGELOG.md#unreleased-integration) and
 > [test/remaining-feature matrix](docs/UPSTREAM_INTEGRATION.md); a successful Docker build

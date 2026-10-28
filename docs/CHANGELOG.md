@@ -2,12 +2,12 @@
 
 What changed in each release of ProsperoEden, newest first. A release's notes on GitHub are its section here.
 
-## Unreleased integration
+## v1.006.000
 
-**Work in progress, not a new published release.** This consolidates the local integration
-branch. The user-designated target is **v1.006.000**, after integrating the complete scope;
-versioned release notes and package metadata will be finalized then. Existing `v1.005.000`
-test packages do not represent this whole scope and are not the v1.006.000 release.
+**Unreleased integration candidate, not a qualified or published release.** This consolidates
+the local integration branch. Package metadata now targets **v1.006.000**; the build and
+acceptance gates below are still required. Existing `v1.005.000` test packages do not represent
+this whole scope and are not the v1.006.000 release. See the [changeset](CHANGESET_1006000.md).
 
 ### New and improved
 
@@ -49,7 +49,14 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 - **Cover Flow library.** **Settings > Appearance > Library view** selects a bounded,
   perspective-rendered cover browser or the existing default Grid. Selection, game options
   and launch checks retain their established paths; reduced motion, missing artwork and
-  large libraries have focused host coverage. Console performance remains unqualified.
+   large libraries have focused host coverage. Console performance remains unqualified.
+- **Retained scene themes and bounded NXTheme import.** Scene packs retain layouts, icons,
+  supported materials and animation data, with explicit native import/partial-format consent,
+  staged publication and recovery. Import storage uses an app-owned process credit held through
+  the last write; the PS5 capacity source is not qualified, so console import/recovery writes
+  remain refused. This is not full material/font/animation parity; #173/#239 remain open.
+- **Settings overflow navigation.** The original 4×4 page keeps its tile positions. D-pad
+  navigation reaches the seventeenth category on a second page and returns correctly.
 - **Physical Switch Pro Controller (experimental, wired USB).** Explicit opt-in USB input
   supports sticks/buttons, motion and coarse rumble, with bounded reconnect and DualSense
   fallback. Synthetic protocol/launcher and PS5-target compile/link checks passed after
@@ -116,7 +123,7 @@ integrated, not full format/material/font/animation parity; #173/#239 stay open.
 Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
 on their stated snapshots, including the composed Nextendo service repeat. The earlier 659-text
-launcher snapshot passed 30-catalog static checks. Newly integrated network and consent strings
+ launcher snapshot passed 30-catalog static checks. Newly integrated network and consent strings
 still require final catalog composition; that earlier result is not current coverage. System-font
 coverage and length/layout advisories remain. All newly integrated features still need final
 combined regression and console qualification.

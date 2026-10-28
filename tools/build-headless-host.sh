@@ -101,6 +101,11 @@ python3 -B "$root/tools/check-cheat-identity.py" "$scratch/build"
 python3 -B "$root/tools/check-amiibo-sync.py"
 CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo.py" --source "$eden"
 CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo-oauth.py"
+consent_out=$(mktemp -d "$scratch/nextendo-consent.XXXXXX")
+python3 -B "$root/tools/check-nextendo-composed.py" --out "$consent_out/composed"
+python3 -B "$root/tools/check-nextendo-consent.py" --out "$consent_out/ui"
+python3 -B "$root/tools/check-nextendo-consent.py" --out "$consent_out/ui-asan" --sanitize
+python3 -B "$root/tools/check-theme-storage.py" --out "$consent_out/theme-storage"
 python3 -B "$root/tools/check-launcher-admission.py"
 python3 -B "$root/tools/check-usb-writer-admission.py"
 python3 -B "$root/tools/check-settings-grid.py"
