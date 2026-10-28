@@ -51,6 +51,7 @@ constexpr Icon kIcons[kCategoryCount] = {
     Icon::theme, Icon::files, Icon::sync, Icon::sync, Icon::files};
 constexpr int kTileColumns = 4;
 constexpr int kTileRows = 4;
+constexpr int kTilesPerPage = kTileColumns * kTileRows;
 constexpr float kTileGap = 20.0f;
 constexpr float kTileWidth = (layout::kWidth - kTileGap * (kTileColumns - 1)) / kTileColumns;
 constexpr float kTileHeight = 182.0f;
@@ -58,6 +59,7 @@ constexpr float kTilesTop = 140.0f;
 constexpr Rect kStrip{layout::kLeft, kTilesTop + (kTileHeight + kTileGap) * kTileRows, layout::kWidth, 68.0f};
 Rect tile_rect(int index)
 {
+    index %= kTilesPerPage;
     return {layout::kLeft + (kTileWidth + kTileGap) * static_cast<float>(index % kTileColumns),
             kTilesTop + (kTileHeight + kTileGap) * static_cast<float>(index / kTileColumns), kTileWidth, kTileHeight};
 }
@@ -255,8 +257,8 @@ void Launcher::press_settings(Key key)
     case Key::down:
         if (th().list_settings)
             settings_.move(1);
-        else if (at < kTileColumns * (kTileRows - 1))
-            at += kTileColumns;
+        else if ((at / kTileColumns + 1) * kTileColumns < kCategoryCount)
+            at = std::min(at + kTileColumns, kCategoryCount - 1);
         break;
     case Key::left:
         if (th().list_settings || at % kTileColumns == 0)
@@ -264,7 +266,7 @@ void Launcher::press_settings(Key key)
         at -= 1;
         break;
     case Key::right:
-        if (!th().list_settings && at % kTileColumns != kTileColumns - 1)
+        if (!th().list_settings && at % kTileColumns != kTileColumns - 1 && at + 1 < kCategoryCount)
             at += 1;
         break;
     case Key::cross:
@@ -357,7 +359,11 @@ void Launcher::draw_settings(Canvas &c)
 {
     gfx::DrawList &list = c.list;
     const Theme &t = th();
-    draw_frame(c, tr("Settings"), tr("Fine-tune your experience"));
+    std::string copy = tr("Fine-tune your experience");
+    if (!t.list_settings && kCategoryCount > kTilesPerPage)
+        copy += "   " + std::to_string(settings_.selected / kTilesPerPage + 1) + " / " +
+                std::to_string((kCategoryCount + kTilesPerPage - 1) / kTilesPerPage);
+    draw_frame(c, tr("Settings"), copy.c_str());
 
     // What each category is set to, in a few words.
     const int switches = prefs_.block_list + prefs_.async_shaders + prefs_.fast_gpu + prefs_.unsafe_cpu +
@@ -390,6 +396,7 @@ void Launcher::draw_settings(Canvas &c)
         short_path(services_.games_folder(), 28),
         tr("Back up or restore app data"),
         tr("Optional catalog and photos"),
+        tr("Network shares"),
     };
     if (t.list_settings)
     {
@@ -440,7 +447,8 @@ void Launcher::draw_settings(Canvas &c)
     }
     else
     {
-        for (int i = 0; i < kCategoryCount; ++i)
+        const int first = settings_.selected / kTilesPerPage * kTilesPerPage;
+        for (int i = first; i < std::min(first + kTilesPerPage, kCategoryCount); ++i)
         {
             const Rect r = tile_rect(i);
             const float f = tween::clamp01(settings_springs_[static_cast<std::size_t>(i)].value);

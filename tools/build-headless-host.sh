@@ -103,6 +103,7 @@ CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo.py" --source "
 CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo-oauth.py"
 python3 -B "$root/tools/check-launcher-admission.py"
 python3 -B "$root/tools/check-usb-writer-admission.py"
+python3 -B "$root/tools/check-settings-grid.py"
 bash "$root/tools/docker/run-network-tests.sh" "$scratch"
 flow_out=$(mktemp -d "$scratch/cheat-flow.XXXXXX")
 python3 -B "$root/tools/check-cheat-flow.py" --build "$scratch/build" --out "$flow_out/run"
