@@ -263,8 +263,10 @@ not every malformed table or every real game's update layout.
    is retained in `.local/docker-release/cheat-cross-layer-20261027/worker-evidence.zip`.
    It exercises actual encrypted/BKTR/per-copy probes, 11 real HTTPS requests, exact offline
    binding, mutation refusal and default-OFF Mods without fake identity callbacks. This is
-   not a full-core sanitizer or PS5 run. Repeat final integrated regression after the remaining
-   HTTP/service changes. Plaintext full
+   not a full-core sanitizer or PS5 run. After the Nextendo HTTP changes, the coordinator's
+   clean `ab5f70d` frozen snapshot repeated the complete identity/TLS/manager/install flow
+   successfully (`sh_17fdabfef00167L7A3GHZyk3uO`). Repeat final whole regression after the
+   remaining integration. Plaintext full
    NSP/CNMT/external-update/extracted-NSP fixtures passed isolated actual-core linking in
    `sh_17f6746d1001IAphtUmQ2rtAJ2`; the negative control subsequently passed in
    `sh_17f7317db00114Vy96zy3tBrm5`.

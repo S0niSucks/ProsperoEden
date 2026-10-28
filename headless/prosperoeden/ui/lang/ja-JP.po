@@ -2466,3 +2466,220 @@ msgstr "カバー画像をグリッドまたはCover Flowの立体表示で閲�
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "カバー画像がありません"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USBバックアップ"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "アプリデータのバックアップ・復元"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "設定、プロフィール、すべてのセーブデータをUSBドライブに保存します。ROMとキャッシュは含みません。"
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "USBバックアップにはストレージへのアクセスが必要です。ゲームの起動中は利用できません。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "設定、プロフィール、すべてのセーブデータ。ROM、ログ、キャッシュは対象外です。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "復元データの準備と検証が完了しました。ProsperoEdenを閉じてから、再度開いてください。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "FTPでアプリデータを変更しないでください。復元は次回の起動前に適用されます。既存のファイルは次の場所に保管されます："
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "コピーしたデータを検証中..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "アプリデータをコピー中..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "データの準備と確認中..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "キャンセルすると処理を停止します。完了するまでUSBドライブを接続したままにしてください。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "アプリデータをバックアップ"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "バックアップから復元"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "ここではストレージ関連の処理を一時停止します。FTPでアプリデータを変更しないでください。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "USBドライブを選択"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "完了済みのバックアップを選択"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "完了済みのバックアップやアクセス可能なドライブがありません。キャンセルで戻ります。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "データ：{0}、{1}ファイル"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "必要容量（予備領域込み）：{0} / 空き容量：{1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "復元は次回起動時にバックアップのファイルを既存データに統合します。既存のファイルは復旧用フォルダーに保管されます。バックアップにないファイルは変更しません。"
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "日付付きの新しいフォルダーを作成します。既存のバックアップは上書きしません。個人情報やサービスのアクセストークンを含む場合があるため、このドライブは他人と共有しないでください。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "空き容量が不足しています"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "復元を準備"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "バックアップを作成"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "バックアップと検証が完了しました。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "処理を停止しました。既存のデータは保持されています。"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "任意のカタログ・写真取得"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Amiiboリクエストをキャンセル中..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Amiiboの同期を開始できませんでした。ストレージへのアクセスを確認して、再試行してください。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "公開名称と任意の写真を取得します。タグデータやキーの読み取り、送信、ダウンロードは行いません。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "公開カタログをダウンロードしますか？"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "このモデルの写真をダウンロードしますか？"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "amiiboapi.orgに接続し、選択した写真はraw.githubusercontent.comから取得します。画像には第三者の権利が適用される場合があります。既存のローカル名称、ダンプ、画像は保持されます。"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "ダウンロードを確認"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "公開カタログをダウンロード中..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "選択した写真をダウンロード中..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "検証済みキャッシュを保存中..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "ローカルカタログを確認中..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "キャンセルしてもローカルデータは保持されます。保存済みのファイルはオフラインでも利用できます。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "公開カタログを取得・更新..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "オフラインカタログを使用"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "選択すると写真を取得します。既存の画像は保持されます。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "オフラインで利用可能な公開モデル：{0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "リクエストに失敗しました。オフラインカタログを使うか、再試行してください。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "リクエストをキャンセルしました。ローカルデータは保持されています。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "カタログの準備ができました。写真は選択した場合のみ取得します。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "ダウンロードを確認するまで通信は行いません。"
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "ゲームを起動する前に、Amiiboリクエストを完了またはキャンセルしてください。"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiiboダウンロードの確認"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "このランチャーは公開名称と任意の写真を要求します。タグデータやキーの読み取り、送信、ダウンロードは行いません。"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "公開カタログのみ"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "明示的に選択したモデルの写真：{0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{1} 中 {0}"

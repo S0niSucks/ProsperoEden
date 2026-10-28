@@ -2466,3 +2466,220 @@ msgstr "เรียกดูปกในแบบตารางหรือแ
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "ไม่มีภาพปก"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "สำรองข้อมูลลง USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "สำรองหรือคืนค่าข้อมูลแอป"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "การตั้งค่า โปรไฟล์ และข้อมูลบันทึกเกมทั้งหมดลงไดรฟ์ USB ไม่รวม ROM และแคช"
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "การสำรองลง USB ต้องเข้าถึงที่เก็บข้อมูลได้ และต้องไม่มีเกมกำลังเริ่มทำงาน"
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "การตั้งค่า โปรไฟล์ และข้อมูลบันทึกเกมทั้งหมด ไม่รวม ROM บันทึกเหตุการณ์ และแคช"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "เตรียมและตรวจสอบข้อมูลคืนค่าแล้ว ปิด ProsperoEden แล้วเปิดใหม่"
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "อย่าแก้ไขข้อมูลแอปผ่าน FTP ระบบจะคืนค่าก่อนการเริ่มทำงานครั้งถัดไป ไฟล์เดิมจะเก็บไว้ที่นี่:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "กำลังตรวจสอบข้อมูลที่คัดลอก..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "กำลังคัดลอกข้อมูลแอป..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "กำลังเตรียมและตรวจสอบข้อมูล..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "ยกเลิกจะหยุดงานนี้ โปรดเชื่อมต่อไดรฟ์ USB ไว้จนกว่าจะเสร็จ"
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "สำรองข้อมูลแอป"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "คืนค่าจากข้อมูลสำรอง"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "งานจัดเก็บข้อมูลจะหยุดชั่วคราวที่นี่ อย่าแก้ไขข้อมูลแอปผ่าน FTP"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "เลือกไดรฟ์ USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "เลือกข้อมูลสำรองที่เสร็จสมบูรณ์"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "ไม่พบข้อมูลสำรองที่สมบูรณ์หรือไดรฟ์ที่เข้าถึงได้ เลือกยกเลิกเพื่อย้อนกลับ"
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "ข้อมูล: {0} ใน {1} ไฟล์"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "พื้นที่ที่ต้องใช้ (รวมส่วนเผื่อ): {0} / ใช้ได้: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "การคืนค่าจะรวมไฟล์สำรองเข้ากับข้อมูลเมื่อเริ่มทำงานครั้งถัดไป ไฟล์เดิมจะเก็บไว้ในโฟลเดอร์กู้คืน ไฟล์ที่ไม่มีในข้อมูลสำรองจะไม่ถูกแก้ไข"
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "ระบบจะสร้างโฟลเดอร์ใหม่พร้อมวันที่ และจะไม่เขียนทับข้อมูลสำรองเดิม เก็บไดรฟ์นี้ไว้เป็นส่วนตัว เพราะข้อมูลสำรองอาจมีข้อมูลส่วนบุคคลและโทเค็นเข้าถึงบริการ"
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "พื้นที่ไม่เพียงพอ"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "เตรียมการคืนค่า"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "สร้างข้อมูลสำรอง"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "สำรองข้อมูลและตรวจสอบเสร็จแล้ว"
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "หยุดการดำเนินการแล้ว ข้อมูลเดิมยังคงอยู่"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "แค็ตตาล็อกและรูปภาพตามต้องการ"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "กำลังยกเลิกคำขอ Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "เริ่มซิงค์ Amiibo ไม่ได้ ตรวจสอบการเข้าถึงที่เก็บข้อมูลแล้วลองอีกครั้ง"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "ชื่อสาธารณะและรูปภาพตามต้องการ ไม่มีการอ่าน ส่ง หรือดาวน์โหลดข้อมูลแท็กหรือคีย์"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "ดาวน์โหลดแค็ตตาล็อกสาธารณะหรือไม่?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "ดาวน์โหลดรูปภาพของรุ่นนี้หรือไม่?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "เชื่อมต่อกับ amiiboapi.org รูปที่เลือกมาจาก raw.githubusercontent.com ภาพอาจอยู่ภายใต้สิทธิ์ของบุคคลที่สาม ชื่อในเครื่อง ดัมป์ และรูปภาพเดิมจะยังคงอยู่"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "ยืนยันการดาวน์โหลด"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "กำลังดาวน์โหลดแค็ตตาล็อกสาธารณะ..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "กำลังดาวน์โหลดรูปภาพที่เลือก..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "กำลังบันทึกแคชที่ตรวจสอบแล้ว..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "กำลังตรวจสอบแค็ตตาล็อกในเครื่อง..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "การยกเลิกจะคงข้อมูลในเครื่องไว้ ไฟล์ที่บันทึกแล้วจะยังใช้แบบออฟไลน์ได้"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "ดาวน์โหลด / อัปเดตแค็ตตาล็อกสาธารณะ..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "ใช้แค็ตตาล็อกออฟไลน์"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "เลือกเพื่อรับรูปภาพ โดยรูปเดิมจะยังคงอยู่"
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "รุ่นสาธารณะที่ใช้แบบออฟไลน์ได้: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "คำขอล้มเหลว ใช้แค็ตตาล็อกออฟไลน์หรือลองอีกครั้ง"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "ยกเลิกคำขอแล้ว ข้อมูลในเครื่องยังคงอยู่"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "แค็ตตาล็อกพร้อมแล้ว จะรับรูปภาพเฉพาะเมื่อเลือกเท่านั้น"
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "ไม่มีการใช้เครือข่ายจนกว่าจะยืนยันการดาวน์โหลด"
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "ทำคำขอ Amiibo ให้เสร็จหรือยกเลิกก่อนเริ่มเกม"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "ยืนยันการดาวน์โหลด Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "ตัวเปิดนี้ขอชื่อสาธารณะและรูปภาพตามต้องการ ไม่มีการอ่าน ส่ง หรือดาวน์โหลดข้อมูลแท็กหรือคีย์"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "เฉพาะแค็ตตาล็อกสาธารณะ"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "รูปภาพของรุ่นที่เลือกอย่างชัดเจน: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} จาก {1}"

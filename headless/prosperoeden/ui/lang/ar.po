@@ -2466,3 +2466,220 @@ msgstr "تصفح الأغلفة في شبكة أو بمنظور Cover Flow."
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "الغلاف غير متوفر"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "نسخة احتياطية على USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "نسخ بيانات التطبيق احتياطيا أو استعادتها"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "الإعدادات والملفات الشخصية وكل بيانات الحفظ على وحدة USB. لا تشمل ملفات ROM أو التخزين المؤقت."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "يتطلب النسخ الاحتياطي على USB إتاحة التخزين وعدم بدء تشغيل أي لعبة."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "الإعدادات والملفات الشخصية وكل بيانات الحفظ. تستثنى ملفات ROM والسجلات والتخزين المؤقت."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "تم تجهيز الاستعادة والتحقق منها. أغلق ProsperoEden ثم افتحه مجددا."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "لا تعدل بيانات التطبيق عبر FTP. تطبق الاستعادة قبل بدء التشغيل التالي. ستحفظ الملفات الموجودة هنا:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "جار التحقق من البيانات المنسوخة..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "جار نسخ بيانات التطبيق..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "جار تجهيز البيانات وفحصها..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "الإلغاء يوقف هذه المهمة. أبق وحدة USB متصلة حتى تنتهي."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "نسخ بيانات التطبيق احتياطيا"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "استعادة نسخة احتياطية"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "تتوقف مهام التخزين مؤقتا هنا. لا تعدل بيانات التطبيق عبر FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "اختر وحدة USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "اختر نسخة احتياطية مكتملة"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "لم يعثر على نسخ احتياطية مكتملة أو وحدات متاحة. اختر إلغاء للرجوع."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "البيانات: {0} في {1} ملف"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "المطلوب (مع الاحتياطي): {0} / المتاح: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "تدمج الاستعادة ملفات النسخة الاحتياطية عند بدء التشغيل التالي. تحفظ الملفات الموجودة في مجلد للاسترداد. تبقى الملفات غير الموجودة في النسخة دون تغيير."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "ينشأ مجلد جديد مؤرخ. لا يُكتب فوق النسخ الاحتياطية الموجودة أبدا. احتفظ بهذه الوحدة لنفسك: قد تحتوي النسخ على بيانات شخصية ورموز وصول للخدمات."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "المساحة غير كافية"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "تجهيز الاستعادة"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "إنشاء نسخة احتياطية"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "اكتمل النسخ الاحتياطي وتم التحقق منه."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "توقفت العملية. تم الاحتفاظ بالبيانات الموجودة."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "فهرس وصور اختياريان"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "جار إلغاء طلب Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "تعذر بدء مزامنة Amiibo. تحقق من إتاحة التخزين وحاول مجددا."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "أسماء عامة وصور اختيارية. لا تتم قراءة بيانات الوسوم أو المفاتيح أو إرسالها أو تنزيلها."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "هل تريد تنزيل الفهرس العام؟"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "هل تريد تنزيل صورة هذا الطراز؟"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "يتصل بـ amiiboapi.org؛ تأتي الصور المختارة من raw.githubusercontent.com. قد تخضع الصور لحقوق أطراف أخرى. تحفظ الأسماء المحلية ونسخ الذاكرة والصور الموجودة."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "تأكيد التنزيل"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "جار تنزيل الفهرس العام..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "جار تنزيل الصورة المختارة..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "جار حفظ التخزين المؤقت المتحقق منه..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "جار فحص الفهرس المحلي..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "يحافظ الإلغاء على البيانات المحلية. أي ملف حفظ بالفعل يبقى متاحا بلا اتصال."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "تنزيل الفهرس العام / تحديثه..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "استخدام الفهرس بلا اتصال"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "اختر لجلب الصورة؛ تحفظ الصور الموجودة."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "طرازات عامة متاحة بلا اتصال: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "فشل الطلب. استخدم الفهرس بلا اتصال أو حاول مجددا."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "ألغي الطلب. تم الاحتفاظ بالبيانات المحلية."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "الفهرس جاهز. لا تجلب الصور إلا عند اختيارها."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "لا نشاط للشبكة حتى تؤكد التنزيل."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "أكمل طلب Amiibo أو ألغِه قبل بدء تشغيل لعبة."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "تأكيد تنزيل Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "يطلب هذا المشغل أسماء عامة وصورا اختيارية. لا تتم قراءة بيانات الوسوم أو المفاتيح أو إرسالها أو تنزيلها."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "الفهرس العام فقط"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "صور طرازات مختارة صراحة: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} من {1}"

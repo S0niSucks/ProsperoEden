@@ -2466,3 +2466,220 @@ msgstr "Böngészd a borítókat rácsban vagy perspektivikus Cover Flow nézetb
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "A borító nem érhető el"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB-mentés"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Alkalmazásadatok mentése vagy visszaállítása"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Beállítások, profilok és az összes játékmentés USB-meghajtóra. ROM-ok és gyorsítótárak nélkül."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Az USB-s mentéshez tárhely-hozzáférés szükséges, és nem indulhat játék."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Beállítások, profilok és az összes játékmentés. ROM-ok, naplók és gyorsítótárak nélkül."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "A visszaállítás előkészítve és ellenőrizve. Zárd be a ProsperoEden alkalmazást, majd nyisd meg újra."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Ne módosíts alkalmazásadatokat FTP-n. A visszaállítás a következő indulás előtt történik. A meglévő fájlok itt maradnak meg:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Másolt adatok ellenőrzése..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Alkalmazásadatok másolása..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Adatok előkészítése és ellenőrzése..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "A Mégse leállítja a feladatot. A befejezésig hagyd csatlakoztatva az USB-meghajtót."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Alkalmazásadatok mentése"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Visszaállítás mentésből"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "A tárhelyműveletek itt szünetelnek. Ne módosíts alkalmazásadatokat FTP-n."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Válassz USB-meghajtót"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Válassz befejezett mentést"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Nincs befejezett mentés vagy elérhető meghajtó. A Mégse visszalép."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Adatok: {0}, {1} fájlban"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Szükséges (tartalékkal): {0} / Elérhető: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "A visszaállítás a következő induláskor egyesíti a mentett fájlokat az alkalmazás adataival. A meglévő fájlokat helyreállítási mappában őrzi meg. A mentésből hiányzó fájlok érintetlenek maradnak."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Új, dátumozott mappa készül. A meglévő mentések sosem íródnak felül. Ne oszd meg ezt a meghajtót: a mentések személyes adatokat és szolgáltatási hozzáférési tokeneket tartalmazhatnak."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Nincs elég hely"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Visszaállítás előkészítése"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Mentés létrehozása"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "A mentés elkészült és ellenőrizve lett."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "A művelet leállt. A meglévő adatok megmaradtak."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Választható katalógus és fotók"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Amiibo-kérés megszakítása..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Az Amiibo-szinkronizálás nem indult el. Ellenőrizd a tárhely-hozzáférést, majd próbáld újra."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Nyilvános nevek és választható fotók. Címkeadatokat és kulcsokat nem olvasunk, küldünk vagy töltünk le."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Letöltöd a nyilvános katalógust?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Letöltöd a modell fotóját?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Kapcsolódás az amiiboapi.org oldalhoz; a kijelölt fotók a raw.githubusercontent.com címről származnak. A képekre harmadik felek jogai vonatkozhatnak. A meglévő helyi nevek, memóriaképek és képek megmaradnak."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Letöltés megerősítése"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Nyilvános katalógus letöltése..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Kijelölt fotó letöltése..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Ellenőrzött gyorsítótár mentése..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Helyi katalógus ellenőrzése..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "A megszakítás megőrzi a helyi adatokat. A már mentett fájl offline is elérhető marad."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Nyilvános katalógus letöltése / frissítése..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Offline katalógus használata"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Válaszd ki a fotó letöltéséhez; a meglévő képek megmaradnak."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Offline elérhető nyilvános modellek: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "A kérés sikertelen. Használd az offline katalógust, vagy próbáld újra."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "A kérés megszakítva. A helyi adatok megmaradtak."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "A katalógus kész. Fotókat csak kijelölés után töltünk le."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Nincs hálózati forgalom a letöltés megerősítéséig."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Játékindítás előtt fejezd be vagy szakítsd meg az Amiibo-kérést."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiibo-letöltés megerősítése"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Ez az indító nyilvános neveket és választható fotókat kér. Címkeadatokat és kulcsokat nem olvasunk, küldünk vagy töltünk le."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Csak nyilvános katalógus"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Kifejezetten kijelölt modellek fotói: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} / {1}"

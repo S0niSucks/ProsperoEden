@@ -2466,3 +2466,220 @@ msgstr "Gennemse omslag i et gitter eller i perspektiv med Cover Flow."
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Omslag ikke tilgængeligt"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB-sikkerhedskopi"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Sikkerhedskopiér eller gendan appdata"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Indstillinger, profiler og alle gemte spildata på et USB-drev. ROM-filer og cache udelades."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "USB-sikkerhedskopi kræver lageradgang, og intet spil må være ved at starte."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Indstillinger, profiler og alle gemte spildata. ROM-filer, logfiler og cache udelades."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Gendannelsen er klargjort og kontrolleret. Luk ProsperoEden, og åbn det igen."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Ændr ikke appdata via FTP. Gendannelsen anvendes før næste opstart. Eksisterende filer bevares her:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Kontrollerer kopierede data..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Kopierer appdata..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Klargør og kontrollerer data..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Annuller stopper opgaven. Lad USB-drevet være tilsluttet, indtil den er færdig."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Sikkerhedskopiér appdata"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Gendan fra sikkerhedskopi"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Lageropgaver sættes på pause her. Ændr ikke appdata via FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Vælg et USB-drev"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Vælg en fuldført sikkerhedskopi"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Ingen fuldførte sikkerhedskopier eller tilgængelige drev fundet. Annuller går tilbage."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Data: {0} i {1} filer"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Krævet (med reserve): {0} / Ledigt: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Gendannelsen fletter sikkerhedskopiens filer ind ved næste opstart. Eksisterende filer bevares i en gendannelsesmappe. Filer, der ikke er i sikkerhedskopien, forbliver urørte."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Der oprettes en ny dateret mappe. Eksisterende sikkerhedskopier overskrives aldrig. Hold drevet privat: kopierne kan indeholde persondata og adgangstokens til tjenester."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Ikke nok plads"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Klargør gendannelse"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Opret sikkerhedskopi"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Sikkerhedskopien er færdig og kontrolleret."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Handlingen blev stoppet. Eksisterende data blev bevaret."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Valgfrit katalog og fotos"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Annullerer Amiibo-anmodning..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Amiibo-synkronisering kunne ikke starte. Kontrollér lageradgang, og prøv igen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Offentlige navne og valgfrie fotos. Ingen tagdata eller nøgler læses, sendes eller hentes."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Hent det offentlige katalog?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Hent denne models foto?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Opretter forbindelse til amiiboapi.org; valgte fotos kommer fra raw.githubusercontent.com. Billeder kan være underlagt tredjepartsrettigheder. Eksisterende lokale navne, hukommelsesdump og billeder bevares."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Bekræft hentning"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Henter offentligt katalog..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Henter valgt foto..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Gemmer kontrolleret cache..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Kontrollerer lokalt katalog..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Annullering bevarer lokale data. En fil, der allerede er gemt, forbliver tilgængelig offline."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Hent / opdater offentligt katalog..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Brug offlinekatalog"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Vælg for at hente foto; eksisterende billeder bevares."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Offentlige modeller tilgængelige offline: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Anmodningen mislykkedes. Brug offlinekataloget, eller prøv igen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Anmodningen blev annulleret. Lokale data blev bevaret."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Kataloget er klar. Fotos hentes kun, når de vælges."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Ingen netværksaktivitet, før du bekræfter en hentning."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Afslut eller annuller Amiibo-anmodningen, før du starter et spil."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Bekræftelse af Amiibo-hentning"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Dette startprogram anmoder om offentlige navne og valgfrie fotos. Ingen tagdata eller nøgler læses, sendes eller hentes."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Kun offentligt katalog"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Fotos af udtrykkeligt valgte modeller: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} af {1}"

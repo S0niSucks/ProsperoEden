@@ -39,6 +39,10 @@ msgstr ""
 msgid "A firmware NCA cannot be read. Reinstall the firmware dump."
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr ""
+
 #: pe/ui/pairing.cpp
 msgid "A pairing is running already."
 msgstr ""
@@ -80,6 +84,14 @@ msgstr ""
 msgid "Accessibility"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Account accepted. This is not a game connection test."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Account linked to this profile"
+msgstr ""
+
 #: pe/ui/profiles.cpp
 msgid "Add"
 msgstr ""
@@ -102,6 +114,18 @@ msgstr ""
 
 #: settings_store.h
 msgid "AMD FSR"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr ""
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -156,8 +180,20 @@ msgid "Automatic"
 msgstr ""
 
 #. Button hint: go back one screen.
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/amiibo_ui.inc, pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/runtime_amiibo_view.inc, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
 msgid "Back"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Back / cancel"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -166,6 +202,10 @@ msgstr ""
 
 #: pe/ui/save_sync.cpp
 msgid "Backing up save data"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
 msgstr ""
 
 #. An upscaling filter.
@@ -187,7 +227,7 @@ msgid "Bottom right"
 msgstr ""
 
 #. Button hint: move through the list.
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp
+#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
 msgid "Browse"
 msgstr ""
 
@@ -199,17 +239,29 @@ msgstr ""
 msgid "Browse the public directory and choose a room."
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
+msgstr ""
+
 #. Which controller button presses each of the game's buttons.
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Button mapping"
 msgstr ""
 
-#: pe/ui/library.cpp, pe/ui/pairing.cpp, pe/ui/update.cpp
+#: pe/ui/amiibo_ui.inc, pe/ui/library.cpp, pe/ui/pairing.cpp, pe/ui/update.cpp, pe/ui/usb_backup.cpp
 msgid "Cancel"
 msgstr ""
 
 #: pe/ui/library.cpp, pe/ui/remote.cpp
 msgid "Cancel download"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -220,12 +272,20 @@ msgstr ""
 msgid "Cancelling"
 msgstr ""
 
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "Cancelling cheat request..."
 msgstr ""
 
 #: eden_services.cpp
 msgid "Cannot read firmware/ in {0}. Install extracted firmware NCAs."
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
 msgstr ""
 
 #. Button hint: change the highlighted setting.
@@ -260,6 +320,10 @@ msgstr ""
 msgid "Cheats folder"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Check account"
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
 msgstr ""
@@ -278,6 +342,10 @@ msgstr ""
 
 #: pe/ui/library.cpp
 msgid "Checking effective game build"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
 msgstr ""
 
 #: pe/ui/remote.cpp
@@ -305,12 +373,20 @@ msgstr ""
 msgid "Choose"
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr ""
+
 #: pe/ui/home.cpp
 msgid "Choose a game from your library."
 msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Choose a theme or change the launcher layout."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
 msgstr ""
 
 #: pe/ui/browse.cpp, pe/ui/settings.cpp
@@ -342,6 +418,10 @@ msgstr ""
 msgid "Colour"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
+msgstr ""
+
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Compact memory"
 msgstr ""
@@ -358,6 +438,22 @@ msgstr ""
 #. A choice of 'ASTC textures': the textures are kept compressed (less memory). Keep it short.
 #: settings_store.h
 msgid "Compressed"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Confirm browser replacement"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Confirm replace"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Confirm unlink"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -378,6 +474,10 @@ msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Connection problem"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
 msgstr ""
 
 #: pe/ui/home.cpp, pe/ui/library.cpp
@@ -402,6 +502,10 @@ msgstr ""
 
 #: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Controls"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -477,6 +581,10 @@ msgstr ""
 msgid "Create"
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr ""
+
 #. Button hint: make the folder a game's mods go in.
 #: pe/ui/library.cpp
 msgid "Create the folder"
@@ -494,6 +602,10 @@ msgstr ""
 #. A DualSense button (the X-shaped one). Name the shape, not the letter.
 #: pe/ui/game_options.cpp
 msgid "Cross"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
 msgstr ""
 
 #: pe/ui/settings.cpp
@@ -545,6 +657,10 @@ msgstr ""
 msgid "Diagnostics"
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr ""
+
 #. Console mode: the console as if connected to a TV. Keep it short (about 9 letters).
 #: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/shell.cpp
 msgid "Docked"
@@ -556,6 +672,10 @@ msgstr ""
 
 #: pe/ui/library.cpp, pe/ui/remote.cpp
 msgid "Download"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -587,12 +707,28 @@ msgstr ""
 msgid "Download the game to change its settings."
 msgstr ""
 
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr ""
+
 #: pe/ui/update.cpp
 msgid "Downloading"
 msgstr ""
 
 #: pe/ui/library.cpp
 msgid "Downloading cheat catalog"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
 msgstr ""
 
 #: pe/ui/remote.cpp
@@ -713,6 +849,10 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Fine-tune your experience"
+msgstr ""
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
 msgstr ""
 
 #: pe/ui/launcher.cpp
@@ -919,6 +1059,10 @@ msgstr ""
 msgid "Import failed. The current save is unchanged."
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Import my session"
+msgstr ""
+
 #: eden_services.cpp
 msgid "Imported."
 msgstr ""
@@ -991,6 +1135,10 @@ msgstr ""
 #. keys, firmware and roms are folder names (unchanged). TRIANGLE is the controller's triangle button, in capitals.
 #: pe/ui/browse.cpp
 msgid "Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
 msgstr ""
 
 #: pe/ui/save_sync.cpp
@@ -1097,6 +1245,14 @@ msgstr ""
 msgid "Library view"
 msgstr ""
 
+#: pe/ui/multiplayer.cpp
+msgid "Link a community account. Separate from local rooms; off by default."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Link in this PS5's browser"
+msgstr ""
+
 #: pe/ui/pairing.cpp
 msgid "Linked"
 msgstr ""
@@ -1190,12 +1346,20 @@ msgstr ""
 msgid "Next launch: {0}"
 msgstr ""
 
+#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
+msgid "Nextendo (experimental)"
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Nickname"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
 msgid "Nickname: {0}"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "No account linked"
 msgstr ""
 
 #: pe/ui/library.cpp
@@ -1209,6 +1373,10 @@ msgstr ""
 
 #: pe/ui/library.cpp
 msgid "No cheats match this exact build."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
 msgstr ""
 
 #: pe/ui/remote.cpp
@@ -1238,6 +1406,10 @@ msgstr ""
 
 #: pe/ui/library.cpp
 msgid "No mods for this game yet. Copy each mod's folder to {0}."
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
 msgstr ""
 
 #: pe/ui/multiplayer.cpp
@@ -1271,6 +1443,10 @@ msgstr ""
 
 #: pe/ui/remote.cpp
 msgid "Not connected yet"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
 msgstr ""
 
 #: pe/ui/pairing.cpp
@@ -1338,6 +1514,18 @@ msgstr ""
 msgid "Open library"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr ""
+
 #. The DualSense button labelled OPTIONS: keep the label if the language's players do.
 #: pe/ui/game_options.cpp
 msgid "Options"
@@ -1361,7 +1549,7 @@ msgid "Overlay size"
 msgstr ""
 
 #. Button hint: jump a page of the list (L1 / R1).
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
+#: pe/ui/amiibo_ui.inc, pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
 msgid "Page"
 msgstr ""
 
@@ -1470,6 +1658,10 @@ msgstr ""
 msgid "Preparing"
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "Press again to delete the game and its updates and DLC from the console. Save data and settings are kept."
 msgstr ""
@@ -1553,6 +1745,14 @@ msgstr ""
 msgid "PS5 EDITION"
 msgstr ""
 
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "Public rooms"
 msgstr ""
@@ -1591,7 +1791,7 @@ msgstr ""
 msgid "Reading the game lists..."
 msgstr ""
 
-#: pe/ui/library.cpp, pe/ui/remote.cpp
+#: pe/ui/cover_flow.inc, pe/ui/library.cpp, pe/ui/remote.cpp
 msgid "Reading..."
 msgstr ""
 
@@ -1637,12 +1837,40 @@ msgstr ""
 msgid "Renderer"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Replace linked session"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr ""
+
 #: pe/ui/game_options.cpp
 msgid "Reset"
 msgstr ""
 
 #: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "Resolution"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
 msgstr ""
 
 #: pe/ui/game_options.cpp
@@ -1772,6 +2000,10 @@ msgstr ""
 msgid "Saved. Reopen ProsperoEden to use this folder."
 msgstr ""
 
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr ""
+
 #. About the Update notices switch; homebrew.page is a site's name and stays as it is; About is the menu's last section (use its translation).
 #: pe/ui/settings.cpp
 msgid "Says when homebrew.page has a newer version. Off, only About names it."
@@ -1796,8 +2028,12 @@ msgid "Sections"
 msgstr ""
 
 #. Button hint: choose the highlighted item (not the Select button).
-#: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/amiibo_ui.inc, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/nextendo.inc, pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp, pe/ui/usb_backup.cpp
 msgid "Select"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
 msgstr ""
 
 #. Heading: the language highlighted in the list.
@@ -1814,12 +2050,28 @@ msgstr ""
 msgid "Server too old for save sync"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Service routing off"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Service routing on"
+msgstr ""
+
 #: pe/ui/home.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
 msgid "Settings"
 msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "SETTINGS"
+msgstr ""
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
 msgstr ""
 
 #: eden_services.cpp, host/fake_services.cpp
@@ -1914,6 +2166,10 @@ msgstr ""
 msgid "Square again unlinks {0}. Its save data stays on the console and on the server."
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr ""
+
 #. The app creates its user the first time a game runs.
 #: eden_services.cpp
 msgid "Start any game once before importing a save."
@@ -1926,6 +2182,10 @@ msgstr ""
 
 #: pe/ui/settings.cpp
 msgid "Stops the background drifting and the screens sliding, here and on the loading screen."
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
 msgstr ""
 
 #: pe/ui/browse.cpp
@@ -2095,6 +2355,10 @@ msgstr ""
 msgid "This game's settings cannot be saved (no title ID)."
 msgstr ""
 
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "This room uses a different protocol version."
 msgstr ""
@@ -2140,6 +2404,14 @@ msgstr ""
 msgid "Turn on or off"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Turn routing off"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Turn routing on"
+msgstr ""
+
 #: pe/ui/multiplayer.cpp
 msgid "UDP port"
 msgstr ""
@@ -2159,6 +2431,10 @@ msgstr ""
 
 #: pe/ui/pairing.cpp
 msgid "Unlink"
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Unlink account"
 msgstr ""
 
 #: pe/ui/pairing.cpp
@@ -2211,6 +2487,18 @@ msgstr ""
 msgid "USA"
 msgstr ""
 
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr ""
+
+#: pe/ui/nextendo.inc
+msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Use another home screen, library and menu layout."
 msgstr ""
@@ -2219,12 +2507,20 @@ msgstr ""
 msgid "Use extracted firmware NCA files. Choose the folder in Settings, Game files; restart the app after changing it."
 msgstr ""
 
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr ""
+
 #: pe/ui/library.cpp
 msgid "Use offline cheat cache"
 msgstr ""
 
 #: pe/ui/browse.cpp
 msgid "Use this folder"
+msgstr ""
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
 msgstr ""
 
 #. {0} is the app's new version number, for example 1.000.060.
@@ -2325,6 +2621,10 @@ msgstr ""
 msgid "with {0}"
 msgstr ""
 
+#: pe/ui/nextendo.inc
+msgid "Working... Circle cancels."
+msgstr ""
+
 #: pe/ui/settings.cpp
 msgid "Write logs at once"
 msgstr ""
@@ -2363,6 +2663,10 @@ msgstr ""
 #. {0} is how many DLC (add-on content) a game has installed.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "{0} DLC"
+msgstr ""
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
 msgstr ""
 
 #. Exactly one game. In a language with more than two plural forms, word it so that it reads well with any number (Games: {0}).
@@ -2419,6 +2723,10 @@ msgstr ""
 msgid "{0} not available"
 msgstr ""
 
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr ""
+
 #. Position in a list: 3 OF 12.
 #: pe/ui/widgets.cpp
 msgid "{0} OF {1}"
@@ -2440,6 +2748,10 @@ msgstr ""
 
 #: pe/ui/save_sync.cpp
 msgid "{0} on {1}"
+msgstr ""
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
 msgstr ""
 
 #: pe/ui/multiplayer.cpp

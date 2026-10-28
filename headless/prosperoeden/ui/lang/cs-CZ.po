@@ -2466,3 +2466,220 @@ msgstr "Procházejte obaly v mřížce nebo v perspektivním zobrazení Cover Fl
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Obal není k dispozici"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "Záloha na USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Zálohovat či obnovit data aplikace"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Nastavení, profily a všechny uložené pozice na USB. ROM a mezipaměti se vynechají."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Záloha na USB vyžaduje přístup k úložišti a nesmí se spouštět hra."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Nastavení, profily a všechny uložené pozice. ROM, protokoly a mezipaměti se vynechají."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Obnova připravena a ověřena. Zavřete ProsperoEden a znovu jej otevřete."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Neměňte data aplikace přes FTP. Obnova se provede před příštím spuštěním. Původní soubory se uchovají zde:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Ověřování zkopírovaných dat..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Kopírování dat aplikace..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Příprava a kontrola dat..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Zrušení zastaví tuto úlohu. Nechte USB připojené až do dokončení."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Zálohovat data aplikace"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Obnovit ze zálohy"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Úlohy úložiště jsou zde pozastaveny. Neměňte data aplikace přes FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Vyberte jednotku USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Vyberte dokončenou zálohu"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Nenalezeny dokončené zálohy ani přístupné jednotky. Zrušit vás vrátí zpět."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Data: {0} v {1} souborech"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Potřeba (s rezervou): {0} / Volno: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Obnova při příštím spuštění sloučí soubory zálohy s daty aplikace. Původní soubory uchová ve složce pro obnovení. Soubory, které v záloze nejsou, zůstanou beze změny."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Vytvoří se nová složka s datem. Existující zálohy se nikdy nepřepisují. Jednotku uchovejte v soukromí: zálohy mohou obsahovat osobní údaje a přístupové tokeny služeb."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Nedostatek místa"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Připravit obnovu"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Vytvořit zálohu"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Záloha dokončena a ověřena."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Operace zastavena. Původní data byla zachována."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Volitelný katalog a fotografie"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Rušení požadavku Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Synchronizaci Amiibo nelze spustit. Ověřte přístup k úložišti a zkuste to znovu."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Veřejné názvy a volitelné fotografie. Data tagů ani klíče se nečtou, neodesílají ani nestahují."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Stáhnout veřejný katalog?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Stáhnout fotografii tohoto modelu?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Připojí se k amiiboapi.org; vybrané fotografie pocházejí z raw.githubusercontent.com. Na obrázky se mohou vztahovat práva třetích stran. Místní názvy, výpisy paměti a obrázky se zachovají."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Potvrdit stažení"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Stahování veřejného katalogu..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Stahování vybrané fotografie..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Ukládání ověřené mezipaměti..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Kontrola místního katalogu..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Zrušení zachová místní data. Již uložený soubor zůstane dostupný bez připojení."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Stáhnout / aktualizovat veřejný katalog..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Použít offline katalog"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Vyberte pro stažení fotografie; původní obrázky zůstanou."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Veřejné modely dostupné offline: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Požadavek selhal. Použijte offline katalog nebo to zkuste znovu."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Požadavek zrušen. Místní data byla zachována."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Katalog je připraven. Fotografie se stahují jen po výběru."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Do potvrzení stažení neprobíhá síťová komunikace."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Před spuštěním hry dokončete nebo zrušte požadavek Amiibo."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Potvrzení stažení Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Tento spouštěč žádá veřejné názvy a volitelné fotografie. Data tagů ani klíče se nečtou, neodesílají ani nestahují."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Pouze veřejný katalog"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Fotografie výslovně vybraných modelů: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} z {1}"

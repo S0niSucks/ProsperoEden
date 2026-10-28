@@ -2466,3 +2466,220 @@ msgstr "以網格或 Cover Flow 透視檢視瀏覽封面。"
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "無法取得封面"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB 備份"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "備份或還原應用程式資料"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "將設定、使用者設定檔和所有存檔備份至 USB 儲存裝置。不包含 ROM 和快取。"
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "USB 備份需要儲存空間存取權限，且不能有正在啟動的遊戲。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "設定、使用者設定檔和所有存檔。不包含 ROM、記錄和快取。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "還原資料已暫存並驗證。請關閉 ProsperoEden，然後重新開啟。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "請勿透過 FTP 修改應用程式資料。還原將在下次啟動前套用。現有檔案將保存在此處："
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "正在驗證已複製的資料..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "正在複製應用程式資料..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "正在準備並檢查資料..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "取消將停止此工作。請保持 USB 儲存裝置連接，直到工作結束。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "備份應用程式資料"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "從備份還原"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "儲存工作在此暫停。請勿透過 FTP 修改應用程式資料。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "選擇 USB 儲存裝置"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "選擇已完成的備份"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "找不到已完成的備份或可存取的裝置。選擇取消可返回。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "資料：{0}，共 {1} 個檔案"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "所需（含預留空間）：{0} / 可用：{1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "還原將在下次啟動時合併備份檔案。現有檔案會保存在復原資料夾中。備份中不存在的檔案將保持不變。"
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "將建立附日期的新資料夾。現有備份絕不會被覆寫。請勿與他人共用此裝置：備份可能包含個人資料和服務存取權杖。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "空間不足"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "暫存還原資料"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "建立備份"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "備份已完成並驗證。"
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "操作已停止。現有資料已保留。"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "可選的目錄和照片"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "正在取消 Amiibo 請求..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "無法啟動 Amiibo 同步。請檢查儲存空間存取權限後重試。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "公開名稱和可選照片。不會讀取、傳送或下載標籤資料或金鑰。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "下載公開目錄？"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "下載此型號的照片？"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "將連線至 amiiboapi.org；所選照片來自 raw.githubusercontent.com。圖片可能受第三方權利保護。現有的本機名稱、轉存檔案和圖片都會保留。"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "確認下載"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "正在下載公開目錄..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "正在下載所選照片..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "正在儲存已驗證的快取..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "正在檢查本機目錄..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "取消會保留本機資料。已儲存的檔案仍可離線使用。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "下載 / 重新整理公開目錄..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "使用離線目錄"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "選擇以取得照片；現有圖片會保留。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "可離線使用的公開型號：{0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "請求失敗。請使用離線目錄或重試。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "請求已取消。本機資料已保留。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "目錄已就緒。僅在選取後取得照片。"
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "確認下載前不會進行網路存取。"
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "開始遊戲前，請完成或取消 Amiibo 請求。"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiibo 下載確認"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "此啟動器請求公開名稱和可選照片。不會讀取、傳送或下載標籤資料或金鑰。"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "僅公開目錄"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "明確選取的型號照片：{0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0}，共 {1}"

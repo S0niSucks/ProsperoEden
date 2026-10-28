@@ -2466,3 +2466,220 @@ msgstr "Περιηγηθείτε στα εξώφυλλα σε πλέγμα ή σ
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Εξώφυλλο μη διαθέσιμο"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "Αντίγραφο σε USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Αντιγραφή ή επαναφορά δεδομένων εφαρμογής"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Ρυθμίσεις, προφίλ και όλες οι αποθηκεύσεις σε μονάδα USB. Εξαιρούνται ROM και προσωρινή μνήμη."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Η αντιγραφή σε USB απαιτεί πρόσβαση στον χώρο αποθήκευσης και να μην εκκινείται παιχνίδι."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Ρυθμίσεις, προφίλ και όλες οι αποθηκεύσεις. Εξαιρούνται ROM, αρχεία καταγραφής και προσωρινή μνήμη."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Η επαναφορά ετοιμάστηκε και ελέγχθηκε. Κλείστε το ProsperoEden και ανοίξτε το ξανά."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Μην αλλάζετε δεδομένα εφαρμογής μέσω FTP. Η επαναφορά εφαρμόζεται πριν από την επόμενη εκκίνηση. Τα υπάρχοντα αρχεία θα διατηρηθούν εδώ:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Έλεγχος αντιγραμμένων δεδομένων..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Αντιγραφή δεδομένων εφαρμογής..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Προετοιμασία και έλεγχος δεδομένων..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Η ακύρωση σταματά αυτή την εργασία. Αφήστε τη μονάδα USB συνδεδεμένη μέχρι να ολοκληρωθεί."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Αντιγραφή δεδομένων εφαρμογής"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Επαναφορά από αντίγραφο"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Οι εργασίες αποθήκευσης παύουν εδώ. Μην αλλάζετε δεδομένα εφαρμογής μέσω FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Επιλέξτε μονάδα USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Επιλέξτε ολοκληρωμένο αντίγραφο"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Δεν βρέθηκαν ολοκληρωμένα αντίγραφα ή προσβάσιμες μονάδες. Η Ακύρωση επιστρέφει πίσω."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Δεδομένα: {0} σε {1} αρχεία"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Απαιτούμενα (με εφεδρεία): {0} / Διαθέσιμα: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Η επαναφορά συγχωνεύει τα αρχεία του αντιγράφου στην επόμενη εκκίνηση. Τα υπάρχοντα αρχεία διατηρούνται σε φάκελο ανάκτησης. Όσα δεν περιέχονται στο αντίγραφο μένουν ανέπαφα."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Δημιουργείται νέος φάκελος με ημερομηνία. Τα υπάρχοντα αντίγραφα δεν αντικαθίστανται ποτέ. Κρατήστε τη μονάδα ιδιωτική: τα αντίγραφα μπορεί να περιέχουν προσωπικά δεδομένα και διακριτικά πρόσβασης υπηρεσιών."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Ανεπαρκής χώρος"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Προετοιμασία επαναφοράς"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Δημιουργία αντιγράφου"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Το αντίγραφο ολοκληρώθηκε και ελέγχθηκε."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Η ενέργεια σταμάτησε. Τα υπάρχοντα δεδομένα διατηρήθηκαν."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Προαιρετικός κατάλογος και φωτογραφίες"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Ακύρωση αιτήματος Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Ο συγχρονισμός Amiibo δεν ξεκίνησε. Ελέγξτε την πρόσβαση αποθήκευσης και δοκιμάστε ξανά."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Δημόσια ονόματα και προαιρετικές φωτογραφίες. Δεν διαβάζονται, αποστέλλονται ή λαμβάνονται δεδομένα ετικετών ή κλειδιά."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Λήψη του δημόσιου καταλόγου;"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Λήψη φωτογραφίας αυτού του μοντέλου;"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Σύνδεση στο amiiboapi.org· οι επιλεγμένες φωτογραφίες προέρχονται από το raw.githubusercontent.com. Οι εικόνες μπορεί να υπόκεινται σε δικαιώματα τρίτων. Τα υπάρχοντα τοπικά ονόματα, αντίγραφα μνήμης και εικόνες διατηρούνται."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Επιβεβαίωση λήψης"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Λήψη δημόσιου καταλόγου..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Λήψη επιλεγμένης φωτογραφίας..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Αποθήκευση ελεγμένης προσωρινής μνήμης..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Έλεγχος τοπικού καταλόγου..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Η ακύρωση διατηρεί τα τοπικά δεδομένα. Ένα ήδη αποθηκευμένο αρχείο παραμένει διαθέσιμο εκτός σύνδεσης."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Λήψη / ενημέρωση δημόσιου καταλόγου..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Χρήση καταλόγου εκτός σύνδεσης"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Επιλέξτε για λήψη φωτογραφίας· οι υπάρχουσες εικόνες διατηρούνται."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Δημόσια μοντέλα διαθέσιμα εκτός σύνδεσης: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Αποτυχία αιτήματος. Χρησιμοποιήστε κατάλογο εκτός σύνδεσης ή δοκιμάστε ξανά."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Το αίτημα ακυρώθηκε. Τα τοπικά δεδομένα διατηρήθηκαν."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Ο κατάλογος είναι έτοιμος. Οι φωτογραφίες λαμβάνονται μόνο όταν επιλέγονται."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Καμία δραστηριότητα δικτύου πριν επιβεβαιώσετε λήψη."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Ολοκληρώστε ή ακυρώστε το αίτημα Amiibo πριν ξεκινήσετε παιχνίδι."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Επιβεβαίωση λήψης Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Αυτός ο εκκινητής ζητά δημόσια ονόματα και προαιρετικές φωτογραφίες. Δεν διαβάζονται, αποστέλλονται ή λαμβάνονται δεδομένα ετικετών ή κλειδιά."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Μόνο δημόσιος κατάλογος"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Φωτογραφίες ρητά επιλεγμένων μοντέλων: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} από {1}"

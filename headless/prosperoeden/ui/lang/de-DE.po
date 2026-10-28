@@ -2466,3 +2466,220 @@ msgstr "Durchsuche Cover im Raster oder in der Perspektivansicht mit Cover Flow.
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Cover nicht verfügbar"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB-Sicherung"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "App-Daten sichern oder wiederherstellen"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Einstellungen, Profile und alle Spielstände auf einem USB-Laufwerk. ROMs und Caches werden ausgelassen."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Die USB-Sicherung benötigt Speicherzugriff; es darf kein Spiel gestartet werden."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Einstellungen, Profile und alle Spielstände. ROMs, Protokolle und Caches sind ausgeschlossen."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Wiederherstellung vorbereitet und geprüft. ProsperoEden schließen und erneut öffnen."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "App-Daten nicht per FTP ändern. Die Wiederherstellung erfolgt vor dem nächsten Start. Vorhandene Dateien bleiben hier erhalten:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Kopierte Daten werden geprüft..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "App-Daten werden kopiert..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Daten werden vorbereitet und geprüft..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Abbrechen stoppt diesen Vorgang. Das USB-Laufwerk bis zum Abschluss angeschlossen lassen."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "App-Daten sichern"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Aus Sicherung wiederherstellen"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Speicheraufgaben pausieren hier. App-Daten nicht per FTP ändern."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "USB-Laufwerk wählen"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Vollständige Sicherung wählen"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Keine vollständigen Sicherungen oder zugänglichen Laufwerke gefunden. Abbrechen führt zurück."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Daten: {0} in {1} Dateien"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Benötigt (mit Reserve): {0} / Verfügbar: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Die Wiederherstellung führt die Sicherungsdateien beim nächsten Start mit den App-Daten zusammen. Vorhandene Dateien bleiben in einem Wiederherstellungsordner erhalten. Nicht gesicherte Dateien bleiben unverändert."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Ein neuer Ordner mit Datum wird erstellt. Vorhandene Sicherungen werden nie überschrieben. Dieses Laufwerk privat halten: Sicherungen können persönliche Daten und Zugangstoken für Dienste enthalten."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Nicht genug Speicherplatz"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Wiederherstellung vorbereiten"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Sicherung erstellen"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Sicherung abgeschlossen und geprüft."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Vorgang gestoppt. Vorhandene Daten wurden erhalten."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Optionaler Katalog und Fotos"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Amiibo-Anfrage wird abgebrochen..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Amiibo-Synchronisierung konnte nicht starten. Speicherzugriff prüfen und erneut versuchen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Öffentliche Namen und optionale Fotos. Keine Tag-Daten oder Schlüssel werden gelesen, gesendet oder heruntergeladen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Öffentlichen Katalog herunterladen?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Foto dieses Modells herunterladen?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Verbindet sich mit amiiboapi.org; ausgewählte Fotos stammen von raw.githubusercontent.com. Bilder können Rechten Dritter unterliegen. Vorhandene lokale Namen, Speicherabbilder und Bilder bleiben erhalten."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Download bestätigen"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Öffentlicher Katalog wird geladen..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Ausgewähltes Foto wird geladen..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Geprüfter Cache wird gespeichert..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Lokaler Katalog wird geprüft..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Abbrechen erhält lokale Daten. Eine bereits gespeicherte Datei bleibt offline verfügbar."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Öffentlichen Katalog laden / aktualisieren..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Offlinekatalog verwenden"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Zum Laden des Fotos auswählen; vorhandene Bilder bleiben erhalten."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Öffentliche Modelle offline verfügbar: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Anfrage fehlgeschlagen. Offlinekatalog verwenden oder erneut versuchen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Anfrage abgebrochen. Lokale Daten wurden erhalten."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Katalog bereit. Fotos werden nur nach Auswahl geladen."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Keine Netzwerkaktivität ohne Downloadbestätigung."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Amiibo-Anfrage abschließen oder abbrechen, bevor ein Spiel gestartet wird."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiibo-Downloadbestätigung"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Dieser Launcher fordert öffentliche Namen und optionale Fotos an. Keine Tag-Daten oder Schlüssel werden gelesen, gesendet oder heruntergeladen."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Nur öffentlicher Katalog"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Fotos ausdrücklich ausgewählter Modelle: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} von {1}"

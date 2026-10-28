@@ -2466,3 +2466,220 @@ msgstr "Duyệt ảnh bìa theo lưới hoặc theo phối cảnh bằng Cover F
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Không có ảnh bìa"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "Sao lưu USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Sao lưu hoặc khôi phục dữ liệu ứng dụng"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Cài đặt, hồ sơ và mọi bản lưu trò chơi vào ổ USB. Không gồm ROM và bộ nhớ đệm."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Sao lưu USB cần quyền truy cập bộ nhớ và không có trò chơi đang khởi chạy."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Cài đặt, hồ sơ và mọi bản lưu trò chơi. Không gồm ROM, nhật ký và bộ nhớ đệm."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Đã chuẩn bị và xác minh dữ liệu khôi phục. Đóng ProsperoEden rồi mở lại."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Không sửa dữ liệu ứng dụng qua FTP. Khôi phục được áp dụng trước lần khởi động kế tiếp. Các tệp hiện có sẽ được giữ tại đây:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Đang xác minh dữ liệu đã chép..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Đang chép dữ liệu ứng dụng..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Đang chuẩn bị và kiểm tra dữ liệu..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Hủy sẽ dừng tác vụ này. Giữ ổ USB kết nối cho đến khi hoàn tất."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Sao lưu dữ liệu ứng dụng"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Khôi phục từ bản sao lưu"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Tác vụ lưu trữ tạm dừng tại đây. Không sửa dữ liệu ứng dụng qua FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Chọn ổ USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Chọn bản sao lưu hoàn chỉnh"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Không tìm thấy bản sao lưu hoàn chỉnh hay ổ có thể truy cập. Hủy để quay lại."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Dữ liệu: {0} trong {1} tệp"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Cần (gồm dự phòng): {0} / Khả dụng: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Khôi phục gộp các tệp sao lưu vào lần khởi động kế tiếp. Các tệp hiện có được giữ trong thư mục phục hồi. Tệp không có trong bản sao lưu sẽ không bị thay đổi."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Một thư mục mới có ngày được tạo. Không bao giờ ghi đè bản sao lưu hiện có. Giữ ổ này riêng tư: bản sao lưu có thể chứa dữ liệu cá nhân và mã thông báo truy cập dịch vụ."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Không đủ dung lượng"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Chuẩn bị khôi phục"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Tạo bản sao lưu"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Đã sao lưu và xác minh xong."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Đã dừng thao tác. Dữ liệu hiện có được giữ nguyên."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Danh mục và ảnh tùy chọn"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Đang hủy yêu cầu Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Không thể bắt đầu đồng bộ Amiibo. Kiểm tra quyền truy cập bộ nhớ rồi thử lại."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Tên công khai và ảnh tùy chọn. Không đọc, gửi hay tải xuống dữ liệu thẻ hoặc khóa."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Tải danh mục công khai?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Tải ảnh của mẫu này?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Kết nối tới amiiboapi.org; ảnh đã chọn lấy từ raw.githubusercontent.com. Hình ảnh có thể chịu quyền của bên thứ ba. Tên cục bộ, bản kết xuất bộ nhớ và ảnh hiện có được giữ nguyên."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Xác nhận tải xuống"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Đang tải danh mục công khai..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Đang tải ảnh đã chọn..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Đang lưu bộ nhớ đệm đã xác minh..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Đang kiểm tra danh mục cục bộ..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Hủy vẫn giữ dữ liệu cục bộ. Tệp đã lưu vẫn dùng được ngoại tuyến."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Tải / cập nhật danh mục công khai..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Dùng danh mục ngoại tuyến"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Chọn để tải ảnh; hình ảnh hiện có được giữ nguyên."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Mẫu công khai có sẵn ngoại tuyến: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Yêu cầu thất bại. Dùng danh mục ngoại tuyến hoặc thử lại."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Đã hủy yêu cầu. Dữ liệu cục bộ được giữ nguyên."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Danh mục đã sẵn sàng. Chỉ tải ảnh khi được chọn."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Không có hoạt động mạng cho đến khi xác nhận tải xuống."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Hoàn tất hoặc hủy yêu cầu Amiibo trước khi khởi chạy trò chơi."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Xác nhận tải Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Trình khởi chạy này yêu cầu tên công khai và ảnh tùy chọn. Không đọc, gửi hay tải xuống dữ liệu thẻ hoặc khóa."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Chỉ danh mục công khai"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Ảnh các mẫu được chọn rõ ràng: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} trên {1}"

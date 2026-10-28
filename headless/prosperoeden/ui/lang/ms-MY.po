@@ -2466,3 +2466,220 @@ msgstr "Semak imbas kulit dalam grid atau paparan perspektif Cover Flow."
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Kulit tidak tersedia"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "Sandaran USB"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Sandar atau pulihkan data aplikasi"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Tetapan, profil dan semua simpanan permainan pada pemacu USB. ROM dan cache dikecualikan."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Sandaran USB memerlukan akses storan dan tiada permainan sedang dimulakan."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Tetapan, profil dan semua simpanan permainan. ROM, log dan cache dikecualikan."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Pemulihan disediakan dan disahkan. Tutup ProsperoEden, kemudian buka semula."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Jangan ubah data aplikasi melalui FTP. Pemulihan digunakan sebelum permulaan seterusnya. Fail sedia ada akan disimpan di sini:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Mengesahkan data yang disalin..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Menyalin data aplikasi..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Menyediakan dan menyemak data..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Batal menghentikan tugas ini. Biarkan pemacu USB tersambung sehingga selesai."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Sandarkan data aplikasi"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Pulihkan daripada sandaran"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Tugas storan dijeda di sini. Jangan ubah data aplikasi melalui FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Pilih pemacu USB"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Pilih sandaran yang lengkap"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Tiada sandaran lengkap atau pemacu yang boleh diakses. Batal untuk kembali."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Data: {0} dalam {1} fail"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Diperlukan (termasuk rizab): {0} / Tersedia: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Pemulihan menggabungkan fail sandaran pada permulaan seterusnya. Fail sedia ada dikekalkan dalam folder pemulihan. Fail yang tiada dalam sandaran tidak diubah."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Folder baharu bertarikh akan dicipta. Sandaran sedia ada tidak pernah ditulis ganti. Jaga privasi pemacu ini: sandaran mungkin mengandungi data peribadi dan token akses perkhidmatan."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Ruang tidak mencukupi"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Sediakan pemulihan"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Cipta sandaran"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Sandaran lengkap dan disahkan."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Operasi dihentikan. Data sedia ada dikekalkan."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Katalog dan foto pilihan"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Membatalkan permintaan Amiibo..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Penyegerakan Amiibo tidak dapat dimulakan. Semak akses storan dan cuba lagi."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Nama awam dan foto pilihan. Tiada data tag atau kunci dibaca, dihantar atau dimuat turun."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Muat turun katalog awam?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Muat turun foto model ini?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Bersambung ke amiiboapi.org; foto yang dipilih daripada raw.githubusercontent.com. Imej mungkin tertakluk pada hak pihak ketiga. Nama tempatan, salinan memori dan gambar sedia ada dikekalkan."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Sahkan muat turun"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Memuat turun katalog awam..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Memuat turun foto yang dipilih..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Menyimpan cache yang disahkan..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Menyemak katalog tempatan..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Pembatalan mengekalkan data tempatan. Fail yang telah disimpan kekal tersedia di luar talian."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Muat turun / kemas kini katalog awam..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Guna katalog luar talian"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Pilih untuk mengambil foto; imej sedia ada dikekalkan."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Model awam tersedia di luar talian: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Permintaan gagal. Guna katalog luar talian atau cuba lagi."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Permintaan dibatalkan. Data tempatan dikekalkan."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Katalog sedia. Foto diambil hanya apabila dipilih."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Tiada aktiviti rangkaian sehingga muat turun disahkan."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Selesaikan atau batalkan permintaan Amiibo sebelum memulakan permainan."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Pengesahan muat turun Amiibo"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Pelancar ini meminta nama awam dan foto pilihan. Tiada data tag atau kunci dibaca, dihantar atau dimuat turun."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Katalog awam sahaja"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Foto model yang dipilih secara jelas: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} daripada {1}"

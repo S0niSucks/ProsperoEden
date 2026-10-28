@@ -127,3 +127,19 @@ private key or commercial material is included in the export.
 This focused host test cannot establish console TLS behavior, cheat effectiveness in
 a commercial title, encrypted retail-content compatibility, or #74 hardware
 acceptance. No production behavior change is part of this qualification task.
+
+## Coordinator integrated-HTTP repeat
+
+After the Nextendo HTTP/session/OAuth commits landed, the maintained runner passed again on
+the coordinator's synchronously frozen **820-file clean `ab5f70d`** snapshot, not the worker
+tree (`sh_17fdabfef00167L7A3GHZyk3uO`). It repeated the independent identity and complete
+cross-layer assertions: 29 actual probes, exact offline binding, update/mod/title/full-build
+mutation refusal, real TLS cancellation and default-off installation. Source-manifest SHA-256:
+`2144b97a2c8fb1184c7b7e7c416e0d2e32db3694d1d6bd4312f8e9929bef7af0`.
+
+The input snapshot, raw output and exit-0 status are in
+`.local/docker-release/cheat-cross-layer-20261027/` (`source-snapshot.json`,
+`integrated-http-flow.log`, `integrated-http-status.json`). Full private commands/hash evidence
+is retained in Docker volume `prosperoeden-cheat-flow-nextendo-review-20261027`, under
+`/private/cheat-flow-nextendo-20261027/run/`. The reused older host-core archives were mounted
+read-only at their original paths; this is neither a rebuilt Nextendo core nor PS5 gameplay.

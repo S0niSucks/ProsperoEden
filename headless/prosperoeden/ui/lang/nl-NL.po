@@ -2466,3 +2466,220 @@ msgstr "Blader door hoezen in een raster of in perspectief met Cover Flow."
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "Hoes niet beschikbaar"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB-back-up"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "Appgegevens back-uppen of herstellen"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "Instellingen, profielen en alle spelopslag op een USB-station. ROM's en caches worden overgeslagen."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "Een USB-back-up vereist opslagtoegang; er mag geen spel worden gestart."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "Instellingen, profielen en alle spelopslag. ROM's, logboeken en caches worden uitgesloten."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "Herstel voorbereid en gecontroleerd. Sluit ProsperoEden en open het opnieuw."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "Wijzig geen appgegevens via FTP. Herstel wordt vóór de volgende start toegepast. Bestaande bestanden worden hier bewaard:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "Gekopieerde gegevens controleren..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "Appgegevens kopiëren..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "Gegevens voorbereiden en controleren..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "Annuleren stopt deze taak. Houd het USB-station aangesloten totdat de taak klaar is."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "Appgegevens back-uppen"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "Herstellen uit een back-up"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "Opslagtaken worden hier gepauzeerd. Wijzig geen appgegevens via FTP."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "Kies een USB-station"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "Kies een voltooide back-up"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "Geen voltooide back-ups of toegankelijke stations gevonden. Annuleren gaat terug."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "Gegevens: {0} in {1} bestanden"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "Nodig (met reserve): {0} / Beschikbaar: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "Herstel voegt de back-upbestanden bij de volgende start samen met de appgegevens. Bestaande bestanden blijven bewaard in een herstelmap. Bestanden die niet in de back-up staan, blijven ongewijzigd."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "Er wordt een nieuwe map met datum gemaakt. Bestaande back-ups worden nooit overschreven. Houd dit station privé: back-ups kunnen persoonsgegevens en toegangstokens voor diensten bevatten."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "Onvoldoende ruimte"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "Herstel voorbereiden"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "Back-up maken"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "Back-up voltooid en gecontroleerd."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "Bewerking gestopt. Bestaande gegevens zijn bewaard."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "Optionele catalogus en foto's"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Amiibo-verzoek annuleren..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Amiibo-synchronisatie kon niet starten. Controleer de opslagtoegang en probeer opnieuw."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Openbare namen en optionele foto's. Er worden geen taggegevens of sleutels gelezen, verstuurd of gedownload."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "Openbare catalogus downloaden?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "Foto van dit model downloaden?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "Maakt verbinding met amiiboapi.org; gekozen foto's komen van raw.githubusercontent.com. Op afbeeldingen kunnen rechten van derden rusten. Bestaande lokale namen, geheugendumps en afbeeldingen blijven bewaard."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "Download bevestigen"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "Openbare catalogus downloaden..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "Gekozen foto downloaden..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "Gecontroleerde cache opslaan..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "Lokale catalogus controleren..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "Annuleren behoudt lokale gegevens. Een al opgeslagen bestand blijft offline beschikbaar."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "Openbare catalogus downloaden / vernieuwen..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "Offlinecatalogus gebruiken"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "Selecteer om de foto op te halen; bestaande afbeeldingen blijven behouden."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "Openbare modellen offline beschikbaar: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "Verzoek mislukt. Gebruik de offlinecatalogus of probeer opnieuw."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "Verzoek geannuleerd. Lokale gegevens zijn bewaard."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "Catalogus gereed. Foto's worden alleen na selectie opgehaald."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "Geen netwerkactiviteit totdat je een download bevestigt."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "Voltooi of annuleer het Amiibo-verzoek voordat je een spel start."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiibo-downloadbevestiging"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "Deze launcher vraagt openbare namen en optionele foto's op. Er worden geen taggegevens of sleutels gelezen, verstuurd of gedownload."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "Alleen openbare catalogus"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "Foto's van uitdrukkelijk gekozen modellen: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{0} van {1}"

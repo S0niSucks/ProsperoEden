@@ -2466,3 +2466,220 @@ msgstr "표지를 격자 또는 Cover Flow의 원근 보기로 탐색합니다."
 #. Library Cover Flow: keep the presentation name Cover Flow unchanged.
 msgid "Cover unavailable"
 msgstr "표지를 사용할 수 없음"
+
+
+#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
+msgid "USB backup"
+msgstr "USB 백업"
+
+#: pe/ui/settings.cpp
+msgid "Back up or restore app data"
+msgstr "앱 데이터 백업 또는 복원"
+
+#: pe/ui/settings.cpp
+msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
+msgstr "설정, 프로필, 모든 저장 데이터를 USB 드라이브에 백업합니다. ROM과 캐시는 제외됩니다."
+
+#: pe/ui/usb_backup.cpp
+msgid "USB backup needs storage access and no game starting."
+msgstr "USB 백업에는 저장소 접근 권한이 필요하며, 게임이 시작 중이면 안 됩니다."
+
+#: pe/ui/usb_backup.cpp
+msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
+msgstr "설정, 프로필, 모든 저장 데이터가 포함됩니다. ROM, 로그, 캐시는 제외됩니다."
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
+msgstr "복원 준비 및 검증이 끝났습니다. ProsperoEden을 닫은 뒤 다시 여세요."
+
+#: pe/ui/usb_backup.cpp
+msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
+msgstr "FTP로 앱 데이터를 변경하지 마세요. 복원은 다음 시작 전에 적용됩니다. 기존 파일은 여기에 보관됩니다:"
+
+#: pe/ui/usb_backup.cpp
+msgid "Validating copied data..."
+msgstr "복사한 데이터 검증 중..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Copying app data..."
+msgstr "앱 데이터 복사 중..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Preparing and checking data..."
+msgstr "데이터 준비 및 확인 중..."
+
+#: pe/ui/usb_backup.cpp
+msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
+msgstr "취소하면 이 작업을 중지합니다. 작업이 끝날 때까지 USB 드라이브를 연결해 두세요."
+
+#: pe/ui/usb_backup.cpp
+msgid "Back up app data"
+msgstr "앱 데이터 백업"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore from a backup"
+msgstr "백업에서 복원"
+
+#: pe/ui/usb_backup.cpp
+msgid "Storage jobs pause here. Do not change app data over FTP."
+msgstr "여기서는 저장소 작업이 일시 중지됩니다. FTP로 앱 데이터를 변경하지 마세요."
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a USB drive"
+msgstr "USB 드라이브 선택"
+
+#: pe/ui/usb_backup.cpp
+msgid "Choose a completed backup"
+msgstr "완료된 백업 선택"
+
+#: pe/ui/usb_backup.cpp
+msgid "No completed backups or accessible drives found. Cancel goes back."
+msgstr "완료된 백업이나 접근 가능한 드라이브가 없습니다. 취소하면 돌아갑니다."
+
+#: pe/ui/usb_backup.cpp
+msgid "Data: {0} in {1} files"
+msgstr "데이터: {0}, 파일 {1}개"
+
+#: pe/ui/usb_backup.cpp
+msgid "Required (with reserve): {0} / Available: {1}"
+msgstr "필요 공간(여유분 포함): {0} / 사용 가능: {1}"
+
+#: pe/ui/usb_backup.cpp
+msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
+msgstr "복원 시 다음 시작에서 백업 파일을 기존 데이터와 병합합니다. 기존 파일은 복구 폴더에 보관됩니다. 백업에 없는 파일은 변경하지 않습니다."
+
+#: pe/ui/usb_backup.cpp
+msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
+msgstr "날짜가 붙은 새 폴더를 만듭니다. 기존 백업은 절대 덮어쓰지 않습니다. 백업에 개인 정보와 서비스 접근 토큰이 포함될 수 있으니 이 드라이브를 타인과 공유하지 마세요."
+
+#: pe/ui/usb_backup.cpp
+msgid "Not enough space"
+msgstr "공간 부족"
+
+#: pe/ui/usb_backup.cpp
+msgid "Stage restore"
+msgstr "복원 준비"
+
+#: pe/ui/usb_backup.cpp
+msgid "Create backup"
+msgstr "백업 만들기"
+
+#: pe/ui/usb_backup.cpp
+msgid "Backup complete and verified."
+msgstr "백업 완료 및 검증됨."
+
+#: pe/ui/usb_backup.cpp
+msgid "Operation stopped. Existing data was kept."
+msgstr "작업이 중지되었습니다. 기존 데이터는 보존되었습니다."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
+msgid "Amiibo"
+msgstr "Amiibo"
+
+#: pe/ui/settings.cpp
+msgid "Optional catalog and photos"
+msgstr "선택 사항인 카탈로그와 사진"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancelling Amiibo request..."
+msgstr "Amiibo 요청 취소 중..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Amiibo sync could not start. Check storage access and try again."
+msgstr "Amiibo 동기화를 시작할 수 없습니다. 저장소 접근 권한을 확인하고 다시 시도하세요."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "공개 이름과 선택한 사진을 가져옵니다. 태그 데이터나 키를 읽거나 전송하거나 다운로드하지 않습니다."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download the public catalog?"
+msgstr "공개 카탈로그를 다운로드할까요?"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download this model's photo?"
+msgstr "이 모델의 사진을 다운로드할까요?"
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
+msgstr "amiiboapi.org에 연결하며, 선택한 사진은 raw.githubusercontent.com에서 가져옵니다. 이미지에는 제삼자의 권리가 적용될 수 있습니다. 기존 로컬 이름, 덤프, 이미지는 보존됩니다."
+
+#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
+msgid "Confirm download"
+msgstr "다운로드 확인"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading public catalog..."
+msgstr "공개 카탈로그 다운로드 중..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Downloading selected photo..."
+msgstr "선택한 사진 다운로드 중..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Saving validated cache..."
+msgstr "검증된 캐시 저장 중..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Checking local catalog..."
+msgstr "로컬 카탈로그 확인 중..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Cancellation keeps local data. A file already saved stays available offline."
+msgstr "취소해도 로컬 데이터는 보존됩니다. 이미 저장된 파일은 오프라인에서도 사용할 수 있습니다."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Download / refresh public catalog..."
+msgstr "공개 카탈로그 다운로드 / 갱신..."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Use offline catalog"
+msgstr "오프라인 카탈로그 사용"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Select to fetch photo; existing art is kept."
+msgstr "선택하면 사진을 가져옵니다. 기존 이미지는 보존됩니다."
+
+#: pe/ui/amiibo_ui.inc
+msgid "{0} public models available offline"
+msgstr "오프라인에서 사용 가능한 공개 모델: {0}"
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request failed. Use offline catalog or retry."
+msgstr "요청에 실패했습니다. 오프라인 카탈로그를 사용하거나 다시 시도하세요."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Request cancelled. Local data was kept."
+msgstr "요청이 취소되었습니다. 로컬 데이터는 보존되었습니다."
+
+#: pe/ui/amiibo_ui.inc
+msgid "Catalog ready. Photos are fetched only when selected."
+msgstr "카탈로그가 준비되었습니다. 사진은 선택한 경우에만 가져옵니다."
+
+#: pe/ui/amiibo_ui.inc
+msgid "No network activity until you confirm a download."
+msgstr "다운로드를 확인하기 전에는 네트워크를 사용하지 않습니다."
+
+#: pe/ui/launcher.cpp
+msgid "Finish or cancel the Amiibo request before starting a game."
+msgstr "게임을 시작하기 전에 Amiibo 요청을 완료하거나 취소하세요."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Amiibo download confirmation"
+msgstr "Amiibo 다운로드 확인"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
+msgstr "이 런처는 공개 이름과 선택 사항인 사진을 요청합니다. 태그 데이터나 키를 읽거나 전송하거나 다운로드하지 않습니다."
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "Public catalog only"
+msgstr "공개 카탈로그만"
+
+#: pe/ui/runtime_amiibo_view.inc
+msgid "{0} explicitly selected model photos"
+msgstr "명시적으로 선택한 모델 사진: {0}"
+
+#: pe/ui/usb_backup.cpp
+msgid "{0} of {1}"
+msgstr "{1} 중 {0}"
