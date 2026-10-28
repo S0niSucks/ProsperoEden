@@ -20,3 +20,6 @@ if(PS5_NATIVE)
                         "-ffile-prefix-map=${CMAKE_BINARY_DIR}/=build/"
                         "-ffile-prefix-map=${EDEN_PORT_ROOT}/=")
 endif()
+# CMake forbids add_subdirectory inside a deferred call. Create the isolated
+# network/client targets now; the deferred port step only attaches them to core.
+add_subdirectory("${EDEN_PORT_DIR}/network" "${CMAKE_BINARY_DIR}/headless/network")

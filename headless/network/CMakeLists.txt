@@ -32,6 +32,7 @@ function(network_clients)
 endfunction()
 network_clients()
 add_library(eden-network STATIC transport.cpp network.cpp config.cpp editor.cpp keyboard.cpp)
+target_compile_features(eden-network PUBLIC cxx_std_20)
 target_include_directories(eden-network PUBLIC "${CMAKE_CURRENT_LIST_DIR}/..")
 target_include_directories(eden-network PRIVATE "${EDEN_NETWORK_DEPS}/libsmb2-libsmb2-6.3/include"
     "${EDEN_NETWORK_DEPS}/libnfs-libnfs-8.0.0/include")

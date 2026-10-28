@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-add_subdirectory("${EDEN_PORT_DIR}/network" "${PORT_BUILD_DIR}/network")
+if(NOT TARGET eden-network)
+    message(FATAL_ERROR "Network targets must be created before deferred port injection")
+endif()
+if(TARGET nlohmann_json::nlohmann_json)
+    target_link_libraries(eden-network PRIVATE nlohmann_json::nlohmann_json)
+endif()
 list(APPEND core_sources "${EDEN_PORT_DIR}/network/vfs.cpp")
 target_link_libraries(core PUBLIC eden-network)
 string(PREPEND vfs_real_source "#include \"${EDEN_PORT_DIR}/network/vfs.h\"\n")
