@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "shares.h"
+#include "config.h"
 #include <algorithm>
 #include <cerrno>
 #include <cctype>
@@ -50,52 +51,9 @@ bool GameFile(const std::string& path) {
     return extension == ".nsp" || extension == ".xci" || extension == ".nro";
 }
 std::vector<Share> ReadConfig(const std::string& file, std::string* error) {
-    // NONBLOCK also prevents a substituted FIFO/device from hanging before fstat rejects it.
-    const int fd = open(file.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
-    if (fd < 0) { if (errno != ENOENT) *error = "Cannot open network-shares.json."; return {}; }
-    struct stat stat{};
-    if (fstat(fd, &stat) || !S_ISREG(stat.st_mode) || stat.st_size < 0 || stat.st_size > 65536 ||
-        fchmod(fd, 0600)) { close(fd); *error = "Network share settings must be a private regular file (at most 64 KiB)."; return {}; }
-    std::string text(static_cast<std::size_t>(stat.st_size), '\0');
-    std::size_t done = 0;
-    while (done < text.size()) {
-        const auto count = read(fd, text.data() + done, text.size() - done);
-        if (count < 0 && errno == EINTR) continue;
-        if (count <= 0) break;
-        done += static_cast<std::size_t>(count);
-    }
-    close(fd);
-    if (done != text.size()) { *error = "Cannot read network share settings."; return {}; }
-    try {
-        const auto json = nlohmann::json::parse(text);
-        const auto& list = json.at("shares");
-        if (!list.is_array() || list.size() > 4) throw std::runtime_error("schema");
-        std::vector<Share> shares;
-        std::set<std::string> ids;
-        for (const auto& value : list) {
-            Share s;
-            s.id = value.at("id").get<std::string>(); s.name = value.value("name", s.id);
-            s.protocol = value.at("protocol").get<std::string>(); s.server = value.at("server").get<std::string>();
-            s.share = value.at("share").get<std::string>(); s.folder = value.value("folder", "");
-            s.updates_dir = value.value("updates_dir", "");
-            s.user = value.value("user", ""); s.password = value.value("password", ""); s.domain = value.value("domain", "");
-            s.port = value.value("port", s.protocol == "nfs" ? 2049 : 445);
-            s.mount_port = value.value("mount_port", 0);
-            s.uid = value.value("uid", 65534); s.gid = value.value("gid", 65534);
-            s.timeout_ms = value.value("timeout_ms", 5000);
-            const int cache_mib = value.value("cache_mib", 16);
-            if (cache_mib < 1 || cache_mib > 32) throw std::runtime_error("cache");
-            s.cache_bytes = static_cast<std::size_t>(cache_mib) << 20;
-            s.enabled = value.value("enabled", true); s.encrypt = value.value("encrypt", false);
-            if (!Valid(s) || !ids.insert(s.id).second) throw std::runtime_error("share");
-            shares.push_back(std::move(s));
-        }
-        return shares;
-    } catch (...) {
-        // JSON parser errors can contain passwords and tokens. Never forward them.
-        *error = "Invalid network share settings. Use unique IDs, numeric IPv4 servers and safe relative folders; at most four shares.";
-        return {};
-    }
+    auto config = ReadConfiguration(file, true);
+    *error = ConfigurationError(config.error);
+    return config.error == ConfigError::none ? std::move(config.shares) : std::vector<Share>{};
 }
 } // namespace
 
@@ -122,7 +80,7 @@ void StopDiscovery() {
     }
     if (m.worker.joinable()) m.worker.join();
 }
-void Configure(const std::string& file) {
+void Configure(const std::string& file, bool reconnect) {
     Disconnect();
     auto& m = State();
     std::string error;
@@ -137,7 +95,7 @@ void Configure(const std::string& file) {
         }
         ++m.status.generation;
     }
-    Refresh();
+    if (reconnect) Refresh(); // editing/saving alone never probes an endpoint
 }
 void Refresh() {
     StopDiscovery();

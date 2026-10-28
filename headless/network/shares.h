@@ -87,7 +87,7 @@ bool ChargeTransfer(std::size_t bytes);
 
 // The manager owns menu discovery only. Files retain shared session ownership after the menu
 // has closed. Reload/disconnect cancels old sessions rather than invalidating their pointers.
-void Configure(const std::string& file);
+void Configure(const std::string& file, bool reconnect = true);
 void Refresh();
 void Disconnect();
 void StopDiscovery();
