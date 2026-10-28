@@ -166,7 +166,7 @@ private:
     std::mutex bridge_; // Eden's metadata reader keeps state between calls: one caller at a time
     Eden::CheatManager cheat_manager_;
     Eden::AmiiboSync amiibo_sync_;
-    // One guard for Amiibo/cheat/USB admission, path changes and launch commitment.
+    // One guard for Amiibo/cheat/Nextendo/USB admission, profile/path changes and launch commitment.
     // Lock order: admission -> bridge. Workers never take admission; never hold bridge across Stop/join.
     std::mutex job_admission_mutex_;
     bool launch_committed_ = false; // guarded by job_admission_mutex_; no reopening after will_play
@@ -176,6 +176,10 @@ private:
     Eden::UsbBackup::Status usb_;
     bool usb_remote_resume_ = false;
     void ResumeUsbJobs();
+    // UI owns the future/cancellation. Claim under admission -> bridge with profile/root snapshots;
+    // release only after callbacks and storage finish. Neither callbacks nor release take admission.
+    std::atomic<bool> nextendo_busy_{false};
+    std::string nextendo_browser_url_; // bridge_-protected, short local URL only
     Eden::CheatManagerRequest CheatRequest(const pe::ui::Game& game);
     // Each game's own folder in roms/ by its title ID, as the Library last found it (issue 168).
     Eden::Mods::Places ModPlaces(std::uint64_t title_id);
@@ -212,6 +216,4 @@ private:
     pe::ui::PairingStatus pair_;
     std::chrono::steady_clock::time_point pair_until_;
     std::atomic<bool> pair_stop_{false};
-    std::atomic<bool> nextendo_busy_{false};
-    std::string nextendo_browser_url_; // bridge_-protected, short local URL only
 };

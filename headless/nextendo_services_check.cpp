@@ -43,6 +43,9 @@ public:
     std::string nextendo_link_url();
     Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&);
     std::mutex bridge_;
+    std::mutex job_admission_mutex_;
+    std::atomic<bool> usb_active_{false};
+    bool launch_committed_ = false;
     std::atomic<bool> nextendo_busy_{false};
     std::string nextendo_browser_url_;
     int user_ = 0;
@@ -66,6 +69,14 @@ int main(int argc, char** argv) {
     assert(!services.nextendo_action(first, Action::import_session, stop).error.empty());
     assert(!std::filesystem::exists(root) && checks == 0 && !services.nextendo_busy_);
     services.user_ = 0;
+    services.usb_active_ = true;
+    assert(!services.nextendo_action(first, Action::link_browser, stop).error.empty());
+    assert(!services.nextendo_status().error.empty() && !services.nextendo_busy_ && !std::filesystem::exists(root));
+    services.usb_active_ = false;
+    services.launch_committed_ = true;
+    assert(!services.nextendo_action(first, Action::import_session, stop).error.empty());
+    assert(!services.nextendo_status().error.empty() && !services.nextendo_busy_ && !std::filesystem::exists(root));
+    services.launch_committed_ = false;
     services.nextendo_busy_ = true;
     assert(!services.nextendo_action(first, Action::import_session, stop).error.empty());
     assert(services.nextendo_busy_); // a competing request must not clear somebody else's busy flag

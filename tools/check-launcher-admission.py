@@ -11,6 +11,9 @@ header = (root / 'headless/prosperoeden/eden_services.h').read_text()
 methods = ('bool EdenServices::can_launch_game()', 'bool EdenServices::set_files_folder(',
            'bool EdenServices::set_games_folder(', 'bool EdenServices::check_cheat_database(',
            'bool EdenServices::install_cheat_database(', 'bool EdenServices::start_amiibo_sync(',
+           'std::vector<pe::ui::Profile> EdenServices::profiles()', 'std::string EdenServices::profile_key(',
+           'bool EdenServices::choose_profile(', 'int EdenServices::add_profile(',
+           'bool EdenServices::rename_profile(', 'bool EdenServices::remove_profile(',
            'void EdenServices::will_play(')
 with tempfile.TemporaryDirectory(prefix='launcher-admission-') as tmp:
     folder = Path(tmp)
@@ -27,6 +30,7 @@ with tempfile.TemporaryDirectory(prefix='launcher-admission-') as tmp:
                         *flags, '-I', str(folder), '-I', str(root / 'headless'),
                         *[str(root / 'headless' / name) for name in ('launcher_admission_check.cpp',
                           'cheat_manager.cpp', 'cheat_store.cpp', 'cheat_catalog.cpp', 'cheat_download.cpp',
-                          'amiibo_sync.cpp', 'amiibo_sync_format.cpp', 'usb_backup.cpp')],
-                        '-lcrypto', '-lz', '-pthread', '-o', str(folder / 'check')], check=True)
+                          'amiibo_sync.cpp', 'amiibo_sync_format.cpp', 'usb_backup.cpp',
+                          'nextendo.cpp', 'nextendo_http.cpp', 'nextendo_oauth.cpp')],
+                        '-lssl', '-lcrypto', '-lz', '-pthread', '-o', str(folder / 'check')], check=True)
         subprocess.run([str(folder / 'check')], check=True, timeout=60)
