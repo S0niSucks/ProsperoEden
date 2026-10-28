@@ -107,6 +107,17 @@ were built in a private volume and source/dependency inventories remained unchan
 repeat precedes parent composition and does not repeat the SDK or protocol-server runs.
 The editor's 89-msgid handoff is being translated separately; catalog integration is pending.
 
+Public Nextendo OAuth contract review `e3c4791` is imported as `9cfebff`. It finds no proven
+authorization-path defect (official examples use both paths), and `profil` is a documented
+literal scope. More importantly, the existing direct nested-account conversion rejects the
+documented web-token / separate-NEX response forms in an offline ASan/UBSan fragment proof.
+The older 29-case synthetic OAuth pass used the legacy response shape and does not qualify
+this public-provider contract. The OAuth/core owner is implementing and testing the separate
+web-access/NEX acquisition and credential-type handling; no fix is integrated yet. The supplied
+public identifier does not establish registration approval, and no exposed secret was used.
+See `features/NEXTENDO_PUBLIC_OAUTH_CONTRACT_REVIEW.md`; the reviewed evidence archive SHA-256
+is `c43e572defff0bdc24f33f3f463e55edccd93d8552cae68292bd464ae7d98517`.
+
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
 Synthetic BKTR also passed in a separate coordinator-owned fixture worktree and was integrated
