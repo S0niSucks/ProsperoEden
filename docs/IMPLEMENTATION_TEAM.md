@@ -77,6 +77,12 @@ their test results to the current combined HEAD:
   passed focused normal/ASan/UBSan. The next real-renderer attempt exposed missing
   `EditorMessage` linkage in the general preview scripts; `fdc4a2d` adds the real editor/config
   sources to both. The corrected renderer repeat is running, not PASS.
+  That `fdc4a2d` attempt reached further but could not link unused editor validation
+  routines without the transport. `4a33dc9` applies function/data sections and linker GC
+  to the preview targets, retaining the real UI message/configuration functions without
+  pulling unused transport/editor operations into a synthetic service preview. The scene
+  preview receives the same integration. Strict importer-header host syntax and three shell
+  checks passed; the new full-renderer repeat remains in progress, not PASS.
 * Native producer hooks `e3c62de` are integrated as `1c4bb61`. Their owner completed 44
   synthetic tests, syntax and README checks in offline Docker; independent frozen-merge
   review completed 44 tests and seven shell checks, and found split credential arguments
@@ -88,6 +94,10 @@ their test results to the current combined HEAD:
 * The additive network-catalog import assignment was interrupted by a tool `cyber_policy`
   error. It has not been retried, rephrased or routed around. This is not a translation-test
   failure or a completed import; original handoffs remain preserved, and final coverage is pending.
+  Separately, the unchanged read-only release checker was actually run on `4a33dc9`:
+  **764 source texts, 30 catalogs, FAIL (untranslated new entries)**. Its private log is
+  retained; no import was retried and this mandatory failure was not waived. The earlier
+  659-text result does not satisfy the present release gate.
 
 New private host/native workspace preparation uses read-only old caches only as seeds.
 Host seed SHA-256: `2187466c0b5589b49fe985a0a3c1b02407aa24a1262ec8c4becab861f79e5988`.
