@@ -3,6 +3,8 @@
 set -euo pipefail
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+jobs=${EDEN_BUILD_JOBS:-6}
+[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid EDEN_BUILD_JOBS: $jobs" >&2; exit 1; }
 cd "$root"
 mkdir -p .local build/headless-host build/fixture
 bash tools/build-core-fixture.sh
@@ -65,7 +67,7 @@ cmake -S "$eden" -B "$scratch/build" -G Ninja \
 python3 -B "$root/headless/check_slab_lifetime.py" \
     "$scratch/build/headless/include/core/hle/kernel/slab_helpers.h" \
     "$scratch/source/src/core/hle/kernel/slab_helpers.h"
-cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-cheat-identity-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j 6
+cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-cheat-identity-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j "$jobs"
 python3 -B "$root/tools/check-timing-stop.py" "$scratch/build"
 python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/build"
 python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/build"
@@ -108,6 +110,7 @@ python3 -B "$root/tools/check-nextendo-consent.py" --out "$consent_out/ui-asan" 
 python3 -B "$root/tools/check-theme-storage.py" --out "$consent_out/theme-storage"
 python3 -B "$root/tools/check-launcher-admission.py"
 python3 -B "$root/tools/check-usb-writer-admission.py"
+bash "$root/tools/docker/run-usb-backup-tests.sh"
 python3 -B "$root/tools/check-settings-grid.py"
 bash "$root/tools/docker/run-network-tests.sh" "$scratch"
 flow_out=$(mktemp -d "$scratch/cheat-flow.XXXXXX")

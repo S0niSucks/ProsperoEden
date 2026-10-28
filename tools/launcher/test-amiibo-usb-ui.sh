@@ -58,7 +58,7 @@ step cover-flow-build "$HOST_CXX" -std=c++20 -O2 -Wall -Wextra -DGL_GLEXT_PROTOT
     -I"$root/headless/prosperoeden" -I"$root/headless/prosperoeden/host" -I"$root/headless" \
     -I"$root/tools/launcher/stb" -I"$root/third_party" -I"$root/third_party/lua" \
     "$root/tools/launcher/test-cover-flow.cpp" "${objects[@]}" \
-    -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$PROSPEROEDEN_LAUNCHER_BUILD/test-cover-flow"
+    -Wl,--gc-sections -lEGL -lGL -lm -lcrypto -lcurl -pthread -o "$PROSPEROEDEN_LAUNCHER_BUILD/test-cover-flow"
 for height in 720 1080; do
     width=$((height * 16 / 9))
     step "cover-flow-$height" timeout 180 "$PROSPEROEDEN_LAUNCHER_BUILD/test-cover-flow" \
