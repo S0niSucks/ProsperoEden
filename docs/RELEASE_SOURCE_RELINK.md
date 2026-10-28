@@ -1,5 +1,9 @@
 # 1.006.000 source and static-relink delivery mechanism
 
+> **Policy follow-up:** [schema 2, exact reviewed exceptions and safe restore](RELEASE_SOURCE_POLICY_FOLLOWUP.md)
+> supersedes the original blanket Git-link/template refusal below. Historical
+> schema 1 descriptions remain baseline documentation, not current exceptions.
+
 ## Status: mechanism/evidence, not a completed release delivery
 
 `tools/ci/source_bundle.py` is a new, offline Python 3.11+ / Git CLI. It exports

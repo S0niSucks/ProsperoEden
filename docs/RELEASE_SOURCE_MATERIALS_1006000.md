@@ -1,5 +1,9 @@
 # ProsperoEden 1.006.000 — real source-material preparation
 
+> Historical preparation record. The [policy follow-up](RELEASE_SOURCE_POLICY_FOLLOWUP.md)
+> preserves these materials RO and implements reviewed export/restore support.
+> Earlier refusals and “not executed” statements below describe this original trial.
+
 ## Qualified result (2026-10-27)
 
 This is an **integration preparation handoff**, not a release source bundle,
