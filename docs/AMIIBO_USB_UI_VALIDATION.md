@@ -152,3 +152,9 @@ The follow-up commit adds only this evidence record and the offline preparation 
 was executed to package the retained inputs; the tested feature scripts remain exactly those
 in `9e75ea3`. No coordinator-root, production API/service/UI/backend or locale file was edited.
 Real job admission, writer shutdown/drain and hardware acceptance remain coordinator-owned.
+
+Coordinator review imported the two commits as `88c4c06` / `62e99ba`. The exported `run.json`
+and indexed file hashes were reviewed separately; Settings 1080p and host-owned Amiibo consent
+1080p were also opened by the coordinator. The 16 tiles, USB focus and separate visible consent
+were intact in those images. This bounded review does not extend the worker snapshot to later
+Nextendo/security/localization changes; the final all-feature preview still needs a fresh run.

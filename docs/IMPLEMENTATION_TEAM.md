@@ -38,7 +38,7 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 | Physical Pro Controller | Wired-USB `b2073bd` and recovery follow-up `f3c02ec` reviewed/cherry-picked as `b714eaa` / `a41f29b`. Integrated ASan/UBSan synthetic protocol/launcher regression, SDK compile/link smoke and actual PS5-target `pad.cpp` compilation passed (`sh_17fbd112a001iOTZpFyGhrt15K`). Review gap in primary DualSense recovery/duplicate user slots was fixed before integration. Bluetooth and physical execution are not established. Worker reassigned to combined cheat cross-layer qualification. |
 | Scene themes | `b01f254` / `6a1bf96` are an **unaccepted partial increment**, not integrated. Worker is continuing complete linked frontend/updater validation, reference screens and console-native import/actual layout conversion. Offline lite conversion is not full #239 acceptance. |
 | Amiibo sync | `f596678` / `18fcf11` / `79fcf93` reviewed/cherry-picked as `a72e26b` / `f8febee` / `8e8bdd6`. Local-priority/fallback fixes and individual normal/ASan/UBSan/TSan/TLS tests passed. Combined real USB/Amiibo/cheat workers/services passed on frozen `878d97c` (`sh_17fd7b2c7001OEJMHG3xgCQKtV`) after fixing the USB-close resume defect. Combined UI remains running. No PS5 qualification. |
-| Nextendo | `9faebc0` / `3072408` reviewed/imported as `cdaa6af` / `ab5f70d`, including actual registered-client S256 PKCE/loopback/HTTPS and launcher controls. Independent security/core-object reviews and composed USB/profile/root/launch gates are active. Live registration, compatible BAAS/signing contract, operator routes/trust and PS5 interoperability remain external requirements, not qualified online play. |
+| Nextendo | Initial/OAuth `cdaa6af` / `ab5f70d`, security `d96e8cc`, shared storage gates `dd3865c` and SDK snapshot compatibility `82b4ba4` integrated. Coordinator security/HTTP repeat passed 29 OAuth cases plus existing Nextendo/cheat/Amiibo TLS. Composed storage repeat is running; actual six host/four PS5 objects passed on the worker snapshot, two genuine-target TLS/curl dependency gaps remain under qualification. Live registration, compatible BAAS/signing, operator trust/routes and PS5 game sign-in remain external requirements. |
 | SMB/NFS | `b057a17` / `dbaf12d` delivered real read-only VFS/protocols and initial launcher wiring, not integrated yet. Worker continues actual loader/library metadata, updates/DLC, recents and authenticated/encrypted SMB tests; JSON configuration alone is not full library/launch acceptance. |
 | USB backup/restore | `884a8a4` / `ba1bb06` reviewed/cherry-picked as `afe7d80` / `01c6912`. Credential exclusion/injection controls, backend runner and initial 20 UI assertions passed; restore/restart captures coordinator-inspected. Worker-creation recovery passed real OS `EAGAIN` tests. Combined actual Amiibo/cheat/USB guards/workers plus full backend/update/syntax passed `sh_17fd7b2c7001OEJMHG3xgCQKtV` on frozen `878d97c`. Other new-feature writer coordination and final regression remain mandatory. |
 
@@ -48,7 +48,14 @@ pass; the whole checker reports **659 source texts, 30 catalogs, zero problems**
 heuristic length advisories (five USB/Amiibo, eight Nextendo) and console-font/layout coverage
 remain distinct from the passing static checker. The Nextendo security audit found and fixed
 header-allocation omission and ambiguous duplicate JSON (`6ece3f1`, imported `d96e8cc`);
-integrated shared-HTTP regression on the clean frozen snapshot is in progress.
+the integrated shared-HTTP regression passed all four runners on clean frozen `d96e8cc`
+(`sh_17fe4bfea001szCLUFwW9EwKgG`). These tests precede the storage-gate/SDK compatibility merges.
+
+Combined UI-only evidence is integrated as `88c4c06` / `62e99ba`: USB 20, Amiibo 26 and
+ownership 32 assertions plus Cover Flow at 720p/1080p and Lua all passed using a single
+archived Mesa/ASan/UBSan build. The worker inspected 22 of 63 captures; the coordinator also
+opened Settings 1080p and host-owned Amiibo consent 1080p. Source/hash/scope details are in
+`AMIIBO_USB_UI_VALIDATION.md`. This does not qualify actual workers or the later Nextendo UI.
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.

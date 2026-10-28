@@ -131,3 +131,15 @@ PS5 socket/nonblocking/permission behavior, same-device browser suspension, nati
 integration, rest/power-loss/removal handling and the coordinator's composed service admission,
 teardown/profile/USB writers remain unqualified. No public operator compatibility, BAAS/game
 login, full build or hardware success is inferred from these host tests.
+
+## Coordinator integration repeat
+
+Imported as `d96e8cc`. A synchronously frozen clean 824-file snapshot passed all 29 actual
+loopback/HTTPS OAuth cases and the existing checked-derivative/storage/TLS/service-adapter
+runner, plus the shared real cheat-download/TLS and Amiibo worker/reader/TLS regressions.
+Docker run `sh_17fe4bfea001szCLUFwW9EwKgG`, evidence
+`.local/docker-release/nextendo-security-integrated-20261027/` (all four step exit codes 0).
+The run used no external network, genuine libcurl/OpenSSL loopback TLS and ASan/UBSan leak
+checks; Amiibo's normal/TSan/ASan/UBSan variants passed with the documented test-only seccomp
+exception. It predates the later storage-gate and SDK snapshot compatibility commits and is
+not a native full-build or PS5/operator-interoperability result.

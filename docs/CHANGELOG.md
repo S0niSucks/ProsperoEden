@@ -64,8 +64,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   explicit checks/unlink, exact-host guest routing and registered-client browser OAuth with
   S256 PKCE are integrated. Missing registration refuses before network work. This is not
   verified online gameplay: the live registration, compatible BAAS/signing contract, operator
-  routes/trust and PS5 browser/network qualification are still required. Shared storage gates,
-  independent security review and actual changed-core object checks are in progress.
+  routes/trust and PS5 browser/network qualification are still required. Shared storage guards
+  are integrated; security/HTTP regressions passed, including header-allocation faults and
+  duplicate JSON rejection. Focused host/SDK object checks found and fixed SDK snapshot-type
+  compatibility; native TLS/curl dependency qualification and the final combined run continue.
 
 ### Reliability and diagnostics
 
@@ -84,8 +86,10 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 
 SMB/NFS streaming and external/scene themes remain under team implementation/review, not
 accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
-authentication/operator boundaries. USB/Amiibo/Nextendo still require combined lifecycle/UI
-verification and final localization. All newly integrated features still need final
+authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
+on their stated snapshots; the composed Nextendo service repeat is running. All 659 current
+launcher texts are translated across 30 catalogs, with zero static-checker problems; system-font
+coverage and length/layout advisories remain. All newly integrated features still need final
 combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate
 from host tests. Adaptive polling PR #284 requires PS5 A/B; the supplied Galaxy crashes
