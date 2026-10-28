@@ -187,9 +187,11 @@ private-path exclusions remain mandatory. See `RELEASE_SOURCE_MATERIALS_1006000.
 Native keyboard seam `b207941` is delivered above `1ec3910`, not integrated. It reports an
 immutable, credential-free prompt snapshot, synchronous-only translation, bounded Unicode,
 masked private input and creation-only localized names; its shared UI/service callers remain
-documentary proposals. An independent reviewer is replaying the real backend and extraction
-against both actual translation batches. Neither that review nor parent USB/launch composition
-or actual PS5 IME execution is established yet.
+documentary proposals. The independent backend/extraction review was interrupted by a tool-policy
+error before a final technical result was delivered. This is neither a test failure nor a PASS;
+the review remains unaccepted and must not be retried through a different route to bypass the
+guard. The earlier extraction/import checks retain only their documented narrower scope.
+Parent USB/launch composition and actual PS5 IME execution are also not established.
 
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
@@ -261,3 +263,26 @@ The version becomes **1.006.000** only when the requested implementation scope h
 integrated and qualified to its stated limits, with matching package/symbol/source hashes.
 Console-only checks (Galaxy crash, NFC, GPU lifetime, USB filesystem behavior, rest mode,
 physical controllers, network interoperability and performance A/B) require actual PS5 evidence.
+
+### Final qualification sequence (planned, not passing evidence)
+
+The remaining batch must use one frozen, clean commit/tree after feature composition. A worker
+report, staged changes, partial link or older package cannot satisfy a gate for that snapshot.
+
+| Gate | Required evidence before closing it |
+|---|---|
+| Feature composition | Accepted committed writer audit, SMB/NFS Settings/VFS, OAuth/NEX contract repair and complete scene-theme delivery; real shared admission through final callbacks/writes, cancellation, teardown and launch. Do not integrate into reserved service files before ownership is released. |
+| Texts and capabilities | Extract the composed sources before additive catalog import; preserve existing translations and `.inc` provenance. Check placeholders, declared capabilities and every caller against the actual implementation. Keep font/layout advisories separate from static translation success. |
+| Whole host | One uninterrupted `tools/docker/run-host-tests.sh` invocation, including all final feature regressions. Retain full logs and final exit status. `/mnt/usb0` must be disposable tmpfs; tmpfs that executes built fixtures must explicitly allow `exec`. Separate passing fragments do not replace this run. |
+| Combined UI | Actual all-feature host-owned and Lua flows, input/consent/cancel/error states, reduced motion and 720p/1080p captures. Record which captures were inspected. Mesa previews do not qualify console rendering or native IME. |
+| Unprivileged packaging/privacy | Repeat native notice and export privacy CLI tests on the frozen source as unprivileged Linux UID/GID 65534, using private writable outputs and read-only inputs. A root-owned host run cannot replace permission-denial controls. Preserve upstream notice bytes and negative-test evidence privately. |
+| Complete native build | Full Docker native compile, link, identity stamping and packaging from that snapshot, with no stale port-dependent objects. Bind ZIP/app contents, `eboot.bin`, ELF, symbols, source identity and logs by hashes. SDK objects or a relocatable subset are insufficient. |
+| Source/relink delivery | Recreate and verify the actual source bundle for the final snapshot; test offline restoration, review transitive source closure and supply the final binary-bound objects/commands/toolchain receipt. Exercise a modified-library relink before changing relink from `PENDING`/`COLLECTED_UNVERIFIED_RELINK`. See `RELEASE_SOURCE_RELINK.md`. |
+| Console and publication | Retain the specific Galaxy/#284 and feature hardware retests with exact build/settings, and state unresolved limits explicitly. Confirm the destination remote with the user before any push/tag/release; the requested Swordpdf project and configured origin are not interchangeable. |
+
+Record the full commit/tree, source archive and dependency inventory hashes, Docker image IDs,
+commands, logs, exit codes and artifact hashes beside each final result. If composition changes
+the snapshot, do not relabel an old result as current: rerun affected gates and the final combined
+host/UI/native batch. Recreate binary-bound source/relink receipts after any final binary change.
+Version metadata and the final changelog belong to that qualified snapshot, not to an earlier
+intermediate build. These requirements are a checklist, not a claim that any final gate has run.
