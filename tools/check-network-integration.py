@@ -34,6 +34,7 @@ def main():
 project(network_integration LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(EDEN_PORT_DIR "@ROOT@/headless")
+add_subdirectory("${EDEN_PORT_DIR}/network" "${CMAKE_CURRENT_BINARY_DIR}/network")
 set(PROJECT_SOURCE_DIR "@EDEN@")
 set(PORT_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/derived")
 file(MAKE_DIRECTORY "${PORT_BUILD_DIR}")
@@ -54,6 +55,10 @@ endif()
 include("${EDEN_PORT_DIR}/network/guest_io.cmake")
 set_property(TARGET core PROPERTY SOURCES "${core_sources}")
 get_target_property(final_sources core SOURCES)
+get_target_property(core_links core LINK_LIBRARIES)
+if(NOT "eden-network" IN_LIST core_links)
+    message(FATAL_ERROR "Core lost its real network target link")
+endif()
 if(NOT "${EDEN_PORT_DIR}/network/vfs.cpp" IN_LIST final_sources)
     message(FATAL_ERROR "Network adapter was lost when core SOURCES were replaced")
 endif()
@@ -78,11 +83,39 @@ if(route LESS 0)
     message(FATAL_ERROR "Missing read-only VFS route")
 endif()
 '''
-    (work / "CMakeLists.txt").write_text(project.replace("@ROOT@", str(ROOT)).replace("@EDEN@", str(eden))
-                                        .replace("@INSTRUMENTATION@", instrumentation))
+    project = project.replace("@ROOT@", str(ROOT)).replace("@EDEN@", str(eden)).replace("@INSTRUMENTATION@", instrumentation)
+    (work / "CMakeLists.txt").write_text(project)
     for mode in ("OFF", "ON"):
         subprocess.run(["cmake", "-S", str(work), "-B", str(work / mode),
                         f"-DEDEN_NETWORK_DEPS={deps}", f"-DNETWORK_INSTRUMENTED={mode}"], check=True)
+    # Rejections must come from the unchanged production guards, not an unrelated configure
+    # error. These private projects only change target order or the in-memory pinned anchors.
+    target = 'add_subdirectory("${EDEN_PORT_DIR}/network" "${CMAKE_CURRENT_BINARY_DIR}/network")\n'
+    inject = 'include("${EDEN_PORT_DIR}/network/inject.cmake")'
+    assert project.count(target) == project.count(inject) == 1
+    missing = project.replace(target, '', 1)
+    cases = (
+        ('missing-target', missing, 'Network targets must be created before deferred port injection'),
+        ('late-target', missing.replace(inject, inject + '\n' + target, 1),
+         'Network targets must be created before deferred port injection'),
+        ('file-anchor-case', project.replace(inject,
+         'string(REPLACE "RealVfsFilesystem::OpenFile" "RealVfsFilesystem::openFile" vfs_real_source "${vfs_real_source}")\n' + inject, 1),
+         'Pinned RealVfsFilesystem::OpenFile changed'),
+        ('directory-anchor-case', project.replace(inject,
+         'string(REPLACE "RealVfsFilesystem::OpenDirectory" "RealVfsFilesystem::openDirectory" vfs_real_source "${vfs_real_source}")\n' + inject, 1),
+         'Pinned OpenDirectory changed'),
+    )
+    for name, text, guard in cases:
+        case = work / ('negative-' + name)
+        case.mkdir(exist_ok=True)
+        (case / 'CMakeLists.txt').write_text(text)
+        result = subprocess.run(['cmake', '-S', str(case), '-B', str(case / 'build'),
+                                 f'-DEDEN_NETWORK_DEPS={deps}', '-DNETWORK_INSTRUMENTED=OFF'],
+                                capture_output=True, text=True)
+        log = result.stdout + result.stderr
+        (case / 'configure.log').write_text(log)
+        assert result.returncode != 0 and guard in log, f'{name}: expected production guard, got {result.returncode}\n{log}'
+        print('Expected production guard rejection: ' + name, flush=True)
     includes = [f"-I{ROOT / 'headless'}", f"-I{eden / 'src'}", f"-I{deps / 'fmt-12.1.0/include'}"]
     adapter = str(ROOT / "headless/network/vfs.cpp")
     subprocess.run(["g++", "-std=c++20", "-Wall", "-Wextra", "-Werror", *includes, "-fsyntax-only", adapter], check=True)
