@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <charconv>
 #include <limits>
+#include <sstream>
+#include <unistd.h>
 
 namespace Eden::Network {
 namespace {
@@ -69,7 +71,8 @@ bool Assign(Share& s, Field f, const std::string& value) {
     case Field::name: if (value.empty()) return false; s.name = value; break;
     case Field::server: { Share check = s; check.server = value; check.share = s.protocol == "smb" ? "games" : "/games";
         check.folder.clear(); check.updates_dir.clear(); check.user.clear(); check.domain.clear(); check.password.clear(); check.encrypt = false;
-        if (!Valid(check)) return false; s.server = value; break; }
+        if (!Valid(check)) return false;
+        s.server = value; break; }
     case Field::share:
         if (s.protocol == "smb" ? (!SafePath(value) || value.find('/') != value.npos) :
             (value != "/" && (!value.starts_with('/') || !SafePath(std::string_view{value}.substr(1))))) return false;
@@ -89,7 +92,8 @@ std::string EditorMessage(EditorResult result) {
     case EditorResult::ok: return {};
     case EditorResult::cancelled: return "Cancelled. The saved network settings were not changed.";
     case EditorResult::unavailable: return "The network settings keyboard is unavailable.";
-    case EditorResult::invalid: return "Check this value: numeric IPv4, safe relative folders, port 1–65535, timeout 250–15000 ms and cache 1–32 MiB. SMB sign-in requires a user.";
+    case EditorResult::invalid: return "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user.";
+    case EditorResult::required: return "Server IPv4 and share / export are required. Enter them before saving.";
     case EditorResult::duplicate: return "This network location already exists. Edit it instead.";
     case EditorResult::limit: return "At most four network locations can be saved.";
     case EditorResult::blocked: return "Network settings are unavailable while another protected job or a game is starting.";
@@ -115,10 +119,13 @@ EditorResult Editor::Begin(const std::string& id) {
         draft = *found;
     } else {
         if (source.shares.size() >= 4) return error = EditorResult::limit;
-        for (unsigned n = 1; n <= 5; ++n) {
-            draft.id = "share-" + std::to_string(n);
-            if (std::none_of(source.shares.begin(), source.shares.end(), [&](const auto& s) { return s.id == draft.id; })) break;
-        }
+        static std::atomic<std::uint32_t> sequence{0};
+        do {
+            std::ostringstream id;
+            id << "share-" << std::hex << static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count())
+               << '-' << static_cast<unsigned>(getpid()) << '-' << ++sequence;
+            draft.id = id.str(); // do not reuse a deleted location's URI identity for another NAS
+        } while (std::any_of(source.shares.begin(), source.shares.end(), [&](const auto& s) { return s.id == draft.id; }));
         draft.name = "Network location";
     }
     editing = true; dirty = false; return error = EditorResult::ok;
@@ -185,6 +192,7 @@ EditorResult Editor::Enter(Field f, const std::atomic<bool>& stop, const Private
 EditorResult Editor::Save(const std::atomic<bool>& stop) {
     std::lock_guard lock(mutex);
     if (!editing) return error = EditorResult::no_edit;
+    if (draft.server.empty() || draft.share.empty()) return error = EditorResult::required;
     if (!Valid(draft) || !Clean(draft.name, 256)) return error = EditorResult::invalid;
     if (Duplicate(source.shares, draft, selected)) return error = EditorResult::duplicate;
     auto shares = source.shares;

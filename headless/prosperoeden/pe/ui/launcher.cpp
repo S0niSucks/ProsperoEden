@@ -62,6 +62,9 @@ Launcher::~Launcher()
 {
     nextendo_stop_ = true;
     if (nextendo_request_.valid()) nextendo_request_.wait();
+    network_stop_ = true;
+    if (network_job_.valid()) network_job_.wait();
+    services_.network_editor_cancel();
     room_directory_stop_ = true;
     if (room_directory_request_.valid()) room_directory_request_.wait();
     room_edit_stop_ = true;
@@ -115,6 +118,7 @@ void Launcher::open_modal(Modal modal)
     option_cursor_.snap(dialog_row_top(modal, 0));
     message_.clear();
     popup_.clear();
+    if (modal == Modal::network_shares) open_network_shares();
     // Switches show their state at once; they only animate when changed.
     const std::array<bool, 8> states = switch_states(modal);
     for (std::size_t i = 0; i < states.size(); ++i)
@@ -355,6 +359,7 @@ void Launcher::update(float dt)
         refresh_sync_setup(dt);
     }
     update_multiplayer();
+    update_network_shares();
     update_game_options();
     update_cheat_database();
     update_controllers(dt);

@@ -104,7 +104,13 @@ endif()
         smoke = work / "sdk-smoke.cpp"
         smoke.write_text('''#include "network/shares.h"
 #include "network/network.h"
+#include "network/editor.h"
 int main() {
+    Eden::Network::Editor editor;
+    std::atomic<bool> stop{true};
+    editor.Open("/data/synthetic/config/network-shares.json");
+    editor.Begin(""); editor.Enter(Eden::Network::Field::password, stop);
+    editor.Save(stop); editor.Remove("synthetic", stop); editor.Cancel();
     Eden::Network::Configure("/data/synthetic-network-settings.json");
     Eden::Network::BeginGame();
     auto file = Eden::Network::Open("pe-net://test/Game.nsp");
@@ -114,10 +120,22 @@ int main() {
 ''')
         obj = work / "sdk-smoke.o"
         subprocess.run([*compiler, "-femulated-tls", "-c", str(smoke), "-o", str(obj)], check=True)
-        subprocess.run([f"{sdk}/bin/prospero-clang++", "-lkernel", str(obj), "-Wl,--start-group",
+        keyboard = work / "sdk-native-keyboard.o"
+        subprocess.run([*compiler, "-femulated-tls", "-DPS5_NATIVE=1", "-c", str(ROOT / 'headless/system_keyboard.cpp'),
+                        "-o", str(keyboard)], check=True)
+        # The project's existing import facade, built only into the private evidence directory.
+        common_obj = work / 'common-dialog.o'
+        common_so = work / 'libSceCommonDialog.so'
+        subprocess.run([f"{sdk}/bin/prospero-clang", "-fPIC", "-c", str(ROOT / 'tools/stubs/libSceCommonDialog.c'),
+                        "-o", str(common_obj)], check=True)
+        subprocess.run([f"{sdk}/bin/prospero-lld", '--shared', '-soname', 'libSceCommonDialog.sprx', '-o',
+                        str(common_so), str(common_obj)], check=True)
+        subprocess.run([f"{sdk}/bin/prospero-clang++", "-lkernel", str(obj), str(keyboard), "-Wl,--start-group",
                         str(cross / "libeden-network.a"), str(cross / "smb2/lib/libsmb2.a"),
-                        str(cross / "nfs/lib/libnfs.a"), "-Wl,--end-group", "-o", str(work / "sdk-smoke.elf")], check=True)
-        print("SDK client cross-build and isolated libkernel/libSceNet link PASS (not a console run)")
+                        str(cross / "nfs/lib/libnfs.a"), "-Wl,--end-group", str(common_so),
+                        f"{sdk}/target/lib/libSceImeDialog.so", f"{sdk}/target/lib/libSceSysmodule.so",
+                        f"{sdk}/target/lib/libSceUserService.so", "-o", str(work / "sdk-smoke.elf")], check=True)
+        print("SDK transport/private editor/atomic config/native keyboard cross-build and isolated import-facade link PASS (ELF not executed)")
     print("Pinned Eden VFS headers, adapter retention, plain/instrumented IPC error guards PASS")
 
 

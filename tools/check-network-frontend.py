@@ -21,7 +21,8 @@ def main():
     args += ['-fsyntax-only', '-I' + str(ROOT / 'headless/prosperoeden'), '-I' + str(ROOT / 'headless'),
              '-DPS5_NATIVE=1', '-DEDEN_DEVICE_FRONTEND=0', '-Wno-unknown-warning-option']
     work = Path('/work/network-check'); work.mkdir(exist_ok=True)
-    for source in ('headless/prosperoeden/eden_services.cpp', 'headless/main.cpp', 'headless/prosperoeden/pe/ui/library.cpp'):
+    for source in ('headless/prosperoeden/eden_services.cpp', 'headless/network/services.cpp', 'headless/main.cpp',
+                   'headless/prosperoeden/pe/ui/library.cpp', 'headless/prosperoeden/pe/ui/network_shares.cpp'):
         if subprocess.run([*args, str(ROOT / source)], cwd=work).returncode:
             raise SystemExit('Frontend syntax check failed: ' + source)
     print('Changed native-gated services/main/Library host syntax PASS (no emulator rebuild or console qualification)')

@@ -20,6 +20,7 @@
 #include "../../../usb_backup.h"
 #include "../../../amiibo_sync.h"
 #include "../../../network/shares.h"
+#include "../../../network/editor.h"
 
 namespace pe::ui
 {
@@ -527,6 +528,17 @@ class Services
     virtual Eden::Network::Status network_shares() { return {}; }
     virtual void reconnect_network_shares() {}
     virtual void disconnect_network_shares() {}
+    // Built-in native editor only. No runtime/Lua binding, raw configuration or keyboard text.
+    virtual Eden::Network::EditorResult network_editor_open() { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorView network_editor_view() { return {}; }
+    virtual Eden::Network::EditorResult network_editor_begin(const std::string&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_change(Eden::Network::Field) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_password(Eden::Network::PasswordChoice) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_enter(Eden::Network::Field, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_save(bool, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_remove(const std::string&, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
+    virtual Eden::Network::EditorResult network_editor_connection(bool) { return Eden::Network::EditorResult::blocked; }
+    virtual void network_editor_cancel() {}
     virtual std::vector<Game> games() = 0; // reads every game file: slow
     // The value the launcher hands back to start a game.
     virtual std::string game_path(const std::string &file) = 0;

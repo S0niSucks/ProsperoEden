@@ -631,7 +631,8 @@ bool EdenServices::connect_public_room(const Eden::Multiplayer::Connection& conn
 void EdenServices::leave_room() { rooms_.Leave(); }
 bool EdenServices::can_launch_game() {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
+    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ ||
+        cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
     const auto phase = rooms_.GetSnapshot().phase;
     return phase == Eden::Multiplayer::Phase::Idle || phase == Eden::Multiplayer::Phase::Connected;
 }
@@ -2139,7 +2140,7 @@ void EdenServices::stop_save_sync() {
 
 void EdenServices::will_play(const std::string& file) {
     const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || nextendo_busy_) return;
+    if (usb_active_ || nextendo_busy_ || network_mutation_active_) return;
     launch_committed_ = true;
     amiibo_sync_.Stop();
     cheat_manager_.Stop(); // defense in depth even if a caller skipped can_launch_game()

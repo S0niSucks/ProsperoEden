@@ -11,17 +11,20 @@ native-app build, console run, actual game launch or PS5 performance result is c
 
 ## Configuration and Settings
 
-Create `/data/prosperoeden/config/network-shares.json` privately (mode `0600`),
-then open **Settings > Network shares > Reconnect**. The dialog shows the actual
-configuration path, scan status, game count and sanitized errors. Cross reloads
-settings and reconnects; Square disconnects/cancels; Circle returns. Configuration
-is file-based; there is no in-UI server/credential editor in this implementation.
-The existing native `AskSystemKeyboard` does support masked password entry. However,
-the runtime-launcher keyboard bridge publishes completed text in its query status;
-it is not safe to reuse for network credentials. This feature does not expose a
-network credential keyboard/action/query, reuse that status path, or echo secrets.
-A unified safe add/edit flow and console password-dialog qualification remain separate
-work; file-based configuration is intentional, not a claim that native text entry is absent.
+Open built-in **Settings > Network shares**, beside **ROMs and updates**, to add,
+edit or remove up to four locations. Enter server/share/folder and optional add-on
+roots, SMB sign-in/encryption or NFS UID/GID/ports with the native private-keyboard
+path. Password text never enters a UI future, runtime/Lua keyboard status or render
+view. Save persists without connecting; **Save and reconnect** explicitly opts in
+to network requests. Discard and removal require confirmation. See
+[NETWORK_EDITOR.md](NETWORK_EDITOR.md) for the complete flow, persistence safety,
+parent USB/launch admission contract and focused host/SDK evidence boundaries.
+
+Private JSON import at `/data/prosperoeden/config/network-shares.json` (mode `0600`)
+continues to work. The editor never overwrites an invalid import with an empty
+configuration. The runtime-launcher's generic keyboard bridge is not reused or
+given any network credential action/query binding. PS5 IME execution still needs
+console qualification; a host preview is not that evidence.
 
 Example using documentation-only addresses and placeholder credentials:
 
@@ -68,7 +71,8 @@ Example using documentation-only addresses and placeholder credentials:
   initially: changing its mode cannot undo earlier exposure.
 - `id` is unique, stable and at most 40 bytes; `name` defaults to it. Numeric IPv4
   only: no DNS/mDNS, IPv6, URLs, broadcasts, LAN scans or share enumeration.
-  Only configured servers are contacted, automatically when the launcher opens.
+  Only configured servers are contacted, automatically when the launcher opens or
+  on explicit reconnect; draft edits and Save without reconnect do not probe servers.
 - `folder` is relative to the share/export; empty means its root. Absolute paths,
   `.`/`..`, empty components, backslashes, control bytes, URI escaping and unsafe
   delimiters are rejected. Relative paths are at most 2048 bytes. SMB `share` is
@@ -279,31 +283,31 @@ Integration checks use the actual pinned Eden `67bada77f8a43a90da2e94e89b8e7da73
 headers, verify adapter retention after replacing core sources, and exercise both
 plain and incumbent-instrumented IStorage/IFile error overlays. These are focused
 configure/header checks, not full HLE-handler or main-emulator compilation.
-The optional SDK check cross-compiles both client libraries and network sources,
-checks the adapter headers and links a separate smoke ELF with SDK libc++,
-libkernel and libSceNet. The ELF is **not executed**. SDK v0.42 archive SHA-256:
+The optional SDK check cross-compiles both client libraries, network sources and
+the private editor/config writer, checks adapter headers and links a separate smoke
+ELF with the actual native `AskSystemKeyboard`, SDK libc++, libkernel/libSceNet,
+IME/UserService/Sysmodule imports and the project's CommonDialog import facade.
+The ELF is **not executed**. SDK v0.42 archive SHA-256:
 `8cfbc7cd5811e719eb4f0c47eea668d3dc7b40bc8ab11c4a5031d40c23ec02da`.
 Transport/manager/check compile with `-Wall -Wextra -Werror`; changed UI sources
 also pass host syntax checks. Full app/console acceptance remains outstanding.
 
 ## Translation handoff (no POT/locale edits)
 
-New UI msgids (English fallback until catalog integration):
+Network identity/Library UI msgids (English fallback until catalog integration;
+the editor's complete additional handoff is `NETWORK_EDITOR_MSGIDS.txt`):
 
 - `Network shares`
 - `Play read-only SMB or NFS games without downloading them.`
-- `SMB / NFS · read-only · on-demand reads`
-- `Add your server, share, folder and private credentials to network-shares.json, then reconnect. See docs/NETWORK_SHARES.md. Only configured servers are contacted.`
 - `Connecting and scanning…`
 - `Connected · {0} games`
 - `Disconnected`
-- `Reconnect reloads settings and starts a new session. After a connection failure, start the game again. Saves and caches stay on the console.`
-- `Reconnect`
 - `Disconnect / cancel`
 - `Network`
 - `Read-only network game. Saves, mods and caches stay local.`
 
-`Back` is reused. Fixed transport/configuration diagnostics currently remain
-English (all are feature-local in `network.cpp`/`transport.cpp`); they never use
-server/JSON error text. Aggregate documentation, POT and locale catalogs are
+`Back` is reused. Transport diagnostics currently remain English (feature-local
+in `network.cpp`/`transport.cpp`); the native editor also translates safe fixed
+result/state strings listed in its handoff. None use raw server/JSON error text.
+Aggregate documentation, POT and locale catalogs are
 intentionally left for the integration owner.

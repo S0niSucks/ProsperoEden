@@ -6,6 +6,8 @@
 #include <fstream>
 #include <iostream>
 #include <sys/stat.h>
+#include <sys/resource.h>
+#include <csignal>
 #include <thread>
 
 namespace {
@@ -34,7 +36,7 @@ int main(int argc, char** argv) {
             assert(!entry.path().filename().string().starts_with("network-shares.json.tmp-"));
     };
     assert(editor.Open(file) == EditorResult::ok && editor.Begin("") == EditorResult::ok);
-    assert(editor.Save(stop) == EditorResult::invalid && !fs::exists(file));
+    assert(editor.Save(stop) == EditorResult::required && !fs::exists(file));
     assert(enter(Field::server, u"host.invalid") == EditorResult::invalid);
     assert(enter(Field::server, u"127.0.0.1") == EditorResult::ok);
     assert(enter(Field::share, u"games") == EditorResult::ok);
@@ -58,6 +60,9 @@ int main(int argc, char** argv) {
     assert(config.shares[0].name == "Synthetic NAS \xc3\xa9" && config.shares[0].cache_bytes == (32u << 20));
     struct stat st{}; assert(stat(file.c_str(), &st) == 0 && (st.st_mode & 0777) == 0600); no_stages();
     const auto id = config.shares[0].id, original = Bytes(file);
+    Configure(file, false);
+    assert(!Current().busy && Current().shares.size() == 1 && !Current().shares[0].connected);
+    Disconnect();
     assert(editor.Begin(id) == EditorResult::ok);
     next = {Eden::TextOutcome::cancelled, u"Never-used"};
     assert(editor.Enter(Field::password, stop) == EditorResult::cancelled && last.initial.empty());
@@ -95,6 +100,14 @@ int main(int argc, char** argv) {
     stop = false; editor.Cancel();
     // Every prepublication cancellation point preserves the old bytes and cleans only its own stage.
     config = ReadConfiguration(file);
+    // A failed bounded disk write is not a successful save and does not truncate the old file.
+    struct rlimit previous{}; assert(getrlimit(RLIMIT_FSIZE, &previous) == 0);
+    auto limited = previous; limited.rlim_cur = 16;
+    const auto signal_before = std::signal(SIGXFSZ, SIG_IGN);
+    assert(setrlimit(RLIMIT_FSIZE, &limited) == 0);
+    assert(WriteConfiguration(file, config, {}, stop) == ConfigError::write);
+    assert(setrlimit(RLIMIT_FSIZE, &previous) == 0); std::signal(SIGXFSZ, signal_before);
+    assert(Bytes(file) == config.bytes); no_stages();
     for (auto point : {WriteStep::staged, WriteStep::flushed, WriteStep::publish}) {
         const auto old = Bytes(file);
         assert(WriteConfiguration(file, config, {}, stop, [&](auto step) { if (step == point) stop = true; }) == ConfigError::cancelled);
@@ -103,6 +116,10 @@ int main(int argc, char** argv) {
     // A concurrent JSON import is never blanket-reset or overwritten.
     assert(WriteConfiguration(file, config, {}, stop, [&](auto step) { if (step == WriteStep::flushed) Put(file, "{\"shares\":[]}"); }) == ConfigError::conflict);
     assert(Bytes(file) == "{\"shares\":[]}"); no_stages();
+    const auto sibling = root / "config/network-shares.json.tmp-unrelated";
+    fs::create_directory(sibling); Put(sibling / "sentinel", "do-not-reuse");
+    config = ReadConfiguration(file); assert(WriteConfiguration(file, config, {}, stop) == ConfigError::none);
+    assert(Bytes(sibling / "sentinel") == "do-not-reuse"); fs::remove(sibling / "sentinel"); fs::remove(sibling);
     // Strict schema, duplicate keys/identities, unsupported NFS credentials and bounded files.
     for (const auto& invalid : {std::string{"{broken-private-json"}, std::string{"{\"shares\":[],\"shares\":[]}"},
         std::string{"{\"shares\":[],\"unknown\":true}"}, std::string(65537, ' ')}) {

@@ -39,6 +39,16 @@ public:
     Eden::Network::Status network_shares() override;
     void reconnect_network_shares() override;
     void disconnect_network_shares() override;
+    Eden::Network::EditorResult network_editor_open() override;
+    Eden::Network::EditorView network_editor_view() override;
+    Eden::Network::EditorResult network_editor_begin(const std::string&) override;
+    Eden::Network::EditorResult network_editor_change(Eden::Network::Field) override;
+    Eden::Network::EditorResult network_editor_password(Eden::Network::PasswordChoice) override;
+    Eden::Network::EditorResult network_editor_enter(Eden::Network::Field, const std::atomic<bool>&) override;
+    Eden::Network::EditorResult network_editor_save(bool, const std::atomic<bool>&) override;
+    Eden::Network::EditorResult network_editor_remove(const std::string&, const std::atomic<bool>&) override;
+    Eden::Network::EditorResult network_editor_connection(bool) override;
+    void network_editor_cancel() override;
     std::string game_path(const std::string& file) override;
     bool game_exists(const std::string& file) override;
     bool take_update(pe::ui::UpdateOffer* offer) override;
@@ -153,6 +163,12 @@ public:
     std::optional<std::int64_t> ask_seed(std::int64_t, const std::atomic<bool>&) override;
     bool can_launch_game() override;
 private:
+    // Feature-local admission seam; see docs/NETWORK_EDITOR.md for the exact parent composition
+    // with job_admission_mutex_, usb_active_ and launch_committed_. No USB worker is present here.
+    Eden::Network::EditorResult WithNetworkMutation(const std::function<Eden::Network::EditorResult()>&);
+    std::mutex network_mutation_mutex_;
+    std::atomic<bool> network_mutation_active_{false};
+    Eden::Network::Editor network_editor_;
     // Post-processing: the presets as the menu lists them, and a name's place among them.
     // The presets for the general settings and the game whose settings were read last (title_id,
     // kept for the next calls without one).

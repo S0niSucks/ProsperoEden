@@ -6,7 +6,7 @@
 namespace Eden::Network {
 enum class Field { name, protocol, server, share, folder, updates, enabled, port, user, password, domain,
                    encrypt, uid, gid, mount_port, timeout, cache };
-enum class EditorResult { ok, cancelled, unavailable, invalid, duplicate, limit, blocked, no_edit,
+enum class EditorResult { ok, cancelled, unavailable, invalid, required, duplicate, limit, blocked, no_edit,
                           unsafe, conflict, write, imported_invalid, saved_sync_warning };
 enum class PasswordChoice { keep, clear };
 struct EditorRow { Field field; std::string value; };

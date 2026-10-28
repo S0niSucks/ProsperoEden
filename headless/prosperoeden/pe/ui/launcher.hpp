@@ -201,6 +201,18 @@ class Launcher
     void start_scan();
     void press_network_shares(Key key);
     void draw_network_shares(Canvas& c, float open);
+    void open_network_shares();
+    void update_network_shares();
+    void network_result(Eden::Network::EditorResult result);
+    enum class NetworkPage { locations, editor, discard, remove };
+    NetworkPage network_page_ = NetworkPage::locations;
+    Eden::Network::EditorView network_view_;
+    int network_row_ = 0;
+    std::string network_remove_id_;
+    bool network_commit_job_ = false;
+    bool network_warning_ = false;
+    std::atomic<bool> network_stop_{false};
+    std::future<Eden::Network::EditorResult> network_job_;
     void finish_scan(bool wait);
     void apply_games(std::vector<Game> games);
     void name_home_games();
