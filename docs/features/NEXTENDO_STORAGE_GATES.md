@@ -85,3 +85,17 @@ controller/core object qualification remain separate workstreams.
 These checks establish host admission composition, not a full native/core build or PS5 storage,
 browser/network/server interoperability. Existing OAuth registration, BAAS and endpoint/trust
 requirements remain as documented in `NEXTENDO.md`; this change does not claim online play.
+
+## Coordinator composed repeat
+
+Imported as `dd3865c`, with the standalone USB fixture aligned in `5bd9d21`. The coordinator's
+clean frozen 825-file `5bd9d21` snapshot passed the actual composed admission runner in normal,
+TSan and ASan/UBSan modes, then the full USB backend/lifecycle/update-drain/syntax runner and
+659-text/30-catalog checker (`sh_17fe9989c0019XcJlwUBhCeLlP`). This combines the security fixes
+with the storage guards, retaining the existing real Amiibo/cheat/USB races and actual
+Nextendo Store/parser/PKCE loopback/callback-lifetime cases. Provider transport and unrelated
+console metadata remain simulated. Evidence:
+`.local/docker-release/nextendo-storage-integrated-20261027/` (all three step exit codes 0).
+The run predates SDK snapshot compatibility and later network/theme integrations. A separate
+audit is checking older launcher writers for check-before-lock admission races; this pass is
+not a blanket claim that every existing/future mutator has been qualified.

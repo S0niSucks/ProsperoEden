@@ -87,7 +87,7 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 SMB/NFS streaming and external/scene themes remain under team implementation/review, not
 accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
-on their stated snapshots; the composed Nextendo service repeat is running. All 659 current
+on their stated snapshots, including the composed Nextendo service repeat. All 659 current
 launcher texts are translated across 30 catalogs, with zero static-checker problems; system-font
 coverage and length/layout advisories remain. All newly integrated features still need final
 combined regression and console qualification.

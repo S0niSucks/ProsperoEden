@@ -77,11 +77,21 @@ root, build the Linux test image and run it with a read-only checkout and a Linu
 
 ```powershell
 docker build -t prosperoeden-host -f tools/docker/host.Dockerfile tools/docker
-docker run --rm --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-host-work,target=/work prosperoeden-host x86_64 -R bash /usr/local/bin/prosperoeden-host-tests
+docker run --rm --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch --tmpfs /mnt/usb0:rw,size=256m --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-host-work,target=/work prosperoeden-host x86_64 -R bash /usr/local/bin/prosperoeden-host-tests
 ```
 
-The runner copies source into the volume, fetches only the hash-pinned Eden/fmt/compiler-rt inputs
-needed by the host suite, and runs the elevation-client checks and `tools/build-headless-host.sh`. Dependency downloads, generated
+The runner copies source into the volume, fetches the hash-pinned Eden/fmt/compiler-rt and SMB/NFS
+client inputs needed by the host suite, then runs the elevation-client checks and
+`tools/build-headless-host.sh`, followed by the complete focused USB backend/lifecycle runner.
+The host script includes actual Amiibo/Nextendo/OAuth service admission, shared HTTP/TLS,
+real-container cheat-flow and Pro Controller host checks, plus translation/import regressions.
+The USB runner resolves sources from its own script location, so it tests the copied snapshot,
+not the changing checkout. Its synthetic fixture clears `/mnt/usb0`; both Docker runners refuse
+before building unless that path is an independent tmpfs mount. Never bind-mount a physical USB,
+host directory or real app data there. The volume at `/work` must be private test/build scratch.
+These new suite invocations are wired and shell-syntax/unsafe-fixture refusal checks pass; the
+uninterrupted all-feature host build/run remains pending the outstanding integrations.
+Dependency downloads, generated
 fixtures and build outputs stay in Docker, not in the Windows checkout. The image provides CMake
 3.31.10, Clang 18, GCC and host development libraries. Rebuild the image when its Dockerfile changes.
 

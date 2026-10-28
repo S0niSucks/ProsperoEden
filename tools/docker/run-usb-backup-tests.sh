@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
-cd /checkout
+# This suite clears the fixture drive. Never run it against a physical USB or a bind mount.
+[[ -f /.dockerenv && -d /work && -d /mnt/usb0 ]] &&
+    mountpoint -q /mnt/usb0 && [[ $(stat -f -c %T /mnt/usb0) == tmpfs ]] || {
+    echo 'USB checks require Docker, a private /work volume and an independent tmpfs at /mnt/usb0.' >&2
+    exit 2
+}
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+cd "$root"
 clang++-18 -std=c++20 -g -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer \
     headless/usb_backup.cpp headless/usb_backup_check.cpp -lcrypto -pthread \
     -Wl,--wrap=fstatvfs,--wrap=fstatat,--wrap=fsync,--wrap=read,--wrap=write,--wrap=renameat,--wrap=unlinkat \
