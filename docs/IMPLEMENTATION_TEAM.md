@@ -65,6 +65,19 @@ Its foreground caller timed out; the container completed and saved exit 0. A lat
 found it already auto-removed; that observation is not a failed test. No final uninterrupted
 all-feature host/native build has run yet.
 
+USB credential staging `bc95255` was reviewed/imported as `99f257c`. The coordinator retained
+the actual pre-fix COMPLETE-backup leak (six synthetic credential files), and the clean frozen
+integrated 841-file repeat passed the full focused runner (`sh_17ffacb8e001wDaLmpbECNeXO6`):
+seven harmless files / 236 bytes, unchanged estimates/manifests and zero forbidden open/stat/read
+probes, hostile aliases and restore reinjection rejection. Separate Python collector privacy
+and older writer-admission reviews remain active.
+
+Verified dependency/license notices are imported as `f6c3f45`: all 11 retained file sizes and
+hashes match `third_party/licenses/SOURCES.json` (manifest SHA-256
+`fd79de67ad2fd83a6cd781b31d672f408a6c35dd15d060af823f48d1ab0588dc`). Upstream whitespace
+is intentionally preserved. **Package inclusion and corresponding-source/relink-material delivery
+are not yet complete**; file presence and attribution are not a compliance certification.
+
 Coordinator cheat probes passed independent encrypted NSP/CNMT/base/update and wrong-key
 refusal with actual key reload, per-copy native-VFS update/mod selection and real NPDM bounds.
 Synthetic BKTR also passed in a separate coordinator-owned fixture worktree and was integrated

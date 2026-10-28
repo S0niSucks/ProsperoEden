@@ -122,3 +122,12 @@ The coordinator should reconcile helper boundaries/aliases with its owner and up
 incumbent `docs/USB_BACKUP.md` exact-only/harmless-`.bak` wording when integrating. That
 document is intentionally untouched here. Other unknown sensitive config files are not
 heuristically excluded; backups still need private storage as documented.
+
+Coordinator imported this fix as `99f257c` and retrieved/hash-recorded the raw worker negative,
+positive and immutable-helper-observation logs. The full runner then passed independently on
+the clean frozen 841-file `99f257c` snapshot (`sh_17ffacb8e001wDaLmpbECNeXO6`): staged-sibling
+copy/estimate/progress/hash exclusions, zero forbidden probes, seven harmless control files /
+236 bytes, restore rejection, synthetic service lifecycle, actual update-check drain and syntax.
+Snapshot, raw logs and exit-0 receipt are retained in
+`.local/docker-release/usb-staged-privacy-integrated-20261027/`. This does not qualify the
+separate Python collectors, later writer-admission changes or PS5 filesystem behavior.

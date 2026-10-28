@@ -57,7 +57,8 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 - **USB app-data backup/restore.** **Settings > USB backup** estimates space before a separate
   confirmation, copies/validates app data with progress/cancellation and stages restore for the
   next cold start. Existing destination data is retained in a recovery folder; no active state
-  is hot-replaced. Named Nextendo/network-share credentials and game content are excluded.
+  is hot-replaced. Named Nextendo/network-share credentials, dot-suffixed network staging
+  copies and game content are excluded. Restore rejects older backups containing those copies.
   Backend/UI and composed Amiibo/cheat-worker checks passed; later-writer integration and PS5
   filesystem validation remain.
 - **Nextendo integration (experimental, default-off).** Per-profile private session import,

@@ -227,8 +227,11 @@ COMPLETE backup containing six synthetic credential files (13 inventory files / 
 then failed the unchanged no-credential assertion. The fixed worker runner passed ASan/UBSan
 with leak detection, leaving exactly the seven harmless control files / 236 bytes, identical
 space estimates/manifests and zero forbidden open/stat/read probes. The coordinator retrieved
-the raw baseline/fixed logs and is repeating the full runner on a separate frozen integrated
-snapshot. Evidence and exact limits: `features/USB_NETWORK_PRIVACY.md` and
+the raw baseline/fixed logs and repeated the full runner successfully on a separate clean,
+frozen 841-file `99f257c` snapshot (`sh_17ffacb8e001wDaLmpbECNeXO6`, exit 0). The run retained
+the seven harmless files / 236 bytes and zero forbidden probes, plus existing lifecycle,
+update-drain and syntax assertions; no console execution was performed.
+Evidence and exact limits: `features/USB_NETWORK_PRIVACY.md` and
 `.local/docker-release/usb-staged-privacy-integrated-20261027/`. The Python package collectors
 are a separate review; the worker identified a missing `CONFIG.` alias defense there, not an
 observed real credential leak from a published release.
