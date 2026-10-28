@@ -6,7 +6,8 @@
 The home page finds the last and the recent games at roms/<name>. A game in a game folder
 (roms/Game/Game.nsp) saved by its file name alone was not found there and was left out. This
 compiles the frontend's own lines that make the name and checks them on a game at the top of
-roms/, one in a game folder and one elsewhere, and that the history is saved by that name.
+roms/, one in a game folder, one elsewhere and read-only network games, and that the history
+is saved by that name. Network paths use the production prefix predicate without a client.
 """
 from pathlib import Path
 import os, subprocess, tempfile
@@ -16,6 +17,9 @@ main = (root / 'headless/main.cpp').read_text()
 start = main.index('        const std::string roms_folder = Eden::GamesPath("roms/");')
 end = main.index(';', main.index('const std::string rom_name', start)) + 1
 naming = main[start:end]
+transport = (root / 'headless/network/transport.cpp').read_text()
+path_predicates = [line for line in transport.splitlines() if line.startswith('bool IsPath(')]
+assert len(path_predicates) == 1, path_predicates
 
 # The history is saved by that name, and nothing saves it by the file name alone.
 saves = [line.strip() for line in main.splitlines() if 'SaveLastGame(' in line or 'SaveRecentGame(' in line]
@@ -29,6 +33,10 @@ code = r'''
 #include <cstdio>
 #include <filesystem>
 #include <string>
+#include "network/shares.h"
+namespace Eden::Network {
+''' + path_predicates[0] + r'''
+}
 namespace Eden {
 std::string GamesPath(const std::string& relative) { return "/mnt/usb0/eden/" + relative; }
 }
@@ -44,12 +52,19 @@ int main() {
     assert(Name("/data/assets/roms/Other.nsp") == "Other.nsp");
     // Another folder whose path only begins like roms/ is not in it.
     assert(Name("/mnt/usb0/eden/roms-old/Game.nsp") == "Game.nsp");
+    // The share identity and nested path must survive history/cover lookup.
+    for (const std::string uri : {"pe-net://smb-fixture/Game/Game.nsp",
+                                  "pe-net://nfs-fixture/Kart Carnival/Kart.xci",
+                                  "pe-net://nfs-fixture/Homebrew/demo.nro"})
+        assert(Name(uri) == uri);
+    assert(Name("pe-net://smb-fixture/Game.nsp") != Name("pe-net://nfs-fixture/Game.nsp"));
     std::puts("recent games: PASS");
 }
 '''
 with tempfile.TemporaryDirectory() as tmp:
     exe = Path(tmp) / 'recent-games'
-    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror', '-x', 'c++', '-',
+    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
+                    '-I', str(root / 'headless'), '-x', 'c++', '-',
                     '-o', str(exe)], input=code, text=True, check=True)
     subprocess.run([str(exe)], check=True)
-print('Recent games: PASS saved by the name in roms/ (game folders too), as the home page finds them')
+print('Recent games: PASS local folder names and exact network identities preserved for history/covers')

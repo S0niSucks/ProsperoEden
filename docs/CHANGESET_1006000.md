@@ -26,10 +26,11 @@ generated build-identity receipt, not invented in this changeset before the buil
 ## Acceptance still required
 
 1. Freeze one clean Git HEAD/tree after reciprocal network/USB/theme admission composition and
-   its fixture integration. The production guards are composed; their combined proof is pending.
+   its fixture integration. Guards and `3a399d7` fixtures are integrated with focused sanitizer
+   proof; complete application qualification is still pending.
 2. Run the complete host suite, all-feature UI and native build on that same immutable snapshot,
    invalidating launcher-dependent cache objects. No running or partial test counts as PASS.
-3. Resolve the actual current translation gate: `4a33dc9` found 764 source texts/30 catalogs
+3. Resolve the actual translation gate: `4a33dc9` and `2b9d869` found 764 source texts/30 catalogs
    with untranslated new entries. The catalog import was interrupted by a tool policy guard;
    it has not been retried, rerouted or waived. The older 659-text PASS is not current coverage.
 4. Collect applied/generated sources, real objects/link argv and final binary identities;
@@ -42,6 +43,13 @@ generated build-identity receipt, not invented in this changeset before the buil
 
 Theme issues #173/#239 remain open. The independent IME review interrupted by a tool policy
 guard remains unaccepted and is not replaced by a different review.
+
+Snapshot-specific closure results: the 11 combined UI groups passed on `8090823`; 245
+unprivileged notices/privacy/license CLI calls and source export/verify/offline restoration
+passed on `2b9d869`. Native compilation reached pre-link capture refusal on `8090823`, not a
+successful link/package. The host aggregate passed guest-idle with process-local no-ASLR then
+stopped at an outdated recent-games fixture; its repair uses the production network predicate.
+These results do not replace a complete run on the final freeze; see the team evidence ledger.
 
 ## Provenance and publication
 

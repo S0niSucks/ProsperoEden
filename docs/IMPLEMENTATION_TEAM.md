@@ -72,7 +72,8 @@ their test results to the current combined HEAD:
    proofs on its snapshot. App-owned storage callback/caller `90f3a39` is integrated as `50c3a2d`;
    its normal/ASan/UBSan/TSan proof covers real process credit, exceptions/last-write release
    and cold recovery. `aa2baf4` adds reciprocal theme/USB/network/Nextendo/large-writer/launch
-   predicates under common admission. Combined fixture integration/proof remains pending;
+    predicates under common admission. Combined fixtures `2ccd96f` are integrated as `3a399d7`;
+    their normal/ASan/UBSan/TSan admission proofs passed on the stated guard snapshot, not the full app;
    unknown PS5 free capacity still denies native import/recovery writes. The remaining
   full NXTheme material/font/animation parity and automatic compatibility are not implemented,
   and #173/#239 remain open. This subset is not accepted as completion of those issues.
@@ -116,7 +117,7 @@ their test results to the current combined HEAD:
 * The additive network-catalog import assignment was interrupted by a tool `cyber_policy`
   error. It has not been retried, rephrased or routed around. This is not a translation-test
   failure or a completed import; original handoffs remain preserved, and final coverage is pending.
-  Separately, the unchanged read-only release checker was actually run on `4a33dc9`:
+   Separately, the unchanged read-only release checker was actually run on `4a33dc9` and `2b9d869`:
   **764 source texts, 30 catalogs, FAIL (untranslated new entries)**. Its private log is
   retained; no import was retried and this mandatory failure was not waived. The earlier
   659-text result does not satisfy the present release gate.
@@ -133,6 +134,39 @@ transport or evidence original was changed.
 No seeded old object/package is accepted as the final build. All remaining composition,
 catalogs, one frozen HEAD's host/UI/native gates, binary-bound
 materials/relink and hardware limits must still be resolved before closing 1.006.000.
+
+### Frozen-build closure evidence — 2026-10-28
+
+* `d4bd102` fixes CMake target creation during deferred execution; `2b9d869` disables implicit
+  module scanning for ordinary network TUs and adds the real keyboard helper to preview targets.
+  Earlier failed attempts and quarantined port-dependent objects are retained, not accepted as final.
+* All 11 combined renderer/controller groups passed on clean freezes `2b9d869` and `8090823`,
+  with ASan/UBSan, synthetic services and 720p/1080p coverage. Each exported set contains 154
+  independently hash-verified receipts/captures. The `8090823` index SHA-256 is
+  `974b31cd9b0747ba703abe9f50c49841ef4abecf963eb947935d3a7c873f6fbc`.
+  Mesa leak accounting is explicitly disabled; this is not the native app or PS5 execution.
+* Notices/privacy/license checks completed 245 CLI invocations with no skips on `2b9d869`,
+  offline as UID/GID 65534 against read-only sources. All 12 receipt hashes were checked.
+  This result belongs to that freeze, not a later candidate or legal-compliance certification.
+* Real create→verify→offline_restore passed for the `2b9d869` source inputs: 74 materials,
+  24,241 files and 22 provisional omissions. All 16 receipt/payload hashes were checked,
+  including TAR SHA-256 `f37ca904623cf98ab4268b8d957e1308b862ac890af80d1fc1e30a0718909e50`.
+  That source snapshot precedes later repairs; binary matching, closure and relink remain pending.
+* The native `2b9d869` attempt failed compiling the multiplayer HUD namespace lookup;
+  `8090823` explicitly qualifies `::Network`. The next native attempt compiled its 1,086
+  pre-link tasks but capture refused a generated CMake object path containing `.deps` before
+  lld ran. An unchanged-validator diagnosis identifies one exact object-directory anchor
+  for a fresh capture run. No native link/package PASS follows from those completed objects.
+* The host `2b9d869` aggregate failed at TSan startup (`unexpected memory mapping`). A
+  process-local `setarch x86_64 -R` run, without host sysctl changes, passed guest-idle and
+  kernel-spin-lock checks under all selected sanitizers on `8090823`. That aggregate then
+  failed because the recent-games fixture omitted the new production network-path predicate.
+  The fixture now includes that exact predicate and retains local cases plus exact network
+  identities; production naming and runtime policies are unchanged. A fresh full run is required.
+
+There is still no complete accepted host/native candidate, final binary-bound source/relink
+delivery or physical PS5 qualification. The catalog failure and interrupted tasks above remain
+unwaived; no tag, push or publication has occurred.
 
 ### Earlier evidence (snapshot-specific)
 
