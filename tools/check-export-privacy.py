@@ -62,15 +62,31 @@ def write(path, data):
     os.utime(path, (STAMP, STAMP))
 
 
+def source_files(source):
+    return (*SOURCES, *(('tools/release_licenses.py',) if (source / 'tools/release_licenses.py').is_file() else ()))
+
+
+def license_fixture():
+    payloads = {'example/COPYING': b'Synthetic license text.  \r\n\n',
+                'example/SOURCE_NOTICES.txt': b'Synthetic notice excerpt, NOT complete source. \n'}
+    manifest = {'format_version': 1, 'scope': 'Synthetic notice fixture; not corresponding source',
+                'files': [{'destination': name, 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
+                          for name, data in payloads.items()]}
+    return {**payloads, 'SOURCES.json': (json.dumps(manifest, indent=2) + '\n').encode()}
+
+
 def fixture(source, directory, collector):
     repo = directory / 'repo'
-    for name in SOURCES:
+    for name in source_files(source):
         target = repo / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source / name, target)
     for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md'):
         write(repo / name, ('Synthetic fixture ' + name + '\n').encode())
     write(repo / 'docs/CHANGELOG.md', b'## v1.000.001\n\nSynthetic notes.\n')
+    if collector == 'release':
+        for name, data in license_fixture().items():
+            write(repo / 'third_party/licenses' / name, data)
     folder = repo / 'input' / ('PPSA99008' if collector == 'release' else 'pack')
     public = {'config/settings.json': b'{"synthetic":true}',
               'config/network-shares.txt': b'public near match',
@@ -125,12 +141,14 @@ def invoke(repo, folder, collector, directory, denied=(), extra=()):
     return result, archive, record
 
 
-def inspect(archive, collector, public):
+def inspect(archive, collector, public, licenses=True):
     prefix = 'PPSA99008/' if collector == 'release' else 'privacy-fixture/'
     expected = {prefix + name: data for name, data in public.items()}
     if collector == 'release':
         expected.update({name: ('Synthetic fixture ' + name + '\n').encode()
                          for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')})
+        if licenses:
+            expected.update({'third_party/licenses/' + name: data for name, data in license_fixture().items()})
     with zipfile.ZipFile(archive) as zipped:
         assert zipped.testzip() is None
         assert len(zipped.namelist()) == len(set(zipped.namelist())), 'Duplicate ZIP members'
@@ -181,7 +199,7 @@ def cases():
 
 
 def qualify(output, baseline, report):
-    hashes = {name: digest(ROOT / name) for name in SOURCES}
+    hashes = {name: digest(ROOT / name) for name in source_files(ROOT)}
     report.update(source_files_sha256=hashes, python=sys.version, platform=sys.platform,
                   test_files_sha256={name: digest(ROOT / name) for name in
                                      ('tools/check-network-privacy.py', 'tools/check-export-privacy.py')},
@@ -189,7 +207,7 @@ def qualify(output, baseline, report):
     sources = [('fixed', ROOT)] + ([('baseline', baseline)] if baseline else [])
     clean_hashes = {}
     for label, source in sources:
-        report[label + '_source_files_sha256'] = {name: digest(source / name) for name in SOURCES}
+        report[label + '_source_files_sha256'] = {name: digest(source / name) for name in source_files(source)}
         for collector in ('release', 'launcher'):
             for case, names, posix in [('clean', [], False), *cases()]:
                 if posix and os.name != 'posix':
@@ -211,16 +229,28 @@ def qualify(output, baseline, report):
                     record['observation'] = 'Baseline rejected fixture; no leak claimed'
                     continue
                 assert result.returncode == 0, (label, collector, case, result.stderr)
-                extra, leaks = inspect(archive, collector, public)
+                extra, leaks = inspect(archive, collector, public, (source / 'tools/release_licenses.py').is_file())
                 record.update(extra_members=extra, private_canary_members=leaks)
                 if label == 'fixed':
                     assert not extra and not leaks and not record['guard_attempts'], record
                 verify_integrity(repo, folder, archive, collector, public)
-                assert all(digest(repo / name) == digest(source / name) for name in SOURCES)
-                if case == 'clean': clean_hashes[label, collector] = digest(archive)
+                assert all(digest(repo / name) == digest(source / name) for name in source_files(source))
+                if case == 'clean': clean_hashes[label, collector] = archive
     if baseline:
         for collector in ('release', 'launcher'):
-            assert clean_hashes['baseline', collector] == clean_hashes['fixed', collector], 'Clean ZIP identity changed'
+            before, after = clean_hashes['baseline', collector], clean_hashes['fixed', collector]
+            if collector == 'release' and not (baseline / 'tools/release_licenses.py').is_file():
+                with zipfile.ZipFile(before) as old, zipfile.ZipFile(after) as new:
+                    additions = {'third_party/licenses/' + name for name in license_fixture()}
+                    assert set(new.namelist()) == set(old.namelist()) | additions
+                    for info in old.infolist():
+                        peer = new.getinfo(info.filename)
+                        assert old.read(info) == new.read(peer)
+                        assert (info.date_time, info.external_attr, info.compress_type) == (peer.date_time, peer.external_attr, peer.compress_type)
+                report['release_license_delta'] = {'before_sha256': digest(before), 'after_sha256': digest(after),
+                                                  'added_members': sorted(additions), 'unchanged_old_member_bytes_and_metadata': True}
+            else:
+                assert digest(before) == digest(after), 'Clean ZIP identity changed'
             assert any(r['source'] == 'baseline' and r['collector'] == collector and
                        r['private_canary_members'] for r in report['runs'] if 'private_canary_members' in r), 'Baseline leak not reproduced'
 
@@ -262,7 +292,7 @@ def qualify(output, baseline, report):
                     if kind == 'directory': (path / 'unreadable').chmod(0o700)
 
     negative_checks(output, report)
-    assert hashes == {name: digest(ROOT / name) for name in SOURCES}, 'Source checkout was changed'
+    assert hashes == {name: digest(ROOT / name) for name in source_files(ROOT)}, 'Source checkout was changed'
     report['passed'] = True
 
 

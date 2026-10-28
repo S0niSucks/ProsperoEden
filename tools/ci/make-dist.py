@@ -4,11 +4,13 @@
 
   tools/ci/make-dist.py APP_DIR
 
-dist/ProsperoEden-vX.Y.Z.zip (the folder plus README, LICENSE and THIRD_PARTY_NOTICES; fixed
+dist/ProsperoEden-vX.Y.Z.zip (the folder plus README, LICENSE, THIRD_PARTY_NOTICES and verified
+third_party/licenses/ at the matching ZIP root path; fixed
 timestamps, so equal inputs give equal bytes), SHA256SUMS (of the ZIP) and release-notes.md (the
 changelog's "vX.Y.Z" section, docs/CHANGELOG.md).
 """
 import hashlib
+from itertools import chain
 import json
 import os
 import pathlib
@@ -23,21 +25,31 @@ root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / 'tools'))
 from build_identity import identity
 from network_privacy import public_export_paths
+from release_licenses import release_license_entries
 args = sys.argv[1:]
 if len(args) != 1:
     sys.exit(__doc__.strip())
 app = pathlib.Path(args[0]).resolve()
 version = json.loads((app / 'sce_sys/param.json').read_text())['contentVersion']
 tag = 'v' + version.removeprefix('0')
+license_entries = release_license_entries(root)
 dist = root / 'dist'
 shutil.rmtree(dist, ignore_errors=True)
 dist.mkdir()
 archive = dist / f'ProsperoEden-{tag}.zip'
 files = [(p, 'PPSA99008/' + p.relative_to(app).as_posix())
          for p, metadata in public_export_paths(app) if stat.S_ISREG(metadata.st_mode)]
-files += [(root / name, name) for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md') if (root / name).exists()]
+readme = root / 'README.md'
+try:
+    readme_mode = readme.lstat().st_mode
+except FileNotFoundError:
+    pass
+else:
+    if not stat.S_ISREG(readme_mode):
+        raise ValueError('README.md must be a regular file')
+    files.append((readme, 'README.md'))
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
-    for path, name in files:
+    for name, data in chain(((name, path.read_bytes()) for path, name in files), license_entries.items()):
         info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
         # Every entry stored as 0777: the console only starts an app whose files are open to all
@@ -45,7 +57,7 @@ with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip
         # ZIP keeping its permissions would leave 0644 files.
         info.create_system = 3  # Unix: the high half of external_attr is the mode
         info.external_attr = 0o100777 << 16
-        zip_file.writestr(info, path.read_bytes())
+        zip_file.writestr(info, data)
 with zipfile.ZipFile(archive) as check:
     closed = [i.filename for i in check.infolist() if (i.external_attr >> 16) & 0o777 != 0o777]
     if closed:
