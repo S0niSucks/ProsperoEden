@@ -44,8 +44,11 @@ their test results to the current combined HEAD:
 * Network VFS, metadata/add-ons, Settings editor, extraction and prepared keyboard seam are
   integrated as `294d1d1`, `ec560bb`, `bb95ebe`, `e3b0392`, `ef2027b`, `939e447`.
   Conflict resolution preserves USB/Amiibo Settings categories, admission guards, `.inc`
-  extraction and actual packaging-privacy checks. The network owner is finishing shared
-  admission and UI-thread prompt/value capture in a separate worktree.
+  extraction and actual packaging-privacy checks. Final shared admission and UI-thread
+  prompt/value capture `e598d3b` is integrated as `3d78049`; ownership is released. The owner
+  completed normal/ASan/UBSan/TSan composition, writer/drain/lifecycle checks plus native-gated
+  syntax and 87 privacy CLI cases. Its unchanged Settings index-16 runtime assertion awaited
+  the coordinator's pagination; these results are not the final combined UI/build.
 * OAuth→web→identity→NEX `0699208` / `6943832` / `2ab6a4d` is integrated as `fafa43c` /
   `0378b8d` / `3dc04ed`. Its owner reported 111 offline cases and nine regression runners
   passed, plus SDK objects/partial link; that is not a combined application or live login.
@@ -66,7 +69,11 @@ their test results to the current combined HEAD:
   `63777aa`, `022cb0d`; ownership is released. Conflict resolution preserves USB/Amiibo
   dispatch, all capabilities, Cover Flow and builtin Settings pagination. The owner completed
   110 frontend, 50 importer, 68 updater and 34 compatibility checks plus parser/mutation/pixel
-  proofs on its snapshot. The native storage callback/caller composition is now assigned;
+   proofs on its snapshot. App-owned storage callback/caller `90f3a39` is integrated as `50c3a2d`;
+   its normal/ASan/UBSan/TSan proof covers real process credit, exceptions/last-write release
+   and cold recovery. `aa2baf4` adds reciprocal theme/USB/network/Nextendo/large-writer/launch
+   predicates under common admission. Combined fixture integration/proof remains pending;
+   unknown PS5 free capacity still denies native import/recovery writes. The remaining
   full NXTheme material/font/animation parity and automatic compatibility are not implemented,
   and #173/#239 remain open. This subset is not accepted as completion of those issues.
 * Settings integration now has 17 categories. `133f604` keeps the existing first 16 tile
@@ -76,13 +83,17 @@ their test results to the current combined HEAD:
   the explicit `std::min<int>` correction and exact production draw-loop regression
   passed focused normal/ASan/UBSan. The next real-renderer attempt exposed missing
   `EditorMessage` linkage in the general preview scripts; `fdc4a2d` adds the real editor/config
-  sources to both. The corrected renderer repeat is running, not PASS.
+   sources to both. The corrected renderer's next attempt is described below.
   That `fdc4a2d` attempt reached further but could not link unused editor validation
   routines without the transport. `4a33dc9` applies function/data sections and linker GC
   to the preview targets, retaining the real UI message/configuration functions without
   pulling unused transport/editor operations into a synthetic service preview. The scene
   preview receives the same integration. Strict importer-header host syntax and three shell
-  checks passed; the new full-renderer repeat remains in progress, not PASS.
+   checks passed. The frozen `4a33dc9` renderer then passed the 20 real USB controller/UI checks
+   at 720p/1080p with no GL errors and rendered Settings page 2, return to page 1 and the network
+   modal. The coordinator inspected those captures. The 34 exported result files are bound by
+   index SHA-256 `829d70292c3553aeb4852694b77ca0ccc64455005d6d7ed2781b67de3fe44b22`;
+   they predate final network/theme composition and do not qualify the combined HEAD.
 * Native producer hooks `e3c62de` are integrated as `1c4bb61`. Their owner completed 44
   synthetic tests, syntax and README checks in offline Docker; independent frozen-merge
   review completed 44 tests and seven shell checks, and found split credential arguments
@@ -90,7 +101,18 @@ their test results to the current combined HEAD:
   including actual CLI refusal without execution, event, canary capture or echo.
   `EDEN_NATIVE_EVIDENCE_DIR` remains opt-in and requires a new explicit
   root declaration. No actual SDK/configure/build/source-object correspondence or relink
-  result follows from those synthetic tests.
+   result follows from those synthetic tests.
+* A new private final-source runner completed 12 limited tests and a real
+  create→verify→offline_restore smoke on `1c4bb61`; only snapshot identity changes in newly
+  generated inputs, with the old policy/materials RO. Its delivery index SHA-256 is
+  `27ff59a1e17cf243ce69f6d17c25ee986a9827a72440c50f18ad3ed2a99e977a`, coordinator-bound
+  with all three record hashes verified. The runner/README/pinned helpers and smoke retain
+  their narrower pre-final scope. Final commit/tree, binary match and real relink are pending.
+* Candidate metadata/changelog/changeset now target `1.006.000` (`6efdc97`), explicitly not a
+  qualified/published release. The actual build-identity test initially failed because its
+  miniature repo omitted the new exporter/privacy/license dependencies; `aa2baf4` copies the
+  real helpers and original notice inputs into that isolated fixture and its full Docker test
+  passed. No notice bytes or exporter checks were weakened.
 * The additive network-catalog import assignment was interrupted by a tool `cyber_policy`
   error. It has not been retried, rephrased or routed around. This is not a translation-test
   failure or a completed import; original handoffs remain preserved, and final coverage is pending.
@@ -109,7 +131,7 @@ failed to preserve upstream Unix ownership under dropped container capabilities 
 the new successful workspace preserves bytes/modes/times, not original UID/GID. No source
 transport or evidence original was changed.
 No seeded old object/package is accepted as the final build. All remaining composition,
-catalogs, final version/changeset, one frozen HEAD's host/UI/native gates, binary-bound
+catalogs, one frozen HEAD's host/UI/native gates, binary-bound
 materials/relink and hardware limits must still be resolved before closing 1.006.000.
 
 ### Earlier evidence (snapshot-specific)
