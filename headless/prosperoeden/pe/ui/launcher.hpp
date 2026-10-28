@@ -374,6 +374,8 @@ class Launcher
     std::future<Eden::Nextendo::Status> nextendo_request_;
     bool nextendo_unlink_confirm_ = false;
     bool nextendo_import_confirm_ = false;
+    bool nextendo_browser_confirm_ = false;
+    std::string nextendo_browser_url_;
     enum class RoomPage { choice, private_room, public_rooms, nextendo };
     RoomPage room_page_ = RoomPage::choice;
     Eden::Multiplayer::RoomDirectory room_directory_;

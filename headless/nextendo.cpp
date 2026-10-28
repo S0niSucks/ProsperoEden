@@ -241,6 +241,35 @@ std::shared_ptr<const Session> LoadSession(int directory, std::string_view profi
 }
 } // namespace
 Store::Store(std::string root, AccountCheck check) : root_(std::move(root)), check_(check) {}
+Store::Store(std::string root, AccountCheckFunction check) : root_(std::move(root)), check_(std::move(check)) {}
+bool Store::ReadRegistration(std::string& bytes, std::string& error) const {
+    bytes.clear();
+    error.clear();
+    const Directory directory(root_, false);
+    if (directory.fd < 0 || !ReadFile(directory.fd, "oauth.json", bytes, true)) {
+        error = "Configure your registered client in private nextendo/oauth.json (mode 0600). No client ID is bundled.";
+        return false;
+    }
+    return true;
+}
+Status Store::Link(std::string_view profile, Account account, const std::atomic<bool>& stop) {
+    std::lock_guard lock(store_mutex);
+    Status result;
+    if (!ValidProfile(profile) || !account.pid || !SafeToken(account.token) ||
+        account.token == std::to_string(account.pid)) {
+        result.error = "The account server returned an incomplete or invalid session.";
+        return result;
+    }
+    if (stop.load()) { result.error = "Nextendo action cancelled."; return result; }
+    const Directory directory(root_, true);
+    account.enabled = false; // linking never consents to guest service routing
+    if (directory.fd < 0 || !Save(directory.fd, AccountName(profile), account)) {
+        result.error = "Cannot save the private Nextendo session. Check storage and stale .new files.";
+        return result;
+    }
+    result.linked = true;
+    return result;
+}
 std::shared_ptr<const Session> Store::Load(std::string_view profile, std::string& error) const {
     error.clear();
     if (!ValidProfile(profile)) { error = "Choose a player profile first."; return {}; }

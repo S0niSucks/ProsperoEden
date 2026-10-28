@@ -8,6 +8,10 @@ Nextendo merely because the launcher opens, a profile is chosen, or a game start
 
 Implemented:
 
+- Actual browser authorization-code + S256 PKCE linking, with a user/operator-provided registered
+  client/app/redirect. A bounded, one-use 127.0.0.1 receiver validates state/Host/query/expiry, then
+  exchanges the code over verified HTTPS and atomically links only the captured local profile.
+  The launcher shows a short **same-PS5** loopback entry URL, never a token, verifier or callback code.
 - Import a **user-owned existing Citron-Nextendo session**, link it to the selected emulated player,
   explicitly enable/disable service routing, explicitly check the account, and unlink locally.
   Import/replacement always switches routing **off**. Replacement and unlink require confirmation.
@@ -30,16 +34,25 @@ Implemented:
 
 1. Public Citron source builds its browser OAuth `client_id` from **unshipped
    `web_service/nextendo_secrets.h`** (`AppClientId` otherwise empty). ProsperoEden has no registered
-   client ID/approved redirect contract. No client ID was guessed or borrowed.
+   client ID/approved redirect contract bundled. The OAuth implementation is runnable and tested
+   with a synthetic provider; live use requires the owner's registration in `oauth.json`. Missing
+   registration is a precise configuration refusal, not an omitted implementation. No client ID
+   was guessed or borrowed.
 2. The inspected login is **browser authorization code + S256 PKCE + a 127.0.0.1 loopback callback**,
    not a phone device-code API. A phone's loopback points at the phone, not the PS5. No device-code
    routes, passwords, account registration, outreach, or live credential sessions were attempted.
+   Automatic PS5 browser launch is not asserted: the explicit URL workflow requires a browser on
+   that PS5 while ProsperoEden continues processing its callback. Foreground/background behavior
+   and access to that browser require PS5 qualification; manually opening it on a phone is not valid.
 3. The fork's guest BAAS wrapper locally signs an `id_token` carrying the signed NEX proof (`nnex`).
    It also contains explicit references to Ryujinx-Nextendo-derived claim-shape behavior. We have
    **not copied** that claim construction, signing keys, or the incompatible Ryujinx implementation.
    A reviewed, GPL-compatible BAAS contract (or an authoritative server-issued id_token API),
    including title/version/audience rules, is still needed. A `nex_token` is not a BAAS id_token.
    Consequently game login intentionally fails at this boundary, rather than issuing fake tokens.
+   The exact GPL reference location is `src/core/hle/service/acc/acc.cpp:278–330` (`BuildIdToken`),
+   whose comments at 303–307 explicitly tie claim-shape choices to Ryujinx-Nextendo. This is not
+   treated as a separately authoritative, cleanly licensed server acceptance specification.
 4. The public DNS fork defaults its server IP configuration to loopback and obtains actual server
    addresses externally. It cannot provide an audited, certificate-valid endpoint list. This
    implementation ships **no fabricated/default server map**. The fork's global TLS verification
@@ -55,6 +68,55 @@ Implemented:
 The launcher entry is **Multiplayer > Nextendo (experimental)**, alongside (not inside) the room
 choices. It displays local linkage/routing state and explicitly says game sign-in is unverified.
 
+### Browser linking
+
+1. Using a trusted transfer path, create the app-owned `config/nextendo/` directory with mode 0700
+   (the existing import action can also create it). Put **your registered** configuration in
+   `config/nextendo/oauth.json`, owner-only mode 0600. Schema, with placeholders **not credentials
+   and not usable registrations**:
+
+   ```json
+   {"version":1,"client_id":"<YOUR_REGISTERED_CLIENT_ID>","app":"<YOUR_REGISTERED_APP_NAME>","redirect_uri":"http://127.0.0.1:{port}/callback"}
+   ```
+
+   The registered redirect must explicitly permit this loopback template/ephemeral port, as in the
+   GPL reference, or configure an exact registered port (1024–65535). Only `http://127.0.0.1:` plus
+   a port or `{port}` and a simple absolute callback path is accepted. No LAN IP, localhost DNS,
+   phone callback, arbitrary origin, redirect query, client secret or borrowed Citron app ID.
+   `app` must be the registered application name; ProsperoEden does not send `app=citron`.
+2. Select **Link in this PS5's browser**. Replacing an existing link requires confirmation. Missing,
+   malformed or non-private registration fails **before binding a listener or making any request**.
+   The listener binds only 127.0.0.1; an occupied configured port fails, never silently picks another.
+3. On **this PS5**, open the displayed `http://127.0.0.1:<port>/start` while keeping ProsperoEden
+   running. This is a short local entry point, not a phone code or a LAN service. It redirects the
+   browser to `https://nextendo.network/api/oauth/authorize` with the configured registration,
+   `response_type=code`, scope `identity`, random state and S256 challenge. No automatic account
+   creation, form filling or credential collection is performed by ProsperoEden.
+4. Complete the provider's browser consent. Its registered callback must return to the same
+   loopback listener. The callback page says only that authorization was received; final linkage
+   can still fail at token validation, cancellation or storage. Return to the launcher for its result.
+5. The code is consumed once via form POST to `/api/oauth/token` with `grant_type`, `code`,
+   `client_id`, the **same actual redirect URI**, and the private `code_verifier`.
+   `X-Nextendo-Client-Id` is included, as required by the GPL reference. Both server chain and hostname
+   are verified; redirects are refused. Only nonzero unsigned `account.pid` and a bounded printable
+   `nex_token` are retained; username/friend code are discarded. Success saves private credentials
+   directly, without an import/guest bridge file, and switches routing **off**.
+6. Circle cancels. The overall lifetime is five minutes including the bounded token exchange
+   (at most 15 seconds and never past the overall deadline). A client gets at most two seconds to
+   supply at most 8192 bytes of HTTP headers; at most 64 local requests are serviced. Invalid
+   Host/Origin/state/duplicate or malformed callback fields cannot exchange a token. A valid provider
+   denial ends this attempt. The listener and published URL are removed on completion/cancel/error;
+   a failed replacement or cancellation observed before its storage commit preserves the previous
+   session and routing consent.
+
+The public OAuth contract is `web_service/nextendo_api.cpp:277–284,357–485` at the pinned reference.
+The reference requests wider scopes; this implementation requests only identity. The registration
+must authorize that scope and the configured `app`/redirect. It does not infer a refresh-token or
+device-code grant. Account checks also require the configured registered client header; a missing
+client does not provoke a credential-bearing request or erase a good imported session.
+
+### Existing-session import, checking and routing
+
 1. Choose the intended player profile. Select **Import my session** once to create the private
    folder if it does not exist. Obtain your own existing session from your own Citron-Nextendo
    configuration; do not use somebody else's account or a bare test PID.
@@ -68,7 +130,8 @@ choices. It displays local linkage/routing state and explicitly says game sign-i
    `nextendo/<emulated-profile-key>.account`; the import is deleted after success. Only PID/token
    are retained; username/friend code are discarded. Existing linkage requires a second Cross to
    confirm replacement. Import/replacement never consents to online traffic.
-4. **Check account** explicitly makes an HTTPS GET to `https://nextendo.network/api/profile`, with
+4. **Check account**, with the registration above, explicitly makes an HTTPS GET to
+   `https://nextendo.network/api/profile`, with `X-Nextendo-Client-Id`,
    a 15-second deadline, bounded response, cancellation and **no redirects**. A valid profile
    response means only the session was accepted by that API, not that a game connected. A 401
    removes local linkage and disables routing. Server response/error bodies never reach the UI.
@@ -107,12 +170,20 @@ owner/mode/type/link-count checks and ancestor-by-ancestor `O_NOFOLLOW` opens. R
 deletion stay relative to a held directory descriptor, not a path that can be substituted midway.
 Exclusive 0600 staging + fsync + rename preserves the old account on a failed replacement. A stale
 `.new` is an error, not a reason to truncate it.
-Cancellation observed before the import write prevents it; cancellation during or after a storage
+Cancellation observed before an import/browser-link write prevents it; cancellation during or after a storage
 commit does not roll it back. Files are under the app-owned config root, not SDMC/game/USB paths.
 
 The launch session outlives the emulator service objects and is cleared after their teardown.
 Native resolver allocations/freeing use the same captured allocator even if shutdown is requested.
 There is no PID/token bridge file in the guest SDMC.
+
+Browser linking never holds the store mutex while waiting for a browser or HTTPS. The existing
+worker busy/profile guards apply, and the short local URL is separately bridge-mutex-protected for
+UI polling without I/O. The verifier, form, code and raw response have best-effort in-memory wiping;
+this is **not** a guarantee that JSON/curl/allocator copies or process memory have been securely erased.
+The receiver uses the existing native fcntl socket wrapper (SO_NBIO fallback); it refuses failure to
+set nonblocking mode rather than accepting an unbounded blocking client. Do not enable TLS debug,
+proxy tracing or credential-bearing browser history exports during account operations.
 
 ## Focused evidence
 
@@ -140,10 +211,22 @@ TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo.py --
 - Actual service adapter with synthetic platform dependencies: a changed profile before worker
   execution is rejected without touching storage; busy/storage/room guards and profile isolation.
 
+`TMPDIR=/work CXX=clang++-18 CC=clang-18 python3 /repo/tools/check-nextendo-oauth.py` compiles the actual
+receiver, token exchange, curl transport and store with ASan/UBSan. A synthetic browser follows the
+real local entry redirect through a generated-certificate **HTTPS authorization endpoint**, then the
+actual callback; a loopback HTTPS token endpoint checks the RFC 7636 proof and registered header.
+The test-only platform adapter changes the destination socket/CA, **not** the production URLs,
+TLS peer hostname, verification, request parser or token logic. No production origin override exists.
+Cases include missing registration/no activity, fixed-port collision, random state/PKCE, invalid and
+duplicate callback fields, Host/Origin refusal, slow/oversized clients, request flood, expiry, cancellation
+while waiting/exchanging/before save, provider denial/errors, token redirect/body limits, unknown CA,
+wrong hostname, one-use consumption, storage failure, previous-session preservation and default-off save.
+
 `tools/check-nextendo-ui.py <private-preview-binary> <output>` drives the actual built-in launcher
 at 720p and 1080p with a **synthetic** service (not a credential/network simulation presented as
 console evidence). It covers opening without work, import-off, explicit enable, replacement/unlink
-confirmation, cancellation, account-check wording and GL-error-free captures. The changed launcher
+confirmation, missing-client refusal, same-device URL, cancellation, account-check wording and
+GL-error-free captures. The changed launcher
 translation units also pass focused `-Wall -Wextra -Werror -fsyntax-only` checks. Actual native core
 compilation/linking and PS5/socket/server tests remain coordinator qualification work.
 
@@ -163,19 +246,68 @@ compilation/linking and PS5/socket/server tests remain coordinator qualification
   validation, lifecycle, CA handling and tests are local implementation. The reference's logging
   of PID/token-bearing bodies, unprotected session files, bare test-PID fallback, SDMC credential
   bridge and blanket TLS bypass are deliberately **not** imported.
+- OAuth additions adapt only the pinned GPL account authorization wire contract. No upstream
+  logging of authorization URLs, state, PID, tokens or response bodies is imported. The receiver
+  uses existing system sockets and OpenSSL; no new third-party server or OAuth dependency is added.
 - The rest of the reference tree has **not** been comprehensively reviewed. No wholesale core,
   title patches, SDK/firmware/account data, server code without a reviewed license, signing keys,
   or Ryujinx-Nextendo/PolyForm Shield code is copied or shipped.
 
+### Public BAAS / endpoint investigation (2026-10-27)
+
+Read-only Nextendo-owned repository metadata, license files and the following documentation were
+inspected. These are **documentary contract facts**, not a source license grant or evidence of a
+working public deployment. No server implementation from these repositories was read/adapted.
+
+| Nextendo-owned source (immutable revision) | Evidence and limit |
+|---|---|
+| [nextendo-docs](https://github.com/NextendoNetwork/nextendo-docs/tree/d34c759420ec6cb5924f43097b21aba5b64eaea4) | `LICENSE.md` declares PolyForm Shield 1.0.0. `ARCHITECTURE.md:63–66,89–113` describes SNI passthrough, an `nx2.` proof and runtime-supplied addresses/keys/TLS. It is not a normative BAAS claim schema. |
+| Same revision, `DEPLOYMENT.md:14–20,63–80` | Operator-controlled server/NAT addresses and client-trusted certificates for redirected hostnames; `NEXTENDO_BAAS_SIGNING_KEY` is supplied externally. Addresses/ports in examples are explicitly examples, not an audited service map. Original-host SNI/private CA deployment is not interchangeable with our mapped certificate-valid public DNS policy. |
+| [baas-jwks](https://github.com/NextendoNetwork/baas-jwks/tree/fe141462a5b622be49bfe28a01174c653af3e23f), `README.md:12–20` | Describes RS256 verification, `jku`/`kid` and a public JWK derived from an externally supplied signing key. No private key, fixed infrastructure address or complete claims/audience/title/version contract is published there. `LICENSE.md` declares PolyForm Shield. No signing keys were downloaded. |
+| [sni-router](https://github.com/NextendoNetwork/sni-router/tree/ea2976c97ebd042a0c82928e5851bc8f234a2a42), `README.md:3–7` | Describes TLS SNI passthrough; license badge and `LICENSE.md` declare PolyForm Shield. Does not establish which mapped Nextendo DNS names/certificates a public operator serves. |
+| [nextendo-account](https://github.com/NextendoNetwork/nextendo-account/tree/61845fa2742f2053d2aa75bbc5d6b3a888eb2d1a), [nx-dauth](https://github.com/NextendoNetwork/nx-dauth/tree/5ce9901d077065a0f718d9f748fa621164e6c6c8), [nextendo-nncs](https://github.com/NextendoNetwork/nextendo-nncs/tree/86936ca0fcfdc7508cbcc63f7be3ce7e55a9b451) | Each inspected `LICENSE.md` declares PolyForm Shield. Repository presence is not permission to transplant its implementation or proof of console compatibility. |
+| Pinned GPL Citron `src/core/hle/service/acc/nextendo_baas_nsa.{h,cpp}` | Fully inspected in this follow-up. Describes a title-specific NSA/`baasUserID` identity lookup through `/api/me` and friends, not a server-issued BAAS id_token. It also references Ryujinx behavior; none was copied. An NSA identifier is not authentication proof or a substitute for the missing token contract. |
+
+The pinned repository's complete GitHub tree was also searched for Nextendo/BAAS/OAuth paths;
+the public Nextendo homepage was inspected for documentation/API links. This is a bounded source
+review, not a proof that no further private/undiscovered specification exists.
+
+Exact outstanding inputs, rather than a generic TODO:
+
+1. **OAuth live configuration/qualification:** owner-issued client ID, registered app value, identity
+   scope and approved exact loopback redirect/ephemeral-port rule; PS5 evidence that the chosen
+   same-device browser can load the local entry/callback while this title's receiver continues running.
+   The implementation and synthetic real-transport flow do not depend on receiving these inputs.
+2. **BAAS implementation contract:** a redistributable GPL-compatible normative claim/header schema
+   (issuer, audience, title/application/version identifiers, subject/PID, `nnex`, timing/nonce rules,
+   algorithm, `kid`, `jku` and verification/rotation rules), with synthetic accepted/rejected vectors;
+   plus an authorized signer/private-key provisioning contract **or** an authoritative server-issued
+   id_token endpoint and its authentication/response contract. A JWKS README or a NEX bearer alone
+   does not supply these. No server-issued id_token API was established in the GPL material reviewed.
+3. **Network/trust contract:** exact per-service DNS destination/port map and NAT vantage points,
+   certificate names/chain and expected SNI for those destinations. If only original-host/private-CA
+   SNI routing is supported, a separate explicitly provisioned/reviewed trust design is required;
+   neither `verify=false` nor pretending an arbitrary map is compatible is acceptable.
+4. **Qualification:** title/version-specific guest account/TLS/socket/NIFM/NAT/friends/presence/server
+   traces and successful/negative test cases on the target PS5 build. None is inferred from host tests.
+
 ## Integration / shared-file touchpoints
 
-Small shared edits: `headless/CMakeLists.txt` includes the feature overlays and one launcher
-transport source, composing the native network derivative after existing socketpair changes;
+Small shared edits: `headless/CMakeLists.txt` includes the feature overlays, account HTTP and OAuth
+sources, composing the native network derivative after existing socketpair changes;
 `main.cpp` freezes/clears the launch session; `remote/http.{h,c}` adds default-off `no_redirect`
-and avoids silent authorization-header truncation;
+and optional registered-client header fields, and avoids silent authorization-header truncation;
 launcher service interfaces, profile removal and multiplayer choice/lifetime hooks connect it.
 `host/runtime_preview.cpp` has feature-local synthetic fixture hooks. No aggregate release docs,
 versions, generated POT or locale catalogs were changed.
+
+The follow-up appends `Action::link_browser` (preserving existing enum values), retains the original
+`AccountCheck`/`Store` constructor signatures, and adds a separate callable constructor for the
+configured client header. The original unconfigured HTTP-check entry point now refuses before I/O.
+`Services::nextendo_link_url()` defaults to empty, so other existing service implementations need not
+override it. `remote_http_request.nextendo_client_id` is appended, NULL by default for existing users.
+Integrate these small hunks around any intervening scene/CoverFlow/Amiibo work; this branch does not
+assume those coordinator changes are absent and has not attempted to merge them.
 
 Conflict-prone existing files for coordinator integration (no merge attempted here):
 
@@ -209,8 +341,12 @@ convention and are sanitized; catalog work is intentionally not performed indepe
 - `Check account`
 - `Confirm unlink`
 - `Unlink account`
-- `Import your existing Citron-Nextendo session as config/nextendo/import.txt (private mode 0600). Import keeps routing off. Configure verified endpoints in nextendo/routes.json before enabling. See docs/features/NEXTENDO.md.`
+- `Confirm browser replacement`
+- `Link in this PS5's browser`
+- `Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md.`
 - `Working... Circle cancels.`
 - `Account accepted. This is not a game connection test.`
-- `Native browser linking needs a registered Nextendo client. No phone-code API is assumed.`
+- `Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback.`
+- `Open on THIS PS5 (expires in five minutes; Circle cancels):`
+- `Keep ProsperoEden running. Do not open this on a phone or another device.`
 - `Back / cancel`

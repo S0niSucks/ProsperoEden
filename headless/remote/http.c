@@ -157,6 +157,29 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
         }
     }
     headers = curl_slist_append(headers, "Accept: application/json, */*");
+    if (request->nextendo_client_id != NULL)
+    {
+        struct curl_slist *added;
+        const size_t length = strlen(request->nextendo_client_id);
+        if (length == 0 || length > 256 || strpbrk(request->nextendo_client_id, "\r\n") != NULL)
+        {
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(t.easy);
+            result->curl_code = (int)CURLE_BAD_FUNCTION_ARGUMENT;
+            (void)snprintf(result->error, sizeof(result->error), "Invalid registered client configuration");
+            return -1;
+        }
+        (void)snprintf(line, sizeof(line), "X-Nextendo-Client-Id: %s", request->nextendo_client_id);
+        added = curl_slist_append(headers, line);
+        if (added == NULL)
+        {
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(t.easy);
+            result->curl_code = (int)CURLE_OUT_OF_MEMORY;
+            return -1;
+        }
+        headers = added;
+    }
     if (request->api_version != NULL)
     {
         (void)snprintf(line, sizeof(line), "api-version: %s", request->api_version);

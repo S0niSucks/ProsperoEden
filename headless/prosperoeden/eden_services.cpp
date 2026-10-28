@@ -13,6 +13,7 @@
 #include "profiles.h"
 #include "nextendo.h"
 #include "nextendo_http.h"
+#include "nextendo_oauth.h"
 #include "update_notice.h"
 #include "game_name.h"
 #include "game_files.h"

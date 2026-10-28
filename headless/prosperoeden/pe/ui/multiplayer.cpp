@@ -35,6 +35,7 @@ void Launcher::press_multiplayer(Key key) {
         nextendo_stop_ = true;
         nextendo_unlink_confirm_ = false;
         nextendo_import_confirm_ = false;
+        nextendo_browser_confirm_ = false;
         room_edit_stop_ = true;
         room_directory_stop_ = true;
         room_directory_refresh_ = false;
@@ -65,6 +66,7 @@ void Launcher::press_multiplayer(Key key) {
                 nextendo_status_ = services_.nextendo_status();
                 nextendo_unlink_confirm_ = false;
                 nextendo_import_confirm_ = false;
+                nextendo_browser_confirm_ = false;
             }
             room_row_ = 0;
             room_connection_ = services_.room_connection();
@@ -163,6 +165,7 @@ void Launcher::update_multiplayer() {
         try { nextendo_status_ = nextendo_request_.get(); }
         catch (const std::exception&) { nextendo_status_.error = "Nextendo action failed. Retry or unlink the session."; }
     }
+    nextendo_browser_url_ = nextendo_request_.valid() ? services_.nextendo_link_url() : std::string{};
     if (room_directory_request_.valid() &&
         room_directory_request_.wait_for(std::chrono::seconds{0}) == std::future_status::ready) {
         Eden::Multiplayer::RoomDirectory result;

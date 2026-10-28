@@ -67,7 +67,11 @@ for width, height in ((1280, 720), (1920, 1080)):
             key("down"); key("cross"); command("tick 20")
             assert state()["checked"]
             capture("checked-not-online")
-            key("down"); key("cross")
+            key("down"); key("down"); key("cross")
+            assert state()["calls"] == 3  # existing linkage needs browser replacement confirmation
+            capture("confirm-browser-replace")
+            key("up")  # moving to unlink cancels browser replacement
+            key("cross")
             assert state()["unlinks"] == 0
             capture("confirm-unlink")
             key("up"); key("down"); key("cross")
@@ -80,7 +84,20 @@ for width, height in ((1280, 720), (1920, 1080)):
             assert state()["error"] == "Nextendo action cancelled."
             command("nextendo-mode ready"); key("down"); key("down"); key("cross")
             capture("cancelled")
+            key("down"); key("down"); key("down"); key("down")
+            command("nextendo-mode missing"); key("cross"); command("tick 20")
+            assert "No client ID is bundled" in state()["error"]
+            capture("no-registered-client")
+            command("nextendo-mode browser"); key("cross"); command("tick 20")
+            capture("same-device-browser")
+            key("circle"); command("tick 20")
+            assert state()["error"] == "Nextendo action cancelled."
+            key("down"); key("down"); key("cross")
+            key("down"); key("down"); key("down"); key("down")
+            command("nextendo-mode ready"); key("cross"); command("tick 20")
+            assert state()["linked"] and not state()["enabled"]
+            capture("browser-linked-off")
             process.stdin.write("exit\n"); process.stdin.flush()
             process.wait(timeout=15)
             assert process.returncode == 0
-print("Nextendo UI: distinct local/online choice, opening offline, import-off, explicit enable, check wording, replace/unlink confirmation and cancellation at 720p/1080p: PASS")
+print("Nextendo UI: local/online separation, import/browser-link off, registered-client refusal, same-PS5 URL, replacement/unlink confirmation, explicit enable/check wording and cancellation at 720p/1080p: PASS")

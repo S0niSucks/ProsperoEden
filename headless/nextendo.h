@@ -4,6 +4,7 @@
 #include <atomic>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -17,6 +18,7 @@ struct Account {
 };
 enum class AccountResult { accepted, rejected, failed, cancelled };
 using AccountCheck = AccountResult (*)(const Account&, const std::atomic<bool>&);
+using AccountCheckFunction = std::function<AccountResult(const Account&, const std::atomic<bool>&)>;
 using Routes = std::map<std::string, std::string>;
 struct Session {
     Account account;
@@ -27,12 +29,15 @@ struct Session {
 class Store {
 public:
     explicit Store(std::string root, AccountCheck check = nullptr);
+    Store(std::string root, AccountCheckFunction check);
     Status Get(std::string_view profile) const;
     Status Apply(std::string_view profile, Action action, const std::atomic<bool>& stop);
+    Status Link(std::string_view profile, Account account, const std::atomic<bool>& stop);
+    bool ReadRegistration(std::string& bytes, std::string& error) const;
     std::shared_ptr<const Session> Load(std::string_view profile, std::string& error) const;
 private:
     std::string root_;
-    AccountCheck check_;
+    AccountCheckFunction check_;
 };
 
 bool ValidProfile(std::string_view key);

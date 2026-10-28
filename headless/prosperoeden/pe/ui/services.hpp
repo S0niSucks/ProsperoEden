@@ -831,6 +831,7 @@ class Services
 
     virtual Eden::Multiplayer::Snapshot room_status() { return {}; }
     virtual Eden::Nextendo::Status nextendo_status() { return {}; }
+    virtual std::string nextendo_link_url() { return {}; }
     virtual Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&)
     { return {false, false, false, 0, "Nextendo is unavailable in this frontend."}; }
     virtual Eden::Multiplayer::RoomDirectory public_rooms(const std::atomic<bool>&)

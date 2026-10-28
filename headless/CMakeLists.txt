@@ -3652,6 +3652,7 @@ endif()
         if(EDEN_PS5_OPENGL)
             set(launcher_sources
                 "${EDEN_PORT_DIR}/nextendo_http.cpp"
+                "${EDEN_PORT_DIR}/nextendo_oauth.cpp"
                 "${EDEN_PORT_DIR}/multiplayer_directory.cpp"
                 "${launcher_dir}/frontend.cpp"
                 "${launcher_dir}/eden_services.cpp"

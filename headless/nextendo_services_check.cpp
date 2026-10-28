@@ -2,6 +2,8 @@
 // Exercise the actual service adapter with synthetic profile/platform dependencies, no network.
 #include "nextendo.h"
 #include "nextendo_http.h"
+#include "nextendo_oauth.h"
+#include "remote/http.h"
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -28,7 +30,8 @@ struct RoomClient {
 };
 }
 namespace Nextendo {
-AccountResult CheckAccountHttp(const Account&, const std::atomic<bool>&) {
+AccountResult CheckAccountHttpWithClient(const Account&, const std::string& id, const std::atomic<bool>&) {
+    assert(id == "synthetic-registered-client");
     ++checks;
     return AccountResult::accepted;
 }
@@ -37,13 +40,19 @@ AccountResult CheckAccountHttp(const Account&, const std::atomic<bool>&) {
 class EdenServices {
 public:
     Eden::Nextendo::Status nextendo_status();
+    std::string nextendo_link_url();
     Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&);
     std::mutex bridge_;
     std::atomic<bool> nextendo_busy_{false};
+    std::string nextendo_browser_url_;
     int user_ = 0;
     Eden::Multiplayer::RoomClient rooms_;
 };
 #include "prosperoeden/nextendo_services.inc"
+extern "C" int remote_http_run(const remote_http_request*, remote_http_result*) {
+    assert(false && "service guard tests must not make OAuth requests");
+    return -1;
+}
 
 int main(int argc, char** argv) {
     assert(argc == 2);
@@ -77,6 +86,11 @@ int main(int argc, char** argv) {
     const auto linked = services.nextendo_action(first, Action::import_session, stop);
     assert(linked.linked && !linked.enabled && linked.error.empty());
     assert(services.nextendo_status().linked);
+    const auto missing = services.nextendo_action(first, Action::link_browser, stop);
+    assert(!missing.error.empty() && missing.linked && checks == 0 && services.nextendo_link_url().empty());
+    const auto registration = root / "oauth.json";
+    { std::ofstream out(registration); out << R"({"version":1,"client_id":"synthetic-registered-client","app":"synthetic-prosperoeden","redirect_uri":"http://127.0.0.1:{port}/callback"})"; }
+    assert(chmod(registration.c_str(), 0600) == 0);
     assert(services.nextendo_action(first, Action::check_account, stop).checked && checks == 1);
     services.user_ = 1;
     assert(!services.nextendo_status().linked);

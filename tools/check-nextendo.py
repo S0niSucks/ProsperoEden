@@ -57,7 +57,8 @@ file(WRITE "${{NEXTENDO_OUTPUT}}/native-network.cpp" "${{native}}")
         subprocess.run([os.environ.get("CXX", "clang++"), "-std=c++20", "-O1", "-g", "-pthread",
                         "-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-Wall", "-Wextra", "-Werror",
                         "-I", str(root / "headless"), str(root / "headless/nextendo.cpp"),
-                        str(root / "headless/nextendo_services_check.cpp"), "-o", str(services)], check=True)
+                        str(root / "headless/nextendo_oauth.cpp"), str(root / "headless/nextendo_services_check.cpp"),
+                        "-lssl", "-lcrypto", "-o", str(services)], check=True)
         service_data = out / "service-data"
         service_data.mkdir()
         subprocess.run([str(services), str(service_data)], check=True)

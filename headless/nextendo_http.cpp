@@ -16,7 +16,14 @@ int Sink(void* p, const void* data, std::size_t size) {
 int Stop(void* p) { return static_cast<Reply*>(p)->stop.load(); }
 }
 AccountResult CheckAccountHttp(const Account& account, const std::atomic<bool>& stop) {
+    (void)account;
+    return stop.load() ? AccountResult::cancelled : AccountResult::failed; // registration is mandatory
+}
+AccountResult CheckAccountHttpWithClient(const Account& account, const std::string& client_id,
+                                        const std::atomic<bool>& stop) {
     if (stop.load()) return AccountResult::cancelled;
+    if (client_id.empty() || client_id.size() > 256 || client_id.find_first_of("\r\n") != client_id.npos)
+        return AccountResult::failed;
     Reply reply{{}, stop};
     const std::string authorization = "Bearer " + account.token;
     remote_http_request request{};
@@ -25,6 +32,7 @@ AccountResult CheckAccountHttp(const Account& account, const std::atomic<bool>& 
     request.timeout_ms = 15000;
     request.https_only = 1;
     request.no_redirect = 1;
+    request.nextendo_client_id = client_id.empty() ? nullptr : client_id.c_str();
     request.sink = Sink;
     request.stop = Stop;
     request.user = &reply;

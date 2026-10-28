@@ -52,6 +52,7 @@ extern "C"
         const char *api_version;   /* NULL: no API-version header */
         int https_only;            /* disallow HTTP, including redirects, for public services */
         int no_redirect;           /* no automatic redirect; caller validates it or refuses it for credentials */
+        const char *nextendo_client_id; /* NULL: none; registered X-Nextendo-Client-Id, never guessed */
     } remote_http_request;
 
     typedef struct remote_http_result

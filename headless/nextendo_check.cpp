@@ -24,6 +24,9 @@ std::string response_body = R"({"username":"synthetic"})";
 int requests = 0;
 bool cancel_during_request = false;
 std::atomic<bool> stop{false};
+AccountResult SyntheticCheck(const Account& account, const std::atomic<bool>& cancel) {
+    return CheckAccountHttpWithClient(account, "synthetic-registered-client", cancel);
+}
 void Write(const fs::path& path, std::string_view bytes, int mode = 0600) {
     { std::ofstream out(path, std::ios::binary); out << bytes; assert(out.good()); }
     assert(chmod(path.c_str(), mode) == 0);
@@ -107,6 +110,7 @@ extern "C" int remote_http_run(const remote_http_request* request, remote_http_r
     assert(std::string(request->url) == "https://nextendo.network/api/profile");
     assert(std::string(request->authorization) == "Bearer " + token);
     assert(request->https_only && request->no_redirect && request->timeout_ms == 15000);
+    assert(std::string(request->nextendo_client_id) == "synthetic-registered-client");
     if (cancel_during_request) stop = true;
     if (request->stop(request->user)) { result->stopped = 1; return -1; }
     result->status = response_status;
@@ -117,7 +121,7 @@ extern "C" int remote_http_run(const remote_http_request* request, remote_http_r
 int main(int argc, char** argv) {
     assert(argc == 2);
     const fs::path root = fs::path(argv[1]) / "nextendo";
-    Store store(root, CheckAccountHttp);
+    Store store(root, SyntheticCheck);
     assert(!store.Get(profile).linked && !GuestEnabled());
     std::string error;
     assert(BeginGame(store, {}, false, error) && !GuestEnabled());
@@ -130,6 +134,7 @@ int main(int argc, char** argv) {
     assert(!Store(alias / "nextendo").Get(profile).error.empty());
     fs::remove(alias);
     Account account;
+    assert(CheckAccountHttp(account, stop) == AccountResult::failed && requests == 0);
     assert(ParseAccount("pid=9\ntoken=" + token, account) && account.pid == 9);
     assert(!ParseAccount("pid=9oops\ntoken=" + token, account));
     assert(!ParseAccount("pid=9\npid=8\ntoken=" + token, account));

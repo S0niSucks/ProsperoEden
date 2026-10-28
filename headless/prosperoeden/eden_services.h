@@ -26,6 +26,7 @@ public:
     // Downloads from the download sources stop while a game runs (the menu is gone then).
     ~EdenServices() override;
     Eden::Nextendo::Status nextendo_status() override;
+    std::string nextendo_link_url() override;
     Eden::Nextendo::Status nextendo_action(const std::string& profile, Eden::Nextendo::Action action, const std::atomic<bool>& stop) override;
 
     pe::ui::Home home() override;
@@ -212,4 +213,5 @@ private:
     std::chrono::steady_clock::time_point pair_until_;
     std::atomic<bool> pair_stop_{false};
     std::atomic<bool> nextendo_busy_{false};
+    std::string nextendo_browser_url_; // bridge_-protected, short local URL only
 };
