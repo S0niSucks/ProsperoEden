@@ -121,9 +121,17 @@ environmental refusal without changing code/assertions. Both attempts remain und
 `.local/docker-release/network-text-review-20261027/` (passing status SHA-256
 `6637791eb9867cdebab177cbff1c7cd2d3ae131319e7d1c8c344b7e7f341d969`).
 The audit also found 16 native keyboard prompts and a persisted default name outside the batch.
-A separate 17-key translation delivery and immutable, UI-thread-prepared native prompt seam
-are active; shared UI/service callers remain reserved to parent composition. Catalog/POT import,
-eleven existing length advisories and actual localized font/layout checks remain pending.
+The separate 17-key translation delivery is now verified: **510 additional cells**, input SHA-256
+`f81047a2d1bcd86864005aa901201c78f8ecc2544c2c353cfae550d595d8fbf4`. The coordinator checked
+69 protected hashes, immutable source blobs/literal sites and both batches together: **98 new
+keys × 30 locales = 2,940 cells**, passing actual-importer future-map validation, original-byte
+preservation and private idempotence. No root catalog changed; current-source refusal remains.
+The new batch adds no length warnings. Seven locales have unqualified font fallback; the
+largest translated title/hint measures 50/76 UTF-16 units, not proof of native IME compatibility.
+Evidence is under `.local/docker-release/network-keyboard17-review-20261027/`.
+The immutable, UI-thread-prepared native prompt seam remains active; shared UI/service callers
+remain reserved to parent composition. Catalog/POT import, eleven earlier length advisories
+and actual localized font/layout checks remain pending.
 
 Public Nextendo OAuth contract review `e3c4791` is imported as `9cfebff`. It finds no proven
 authorization-path defect (official examples use both paths), and `profil` is a documented
