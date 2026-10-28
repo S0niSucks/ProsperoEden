@@ -28,6 +28,7 @@ def main():
     subprocess.run([str(build / 'eden-network-editor-check'), tempfile.mkdtemp(prefix='config-', dir=WORK)], check=True)
     ui = ROOT / 'headless/prosperoeden'
     sources = [ROOT / 'headless/network/editor_ui_check.cpp', ui / 'host/fake_services.cpp',
+               ui / 'host/usb_backup_fake.cpp',
                *sorted((ui / 'pe/core').glob('*.cpp')),
                *[p for p in sorted((ui / 'pe/ui').glob('*.cpp')) if p.name not in
                  ('theme_kit.cpp', 'runtime_launcher.cpp', 'runtime_loading.cpp', 'launcher_updates.cpp')],

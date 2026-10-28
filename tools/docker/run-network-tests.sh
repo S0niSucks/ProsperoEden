@@ -15,7 +15,10 @@ if [[ ! -e /work/deps && ! -L /work/deps ]]; then ln -s "$root/.deps" /work/deps
     echo '/work/deps must identify this snapshot dependency directory.' >&2; exit 2;
 }
 export EDEN_NETWORK_DEPS="$root/.deps" NETWORK_SAVED_CACHE="$scratch"
-NETWORK_WORK=$(mktemp -d "$scratch/network-tests.XXXXXX")
+# Samba drops to its guest UID. Keep only the synthetic fixture outside private
+# cache ancestors; allow traversal of its new directory without listing it.
+NETWORK_WORK=$(mktemp -d /work/eden-network.XXXXXX)
+chmod 0711 "$NETWORK_WORK"
 export NETWORK_WORK
 python3 -B "$root/tools/check-network-shares.py"
 python3 -B "$root/tools/check-network-security.py"
