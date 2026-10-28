@@ -33,7 +33,7 @@ def main():
                  ('theme_kit.cpp', 'runtime_launcher.cpp', 'runtime_loading.cpp', 'launcher_updates.cpp')],
                *[p for p in sorted((ui / 'pe/gfx').glob('*.cpp')) if p.name not in ('harfbuzz.cpp', 'system_fonts.cpp')]]
     includes = [ui, ui / 'host', ROOT / 'third_party', ROOT / 'third_party/lua', ROOT / 'headless', ROOT / 'tools/launcher/stb',
-                Path('/coordinator/ps5-eden-headless.2YUJmY/source/externals')]
+                Path(os.environ.get('NETWORK_SAVED_CACHE', '/coordinator/ps5-eden-headless.2YUJmY')) / 'source/externals']
     flags = ['g++', '-std=c++20', '-O0', '-g', '-Wall', '-Wextra', '-UNDEBUG', '-DGL_GLEXT_PROTOTYPES=1',
              '-ffunction-sections', '-fdata-sections', *sanitizers, *['-I' + str(p) for p in includes]]
     headers = hashlib.sha256()

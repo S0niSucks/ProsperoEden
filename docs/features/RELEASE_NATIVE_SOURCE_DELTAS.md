@@ -348,16 +348,19 @@ Example capture-list format (paths supplied by the coordinator, not discovered):
 ```
 
 The following non-recursive capture command is suitable for **quiescent,
-private, already-reviewed** roots/lists. It stores regular bytes in an opaque
+private, already-reviewed** roots/lists. It reuses `source_bundle.safe_name` before
+child metadata access; the common gate is mandatory, not a partial `.env` filter.
+It stores regular bytes in an opaque
 hash store and symlink text as metadata; it does not follow links, create links,
 restore an SDK or declare closure. The example two-file list must be replaced
 with the reviewed full list for each phase. Roots themselves must be approved
 real mount/directory paths without symlink ancestors.
 
 ```sh
-python3 -B - /work/NEW-final-capture applied /work/reviewed-paths.json <<'PY'
+PYTHONPATH="$root/tools/ci" python3 -B - /work/NEW-final-capture applied /work/reviewed-paths.json <<'PY'
 import hashlib, json, os, re, stat, sys, tempfile
 from pathlib import Path
+from source_bundle import safe_name
 out, phase, selection = Path(sys.argv[1]), sys.argv[2], Path(sys.argv[3])
 assert re.fullmatch(r'[a-z0-9-]+', phase)
 plan = json.loads(selection.read_text())
@@ -368,10 +371,9 @@ objects.mkdir()
 records, seen = [], set()
 for item in plan['files']:
     owner, rel = item['root'], item['path']
+    safe_name(owner)
+    safe_name(rel)  # deny private/alias/device paths before any source lstat/open
     parts = rel.split('/')
-    assert parts and all(p not in ('', '.', '..') for p in parts)
-    assert '\\' not in rel and ':' not in rel
-    assert not any(p.startswith('.env') for p in parts)
     assert (owner, rel) not in seen
     seen.add((owner, rel))
     root = Path(plan['roots'][owner])

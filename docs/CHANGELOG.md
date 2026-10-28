@@ -59,8 +59,15 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   next cold start. Existing destination data is retained in a recovery folder; no active state
   is hot-replaced. Named Nextendo/network-share credentials, dot-suffixed network staging
   copies and game content are excluded. Restore rejects older backups containing those copies.
-  Backend/UI and composed Amiibo/cheat-worker checks passed; later-writer integration and PS5
-  filesystem validation remain.
+   Backend/UI and composed Amiibo/cheat-worker checks passed. Shared admission now also covers
+   older settings/save/pairing writers and confirms remote drain through final publication or
+   cleanup. The writer fix has focused sanitizer coverage; final mixed-service and PS5 filesystem
+   validation remain.
+- **SMB/NFS network locations.** Settings provides a built-in private editor for named SMB/NFS
+   shares, with native password entry, atomic configuration saves and explicit connect/disconnect.
+   The integrated read-only VFS streams game content and bounded metadata/add-ons without turning
+   it into a download-source entry. Shared admission and localized caller composition are still
+   being completed; full-app launch and real-server PS5 qualification remain outstanding.
 - **Nextendo integration (experimental, default-off).** Per-profile private session import,
   explicit checks/unlink, exact-host guest routing and registered-client browser OAuth with
   S256 PKCE are integrated. Missing registration refuses before network work. This is not
@@ -70,10 +77,11 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   duplicate JSON rejection. Focused host/SDK object checks found and fixed SDK snapshot-type
   compatibility. Six host and six PS5-target objects now pass, including genuine-target TLS/CA
    and curl-producer partial-link checks; the final complete build and console validation remain.
-  **Known incomplete provider contract:** the public documentation uses a web access token
-  followed by separate NEX acquisition; the current legacy direct-account conversion rejects
-  those documented forms in an offline proof. A repair is in progress. Earlier synthetic OAuth
-  tests do not establish this contract or a working live sign-in.
+   The provider-contract repair now exchanges code → short-lived web credential → matching
+   identity → separate NEX game session, persists only the default-off game session and checks
+   known expiry. It requires explicit identity/matchmaking consent; its UI/caller composition is
+   being completed. Game-only remote account checks are explicitly unavailable without network
+   or deletion. The 111-case offline proof does not establish a working live provider sign-in.
 
 ### Reliability and diagnostics
 
@@ -94,15 +102,19 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
 - **Source/relink evidence tooling.** An offline, immutable-snapshot collector verifies pinned
   inputs, reproducible archives and final-binary-bound relink inventories, refusing missing or
   mismatched materials. Its CLI fixtures passed. Actual source-closure collection and a verified
-  final relink remain pending; the tool does not certify a complete source delivery or compliance.
+   final relink remain pending; the tool does not certify a complete source delivery or compliance.
+   Strict reviewed template/link exceptions now permit a reproducible integration source bundle
+   and offline restoration; 79 focused tests passed. This bundle predates the final binary and
+   does not replace preservation of final applied/generated sources and actual link materials.
 
 ### Remaining work and test limits
 
-SMB/NFS streaming and external/scene themes remain under team implementation/review, not
-accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
+SMB/NFS final caller/admission composition and external/scene themes remain under team
+implementation/review, not accepted as complete by this changeset. Integrated Nextendo remains incomplete at its external
 authentication/operator boundaries. USB/Amiibo/cheat lifecycle and combined UI checks passed
-on their stated snapshots, including the composed Nextendo service repeat. All 659 current
-launcher texts are translated across 30 catalogs, with zero static-checker problems; system-font
+on their stated snapshots, including the composed Nextendo service repeat. The earlier 659-text
+launcher snapshot passed 30-catalog static checks. Newly integrated network and consent strings
+still require final catalog composition; that earlier result is not current coverage. System-font
 coverage and length/layout advisories remain. All newly integrated features still need final
 combined regression and console qualification.
 PS5 NFC, rendering/lifetime, firmware, rest-mode and gameplay qualification remain separate

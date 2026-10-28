@@ -32,6 +32,45 @@ Private session identifiers and dispatch records are in `.local/agent-team-20261
 
 ## Review/integration ledger
 
+### Closing composition — 2026-10-28
+
+This checkpoint supersedes older pending-integration descriptions below, without promoting
+their test results to the current combined HEAD:
+
+* USB writer correction `a9833f9` is integrated as `012f2e1`; the owner released shared files.
+  It covers old synchronous writers, SaveSync/pairing starts and confirmed remote drain.
+  The owner's normal/ASan/UBSan/TSan result is complete; the separate frozen-merge repetition
+  was dispatched and is not yet a reported PASS.
+* Network VFS, metadata/add-ons, Settings editor, extraction and prepared keyboard seam are
+  integrated as `294d1d1`, `ec560bb`, `bb95ebe`, `e3b0392`, `ef2027b`, `939e447`.
+  Conflict resolution preserves USB/Amiibo Settings categories, admission guards, `.inc`
+  extraction and actual packaging-privacy checks. The network owner is finishing shared
+  admission and UI-thread prompt/value capture in a separate worktree.
+* OAuth→web→identity→NEX `0699208` / `6943832` / `2ab6a4d` is integrated as `fafa43c` /
+  `0378b8d` / `3dc04ed`. Its owner reported 111 offline cases and nine regression runners
+  passed, plus SDK objects/partial link; that is not a combined application or live login.
+  One-shot explicit consent and game-only check callers/UI are now assigned for implementation.
+* Native-delta inventory `2007e8d` is integrated as `cc4489f`. Independent read-only review
+  confirmed five indexed files, 175 hashes, 446 source contexts and 1,890 embedded OpenGL
+  source files (content/executability). The unsafe partial example path filter is replaced
+  with the common `source_bundle.safe_name` gate before child metadata access. Production
+  opt-in capture hooks remain assigned separately; closure and relink are still pending.
+* The whole-host path now includes the USB writer suite and serial local-fixture SMB/NFS
+  transport/security/VFS/loader/frontend/editor/NFS-server checks. Its Docker entrypoint also
+  requires private `/data` tmpfs. Shell syntax, two documentary Python AST blocks and inert
+  aggregate runner ordering/refusal checks passed; these are **not** execution of those suites.
+* Scene themes are still assigned for final delivery. No unfinished worker report counts as PASS.
+* The additive network-catalog import assignment was interrupted by a tool `cyber_policy`
+  error. It has not been retried, rephrased or routed around. This is not a translation-test
+  failure or a completed import; original handoffs remain preserved, and final coverage is pending.
+
+New private host/native workspace preparation uses read-only old caches only as seeds.
+No seeded old object/package is accepted as the final build. All remaining composition,
+catalogs, final version/changeset, one frozen HEAD's host/UI/native gates, binary-bound
+materials/relink and hardware limits must still be resolved before closing 1.006.000.
+
+### Earlier evidence (snapshot-specific)
+
 | Workstream | Current evidence / disposition |
 |---|---|
 | Cover Flow | Worker `903c233` reviewed and cherry-picked as `63b5c97`. Integrated focused controller/Lua/render regression passed at 720p/1080p (`sh_17fb458ed001cnUb8V89g1PhE5`), with 18 captures reporting no GL errors. Five new msgids translated in all 30 catalogs: 581 texts, zero problems and no additional length warnings. PS5 remains unqualified. |

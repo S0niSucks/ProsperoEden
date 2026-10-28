@@ -9,6 +9,10 @@ set -euo pipefail
     echo 'The full host suite requires --tmpfs /mnt/usb0:rw,size=256m for its synthetic USB checks.' >&2
     exit 2
 }
+mountpoint -q /data && [[ $(stat -f -c %T /data) == tmpfs ]] || {
+    echo 'Writer-admission fixtures require --tmpfs /data:rw,size=128m (never a real app-data mount).' >&2
+    exit 2
+}
 # Never rsync a new snapshot over a build already using this volume.
 exec 9>/work/.prosperoeden-build.lock
 flock -n 9 || { echo 'This Docker build volume is busy; use a separate volume or wait for its job.' >&2; exit 2; }
