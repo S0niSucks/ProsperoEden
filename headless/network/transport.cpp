@@ -81,6 +81,7 @@ bool Valid(const Share& s) {
         inet_pton(AF_INET, s.server.c_str(), &address) == 1 && address.s_addr != INADDR_ANY &&
         address.s_addr != INADDR_BROADCAST &&
         (s.protocol == "smb" ? Component(s.share) : export_ok) && SafePath(s.folder, true) &&
+        SafePath(s.updates_dir, true) &&
         bounded(s.user) && bounded(s.password) && bounded(s.domain) &&
         (s.protocol != "smb" || !s.user.empty() || (s.password.empty() && s.domain.empty() && !s.encrypt)) &&
         (s.protocol != "nfs" || (s.user.empty() && s.password.empty() && s.domain.empty() && !s.encrypt)) &&
@@ -108,6 +109,7 @@ struct Session::Impl {
     std::list<Key> ages;
     std::size_t cached = 0;
     std::uint64_t reads = 0;
+    std::uint64_t transferred = 0;
     explicit Impl(Share s) : share(std::move(s)) {}
     void Destroy() {
         // NFSv3 read-only close is local and immediate (no COMMIT/CLOSE RPC). Release handles
@@ -283,7 +285,7 @@ bool Session::Stat(std::string_view path, Entry* entry) {
 bool Session::List(std::string_view path, std::vector<Entry>* entries) {
     std::lock_guard lock(impl->mutex);
     auto& i = *impl;
-    if (!entries || !SafePath(path, true) || !i.Check()) return false;
+    if (!entries || !SafePath(path, true) || !i.Check() || !ChargeTransfer(0)) return false;
     entries->clear();
     Entry parent;
     const auto deadline = i.Deadline();
@@ -336,6 +338,7 @@ std::size_t Session::Read(const Entry& entry, unsigned char* data, std::size_t s
         auto found = i.cache.find(key);
         if (found == i.cache.end()) {
             const auto bytes = static_cast<std::size_t>(std::min<std::uint64_t>(kBlock, entry.size - block_at));
+            if (!ChargeTransfer(bytes)) return 0;
             while (i.cached + bytes > i.share.cache_bytes && !i.ages.empty()) {
                 const auto victim = i.cache.find(i.ages.back());
                 i.cached -= victim->second.bytes.size(); i.cache.erase(victim); i.ages.pop_back();
@@ -356,6 +359,7 @@ std::size_t Session::Read(const Entry& entry, unsigned char* data, std::size_t s
                     i.Fail("Network game was truncated or returned an invalid read. Start again after reconnecting."); return 0;
                 }
                 read += static_cast<std::size_t>(c.status);
+                i.transferred += static_cast<std::size_t>(c.status);
             }
             i.ages.push_front(key); i.cached += block.size();
             found = i.cache.emplace(key, Impl::Block{std::move(block), i.ages.begin(), entry}).first;
@@ -373,4 +377,5 @@ std::size_t Session::Read(const Entry& entry, unsigned char* data, std::size_t s
 }
 std::size_t Session::CachedBytes() const { std::lock_guard lock(impl->mutex); return impl->cached; }
 std::uint64_t Session::TransportReads() const { std::lock_guard lock(impl->mutex); return impl->reads; }
+std::uint64_t Session::TransferredBytes() const { std::lock_guard lock(impl->mutex); return impl->transferred; }
 } // namespace Eden::Network

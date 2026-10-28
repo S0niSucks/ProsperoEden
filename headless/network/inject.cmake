@@ -10,3 +10,10 @@ if(network_open_at LESS 0)
 endif()
 string(REPLACE "${network_open}" "${network_open}\n    if (::Eden::Network::IsPath(path_))\n        return perms == OpenMode::Read ? ::Eden::Network::OpenVfs(path_) : nullptr;"
     vfs_real_source "${vfs_real_source}")
+set(network_directory "VirtualDir RealVfsFilesystem::OpenDirectory(std::string_view path_, OpenMode perms) {")
+string(FIND "${vfs_real_source}" "${network_directory}" network_directory_at)
+if(network_directory_at LESS 0)
+    message(FATAL_ERROR "Pinned OpenDirectory changed; review bounded network add-on routing")
+endif()
+string(REPLACE "${network_directory}" "${network_directory}\n    if (::Eden::Network::IsPath(path_))\n        return perms == OpenMode::Read ? ::Eden::Network::OpenVfsDirectory(path_) : nullptr;"
+    vfs_real_source "${vfs_real_source}")

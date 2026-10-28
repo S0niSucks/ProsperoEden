@@ -90,7 +90,8 @@ endif()
         compiler = ["clang++-18", "--target=x86_64-sie-ps5", "-std=c++20", "-isysroot", sdk,
                     "-isystem", f"{sdk}/target/include/c++/v1", "-isystem", f"{sdk}/target/include",
                     *includes, "-fexceptions", "-fcxx-exceptions"]
-        subprocess.run([*compiler, "-fsyntax-only", adapter], check=True)
+        for source in (adapter, str(ROOT / "headless/network/metadata.cpp")):
+            subprocess.run([*compiler, "-fsyntax-only", source], check=True)
         # Only JSON's architecture-independent headers may come from the host. Never put
         # /usr/include on an SDK compilation's search path (it would mix libc ABIs).
         shutil.copytree("/usr/include/nlohmann", work / "include/nlohmann", dirs_exist_ok=True)

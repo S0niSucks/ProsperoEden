@@ -169,7 +169,7 @@ follow symlinks = no
                     f"-DEDEN_NETWORK_DEPS={deps}", "-DEDEN_NETWORK_CHECK=ON", "-DCMAKE_BUILD_TYPE=Debug", *flags], check=True)
     subprocess.run(["cmake", "--build", str(build), "--target", "eden-network-check", "-j2"], check=True)
     smbd = subprocess.Popen(["smbd", "--foreground", "--no-process-group", "--configfile", str(config)],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     nfs = Server(("127.0.0.1", 12049), Nfs)
     stalled = Server(("127.0.0.1", 19998), Stalled)
     for server in (nfs, stalled): threading.Thread(target=server.serve_forever, daemon=True).start()

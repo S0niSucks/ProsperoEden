@@ -15,6 +15,7 @@
 
 namespace Eden::Network {
 namespace {
+thread_local ReadBudget* budget = nullptr;
 struct Location {
     Share share;
     std::shared_ptr<Session> session;
@@ -76,6 +77,7 @@ std::vector<Share> ReadConfig(const std::string& file, std::string* error) {
             s.id = value.at("id").get<std::string>(); s.name = value.value("name", s.id);
             s.protocol = value.at("protocol").get<std::string>(); s.server = value.at("server").get<std::string>();
             s.share = value.at("share").get<std::string>(); s.folder = value.value("folder", "");
+            s.updates_dir = value.value("updates_dir", "");
             s.user = value.value("user", ""); s.password = value.value("password", ""); s.domain = value.value("domain", "");
             s.port = value.value("port", s.protocol == "nfs" ? 2049 : 445);
             s.mount_port = value.value("mount_port", 0);
@@ -96,6 +98,21 @@ std::vector<Share> ReadConfig(const std::string& file, std::string* error) {
     }
 }
 } // namespace
+
+ReadBudget::ReadBudget(std::size_t bytes) : previous(budget), remaining(bytes),
+    deadline(std::chrono::steady_clock::now() + std::chrono::seconds(5)) { budget = this; }
+ReadBudget::~ReadBudget() { budget = previous; }
+bool ReadBudget::Exhausted() const { return exhausted || std::chrono::steady_clock::now() >= deadline; }
+bool ReadBudget::Charge(std::size_t bytes) {
+    if (Exhausted() || bytes > remaining || (previous && !previous->Charge(bytes))) { exhausted = true; return false; }
+    remaining -= bytes; return true;
+}
+bool AllowAllocation(std::size_t bytes) {
+    if (!budget) return true;
+    if (bytes > (4u << 20)) { (void)budget->Charge(static_cast<std::size_t>(-1)); return false; }
+    return budget->Charge(0);
+}
+bool ChargeTransfer(std::size_t bytes) { return !budget || budget->Charge(bytes); }
 
 void StopDiscovery() {
     auto& m = State(); m.stop = true;
@@ -151,6 +168,9 @@ void Refresh() {
             };
             for (const auto& e : entries) {
                 if (m.stop || !okay) break;
+                // The configured add-on tree is never offered as a bootable game.
+                if (!l.share.updates_dir.empty() &&
+                    (e.path == l.share.updates_dir || l.share.updates_dir.starts_with(e.path + '/'))) continue;
                 if (!e.directory) { append(e); continue; }
                 std::vector<Entry> children;
                 // One level of game folders, as in the local library; no recursive NAS crawl.
@@ -201,7 +221,7 @@ bool Known(std::string_view uri) {
 }
 Opened Open(std::string_view uri) {
     std::string id, path;
-    if (!Split(uri, &id, &path) || path.empty()) return {};
+    if (!Split(uri, &id, &path) || path.empty() || !ChargeTransfer(0)) return {};
     std::shared_ptr<Session> session;
     auto& m = State();
     {
@@ -216,6 +236,30 @@ Opened Open(std::string_view uri) {
     Entry entry;
     if (!session || !session->Stat(path, &entry) || entry.directory) return {};
     return {std::move(session), std::move(entry)};
+}
+std::vector<std::string> AddonRoots(std::string_view game) {
+    std::string id, path;
+    if (!Split(game, &id, &path)) return {};
+    auto& m = State(); std::lock_guard lock(m.mutex);
+    for (const auto& l : m.locations)
+        if (l.share.id == id && l.share.enabled && !l.share.updates_dir.empty() && l.session->Healthy())
+            return {Uri(id, l.share.updates_dir)};
+    return {};
+}
+OpenedDirectory OpenDirectory(std::string_view uri) {
+    std::string id, path;
+    if (!Split(uri, &id, &path)) return {};
+    auto& m = State(); std::lock_guard lock(m.mutex);
+    for (const auto& l : m.locations) {
+        const auto& root = l.share.updates_dir;
+        if (l.share.id != id || !l.share.enabled || root.empty()) continue;
+        const bool child = path.starts_with(root + '/') && path.substr(root.size() + 1).find('/') == path.npos;
+        if (path != root && !child) return {};
+        if (m.game && std::none_of(m.active.begin(), m.active.end(), [&](const auto& w) { return w.lock() == l.session; }))
+            m.active.push_back(l.session);
+        return {l.session, id, path, child ? 1u : 0u};
+    }
+    return {};
 }
 void BeginGame() { auto& m = State(); std::lock_guard lock(m.mutex); m.active.clear(); m.game = true; }
 void EndGame() { auto& m = State(); std::lock_guard lock(m.mutex); m.active.clear(); m.game = false; }

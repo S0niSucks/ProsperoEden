@@ -126,6 +126,9 @@ void Launcher::finish_scan(bool wait)
     try
     {
         apply_games(scan_.get());
+        // Asynchronous share discovery may have made the saved pe-net identity available.
+        // Read Home only after the worker releases the metadata bridge; do not lose its place.
+        read_home();
     }
     catch (const std::exception &error)
     {
@@ -170,8 +173,19 @@ void Launcher::name_home_games()
     // Games carry their own names; until one has been read the home screen names it by its file.
     for (const Game &game : games_)
     {
-        if (game.file == home_.last_file)
+        if (game.file == home_.last_file) {
             home_.last_title = game.name;
+            if (game.network) {
+                home_.last_title_id = game.title_id;
+                home_.last_cover = game.cover;
+                home_.last_language = game.language;
+                home_.last_addons = game.addons;
+                if (!game.language_note.empty()) {
+                    home_.last_caption = game.language_note;
+                    home_.last_caption_warning = true;
+                }
+            }
+        }
         for (Recent &recent : home_.recents)
             if (recent.file == game.file)
                 recent.title = game.name;
@@ -181,6 +195,7 @@ void Launcher::name_home_games()
 void Launcher::read_home()
 {
     home_ = services_.home();
+    name_home_games();
     home_.last_title = shown_name(fonts_.font, home_.last_title, home_.last_file);
     for (Recent &recent : home_.recents)
         recent.title = shown_name(fonts_.font, recent.title, recent.file);

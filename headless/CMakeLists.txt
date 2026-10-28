@@ -3516,6 +3516,7 @@ endif()
 add_library(eden-metadata STATIC "${EDEN_PORT_DIR}/metadata_bridge.cpp"
     "${EDEN_PORT_DIR}/cheat_identity.cpp" "${EDEN_PORT_DIR}/cheat_probe.cpp")
 target_include_directories(eden-metadata PUBLIC "${EDEN_PORT_DIR}" PRIVATE "${PROJECT_SOURCE_DIR}/src")
+target_sources(eden-metadata PRIVATE "${EDEN_PORT_DIR}/network/metadata.cpp")
 target_link_libraries(eden-metadata PUBLIC core stb)
 target_compile_options(eden-metadata PRIVATE -fno-rtti -Wall -Wextra -Werror -Wno-unused-parameter)
 # Public JSON transport/cache/install only. HTTP is supplied by the existing curl object.

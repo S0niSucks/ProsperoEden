@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -11,7 +12,7 @@
 namespace Eden::Network {
 // No URLs or ambient credentials: only explicitly configured numeric IPv4 endpoints.
 struct Share {
-    std::string id, name, protocol = "smb", server, share, folder;
+    std::string id, name, protocol = "smb", server, share, folder, updates_dir;
     std::string user, password, domain; // private configuration, never a Status or diagnostic
     int port = 445, mount_port = 0, uid = 65534, gid = 65534;
     int timeout_ms = 5000;
@@ -58,11 +59,31 @@ public:
     std::string Error() const; // fixed messages; never library/server error strings
     std::size_t CachedBytes() const;
     std::uint64_t TransportReads() const;
+    std::uint64_t TransferredBytes() const;
 private:
     struct Impl;
     std::unique_ptr<Impl> impl;
 };
 struct Opened { std::shared_ptr<Session> session; Entry entry; };
+struct OpenedDirectory { std::shared_ptr<Session> session; std::string id, path; unsigned depth = 0; };
+
+// A per-thread metadata/provider probe budget, independent of the runtime block cache.
+// Budget refusal is a metadata fallback, not a transport disconnect. Nested scopes share limits.
+class ReadBudget {
+public:
+    explicit ReadBudget(std::size_t bytes = 32u << 20);
+    ~ReadBudget();
+    ReadBudget(const ReadBudget&) = delete;
+    bool Exhausted() const;
+    bool Charge(std::size_t bytes);
+private:
+    ReadBudget* previous;
+    std::size_t remaining;
+    std::chrono::steady_clock::time_point deadline;
+    bool exhausted = false;
+};
+bool AllowAllocation(std::size_t bytes);
+bool ChargeTransfer(std::size_t bytes);
 
 // The manager owns menu discovery only. Files retain shared session ownership after the menu
 // has closed. Reload/disconnect cancels old sessions rather than invalidating their pointers.
@@ -74,6 +95,8 @@ Status Current();
 std::vector<Game> Games();
 bool Known(std::string_view uri);
 Opened Open(std::string_view uri);
+OpenedDirectory OpenDirectory(std::string_view uri);
+std::vector<std::string> AddonRoots(std::string_view game);
 // Game I/O errors are latched, not thrown across HLE/guest threads. Main stops the session.
 void BeginGame();
 void EndGame();

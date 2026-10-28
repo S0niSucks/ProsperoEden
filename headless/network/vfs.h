@@ -5,4 +5,5 @@
 
 namespace Eden::Network {
 FileSys::VirtualFile OpenVfs(std::string_view uri);
+FileSys::VirtualDir OpenVfsDirectory(std::string_view uri);
 } // namespace Eden::Network

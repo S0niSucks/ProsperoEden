@@ -8,6 +8,7 @@
 #include "diagnostics.h"
 #include "multiplayer_logging.h"
 #include "network/room.h"
+#include "network/metadata.h"
 #include "metadata_bridge.h"
 #include "mods.h"
 #include "profiles.h"
@@ -283,6 +284,14 @@ std::string GameTitle(const std::string& filename) {
 std::string EnsureCover(const std::string& filename, std::string* title = nullptr) {
     const std::string cover = CoverPath(filename);
     if (Eden::FileExists(cover) && !title) return cover;
+    if (Eden::Network::IsPath(filename)) {
+        const auto metadata = Eden::Network::CachedMetadata(filename);
+        if (!metadata.title.empty()) {
+            SaveTitle(filename, metadata.title);
+            if (title) *title = metadata.title;
+        }
+        return Eden::FileExists(cover) ? cover : std::string{};
+    }
     const std::string rom = Eden::GamesPath("roms/" + filename);
     if (!Eden::FileExists(rom)) return {};
     (void)mkdir(Eden::CoversDir().c_str(), 0777);
@@ -762,17 +771,18 @@ pe::ui::Home EdenServices::home() {
     home.last_file = Eden::LoadLastGame();
     // A game no longer in the game files folder is not offered: the most recent one that is
     // takes its place (or none).
-    if (!home.last_file.empty() && !IsFile(Eden::GamesPath("roms/" + home.last_file))) {
+    if (!home.last_file.empty() && !game_exists(home.last_file)) {
         home.last_file.clear();
         for (const auto& name : Eden::LoadRecentGames()) {
-            if (IsFile(Eden::GamesPath("roms/" + name))) {
+            if (game_exists(name)) {
                 home.last_file = name;
                 break;
             }
         }
     }
-    const std::string last_path = Eden::GamesPath("roms/" + home.last_file);
-    home.last_exists = !home.last_file.empty() && IsFile(last_path);
+    const bool network_last = Eden::Network::IsPath(home.last_file);
+    const std::string last_path = network_last ? home.last_file : Eden::GamesPath("roms/" + home.last_file);
+    home.last_exists = !home.last_file.empty() && game_exists(home.last_file);
     if (!home.last_file.empty()) {
         std::string title = GameTitle(home.last_file);
         std::string cover = CoverPath(home.last_file);
@@ -790,13 +800,16 @@ pe::ui::Home EdenServices::home() {
     // The last game's update and DLC and the language it will use; when it does not offer the
     // chosen one, the caption says so.
     if (home.last_exists && pe::ui::ready_for_game(home, home.last_file)) {
-        if (home.setup_ready)
+        if (home.setup_ready && !network_last)
             eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
                              Eden::AssetsPath("keys").c_str());
-        const uint64_t title_id = eden_game_title_id(last_path.c_str());
-        const GameLanguage language = LanguageFor(last_path, title_id, Eden::PreferencesFor(title_id).language);
+        const uint64_t title_id = network_last ?
+            Eden::Network::CachedMetadata(last_path).title_id :
+            eden_game_title_id(last_path.c_str());
+        const GameLanguage language = network_last ? GameLanguage{} :
+            LanguageFor(last_path, title_id, Eden::PreferencesFor(title_id).language);
         home.last_title_id = title_id;
-        home.last_addons = AddOnSummary(title_id);
+        if (!network_last) home.last_addons = AddOnSummary(title_id);
         home.last_language = language.label;
         if (!language.note.empty()) {
             home.last_caption = language.note;
@@ -811,7 +824,7 @@ pe::ui::Home EdenServices::home() {
         history.push_back(home.last_file);
     }
     for (const auto& name : history) {
-        if (!IsFile(Eden::GamesPath("roms/" + name))) continue;
+        if (!game_exists(name)) continue;
         home.recents.push_back({name, GameTitle(name), EnsureCover(name)});
     }
     const int installed = CountInstalledGames();
@@ -957,16 +970,34 @@ std::vector<pe::ui::Game> EdenServices::games() {
         game.remote = true;
         games.push_back(std::move(game));
     }
+    // Bound the whole network metadata pass, not five seconds per NAS file.
+    Eden::Network::ReadBudget library_budget(128u << 20);
     for (const auto& entry : Eden::Network::Games()) {
         pe::ui::Game game;
         game.file = entry.uri;
         game.name = entry.name;
+        if (const auto saved = SavedTitle(entry.uri); Eden::UsableName(saved)) game.name = Eden::PlainName(saved);
         game.format = entry.uri.substr(entry.uri.size() - 3);
         std::transform(game.format.begin(), game.format.end(), game.format.begin(),
             [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         game.size = SizeLabel(static_cast<double>(entry.size)) + " / " + tr("Network") + " / " + entry.location;
         game.addons = tr("Read-only network game. Saves, mods and caches stay local.");
         game.network = true;
+        if (setup_.empty() || Eden::IsHomebrewFile(entry.uri)) {
+            Eden::Network::ReadBudget metadata_budget;
+            const auto metadata = Eden::Network::InspectGame(entry.uri, Eden::AssetsPath("keys"), CoverPath(entry.uri));
+            if (metadata.content == EDEN_CONTENT_UPDATE || metadata.content == EDEN_CONTENT_DLC) continue;
+            game.title_id = metadata.title_id;
+            if (!metadata.title.empty()) { game.name = metadata.title; SaveTitle(entry.uri, game.name); }
+            if (game.title_id) {
+                const auto language = LanguageFor(entry.uri, game.title_id, Eden::PreferencesFor(game.title_id).language);
+                game.language = language.label; game.language_note = language.note;
+                game.addons = AddOnSummary(game.title_id);
+                game.addons_short = AddOnSummary(game.title_id, true);
+            }
+            if (!metadata.error.empty()) game.addons = metadata.error;
+        }
+        if (Eden::FileExists(CoverPath(entry.uri))) game.cover = CoverPath(entry.uri);
         games.push_back(std::move(game));
     }
     std::sort(games.begin(), games.end(),

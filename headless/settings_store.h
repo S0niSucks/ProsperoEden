@@ -43,6 +43,7 @@
 // text files of earlier versions (settings.txt, last-game.txt, recent-games.txt, assets-dir.txt,
 // game-<title>-mode.txt) are read once into the JSON file and left in place.
 #pragma once
+#include "network/identity.h"
 #include "hud.h"
 #include <algorithm>
 #include <array>
@@ -207,6 +208,9 @@ inline bool ValidRomPath(std::string_view name) {
     }
     return IsGameFile(name);
 }
+// Do not relax local filesystem validation to store network history. URI validation is pure,
+// credential-free and independent of whether its explicitly configured share is online now.
+inline bool ValidGameIdentity(std::string_view name) { return ValidRomPath(name) || Network::ValidGameUri(name); }
 
 // A wallpaper's file name: the name alone (the image lives in the wallpapers folder), readable
 // characters, at most 128 bytes. Empty means no wallpaper; "." and ".." are never a file.
@@ -1018,11 +1022,11 @@ inline bool SaveCheatOff(uint64_t title_id, std::string_view key, bool off, cons
 inline std::string LoadLastGame(const std::string& file = SettingsFile()) {
     const Settings::Json document = Settings::Load(file);
     const std::string name = Settings::String(document, Settings::Json::json_pointer("/library/last_game"));
-    return ValidRomPath(name) ? name : std::string{};
+    return ValidGameIdentity(name) ? name : std::string{};
 }
 
 inline bool SaveLastGame(std::string_view name, const std::string& file = SettingsFile()) {
-    if (!ValidRomPath(name)) return false;
+    if (!ValidGameIdentity(name)) return false;
     Settings::Json document = Settings::Load(file);
     document["version"] = 1;
     document["library"]["last_game"] = std::string(name);
@@ -1038,14 +1042,14 @@ inline std::vector<std::string> LoadRecentGames(const std::string& file = Settin
     for (const auto& entry : document.at(at)) {
         if (!entry.is_string()) continue;
         const std::string name = entry.get<std::string>();
-        if (recent.size() < 8 && ValidRomPath(name) && std::find(recent.begin(), recent.end(), name) == recent.end())
+        if (recent.size() < 8 && ValidGameIdentity(name) && std::find(recent.begin(), recent.end(), name) == recent.end())
             recent.push_back(name);
     }
     return recent;
 }
 
 inline bool SaveRecentGame(std::string_view name, const std::string& file = SettingsFile()) {
-    if (!ValidRomPath(name)) return false;
+    if (!ValidGameIdentity(name)) return false;
     auto recent = LoadRecentGames(file);
     recent.erase(std::remove(recent.begin(), recent.end(), name), recent.end());
     recent.insert(recent.begin(), std::string(name));

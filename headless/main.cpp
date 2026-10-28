@@ -664,6 +664,19 @@ int main(int argc, char** argv) {
         launch_error.clear();
         Eden::Network::BeginGame();
         SCOPE_EXIT { Eden::Network::EndGame(); };
+        if (Eden::Network::IsPath(selected_game)) {
+            // The Library may last have inspected another copy/title/share. Refresh this share's
+            // summary before reading update-language preferences; never reuse another scan's state.
+            Eden::Network::ReadBudget probe;
+            const auto roots = Eden::Network::AddonRoots(selected_game);
+            eden_scan_addons(roots.empty() ? nullptr : roots.front().c_str(), nullptr, Eden::AssetsPath("keys").c_str());
+            if (probe.Exhausted()) throw std::runtime_error("Network add-on scan exceeded its metadata budget. Use a smaller dedicated updates folder.");
+            if (const auto error = Eden::Network::GameError(); !error.empty()) throw std::runtime_error(error);
+        } else {
+            // A preceding network Library pass must not supply a local copy's update languages.
+            eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
+                             Eden::AssetsPath("keys").c_str());
+        }
         if (!rooms.BeginGame()) throw std::runtime_error("Join a room successfully or leave it before starting a game.");
         SCOPE_EXIT { rooms.EndGame(); };
         const auto nextendo_profile = Eden::Profiles::SettingsValue(Eden::Settings::LoadWhole(Eden::SettingsFile()), "/profiles/current");
@@ -725,7 +738,7 @@ int main(int argc, char** argv) {
         // The game as the Library names it: its path in roms/ ("Game.nsp", or "Game/Game.nsp" in a
         // game folder), else its file name. Its cover and its place among the recent games go by it.
         const std::string roms_folder = Eden::GamesPath("roms/");
-        const std::string rom_name = selected_game.rfind(roms_folder, 0) == 0
+        const std::string rom_name = Eden::Network::IsPath(selected_game) ? selected_game : selected_game.rfind(roms_folder, 0) == 0
                                          ? selected_game.substr(roms_folder.size())
                                          : std::filesystem::path(selected_game).filename().string();
         // The audio and the renderer read this game's own settings (Library > Game settings).
@@ -1608,10 +1621,20 @@ int main(int argc, char** argv) {
                 // Update and DLC files (NSP or XCI) in the game files' updates folder apply to their
                 // base game: Eden's ExternalContentProvider, which the patch manager checks first.
                 // So do those in the game's own folder, when it has one (roms/<folder>/, issue 168).
-                Settings::values.external_content_dirs = {Eden::GamesPath("updates")};
+                Settings::values.external_content_dirs = guest && Eden::Network::IsPath(guest) ?
+                    Eden::Network::AddonRoots(guest) : std::vector<std::string>{Eden::GamesPath("updates")};
                 if (const std::string& folder = Eden::Mods::SessionGameFolder(); !folder.empty())
                     Settings::values.external_content_dirs.push_back(folder);
-                system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
+                {
+                    // Provider construction parses remote container tables, not whole game data.
+                    // A partial/budget-aborted add-on catalogue must never silently boot the base.
+                    std::unique_ptr<Eden::Network::ReadBudget> network_probe;
+                    if (Eden::Network::IsPath(guest)) network_probe = std::make_unique<Eden::Network::ReadBudget>();
+                    system.GetFileSystemController().CreateFactories(*system.GetFilesystem());
+                    if (network_probe && network_probe->Exhausted())
+                        throw std::runtime_error("Network add-on scan exceeded its metadata budget. Use a smaller dedicated updates folder.");
+                    if (const auto error = Eden::Network::GameError(); !error.empty()) throw std::runtime_error(error);
+                }
                 // The game's own contents, registered as Eden's desktop frontends do before booting a
                 // game (ConfigureFilesystemProvider). An update's data is a patch on the base game's:
                 // the patch manager looks the base up here, and without it applied only the update's

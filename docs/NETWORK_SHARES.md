@@ -4,9 +4,10 @@ ProsperoEden can discover NSP, XCI and NRO files on explicitly configured SMB/NF
 shares and give Eden random-access reads without downloading a complete game.
 Local ROM paths and the existing HTTP/download-source system are unchanged.
 
-**Status:** focused host protocol tests and SDK compile/link checks passed on
-2026-10-27. No full emulator/native-app build, console run, actual game launch or
-PS5 interoperability/performance result is claimed.
+**Status:** host implementation includes Library metadata, credential-free history,
+pre-launch title settings and read-only external updates/DLC. Focused real-loader,
+controller/lifetime, protocol and SDK checks are described below. No full emulator/
+native-app build, console run, actual game launch or PS5 performance result is claimed.
 
 ## Configuration and Settings
 
@@ -15,6 +16,12 @@ then open **Settings > Network shares > Reconnect**. The dialog shows the actual
 configuration path, scan status, game count and sanitized errors. Cross reloads
 settings and reconnects; Square disconnects/cancels; Circle returns. Configuration
 is file-based; there is no in-UI server/credential editor in this implementation.
+The existing native `AskSystemKeyboard` does support masked password entry. However,
+the runtime-launcher keyboard bridge publishes completed text in its query status;
+it is not safe to reuse for network credentials. This feature does not expose a
+network credential keyboard/action/query, reuse that status path, or echo secrets.
+A unified safe add/edit flow and console password-dialog qualification remain separate
+work; file-based configuration is intentional, not a claim that native text entry is absent.
 
 Example using documentation-only addresses and placeholder credentials:
 
@@ -27,7 +34,8 @@ Example using documentation-only addresses and placeholder credentials:
       "protocol": "smb",
       "server": "192.0.2.10",
       "share": "games",
-      "folder": "Switch",
+       "folder": "Switch",
+       "updates_dir": "addons",
       "user": "read-only-user",
       "password": "<private read-only password>",
       "domain": "",
@@ -65,6 +73,11 @@ Example using documentation-only addresses and placeholder credentials:
   `.`/`..`, empty components, backslashes, control bytes, URI escaping and unsafe
   delimiters are rejected. Relative paths are at most 2048 bytes. SMB `share` is
   one component; NFS `share` is an absolute export path.
+- Optional `updates_dir` is relative to `folder` (e.g. `folder: "Switch"` and
+  `updates_dir: "addons"` reads `Switch/addons`). Empty/absent disables separate
+  network add-ons. Only that root and one subfolder level are exposed read-only to
+  Eden's actual `ExternalContentProvider`; the tree is excluded from boot-game discovery.
+  Other directories and deeper descendants are not exposed by `OpenDirectory`.
 - `port` defaults to 445 (SMB) or 2049 (NFS). NFS `mount_port: 0` uses the server's
   portmapper; set it explicitly for a fixed-port/firewalled service.
 - `timeout_ms`: 250–15000, default 5000, per operation/entire VFS read, not per
@@ -91,6 +104,12 @@ an encrypted credential vault or secure-memory implementation. The UI, errors
 and library identifiers never include passwords or credential URLs. JSON/library
 error strings are not forwarded. Do not put credentials in `id`, `name` or file
 names, and do not include the private JSON in diagnostics or source control.
+`tools/network_privacy.py` supplies a case-insensitive config/staged-sibling deny
+rule for shared diagnostics/backups/exports. Distribution and launcher-pack collectors use it,
+and Git ignores `**/config/network-shares.json*`. Crash diagnostics in this checkout
+record selected lifecycle fields, not configuration-file contents. A separate shared
+backup/diagnostics collector must apply this rule too; that collector is not present
+in this worktree and its coordinator-owned integration must not be assumed complete.
 
 Configure the server share/export read-only too. Client operations never request
 writes, truncation, renames or creation. Discovery skips reported links/special
@@ -110,12 +129,32 @@ server. Do not modify game files while a session is active.
   supported: they could require full unpacking or different directory semantics.
   Loader directory probes receive an isolated, empty read-only directory instead
   of a null pointer, so invalid container bytes are not a null-directory crash.
-- Games appear beside local games, labelled **Network** and the share name, with the file stem as
-  their title. Discovery does not decrypt containers or download cover art. Title
-  IDs are read through the network VFS at launch using the existing metadata path.
+- Games appear beside local games, labelled **Network** and the share name. The
+  asynchronous Library pass uses the existing real metadata bridge through network
+  VFS for container title IDs/control data and NRO ASET/NACP/icons. Covers/names are
+  cached locally using the complete credential-free identity; missing/invalid data
+  falls back to the saved name/cover and then file stem, never a guessed title ID.
+  Once known, title-specific settings are available before launch. Home consumes
+  cached Library metadata without synchronous network metadata reads.
+- Metadata scopes allow at most 32 MiB of transport payload per game/add-on probe,
+  4 MiB per direct VFS byte-vector request, and five seconds between requests. The
+  whole network Library pass also has a 128 MiB/five-second scope. An in-flight
+  request retains its configured operation timeout. These are not hard limits on
+  every allocation inside the inherited container parsers/protocol libraries.
+  Metadata refusal uses a filename fallback; an incomplete launch-time add-on
+  scan aborts launch rather than silently starting a different/base version.
 - Credential-free `pe-net://<id>/<relative-path>` identifiers are intercepted only
-  by `RealVfsFilesystem::OpenFile` in read mode. Other paths retain local behavior.
+  by `RealVfsFilesystem::OpenFile` in read mode, with narrowly scoped add-on
+  `OpenDirectory` routing. Other paths retain local behavior.
   Saves, mods, user data and shader caches remain on the console.
+- History/recents retain the full `pe-net` identity, validated separately from local
+  paths. Library selection follows that identity through rescans/reordering. Offline
+  shares do not turn into local paths; history remains stored for explicit reconnect.
+- Add-on registration uses the selected share's configured root, not another
+  share's or local `updates/` directory. The existing provider/CNMT/NCA title IDs
+  and PatchManager select matching content and newest versions, not file labels.
+  The launch-time language/add-on summary is refreshed for the selected share.
+  Packed updates still follow the incumbent container/manual-provider path.
 - Each serialized protocol session owns at most 16 handles and a 256-KiB block
   LRU. On-demand read-ahead is one block, not a whole-file copy. Cached payload
   bytes never exceed the configured bound; one scratch block and client/metadata
@@ -133,15 +172,15 @@ server. Do not modify game files while a session is active.
   monitoring returns to the launcher with a sanitized error. Reconnect there and
   start the game again; there is no transparent resume.
 
-### Deliberate gaps
+### Qualification boundaries
 
-Separately stored network updates/DLC are not registered. Home recents/history,
-Library title/cover extraction and per-game settings before discovery knows a
-title ID are not fully integrated for network entries. Automatic download-source
-save sync and the cheat-catalog installer are disabled for network games because
-their identities/folders assume local ROMs. Existing local add-ons, saves and mods
-are not relocated. Authenticated/signed/encrypted SMB success, real NFS-server
-interoperability and controller/visual behavior need dedicated acceptance runs.
+Automatic download-source save sync and the cheat-catalog installer remain disabled
+for network games because their identities/folders assume local ROMs. Saves, mods
+and caches remain local; network add-on folders are never mod/save/cache roots.
+Synthetic update tests exercise real NCA/CNMT registration/version selection and
+PatchManager ExeFS selection, not commercial BKTR delta patches, signatures, DLC
+guest mounting, real games or firmware. The controller check has inert graphics and
+unrelated console services; it is not visual/native-app/console acceptance.
 
 ## Dependencies and licensing
 
@@ -162,19 +201,30 @@ does not generate or release a package. libnfs's tag's CMake output says
 
 ## Focused acceptance evidence
 
-Only `prosperoeden-host:features` was used, with the private container/volume
-`prosperoeden-team-network-vfs-20261027` (2 CPUs, 3 GiB), this worktree mounted
-read-only as `/src`, and private outputs under `/work`. Samba and synthetic RPC
-services bind loopback. No real shares, accounts, credentials, games or keys are
-used; no coordinator cache, full emulator/native rebuild or WSL install is needed.
+Only `prosperoeden-host:features` was used, with private volume
+`prosperoeden-team-network-vfs-20261027` and continuation container
+`prosperoeden-team-network-vfs-loader-20261027` (2 CPUs, 3 GiB), this worktree
+mounted read-only as `/src`, and private outputs under `/work`. The coordinator
+volume `prosperoeden-integration-20261027` is mounted **read-only** as `/coordinator`;
+only its saved host archives/compile/link recipes are consumed. No coordinator
+build/write, full emulator/native rebuild, WSL install or LAN probing is performed.
+Samba/Ganesha/synthetic RPC endpoints use loopback. Authentication uses a disposable
+container-only account and generated password, never host/NAS accounts or secrets.
+No commercial games/keys are used.
 
 With the verified client source trees under `/work/deps` and `smbd` installed in
 the disposable container:
 
 ```sh
-docker exec prosperoeden-team-network-vfs-20261027 python3 -B /src/tools/check-network-shares.py
-docker exec -e NETWORK_SANITIZE=1 -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 prosperoeden-team-network-vfs-20261027 python3 -B /src/tools/check-network-shares.py
-docker exec -e PS5_PAYLOAD_SDK=/work/sdk/ps5-payload-sdk prosperoeden-team-network-vfs-20261027 python3 -B /src/tools/check-network-integration.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-shares.py
+docker exec -e NETWORK_SANITIZE=1 -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-shares.py
+docker exec -e PS5_PAYLOAD_SDK=/work/sdk/ps5-payload-sdk prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-integration.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-loader.py
+docker exec -e NETWORK_SANITIZE=1 -e ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 -e UBSAN_OPTIONS=halt_on_error=1 prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-loader.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-security.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-nfs-server.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-privacy.py
+docker exec prosperoeden-team-network-vfs-loader-20261027 python3 -B /src/tools/check-network-frontend.py
 ```
 
 Results: real libsmb2 against loopback guest Samba and real libnfs against a
@@ -184,6 +234,46 @@ timeouts, denied access, discovery, private config mode/symlink/FIFO/size reject
 consumer lifetime, reconnect isolation, sanitized errors and SMB truncation/file
 identity failures. NFS additionally cancels a deliberately stalled in-flight read.
 The protocol run also passes ASan/UBSan with leak detection and halt-on-error.
+Final sequential host logs are private at `/work/check-network-*-final.log`;
+the protocol/loader sanitizer logs use `*-sanitized-final.log`. Test Samba processes
+explicitly use null stdin: inheriting a piped check driver's exhausted stdin makes
+foreground Samba exit with `EOF on stdin`, which is a harness failure, not SMB evidence.
+The optional loader sanitizer run instruments the newly compiled feature/controller
+objects and network clients; the coordinator's saved core/metadata archives are
+not rebuilt or sanitizer-instrumented. It must not be described as a sanitized
+full emulator or metadata-parser build.
+
+Continuation checks:
+
+- The loader runner compiles only feature/metadata-VFS/controller check objects and
+  relinks the saved `libeden-metadata.a`/core archives in the private volume. Real
+  network NRO ASET title/icon/title-ID extraction, NSP/CNMT title-ID extraction,
+  missing-control fallback results, pre-launch title settings and URI history round-trips
+  are exercised. A 5-GiB sparse NRO transfers less than 2 MiB for metadata.
+  Local NSP/directory access and local NAND/mod paths are checked alongside them.
+- The actual external provider built through `FileSystemController::CreateFactories`
+  exposes configured root+one child only, refuses writes, selects the newest matching
+  synthetic update/DLC, ignores a misleading foreign-title update and a newer but
+  too-deep update. Real loader/PatchManager consumers retain their original VFS
+  sessions across menu/discovery teardown and cannot revive after reconnect.
+- Native `Launcher` list/selection/settings/history consumers, destructor/async-scan
+  joining and error re-entry are exercised with real network-derived entries and
+  a service seam that supplies real network-derived metadata and inert graphics/
+  console services (not an instantiated `EdenServices`). This is not the full `main`
+  loop or an executing guest/renderer. Real transport cancellation and invalid-container
+  loader failure are tested separately from the error-screen consumer.
+  An invalid NSP loader result is also formatted with the incumbent load-failure
+  helper and passed to a new actual Launcher instance to verify failure re-entry.
+- Samba 4.19.5 with mandatory signing passes authenticated SMB2/SMB3 reads; required
+  encryption passes with SMB3. Wrong password, nonexistent-user-to-guest mapping,
+  unsigned guest against a restricted share and SMB2-only encryption requests fail
+  without fallback. Generated passwords/configs are never printed or passed in argv.
+- Real NFS-Ganesha 4.3 with **MEM FSAL** passes AUTH_SYS/TCP mount/list/stat/random
+  reads/EOF/denied-export checks. Its test-only writer seeds a bounded 1-MiB memory
+  inode; production sessions still expose reads only. This is a real protocol server,
+  distinct from the RFC1813 mock, but not a disk-backed NAS qualification. Ganesha's
+  VFS FSAL was attempted and blocked by `open_by_handle_at: Operation not permitted`
+  under ordinary Docker capabilities; no privileged container/host mount was used.
 
 Integration checks use the actual pinned Eden `67bada77f8a43a90da2e94e89b8e7da73c256989`
 headers, verify adapter retention after replacing core sources, and exercise both
