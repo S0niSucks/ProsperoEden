@@ -26,6 +26,8 @@ generated build-identity receipt, not invented in this changeset before the buil
 - Paged 4×4 Settings with the original first-page placement and reachable network category.
 - Crash/build identity, privacy/notices checks, pinned offline source restoration and opt-in
   producer/link evidence capture. These mechanisms alone do not establish source closure.
+- Native package inventory composed with the maintained no-follow notice verifier: staged
+  license files are required and byte-checked, not silently ignored as arbitrary extras.
 
 ## Acceptance still required
 

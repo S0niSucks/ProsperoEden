@@ -11,6 +11,7 @@ import sys
 from check import fixture
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
 APP = Path(os.environ.get('EDEN_PACKAGE_DIR', ROOT / 'dist/headless/PPSA99008')).resolve()
 if 'EDEN_PACKAGE_DIR' in os.environ:
     assert APP.is_relative_to(ROOT/'build') and APP.name == 'PPSA99008'
@@ -38,7 +39,18 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def check_inventory():
+    # Notice staging was added to the native package, not just the outer ZIP. Verify its exact
+    # bytes/no-follow inventory with the same maintained verifier before admitting those files.
+    notices = runpy.run_path(str(ROOT / 'tools/package-license-notices.py'))['stage'](APP, check=True)
+    required = REQUIRED | notices['files'].keys()
+    assert {p.relative_to(APP).as_posix() for p in APP.rglob('*') if p.is_file()} == required
+    assert all(not (APP / p).is_symlink() and (APP / p).stat().st_size for p in required)
+    return required
+
+
 def check():
+    global REQUIRED
     frontend = json.loads((OUT / 'frontend.json').read_text())
     assert frontend.get('gpu_probe', False) == (b'EDEN_GPU_PROBE_PASS cases=36' in (OUT / 'llvm-pie.elf').read_bytes()), 'GPU probe receipt/binary mismatch'
     if frontend['guest_fixture'] == 'retail-game':
@@ -50,8 +62,7 @@ def check():
             assert digest(APP / name) == expected, name
         REQUIRED.update(assets)
         REQUIRED.add('game-assets.json')
-    assert {p.relative_to(APP).as_posix() for p in APP.rglob('*') if p.is_file()} == REQUIRED
-    assert all(not (APP / p).is_symlink() and (APP / p).stat().st_size for p in REQUIRED)
+    REQUIRED = check_inventory()
     param = json.loads((APP / 'sce_sys/param.json').read_text())
     assert param['titleId'] == 'PPSA99008' and param['contentId'].endswith('PROSPEROEDEN0001')
     assert param['localizedParameters']['en-US']['titleName'] == 'ProsperoEden'

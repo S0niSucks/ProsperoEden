@@ -118,6 +118,9 @@ this whole scope and are not the v1.006.000 release. See the [changeset](CHANGES
   network-share credentials before traversal. Release ZIPs and native app-folder staging now
   include verified dependency notices at resolvable internal paths, preserving upstream bytes
   and the Lapy notice. Actual CLI refusal/privacy checks passed; no final PKG/install is claimed.
+  The native package inventory now admits exactly those independently verified notice files,
+  rather than rejecting the newly staged notices as unexpected payloads. Missing, modified,
+  linked, private and genuinely extra files are still refused.
 - **Source/relink evidence tooling.** An offline, immutable-snapshot collector verifies pinned
   inputs, reproducible archives and final-binary-bound relink inventories, refusing missing or
   mismatched materials. Its CLI fixtures passed. Actual source-closure collection and a verified
