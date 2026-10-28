@@ -6,9 +6,11 @@ Target release designated by the user: **1.006.000**, after integrating the comp
 Do not publish an intermediate feature batch as that completed release.
 
 **Experimental integration, not a qualified PS5 release.** No issues were closed, no upstream
-PRs were merged on GitHub, and nothing was pushed. The full host suite and Docker native
-build/package checks passed; the local ZIP is recorded below. Neither result is evidence that
-a reported game, GPU, firmware or performance problem is fixed.
+PRs were merged on GitHub, and nothing was pushed. Earlier snapshots passed host and Docker
+native build/package checks; their local ZIPs are recorded below. The later recovery host run
+stopped at guest-idle, and there is still no uninterrupted all-feature pass or complete native
+build on the current combined HEAD. None of these results proves a reported game, GPU,
+firmware or performance problem fixed. See the current [team ledger](IMPLEMENTATION_TEAM.md).
 
 ## Inventory and history
 
@@ -83,10 +85,10 @@ Local follow-up work:
 - Implemented #263: portable `wallpapers/` in the game files folder, or the console-wide
   `wallpapers_folder` setting. Existing local wallpapers remain the fallback. Host tests cover
   missing drives, invalid paths, filesystem-access denial and profile isolation of the image choice.
-- Implemented the NRO library/path portion of #242 using the existing core loader: case-insensitive
-  discovery, nested paths, counts, history and moved forwarders. NROs use file-name metadata for
-  now; the launcher's setup check still applies. Added a three-cycle real loader/JIT/guest-exit
-  fixture check, separate from extension/path tests and from PS5 homebrew compatibility.
+- Implemented #242's NRO library/path handling through the existing core loader: case-insensitive
+  discovery, nested paths, counts, history and moved forwarders, with bounded embedded names,
+  icons and languages. NRO setup does not require commercial keys/firmware. A three-cycle real
+  loader/JIT/guest-exit fixture check is separate from PS5 homebrew compatibility.
 - Added the catalog checker to host and native source checks, so missing translations fail builds.
 - Added the Docker native-build image and runner, reusing the CI tool versions and a separate
   Linux volume. These do not install a toolchain in WSL or deploy to a console.
@@ -122,9 +124,9 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #42 Chinese font detection | PS5: retest current elevation/font access on FW 9.20; older font-access fix is already in main |
 | #46 Breath of the Wild FPS | PS5: same warmed scene, settings, frame times and logs; not a generic clock-fix claim |
 | #48 Jamboree cookie-cutter freeze | PS5: reproduce minigame and collect GPU/guest logs |
-| #50 Separate game files and emulator data | Implemented `games_folder` setting for ROMs/updates apart from keys/firmware and internal caches/saves; independent picker and PS5 qualification remain |
+| #50 Separate game files and emulator data | Implemented `games_folder` and Settings picker for ROMs/updates apart from keys/firmware/caches/saves. Changing/resetting does not move files and requires reopening; PS5 qualification remains |
 | #52 Xenoblade Chronicles 3 console freeze | PS5: guest/GPU hang evidence needed |
-| #56 Amiibo files | Implemented file-backed NFC factory and in-game selection/presentation; new driver/menu checks in progress, actual PS5 game scan unverified |
+| #56 Amiibo files | File-backed NFC factory, in-game selection/presentation, catalog/photos and opt-in sync integrated. Focused core/sanitizer/renderer/service checks passed; actual PS5 game scan remains unverified |
 | #59 Pokémon Z-A flicker | PS5: graphics capture and backend comparison needed |
 | #60 3D All-Stars / Splatoon loading | PS5: retest existing pipeline fix; #298 is only a possible lead for program handovers, not a fix for both games |
 | #61 Age of Calamity 1 FPS | PS5: matched scene and synchronization trace needed |
@@ -135,26 +137,26 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #83 Naruto Storm 4 memory crash | PS5: current-version crash report and symbols needed |
 | #84 Tomodachi frame generation | PS5: plugin/backend/configuration and real presentation measurements needed |
 | #86 Tears of the Kingdom crashes | PS5: exact crash, settings and mod isolation needed |
-| #89 Nextendo | Experimental default-off profile/session/routing and real registered-client OAuth+PKCE integrated. Shared storage guards/security/core-object review pending; live registration, compatible BAAS/signing, operator trust/routes and PS5 game sign-in remain unqualified. See `features/NEXTENDO.md` |
+| #89 Nextendo | Experimental default-off profile/session/routing and OAuth+PKCE integrated; composed storage/security and genuine SDK object checks passed on their stated snapshots. Public web-token → separate-NEX contract mismatch is demonstrated offline and under repair, not just an external-registration blocker. Live registration/BAAS/signing/trust/routes and PS5 sign-in remain unqualified. See `features/NEXTENDO_PUBLIC_OAUTH_CONTRACT_REVIEW.md` |
 | #93 Graphics memory exhaustion | PS5: memory trace at default resolution and failing settings needed |
 | #97 Rest-mode freeze | Partial candidate: controller reopen/backoff integrated with mock coverage; GPU/resume lifetime and PS5 reproduction remain |
 | #99 Out-of-memory crash | PS5: distinguish host heap, graphics allocation and guest memory before changing limits |
 | #107 Just Dance controls | PS5: required controller type/accessory and applet behavior needed |
 | #109 Crash after game start | PS5: current build, title/update and logs needed |
-| #111 SMB/NFS streaming | Feature: no network-backed VFS, caching or disconnect recovery added |
+| #111 SMB/NFS streaming | Pinned clients/privacy integrated; read-only VFS/cache/metadata/add-ons/history and Settings editor delivered with focused branch tests, awaiting shared USB/launch composition. JSON-only setup is not acceptance; native prompt localization and final console qualification remain pending |
 | #112 Pokémon Z-A city not loading | PS5: title/update, guest state and renderer trace needed |
 | #116 Graphics glitches / lag | PS5: isolate visual and performance reports, with reproducible scenes |
 | #118 Fighting Force Collection | PS5: #298 may be relevant only if the log shows ExecuteProgram; Vulkan crash not proven fixed |
 | #119 Top Racer slowdown / Vulkan crash | PS5: failing service reply and GPU logs; #241 diagnostics alone would not fix it |
 | #120 Mario Kart CTGDX | Candidate #272/#276 hooks; mod version, build ID and console retest still required |
 | #122 Achilles Survivor | PS5: current title/update crash or loading trace needed |
-| #128 In-game cheat toggle | Implemented session-only quick strip and timing-owner mailbox; parser/VM/concurrency checks in progress, actual PS5 games unverified |
+| #128 In-game cheat toggle | Session-only quick strip and timing-owner mailbox integrated; focused real factory/parser/VM/concurrency checks passed. Actual PS5 games remain unverified |
 | #129 The Stretchers | PS5: startup trace and current build required |
 | #133 Cover Flow | Implemented selectable perspective library view; Grid remains default. Integrated host/controller/render checks passed at 720p/1080p; PS5 qualification remains. See `COVER_FLOW.md` |
 | #148 Monster Hunter Generations Ultimate | PS5: current-version reproduction needed |
-| #149 Separate ROM/update folders | Implemented `games_folder` in the settings file (ROMs and updates together); independent picker and PS5 USB checks remain |
+| #149 Separate ROM/update folders | Implemented Settings picker/reset for `games_folder` (ROMs and updates together, apart from emulator data); files are not moved. Reopen to apply; PS5 USB checks remain |
 | #150 Luigi's Mansion 3 | PS5: exact scene and graphics/guest logs needed |
-| #157 USB data backup | Integrated bulk backup/validation and cold-start restore; named credential exclusion and thread-creation recovery covered. Initial backend/UI checks passed; combined-worker/PS5 filesystem qualification pending. See `USB_BACKUP.md` |
+| #157 USB data backup | Bulk backup/validation and cold-start restore integrated, including staged credential exclusion and thread-creation recovery. Composed USB/Amiibo/cheat/Nextendo and separate UI checks passed on frozen snapshots; older writer-API audit, later-feature composition and PS5 filesystem qualification remain. See `USB_BACKUP.md` |
 | #173 External/custom theme engine | Feature: investigation and existing launcher packs are not full acceptance evidence |
 | #195 Metroid Prime 4 | PS5: exact failure and current-version evidence needed |
 | #202 Switch Pro Controller | Experimental wired USB transport integrated with DualSense recovery, motion and coarse rumble. Integrated sanitizer/native-target checks passed; Bluetooth unimplemented and physical PS5 tests required. See `PRO_CONTROLLER.md` |
@@ -169,7 +171,7 @@ capability is not implemented here. No entry below authorizes closing an upstrea
 | #233 Fixed-scene lost GPU device | PS5: device-fault/submission evidence required |
 | #236 Luigi's Mansion 3 floor 10 | PS5: save/scene and GPU/memory trace required |
 | #238 Abort 2010-0212 | PS5: identify malformed/failing CMIF reply; no guessed service-success patch |
-| #239 Scene themes / Themezer | Feature: large scene/import system remains unimplemented |
+| #239 Scene themes / Themezer | Partial scene/import delivery is not accepted or integrated; worker is completing linked frontend/updater/native-import validation. Lite conversion is not full acceptance |
 | #242 NRO and NSZ | NSZ/XCZ and NRO library/launcher paths, bounded embedded metadata, key-free NRO setup and recursive `switch/` import implemented; actual homebrew on PS5 unverified |
 | #246 Memory write / GPU / heap / app restart | Partial candidate #296: repeated successful write-fault promotions only; remaining three parts unresolved |
 | #248 Shared system-font mods | Implemented shared archive-font override, validation and bounded reads; actual translation/font/game on PS5 still unverified |
@@ -560,3 +562,29 @@ qualification of every integrated patch or of #284.
 Still active: verify the newest edits on host and native Docker builds and the real
 launcher preview; continue the outstanding feature implementation. No new version or
 release is declared complete yet, and no remote publishing/issue closure was performed.
+
+## Current composition checkpoint
+
+The detailed, continually updated record is [IMPLEMENTATION_TEAM.md](IMPLEMENTATION_TEAM.md).
+Its later USB/Amiibo/Nextendo, localization and packaging results supersede the earlier
+work-in-progress descriptions above, without changing those historical snapshots' scope.
+There is no current all-feature host/native qualification or final 1.006.000 package.
+
+- ZIP and app-folder notices are integrated (`00b1fdc`, `b8c3345`), with byte-preserving,
+  fail-closed CLI/privacy checks. The source/relink collector (`3e0fb73`) passed 39 offline
+  CLI tests; real pinned-material/source-closure collection and final relink remain pending.
+- Network extraction follow-up `1ec3910` is reviewed, not integrated. The coordinator repeated
+  seven steps on immutable feature/parent archives: exact 19-key extraction preserving all 659
+  existing keys/provenance, real 81×30 importer fixtures, parent-patch check, strict C++ syntax,
+  fresh backend configure/build and actual normal editor/config fixture execution. All passed.
+  The first attempt could not execute its newly built binary on Docker's default `noexec`
+  tmpfs; a minimal 0755 control reproduced that refusal, and explicit `exec` resolved it with
+  no code/assertion change. Evidence is private under
+  `.local/docker-release/network-text-review-20261027/`; status SHA-256
+  `6637791eb9867cdebab177cbff1c7cd2d3ae131319e7d1c8c344b7e7f341d969`.
+- That extraction audit found 16 native keyboard prompts plus one default name not covered
+  by the first translation batch. Immutable UI-thread-prepared prompt support and a separate
+  additive translation batch are in progress. They are not yet composed UI/runtime evidence.
+- Shared writer admission remains reserved to its audit owner. Network/scene composition,
+  the OAuth/NEX repair, final catalogs/capabilities and a single frozen final build follow the
+  completed deliveries; none is replaced by repeated intermediate release packages.

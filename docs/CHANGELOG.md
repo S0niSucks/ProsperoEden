@@ -69,7 +69,11 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   are integrated; security/HTTP regressions passed, including header-allocation faults and
   duplicate JSON rejection. Focused host/SDK object checks found and fixed SDK snapshot-type
   compatibility. Six host and six PS5-target objects now pass, including genuine-target TLS/CA
-  and curl-producer partial-link checks; the final complete build and console validation remain.
+   and curl-producer partial-link checks; the final complete build and console validation remain.
+  **Known incomplete provider contract:** the public documentation uses a web access token
+  followed by separate NEX acquisition; the current legacy direct-account conversion rejects
+  those documented forms in an offline proof. A repair is in progress. Earlier synthetic OAuth
+  tests do not establish this contract or a working live sign-in.
 
 ### Reliability and diagnostics
 
@@ -83,6 +87,14 @@ test packages do not represent this whole scope and are not the v1.006.000 relea
   when they have the same public ID. No game files, tags, keys or third-party artwork ship.
 - **Docker validation.** Native build/package checks, real-core host regressions, sanitizers
   and offscreen OpenGL/Vulkan tests run in containers without a host/WSL toolchain install.
+- **Private exports and notice placement.** Python collectors exclude Nextendo and staged
+  network-share credentials before traversal. Release ZIPs and native app-folder staging now
+  include verified dependency notices at resolvable internal paths, preserving upstream bytes
+  and the Lapy notice. Actual CLI refusal/privacy checks passed; no final PKG/install is claimed.
+- **Source/relink evidence tooling.** An offline, immutable-snapshot collector verifies pinned
+  inputs, reproducible archives and final-binary-bound relink inventories, refusing missing or
+  mismatched materials. Its CLI fixtures passed. Actual source-closure collection and a verified
+  final relink remain pending; the tool does not certify a complete source delivery or compliance.
 
 ### Remaining work and test limits
 

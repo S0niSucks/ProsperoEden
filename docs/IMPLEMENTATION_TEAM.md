@@ -112,8 +112,18 @@ existing reused keys from the expanded source inventory. The coordinator verifie
 reference hashes, real-importer schema/private idempotence and unchanged catalog bytes, and
 retained input SHA-256 `304bc230c8291da0912832a32a07a4f139911f264d8b7e61bf63fa4dcbdc5905`.
 The current-source importer correctly refuses it before composition. Nineteen backend texts
-still need extraction markers/scanner coverage; that narrow follow-up is active. Catalog/POT
-import, eleven length advisories and actual localized font/layout checks remain pending.
+are marked by delivered follow-up `1ec3910`, still awaiting network composition. The coordinator
+independently repeated exact extraction/provenance preservation, real 81×30 importer fixtures,
+parent-tools patch check, strict C++ syntax and fresh normal backend configure/build/run: all
+seven steps passed on frozen `1ec3910` / `ec43c56` archives. The original `noexec` tmpfs blocked
+binary execution; an isolated 0755 control reproduced it, and explicit `exec` resolved the
+environmental refusal without changing code/assertions. Both attempts remain under
+`.local/docker-release/network-text-review-20261027/` (passing status SHA-256
+`6637791eb9867cdebab177cbff1c7cd2d3ae131319e7d1c8c344b7e7f341d969`).
+The audit also found 16 native keyboard prompts and a persisted default name outside the batch.
+A separate 17-key translation delivery and immutable, UI-thread-prepared native prompt seam
+are active; shared UI/service callers remain reserved to parent composition. Catalog/POT import,
+eleven existing length advisories and actual localized font/layout checks remain pending.
 
 Public Nextendo OAuth contract review `e3c4791` is imported as `9cfebff`. It finds no proven
 authorization-path defect (official examples use both paths), and `profil` is a documented
