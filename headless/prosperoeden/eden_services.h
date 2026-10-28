@@ -166,7 +166,7 @@ private:
     std::mutex bridge_; // Eden's metadata reader keeps state between calls: one caller at a time
     Eden::CheatManager cheat_manager_;
     Eden::AmiiboSync amiibo_sync_;
-    // One guard for Amiibo/cheat/Nextendo/USB admission, profile/path changes and launch commitment.
+    // One guard for all launcher filesystem writers and worker starts vs USB/launch admission.
     // Lock order: admission -> bridge. Workers never take admission; never hold bridge across Stop/join.
     std::mutex job_admission_mutex_;
     bool launch_committed_ = false; // guarded by job_admission_mutex_; no reopening after will_play
@@ -202,6 +202,7 @@ private:
         std::string file;    // the game's file in roms/
     };
     void StartSync(std::vector<SyncJob> jobs, bool before);
+    bool SaveSyncWanted(const std::string& file); // caller holds admission -> bridge; not a public API
     std::thread sync_thread_;
     std::mutex sync_lock_;
     std::condition_variable sync_changed_;

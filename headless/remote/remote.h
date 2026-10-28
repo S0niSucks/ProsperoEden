@@ -29,6 +29,7 @@
 
 #include "remote/source.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -149,6 +150,10 @@ void Start(const Paths& paths, CoverWriter writer, FolderLister lister);
 // Stops the threads before a game starts: a download stops (its file stays, for later), nothing is
 // read from the network while the game runs. Waits a moment for the transfer to end.
 void Stop();
+// Protected storage needs confirmed quiescence, not Stop's bounded courtesy wait. Includes
+// queued/in-progress discard cleanup. False on cancellation; never begin a snapshot then.
+// The caller must close service admission before calling and keep it closed until resumption.
+bool StopForSnapshot(const std::atomic<bool>& stop);
 // Reads every source's game list again.
 void Refresh();
 // Files in roms/ changed (a game was deleted): the Library reads its list again.

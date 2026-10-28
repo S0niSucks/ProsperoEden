@@ -97,6 +97,7 @@ namespace Remote {
 struct Paths { std::string config, covers, roms, updates, downloads; };
 std::atomic<unsigned> stops{}, starts{};
 void Stop() { ++stops; }
+bool StopForSnapshot(const std::atomic<bool>& stop) { Stop(); return !stop; }
 void Start(const Paths&, bool(*)(const std::string&, const std::string&), std::vector<std::string>(*)(const std::string&)) { ++starts; }
 }
 namespace Multiplayer {
@@ -149,7 +150,7 @@ public:
     void cancel_usb_backup();
     void end_usb_backup();
     bool game_exists(const std::string& file) { return file == "local.nsp"; }
-    bool save_sync_wanted(const std::string&) { return false; }
+    bool SaveSyncWanted(const std::string&) { return false; }
     Eden::CheatManagerRequest CheatRequest(const pe::ui::Game& game) {
         return {game.file, (root / game.file).string(), {}, std::string{Eden::kCheatCatalogSource},
             (root / "cache").string(), (root / "mods/0100000000001234").string(), 0x0100000000001234};

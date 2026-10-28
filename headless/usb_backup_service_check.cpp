@@ -59,6 +59,7 @@ namespace Remote {
 struct Paths { std::string config, covers, roms, updates, downloads; };
 std::atomic<unsigned> stops{}, starts{};
 void Stop() { ++stops; }
+bool StopForSnapshot(const std::atomic<bool>& stop) { Stop(); return !stop; }
 void Start(const Paths&, bool(*)(const std::string&, const std::string&), std::vector<std::string>(*)(const std::string&)) { ++starts; }
 }
 }

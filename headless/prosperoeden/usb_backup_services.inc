@@ -17,11 +17,12 @@ bool EdenServices::begin_usb_backup() {
             amiibo_sync_.Stop(); // admission closed above; no catalog/photo writer may enter the snapshot
             cheat_manager_.Stop();
             usb_remote_resume_ = Eden::GamesDir() == Eden::AssetsDir() || Eden::DirectoryExists(Eden::GamesDir());
-            Eden::Remote::Stop();
+            const bool remote_idle = Eden::Remote::StopForSnapshot(usb_stop_);
             stop_save_sync();
             if (sync_thread_.joinable()) sync_thread_.join();
             pair_stop_ = true;
             if (pair_thread_.joinable()) pair_thread_.join();
+            if (!remote_idle) throw std::runtime_error("Cancelled before download sources became idle. No USB snapshot was started.");
             const std::lock_guard bridge(bridge_); // drain an outstanding library metadata scan
             result.drives = Eden::UsbBackup::Drives(Eden::kDataDir, usb_stop_);
             if (result.drives.empty()) result.error = "No safely accessible USB drive. Connect a writable USB drive and try again.";

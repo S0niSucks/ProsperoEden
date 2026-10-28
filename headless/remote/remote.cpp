@@ -104,6 +104,7 @@ struct Shared {
     std::uint64_t generation = 1;
     bool transferring = false; // the download thread is in a transfer
     bool listing = false;      // the list thread is
+    bool discarding = false;   // unlocked filesystem cleanup is also a writer
     // Read by the transfers' stop questions, without the lock.
     std::atomic<bool> halt{true};
     std::atomic<std::uint64_t> cancel{0};
@@ -830,9 +831,12 @@ void DownloadThread() {
             const std::vector<Discard> discards = std::move(s.discards);
             s.discards.clear();
             const Paths paths = s.paths;
+            s.discarding = true;
             lock.unlock();
             for (const Discard& discard : discards) RemoveStaged(paths, discard.source, discard.id, discard.names);
             lock.lock();
+            s.discarding = false;
+            s.wake.notify_all();
             continue;
         }
         Entry& entry = *next();
@@ -1066,6 +1070,20 @@ void Stop() {
     s.wake.notify_all();
     // A transfer asks whether to stop at least once a second.
     (void)s.wake.wait_for(lock, std::chrono::seconds(3), [&] { return !s.transferring && !s.listing; });
+}
+
+bool StopForSnapshot(const std::atomic<bool>& stop) {
+    Shared& s = State_();
+    std::unique_lock lock(s.lock);
+    s.halt.store(true);
+    s.wake.notify_all();
+    // DownloadThread drains discards even while halted. No service may enqueue/cancel/restart
+    // after admission closes, so an empty/idle observation under this lock is stable.
+    while (s.transferring || s.listing || s.discarding || !s.discards.empty()) {
+        if (stop.load()) return false;
+        s.wake.wait_for(lock, std::chrono::milliseconds(100));
+    }
+    return !stop.load();
 }
 
 void Refresh() {

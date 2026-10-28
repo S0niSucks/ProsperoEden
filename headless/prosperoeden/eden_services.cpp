@@ -577,17 +577,26 @@ Eden::Multiplayer::RoomDirectory EdenServices::public_rooms(const std::atomic<bo
     return Eden::Multiplayer::FetchRoomDirectory(Network::network_version, stop);
 }
 Eden::Multiplayer::Connection EdenServices::room_connection() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_); // settings reads can migrate legacy files
     auto result = Eden::LoadRoomConnection();
     if (result.nickname.empty()) result.nickname = "PlayerPS5";
     return result;
 }
 bool EdenServices::connect_room(const Eden::Multiplayer::Connection& connection) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
-    if (!Eden::SaveRoomConnection(connection)) return false;
+    {
+        const std::lock_guard lock(bridge_);
+        if (!Eden::SaveRoomConnection(connection)) return false;
+    }
     return rooms_.Connect(connection);
 }
 void EdenServices::remember_room(const Eden::Multiplayer::Connection& connection, bool private_room) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return;
+    const std::lock_guard lock(bridge_);
     if (private_room) {
         (void)Eden::SaveRoomConnection(connection);
         return;
@@ -598,8 +607,16 @@ void EdenServices::remember_room(const Eden::Multiplayer::Connection& connection
     (void)Eden::SaveRoomConnection(saved);
 }
 bool EdenServices::connect_public_room(const Eden::Multiplayer::Connection& connection) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
-    remember_room(connection, false);
+    { // Do not call the admitted remember_room() recursively. Connect may wait; release bridge first.
+        const std::lock_guard lock(bridge_);
+        auto saved = Eden::LoadRoomConnection();
+        if (saved.nickname != connection.nickname) {
+            saved.nickname = connection.nickname;
+            (void)Eden::SaveRoomConnection(saved);
+        }
+    }
     return rooms_.Connect(connection);
 }
 void EdenServices::leave_room() { rooms_.Leave(); }
@@ -715,6 +732,8 @@ EdenServices::~EdenServices() {
 }
 
 pe::ui::Home EdenServices::home() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {}; // cover extraction and history seeding are writers, too
     const std::lock_guard lock(bridge_);
     pe::ui::Home home;
     home.setup_ready = setup_.empty() && Eden::FilesystemAccess();
@@ -823,11 +842,12 @@ std::string EdenServices::version() {
 std::vector<pe::ui::Game> EdenServices::games() {
     // The launcher reads the list beside its menu (pe/ui/library.cpp), so the metadata reader
     // is used by one thread at a time.
-    const std::lock_guard lock(bridge_);
+    const std::lock_guard admission(job_admission_mutex_);
     std::vector<pe::ui::Game> games;
     // A scan scheduled just before the protected session may enter after its bridge drain.
     // Do not let that late scan write covers/catalog/settings behind a pending restore.
     if (usb_active_) return games;
+    const std::lock_guard lock(bridge_);
     (void)mkdir(Eden::ConfigDir().c_str(), 0777);
     (void)mkdir(Eden::CoversDir().c_str(), 0777);
     // Without a roms folder there are still the download sources' games.
@@ -957,7 +977,10 @@ bool EdenServices::take_update(pe::ui::UpdateOffer* offer) {
     return true;
 }
 
-bool EdenServices::start_update() { return !usb_active_ && Eden::UpdateNotice::Begin(); }
+bool EdenServices::start_update() {
+    const std::lock_guard admission(job_admission_mutex_);
+    return !usb_active_ && Eden::UpdateNotice::Begin(); // never hold bridge across a job start/finish
+}
 
 pe::ui::UpdateStatus EdenServices::update_status() {
     const Eden::UpdateNotice::Progress progress = Eden::UpdateNotice::Poll();
@@ -971,7 +994,10 @@ pe::ui::UpdateStatus EdenServices::update_status() {
 
 void EdenServices::cancel_update() { Eden::UpdateNotice::Cancel(); }
 
-bool EdenServices::apply_update() { return !usb_active_ && Eden::UpdateNotice::Apply(); }
+bool EdenServices::apply_update() {
+    const std::lock_guard admission(job_admission_mutex_);
+    return !usb_active_ && Eden::UpdateNotice::Apply();
+}
 
 void EdenServices::finish_update() { Eden::UpdateNotice::Finish(); }
 
@@ -1081,9 +1107,15 @@ bool EdenServices::game_exists(const std::string& file) {
     return Eden::ValidRomPath(file) && IsFile(Eden::GamesPath("roms/" + file));
 }
 
-bool EdenServices::docked(std::uint64_t title_id) { return Eden::LoadGameDocked(title_id); }
+bool EdenServices::docked(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return true;
+    const std::lock_guard lock(bridge_);
+    return Eden::LoadGameDocked(title_id);
+}
 
 bool EdenServices::set_docked(std::uint64_t title_id, bool docked) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     return Eden::SaveGameDocked(title_id, docked);
@@ -1101,6 +1133,9 @@ static_assert(std::size(pe::ui::kSpeedLimitPercents) == std::size(Eden::kSpeedLi
               "the launcher's speed limits differ");
 
 pe::ui::GameSettings EdenServices::game_settings(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
     const Eden::GameSettings saved = Eden::LoadGameSettings(title_id);
     pe::ui::GameSettings result;
     result.renderer = saved.renderer;
@@ -1131,6 +1166,7 @@ pe::ui::GameSettings EdenServices::game_settings(std::uint64_t title_id) {
 }
 
 bool EdenServices::set_game_settings(std::uint64_t title_id, const pe::ui::GameSettings& settings) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     Eden::GameSettings value;
@@ -1166,6 +1202,9 @@ bool EdenServices::set_game_settings(std::uint64_t title_id, const pe::ui::GameS
 }
 
 pe::ui::Preferences EdenServices::preferences() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
     const Eden::Preferences saved = Eden::LoadPreferences();
     pe::ui::Preferences result;
     result.hud = saved.hud;
@@ -1219,6 +1258,7 @@ pe::ui::Preferences EdenServices::preferences() {
 }
 
 bool EdenServices::set_preferences(const pe::ui::Preferences& preferences) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     Eden::Preferences value;
@@ -1338,6 +1378,9 @@ void EdenServices::ReadPostPresets(std::optional<std::uint64_t> title_id) {
 }
 
 int EdenServices::post_processing_shared() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return post_shared_;
+    const std::lock_guard lock(bridge_);
     if (post_presets_.empty()) ReadPostPresets();
     return post_shared_;
 }
@@ -1354,6 +1397,9 @@ std::string EdenServices::PostPresetName(int index) const {
 }
 
 const std::vector<std::string>& EdenServices::post_processing_labels() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return post_presets_;
+    const std::lock_guard lock(bridge_);
     if (post_presets_.empty()) ReadPostPresets();
     return post_presets_;
 }
@@ -1390,11 +1436,19 @@ bool EdenServices::folders(const std::string& directory, std::vector<std::string
 }
 
 std::vector<std::string> EdenServices::wallpapers() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_); // first wallpaper-path resolution can migrate settings
     bool ok = false;
     return ListEntries(Eden::LauncherWallpapersDir(), false, ok);
 }
 
-std::string EdenServices::wallpapers_folder() { return Eden::LauncherWallpapersDir(); }
+std::string EdenServices::wallpapers_folder() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
+    return Eden::LauncherWallpapersDir();
+}
 
 pe::ui::FolderInfo EdenServices::folder_info(const std::string& directory) {
     pe::ui::FolderInfo info;
@@ -1405,9 +1459,19 @@ pe::ui::FolderInfo EdenServices::folder_info(const std::string& directory) {
 }
 
 std::string EdenServices::files_folder() { return Eden::AssetsDir(); }
-std::string EdenServices::saved_files_folder() { return Eden::LoadSavedAssetsDir(); }
+std::string EdenServices::saved_files_folder() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
+    return Eden::LoadSavedAssetsDir();
+}
 std::string EdenServices::games_folder() { return Eden::GamesDir(); }
-std::string EdenServices::saved_games_folder() { return Eden::LoadSavedGamesDir(); }
+std::string EdenServices::saved_games_folder() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
+    return Eden::LoadSavedGamesDir();
+}
 bool EdenServices::set_games_folder(const std::string& directory) {
     const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_ || launch_committed_ || nextendo_busy_ || cheat_manager_.Status().busy) return false;
@@ -1443,7 +1507,9 @@ pe::ui::SaveSource EdenServices::save_import_source(std::uint64_t title_id) {
 }
 
 bool EdenServices::save_import(std::uint64_t title_id, std::string* message) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
+    const std::lock_guard lock(bridge_);
     char backup[256]{};
     switch (eden_save_import(title_id, backup, sizeof(backup))) {
     case EDEN_SAVE_DONE:
@@ -1466,7 +1532,9 @@ bool EdenServices::save_import(std::uint64_t title_id, std::string* message) {
 }
 
 bool EdenServices::save_export(std::uint64_t title_id, std::string* message) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
+    const std::lock_guard lock(bridge_);
     char folder[256]{};
     switch (eden_save_export(title_id, folder, sizeof(folder))) {
     case EDEN_SAVE_DONE: {
@@ -1503,6 +1571,9 @@ Eden::Mods::Places EdenServices::ModPlaces(std::uint64_t title_id) {
 // Mods (headless/mods.h): what a game has, which of them are switched off and which cheats are
 // chosen (settings_store.h).
 std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
     std::vector<pe::ui::Mod> result;
     const auto off = Eden::LoadDisabledMods(title_id);
     const auto chosen = Eden::LoadChosenCheats(title_id);
@@ -1526,6 +1597,9 @@ std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
 
 // Every cheat of a game (headless/mods.h), whichever of its mods holds it.
 std::vector<pe::ui::GameCheat> EdenServices::cheats(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
     std::vector<pe::ui::GameCheat> result;
     for (const auto& item : Eden::Mods::CheatItems(Eden::Mods::List(ModPlaces(title_id), title_id),
                                                    Eden::LoadDisabledMods(title_id), Eden::LoadChosenCheats(title_id),
@@ -1538,6 +1612,7 @@ std::vector<pe::ui::GameCheat> EdenServices::cheats(std::uint64_t title_id) {
 // switch for a mod of one cheat alone, or on its own beside a mod's patches or files.
 bool EdenServices::set_cheat_enabled(std::uint64_t title_id, const std::string& name, const std::string& cheat,
                                      bool enabled) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     using Switch = Eden::Mods::CheatItem::Switch;
@@ -1561,9 +1636,15 @@ bool EdenServices::set_cheat_enabled(std::uint64_t title_id, const std::string& 
     return saved;
 }
 
-bool EdenServices::cheats_enabled(std::uint64_t title_id) { return Eden::LoadCheatsEnabled(title_id); }
+bool EdenServices::cheats_enabled(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return true;
+    const std::lock_guard lock(bridge_);
+    return Eden::LoadCheatsEnabled(title_id);
+}
 
 bool EdenServices::set_cheats_enabled(std::uint64_t title_id, bool enabled) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveCheatsEnabled(title_id, enabled);
@@ -1617,6 +1698,7 @@ bool EdenServices::start_amiibo_sync(const std::vector<std::string>& ids, bool o
 void EdenServices::cancel_amiibo_sync() { amiibo_sync_.Cancel(); }
 
 bool EdenServices::set_mod_enabled(std::uint64_t title_id, const std::string& name, bool enabled) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveModEnabled(title_id, name, enabled);
@@ -1624,9 +1706,15 @@ bool EdenServices::set_mod_enabled(std::uint64_t title_id, const std::string& na
     return saved;
 }
 
-bool EdenServices::mods_enabled(std::uint64_t title_id) { return Eden::LoadModsEnabled(title_id); }
+bool EdenServices::mods_enabled(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return true;
+    const std::lock_guard lock(bridge_);
+    return Eden::LoadModsEnabled(title_id);
+}
 
 bool EdenServices::set_mods_enabled(std::uint64_t title_id, bool enabled) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveModsEnabled(title_id, enabled);
@@ -1642,7 +1730,9 @@ std::string EdenServices::mods_folder(std::uint64_t title_id) {
 }
 
 bool EdenServices::make_mods_folder(std::uint64_t title_id) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
+    const std::lock_guard lock(bridge_);
     if (const std::string folder = ModPlaces(title_id).game_folder; !folder.empty())
         return mkdir((folder + "/mods").c_str(), 0777) == 0 || errno == EEXIST;
     const std::string root = Eden::AssetsPath("mods");
@@ -1670,6 +1760,7 @@ pe::ui::Sources EdenServices::sources() {
 }
 
 void EdenServices::refresh_sources() {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return;
     if (Eden::FilesystemAccess()) Eden::Remote::Refresh();
 }
@@ -1699,6 +1790,7 @@ std::string EdenServices::TitleKeyOf(const std::string& source, const std::strin
 }
 
 bool EdenServices::download(const pe::ui::Game& game, int source, bool first) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     // The title on its sources, in the order of Game::sources.
     for (const Eden::Remote::Title& title : Titles())
@@ -1709,6 +1801,7 @@ bool EdenServices::download(const pe::ui::Game& game, int source, bool first) {
 }
 
 bool EdenServices::cancel_download(const std::string& key) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     if (!Eden::FilesystemAccess()) return false;
     for (const Eden::Remote::Title& title : Titles())
@@ -1751,6 +1844,7 @@ std::vector<pe::ui::Download> EdenServices::downloads() {
 }
 
 bool EdenServices::delete_game(const pe::ui::Game& game, std::string* message) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
     if (!Eden::FilesystemAccess() || game.sources.empty() || game.remote || !Eden::ValidRomPath(game.file))
         return false;
@@ -1810,14 +1904,25 @@ bool EdenServices::load_image(const std::string& path, pe::gfx::Image* image) {
 // ---- save sync ----
 
 bool EdenServices::save_sync_wanted(const std::string& file) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
+    const std::lock_guard lock(bridge_);
+    return SaveSyncWanted(file);
+}
+
+bool EdenServices::SaveSyncWanted(const std::string& file) {
+    // Caller holds admission -> bridge; CurrentProfile may persist profile selection.
     SyncSetup setup;
     return !file.empty() && SyncSetupOf(CurrentProfile(user_), &setup) && setup.automatic;
 }
 
 void EdenServices::start_save_sync(const std::string& file, bool before) {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_ || launch_committed_) return;
     if (before) {
-        StartSync({{CurrentProfile(user_), file}}, true);
+        std::string profile;
+        { const std::lock_guard lock(bridge_); profile = CurrentProfile(user_); }
+        StartSync({{profile, file}}, true);
         return;
     }
     std::vector<SyncJob> jobs;
@@ -1827,6 +1932,8 @@ void EdenServices::start_save_sync(const std::string& file, bool before) {
 }
 
 void EdenServices::StartSync(std::vector<SyncJob> jobs, bool before) {
+    // Requires admission from public start/USB resume, or the unpublished constructor. Workers
+    // never acquire admission; join here without bridge so the previous worker can finish.
     if (usb_active_) return;
     if (sync_thread_.joinable()) {
         {
@@ -1845,15 +1952,18 @@ void EdenServices::StartSync(std::vector<SyncJob> jobs, bool before) {
         std::string profile_name;
     };
     std::vector<Work> work;
-    for (SyncJob& job : jobs) {
-        Work item;
-        item.job = std::move(job);
-        item.game.file = item.job.file;
-        item.game.name = GameTitle(item.job.file);
-        // Turned off (save-sync.json's "auto"): neither before a game nor what waits from after one.
-        item.syncs = SyncSetupOf(item.job.profile, &item.setup) && item.setup.automatic;
-        item.profile_name = ProfileName(item.job.profile);
-        work.push_back(std::move(item));
+    {
+        const std::lock_guard lock(bridge_);
+        for (SyncJob& job : jobs) {
+            Work item;
+            item.job = std::move(job);
+            item.game.file = item.job.file;
+            item.game.name = GameTitle(item.job.file);
+            // Turned off (save-sync.json's "auto"): neither before a game nor what waits from after one.
+            item.syncs = SyncSetupOf(item.job.profile, &item.setup) && item.setup.automatic;
+            item.profile_name = ProfileName(item.job.profile);
+            work.push_back(std::move(item));
+        }
     }
     if (work.empty()) return;
     {
@@ -1983,7 +2093,8 @@ void EdenServices::will_play(const std::string& file) {
     launch_committed_ = true;
     amiibo_sync_.Stop();
     cheat_manager_.Stop(); // defense in depth even if a caller skipped can_launch_game()
-    if (!save_sync_wanted(file)) return;
+    const std::lock_guard lock(bridge_);
+    if (!SaveSyncWanted(file)) return;
     auto pending = ReadPending();
     const std::pair<std::string, std::string> job{CurrentProfile(user_), file};
     if (std::find(pending.begin(), pending.end(), job) == pending.end()) pending.push_back(job);
@@ -1993,6 +2104,9 @@ void EdenServices::will_play(const std::string& file) {
 // ---- Settings > Save sync ----
 
 pe::ui::SaveSyncSetup EdenServices::save_sync_setup() {
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_) return {};
+    const std::lock_guard lock(bridge_);
     pe::ui::SaveSyncSetup setup;
     setup.file = Eden::SaveSync::File();
     if (!Eden::FilesystemAccess()) return setup;
@@ -2027,12 +2141,14 @@ std::vector<pe::ui::PairServer> EdenServices::pair_servers() {
 }
 
 bool EdenServices::start_pairing(int profile_index, int server_index) {
-    if (usb_active_) return false;
+    const std::lock_guard admission(job_admission_mutex_);
+    if (usb_active_ || launch_committed_) return false;
     {
         const std::lock_guard lock(pair_lock_);
         if (pair_.stage == pe::ui::PairingStage::asking || pair_.stage == pe::ui::PairingStage::waiting) return false;
     }
     if (pair_thread_.joinable()) pair_thread_.join();
+    std::unique_lock lock(bridge_);
     const auto profiles = Eden::Profiles::Read();
     const std::vector<PairSource> sources = PairSources();
     if (profile_index < 0 || profile_index >= static_cast<int>(profiles.size()) || server_index < 0 ||
@@ -2049,6 +2165,7 @@ bool EdenServices::start_pairing(int profile_index, int server_index) {
     }
     pair_stop_ = false;
     KeepSaveSyncFile(profiles); // the profile's entry is there to be filled in
+    lock.unlock(); // no HTTP or worker wait owns the metadata bridge
     pair_thread_ = std::thread([this, key = profile.Key(), name = profile.name, source] {
         const std::string folder = SyncFolder() + "/" + key;
         const auto fail = [&](std::string error, bool denied = false, bool expired = false) {
@@ -2145,7 +2262,9 @@ void EdenServices::cancel_pairing() {
 }
 
 bool EdenServices::unlink_profile(int profile_index) {
+    const std::lock_guard admission(job_admission_mutex_);
     if (usb_active_) return false;
+    const std::lock_guard lock(bridge_);
     const auto profiles = Eden::Profiles::Read();
     if (profile_index < 0 || profile_index >= static_cast<int>(profiles.size())) return false;
     const auto& profile = profiles[static_cast<std::size_t>(profile_index)];
