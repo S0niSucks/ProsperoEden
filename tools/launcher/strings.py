@@ -35,6 +35,7 @@ TEMPLATE = ROOT / "tools/launcher/launcher.pot"
 FONT = LAUNCHER / "ui/fonts/montserrat-medium.pefont"
 SETTINGS = ROOT / "headless/settings_store.h"
 SETTING_LABELS = ("kResolutionLabels", "kUpscalingFilterLabels", "kAstcTextureLabels", "kLanguageLabels")
+NETWORK_SOURCES = ("network/config.cpp", "network/editor.cpp")
 
 LITERALS = r'((?:"(?:[^"\\]|\\.)*"\s*)+)'
 MARKED = re.compile(r"\b(?:tr|TR)\(\s*" + LITERALS)
@@ -248,15 +249,19 @@ def joined(literals):
 def marked_text():
     """English text -> the files that use it."""
     found = {}
-    sources = sorted(p for pattern in ("*.cpp", "*.hpp", "*.h", "*.inc") for p in LAUNCHER.rglob(pattern))
-    for path in sources:
+    sources = [(p, p.relative_to(LAUNCHER).as_posix())
+               for p in sorted(p for pattern in ("*.cpp", "*.hpp", "*.h", "*.inc") for p in LAUNCHER.rglob(pattern))]
+    # Only these two backend sources return marked UI text; do not scan all headless diagnostics.
+    sources += [(ROOT / "headless" / name, name) for name in NETWORK_SOURCES
+                if (ROOT / "headless" / name).is_file()]
+    for path, origin in sources:
         source = path.read_text(encoding="utf-8")
         # Comments may quote tr("...") too; drop them.
         source = re.sub(r"//[^\n]*", "", source)
         for match in MARKED.finditer(source):
             text = joined(match.group(1))
             if text:
-                found.setdefault(text, []).append(path.relative_to(LAUNCHER).as_posix())
+                found.setdefault(text, []).append(origin)
     settings = SETTINGS.read_text(encoding="utf-8")
     for name in SETTING_LABELS:
         table = re.search(name + r"\[\] = \{([^}]*)\}", settings)

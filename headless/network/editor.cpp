@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "editor.h"
+#include "prosperoeden/pe/core/strings.hpp" // No catalog access or UI link dependency in the backend.
 #include <algorithm>
 #include <charconv>
 #include <limits>
@@ -90,14 +91,14 @@ bool Assign(Share& s, Field f, const std::string& value) {
 std::string EditorMessage(EditorResult result) {
     switch (result) {
     case EditorResult::ok: return {};
-    case EditorResult::cancelled: return "Cancelled. The saved network settings were not changed.";
-    case EditorResult::unavailable: return "The network settings keyboard is unavailable.";
-    case EditorResult::invalid: return "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user.";
-    case EditorResult::required: return "Server IPv4 and share / export are required. Enter them before saving.";
-    case EditorResult::duplicate: return "This network location already exists. Edit it instead.";
-    case EditorResult::limit: return "At most four network locations can be saved.";
-    case EditorResult::blocked: return "Network settings are unavailable while another protected job or a game is starting.";
-    case EditorResult::no_edit: return "Reopen the network location before editing.";
+    case EditorResult::cancelled: return TR("Cancelled. The saved network settings were not changed.");
+    case EditorResult::unavailable: return TR("The network settings keyboard is unavailable.");
+    case EditorResult::invalid: return TR("Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user.");
+    case EditorResult::required: return TR("Server IPv4 and share / export are required. Enter them before saving.");
+    case EditorResult::duplicate: return TR("This network location already exists. Edit it instead.");
+    case EditorResult::limit: return TR("At most four network locations can be saved.");
+    case EditorResult::blocked: return TR("Network settings are unavailable while another protected job or a game is starting.");
+    case EditorResult::no_edit: return TR("Reopen the network location before editing.");
     case EditorResult::unsafe: return ConfigurationError(ConfigError::unsafe);
     case EditorResult::conflict: return ConfigurationError(ConfigError::conflict);
     case EditorResult::imported_invalid: return ConfigurationError(ConfigError::invalid);
@@ -140,10 +141,10 @@ EditorView Editor::View() const {
                    Field::mount_port, Field::timeout, Field::cache}) {
         if (!Applicable(f, draft)) continue;
         auto value = Text(draft, f);
-        if (f == Field::protocol) value = draft.protocol == "smb" ? "SMB" : "NFS v3 / AUTH_SYS";
+        if (f == Field::protocol) value = draft.protocol == "smb" ? TR("SMB") : TR("NFS v3 / AUTH_SYS");
         if (f == Field::enabled) value = draft.enabled ? "On" : "Off";
-        if (f == Field::encrypt) value = draft.encrypt ? "Required (SMB3)" : "Off (signing required with a user)";
-        if (f == Field::password) value = draft.password.empty() ? "Not set" : replaced ? "Replacement set" : "Set / keep existing";
+        if (f == Field::encrypt) value = draft.encrypt ? TR("Required (SMB3)") : TR("Off (signing required with a user)");
+        if (f == Field::password) value = draft.password.empty() ? "Not set" : replaced ? TR("Replacement set") : TR("Set / keep existing");
         v.rows.push_back({f, std::move(value)});
     }
     return v;

@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Private fixtures only: additive batch validation must not overwrite existing work."""
 import copy
+import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 
-spec = importlib.util.spec_from_file_location('import_translations', Path(__file__).with_name('import-translations.py'))
+# 251c732 predates the parent's importer. Use its read-only reference without backporting or
+# modifying the production importer; after parent composition the neighboring default is used.
+importer = Path(os.environ.get('LAUNCHER_TRANSLATION_IMPORTER', Path(__file__).with_name('import-translations.py')))
+spec = importlib.util.spec_from_file_location('import_translations', importer)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory(prefix='prosperoeden-locales-') as temporary:
@@ -51,4 +56,63 @@ with tempfile.TemporaryDirectory(prefix='prosperoeden-locales-') as temporary:
         pass
     else:
         raise AssertionError('Duplicate JSON keys accepted')
-print('Translation import PASS: validate-before-write, exact locales/source/placeholder binding, repeat no-op, existing bytes preserved and conflicting/blank/unknown input refused')
+
+spec = importlib.util.spec_from_file_location('feature_strings', Path(__file__).with_name('strings.py'))
+strings = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(strings)
+texts = strings.marked_text()
+backends = strings.NETWORK_SOURCES
+keys = sorted(key for key, origins in texts.items() if any(origin in backends for origin in origins))
+assert len(keys) == 19
+with tempfile.TemporaryDirectory(prefix='prosperoeden-network-locales-') as temporary:
+    root = Path(temporary)
+    originals = {}
+    for locale in ('pt-BR', 'fr-FR'):
+        path = root / (locale + '.po')
+        originals[path] = b'# Keep existing bytes and .inc provenance\n#: feature.inc\nmsgid "On"\nmsgstr "Original"\n'
+        path.write_bytes(originals[path])
+    data = {'keys': keys, 'translations': {locale: ['Fixture: ' + key for key in keys] for locale in ('pt-BR', 'fr-FR')}}
+    generated = module.prepare(data, root, texts)
+    assert len(generated) == 2
+    for path, content in generated.items():
+        assert path.read_bytes() == originals[path] and content.startswith(originals[path])
+        assert b'network/config.cpp' in content and b'network/editor.cpp' in content
+        path.write_bytes(content)
+        entries = module.strings.parse_po(path)
+        assert entries['On'] == 'Original' and all(entries[key] == 'Fixture: ' + key for key in keys)
+    assert module.prepare(data, root, texts) == {}
+
+if handoff := os.environ.get('NETWORK_TRANSLATION_HANDOFF'):
+    raw = Path(handoff).read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == '304bc230c8291da0912832a32a07a4f139911f264d8b7e61bf63fa4dcbdc5905'
+    data = json.loads(raw, object_pairs_hook=module.unique_object)
+    assert len(data['keys']) == 81 and len(data['translations']) == 30
+    assert set(keys) <= set(data['keys']) <= texts.keys()
+    with tempfile.TemporaryDirectory(prefix='prosperoeden-network-handoff-') as temporary:
+        root = Path(temporary)
+        originals = {}
+        for locale in data['translations']:
+            path = root / (locale + '.po')
+            originals[path] = b'# Preserve existing catalog bytes\n#: feature.inc\nmsgid "On"\nmsgstr "Existing fixture"\n'
+            path.write_bytes(originals[path])
+        generated = module.prepare(data, root, texts)
+        assert len(generated) == 30 and all(content.startswith(originals[path]) for path, content in generated.items())
+        assert all(path.read_bytes() == original for path, original in originals.items())
+        # Reject a broken real feature placeholder before writing any fixture.
+        bad = copy.deepcopy(data)
+        index = next(index for index, key in enumerate(data['keys']) if '{0}' in key)
+        bad['translations']['pt-BR'][index] = bad['translations']['pt-BR'][index].replace('{0}', '{1}')
+        try:
+            module.prepare(bad, root, texts)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError('Feature placeholder mutation accepted')
+        assert all(path.read_bytes() == original for path, original in originals.items())
+        for path, content in generated.items():
+            path.write_bytes(content)
+        assert module.prepare(data, root, texts) == {}
+        assert all(len(module.strings.parse_po(path)) == 82 for path in originals)
+    print('SHA-bound handoff PASS: 81 keys x 30 fixture locales, all 19 backend keys, additive/no-op/placeholder refusal')
+
+print('Translation import PASS: validate-before-write, exact locales/source/placeholder binding, repeat no-op, existing bytes/provenance preserved; 19 network keys admitted from real extraction')

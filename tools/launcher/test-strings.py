@@ -1,31 +1,89 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Source-discovery regression: feature UI includes must not silently miss localization."""
+"""Source-discovery regression: preserve UI includes and whitelist only marked network returns."""
 import importlib.util
+import json
+import os
 from pathlib import Path
 import tempfile
 
-spec = importlib.util.spec_from_file_location('launcher_strings', Path(__file__).with_name('strings.py'))
-strings = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(strings)
+def load(path, name):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+strings = load(Path(__file__).with_name('strings.py'), 'launcher_strings')
+original = strings.ROOT, strings.LAUNCHER, strings.SETTINGS, strings.NETWORK_SOURCES
 
 with tempfile.TemporaryDirectory(prefix='prosperoeden-strings-') as temporary:
     root = Path(temporary)
-    strings.LAUNCHER = root
-    strings.SETTINGS = root / 'settings_store.h'
+    strings.ROOT = root
+    strings.LAUNCHER = root / 'headless/prosperoeden'
+    strings.LAUNCHER.mkdir(parents=True)
+    strings.SETTINGS = root / 'headless/settings_store.h'
     strings.SETTINGS.write_text('\n'.join(name + '[] = {"Setting"};' for name in strings.SETTING_LABELS), encoding='utf-8')
     for extension in ('cpp', 'hpp', 'h', 'inc'):
-        (root / ('feature.' + extension)).write_text(
+        (strings.LAUNCHER / ('feature.' + extension)).write_text(
             'const auto label = tr("' + extension + ' label");\n'
             'const auto table = TR("Shared label");\n'
             'const auto paragraph = tr("First " "second");\n'
             '// tr("Comment-only text")\n', encoding='utf-8')
-    (root / 'not-source.txt').write_text('tr("Ignored file")', encoding='utf-8')
+    (strings.LAUNCHER / 'not-source.txt').write_text('tr("Ignored file")', encoding='utf-8')
     texts = strings.marked_text()
     assert set(texts) == {'cpp label', 'hpp label', 'h label', 'inc label',
                           'Shared label', 'First second', 'Setting'}, texts
     assert texts['inc label'] == ['feature.inc']
     assert len(texts['Shared label']) == 4
     assert texts['Setting'] == ['settings_store.h'] * len(strings.SETTING_LABELS)
+    network = root / 'headless/network'; network.mkdir()
+    for name in ('config', 'editor'):
+        (network / (name + '.cpp')).write_text(
+            'return TR("Backend ' + name + '");\n'
+            'return TR("Shared label");\n'
+            'return TR("Adjacent " "backend");\n'
+            'return "Unmarked private diagnostic";\n'
+            '// TR("Backend comment")\n', encoding='utf-8')
+    (network / 'keyboard.cpp').write_text('return TR("Not an allowed backend");', encoding='utf-8')
+    (network / 'config.inc').write_text('return TR("Not an allowed extension");', encoding='utf-8')
+    (root / 'headless/main.cpp').write_text('return TR("Not a UI source");', encoding='utf-8')
+    marked = strings.marked_text()
+    assert set(marked) - set(texts) == {'Backend config', 'Backend editor', 'Adjacent backend'}
+    assert marked['Backend config'] == ['network/config.cpp']
+    assert marked['Backend editor'] == ['network/editor.cpp']
+    assert marked['Adjacent backend'] == ['network/config.cpp', 'network/editor.cpp']
+    for key, origins in texts.items():
+        assert marked[key][:len(origins)] == origins
+    assert marked['Shared label'][4:] == ['network/config.cpp', 'network/editor.cpp']
 
-print('Launcher strings PASS: C++/header/include discovery, shared msgids, adjacent literals and comment/non-source exclusion')
+strings.ROOT, strings.LAUNCHER, strings.SETTINGS, strings.NETWORK_SOURCES = original
+strings.NETWORK_SOURCES = ()
+before = strings.marked_text()
+strings.NETWORK_SOURCES = original[3]
+after = strings.marked_text()
+handoff = {json.loads(line) for line in (strings.ROOT / 'docs/NETWORK_EDITOR_MSGIDS.txt').read_text(encoding='utf-8').splitlines()
+           if line and not line.startswith('#')}
+assert len(handoff) == 83
+expected = handoff - before.keys()  # use the existing handoff, not a duplicate backend message table
+added = after.keys() - before.keys()
+assert len(expected) == 19 and added == expected, (expected, added)
+for key, origins in before.items():
+    assert after[key] == origins, (key, origins, after[key])
+assert all(set(after[key]) <= set(original[3]) for key in added)
+
+# Optional external coverage receipt is read-only and independent of our marker implementation.
+if path := os.environ.get('NETWORK_TRANSLATION_COVERAGE'):
+    coverage = json.loads(Path(path).read_text(encoding='utf-8'))
+    assert added == set(coverage['feature_needs_extraction_marking'])
+
+# Compose only discovery in memory over the current parent sources; never edit the parent checkout.
+if path := os.environ.get('NETWORK_STRINGS_REFERENCE_ROOT'):
+    reference = load(Path(path) / 'tools/launcher/strings.py', 'parent_strings')
+    baseline = reference.marked_text()
+    strings.LAUNCHER, strings.SETTINGS = reference.LAUNCHER, reference.SETTINGS
+    composed = strings.marked_text()  # ROOT still selects this branch's two marked backend sources
+    assert composed.keys() - baseline.keys() == added
+    assert all(composed[key] == origins for key, origins in baseline.items())
+    print(f'Parent source/provenance preservation PASS: {len(baseline)} existing msgids, .inc retained, exactly 19 added')
+
+print('Launcher strings PASS: C++/header/include discovery, shared msgids, adjacent literals, exact backend allowlist/provenance, and 19 handoff-matched additions')

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "config.h"
+#include "prosperoeden/pe/core/strings.hpp" // TR is an identity marker; translate only where displayed.
 #include <atomic>
 #include <algorithm>
 #include <cerrno>
@@ -133,12 +134,12 @@ Configuration ReadConfiguration(const std::string& file, bool private_mode) {
 std::string ConfigurationError(ConfigError error) {
     switch (error) {
     case ConfigError::none: return {};
-    case ConfigError::invalid: return "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced.";
-    case ConfigError::unsafe: return "Network settings must be a regular file with link-free parent directories (at most 64 KiB).";
-    case ConfigError::conflict: return "Network settings changed outside this editor. Reopen the editor; nothing was overwritten.";
-    case ConfigError::cancelled: return "Cancelled. The saved network settings were not changed.";
-    case ConfigError::sync: return "Saved, but directory sync could not be confirmed.";
-    default: return "Could not save network settings. The previous file was preserved.";
+    case ConfigError::invalid: return TR("Invalid network share settings. Fix the imported JSON before editing; the file was not replaced.");
+    case ConfigError::unsafe: return TR("Network settings must be a regular file with link-free parent directories (at most 64 KiB).");
+    case ConfigError::conflict: return TR("Network settings changed outside this editor. Reopen the editor; nothing was overwritten.");
+    case ConfigError::cancelled: return TR("Cancelled. The saved network settings were not changed.");
+    case ConfigError::sync: return TR("Saved, but directory sync could not be confirmed.");
+    default: return TR("Could not save network settings. The previous file was preserved.");
     }
 }
 ConfigError WriteConfiguration(const std::string& file, const Configuration& expected, const std::vector<Share>& shares,

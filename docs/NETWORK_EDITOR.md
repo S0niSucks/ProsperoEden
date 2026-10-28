@@ -151,8 +151,11 @@ to this worktree's ignored `.local/network-editor-evidence/` (not committed or e
 The visual inspection was bounded: one batched inspection and one confirmation of the layout fix.
 Controller assertions additionally prevent old save notices carrying into discard/remove prompts.
 There is no image of an actual PS5 system keyboard and no real password or NAS address was used.
-`NETWORK_EDITOR_MSGIDS.txt` is the feature-local translation handoff; its coverage and the absence
-of runtime/Lua editor bindings are checked by `check-network-privacy.py`.
+`NETWORK_EDITOR_MSGIDS.txt` contains **83 msgids in 89 physical lines**, not 89 msgids. The separate
+translation input contains **81 new keys × 30 locales**: 83 minus five reused keys, plus three
+Library/Settings keys. The extraction follow-up, exact 19-key backend coverage and remaining
+native prompt literals are documented in `NETWORK_TEXT_EXTRACTION.md`. Runtime/Lua editor binding
+absence remains checked by `check-network-privacy.py`.
 
 **Still unqualified:** the parent-composed USB/launch admission described above, the absent
 USB/shared-backup collector, PS5 IME execution, a full app/render/guest launch and real disk-backed
