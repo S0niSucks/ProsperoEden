@@ -44,7 +44,7 @@ void PresentVulkanLoading(VideoCore::RendererBase& renderer);
 #endif
 namespace {
 int RoomPingMilliseconds() {
-    const auto member = Network::GetRoomMember().lock();
+    const auto member = ::Network::GetRoomMember().lock();
     return member ? member->GetPingMilliseconds() : -1;
 }
 // What the loading screen's time carries for reduced motion (loading_scene.glsl): 1000 when the
