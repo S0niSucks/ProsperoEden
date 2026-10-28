@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Actual loopback browser callback + HTTPS OAuth/PKCE/token/storage. Synthetic provider only."""
 import base64
+import argparse
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,7 +31,9 @@ def main():
         subprocess.run([compiler, "-std=c++20", "-O1", "-g", "-Wall", "-Wextra", "-Werror", "-pthread",
                         "-fsanitize=address,undefined", "-fno-omit-frame-pointer", "-I", str(root / "headless"),
                         str(root / "headless/nextendo.cpp"), str(root / "headless/nextendo_oauth.cpp"),
+                        str(root / "headless/nextendo_http.cpp"),
                         str(root / "headless/nextendo_oauth_check.cpp"), str(http_object),
+                        "-Wl,--wrap=curl_slist_append", "-Wl,--wrap=fsync",
                         "-lssl", "-lcrypto", "-lcurl", "-o", str(binary)], check=True)
         for name, host in (("good", "nextendo.network"), ("bad", "wrong.nextendo.network")):
             subprocess.run(["openssl", "req", "-new", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
@@ -64,6 +67,12 @@ def main():
             def do_GET(self):
                 state["gets"] += 1
                 url = urlsplit(self.path)
+                if url.path == "/api/profile":
+                    assert self.headers["X-Nextendo-Client-Id"] == "synthetic+registered&client"
+                    if self.headers.get("Authorization") != "Bearer old-synthetic-local-session":
+                        return self.reply(401, b'{"error":"missing bearer"}')
+                    assert state["mode"] == "profile-duplicate"
+                    return self.reply(200, b'{"username":null,"username":"synthetic"}')
                 assert url.path == "/api/oauth/authorize"
                 params = parse_qs(url.query, strict_parsing=True)
                 assert params["response_type"] == ["code"] and params["scope"] == ["identity"]
@@ -95,7 +104,7 @@ def main():
                 assert proof == state["challenge"]
                 mode = state["mode"]
                 token_started.set()
-                if mode == "cancel-token":
+                if mode in ("cancel-token", "expiry-token"):
                     time.sleep(1)
                 if mode == "redirect":
                     return self.reply(302, location="https://nextendo.network/must-not-follow")
@@ -105,6 +114,14 @@ def main():
                     return self.reply(200, b'{"account":{"pid":-1},"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
                 if mode == "provider-error":
                     return self.reply(401, b'{"error":"synthetic-code-only nx2.synthetic-proof-not-a-real-session"}')
+                if mode == "duplicate-token":
+                    return self.reply(200, b'{"account":{"pid":9},"nex_token":null,"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
+                if mode == "duplicate-account":
+                    return self.reply(200, b'{"account":{"pid":0},"account":{"pid":9},"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
+                if mode == "duplicate-pid":
+                    return self.reply(200, b'{"account":{"pid":0,"pid":9},"nex_token":"nx2.synthetic-proof-not-a-real-session"}')
+                if mode == "escaped-duplicate-token":
+                    return self.reply(200, b'{"account":{"pid":9},"nex_token":null,"nex_\\u0074oken":"nx2.synthetic-proof-not-a-real-session"}')
                 self.reply(200, json.dumps({"account": {"pid": 9, "username": "discard-me", "friend_code": "discard-me"},
                                            "nex_token": "nx2.synthetic-proof-not-a-real-session"}).encode())
 
@@ -144,10 +161,16 @@ def main():
 
         modes = ("success", "highlevel", "fixed", "recover", "slow-client", "declined", "expiry", "cancel-wait",
                  "cancel-token", "redirect", "oversize", "malformed", "provider-error", "unknown-ca",
-                 "wrong-host", "storage-failure", "cancel-before-save", "flood")
+                 "wrong-host", "storage-failure", "cancel-before-save", "cancel-in-save", "flood",
+                 "duplicate-token", "duplicate-account", "duplicate-pid", "escaped-duplicate-token",
+                 "profile-duplicate", "profile-header-oom", "profile-auth-oom", "profile-client-oom",
+                 "token-header-oom", "expiry-token")
+        parser = argparse.ArgumentParser(description=__doc__)
+        parser.add_argument("--case", action="append", choices=modes, help="Run only selected cases")
+        args = parser.parse_args()
         seen_states = set()
         try:
-            for mode in modes:
+            for mode in args.case or modes:
                 state.update(mode=mode, posts=0, gets=0, failure=None)
                 token_started.clear()
                 data = out / mode
@@ -158,6 +181,15 @@ def main():
                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 try:
                     ready = process.stdout.readline().strip()
+                    if mode.startswith("profile-"):
+                        assert ready == "PROFILE", (mode, ready)
+                        stdout, stderr = process.communicate(timeout=12)
+                        assert process.returncode == 0 and not stderr, (mode, stderr)
+                        assert stdout.strip() == f"DONE {mode} PASS", mode
+                        assert state["failure"] is None and state["posts"] == 0
+                        assert state["gets"] == (0 if mode.endswith("-oom") else 1)
+                        print(f"OAuth regression {mode}: PASS")
+                        continue
                     assert ready.startswith("START http://127.0.0.1:"), mode
                     start = ready[6:]
                     if mode == "cancel-wait":
@@ -189,7 +221,23 @@ def main():
                             assert local(callback, {"Origin": "https://evil.example"})[0] == 400
                             assert local(base + "?state=%GG&code=bad")[0] == 400
                             assert local(base + "?" + callback_query + "&state=duplicate")[0] == 400
+                            assert local(callback + "&st%61te=duplicate")[0] == 400
+                            assert local(callback + "&%63ode=duplicate")[0] == 400
+                            assert local(callback.replace("synthetic-code-only", "%00"))[0] == 400
                             address = urlsplit(start)
+                            for raw in (
+                                f"GET /start HTTP/1.1\r\nHost: {address.netloc}\r\nHOST: {address.netloc}\r\n\r\n",
+                                f"GET /start HTTP/1.1\r\nHost: {address.netloc}\r\nTransfer-Encoding: chunked\r\n\r\n",
+                                f"GET /start HTTP/1.1\r\nHost: {address.netloc}\r\nContent-Length: 1\r\n\r\nx",
+                                f"POST /start HTTP/1.1\r\nHost: {address.netloc}\r\n\r\n",
+                                f"GET /start HTTP/1.0\r\nHost: {address.netloc}\r\n\r\n",
+                            ):
+                                with socket.create_connection((address.hostname, address.port), timeout=3) as bad:
+                                    bad.sendall(raw.encode())
+                                    reply = http.client.HTTPResponse(bad)
+                                    reply.begin()
+                                    assert reply.status == 400
+                                    reply.read()
                             with socket.create_connection((address.hostname, address.port)) as bad:
                                 bad.sendall(b"GET /start HTTP/1.1\r\nX-Large: " + b"x" * 9000)
                                 bad.settimeout(3)
@@ -210,8 +258,9 @@ def main():
                     assert process.returncode == 0 and not stderr, (mode, stderr)
                     assert stdout.strip() == f"DONE {mode} PASS", mode
                     assert state["failure"] is None, mode
-                    assert state["posts"] == (0 if mode in ("declined", "expiry", "cancel-wait", "unknown-ca", "wrong-host", "flood") else 1), mode
+                    assert state["posts"] == (0 if mode in ("declined", "expiry", "cancel-wait", "unknown-ca", "wrong-host", "flood", "token-header-oom") else 1), mode
                     assert state["gets"] == (0 if mode in ("expiry", "cancel-wait", "flood") else 1), mode
+                    print(f"OAuth regression {mode}: PASS")
                 finally:
                     if process.poll() is None:
                         process.kill()

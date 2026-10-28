@@ -2,8 +2,8 @@
 // OAuth wire contract: GPL-2.0-or-later Citron-Nextendo 8e761924, nextendo_api.cpp:357-485.
 // Local receiver, validation, lifecycle and fail-closed transport are ProsperoEden implementation.
 #include "nextendo_oauth.h"
+#include "nextendo_json.h"
 #include "remote/http.h"
-#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -210,7 +210,7 @@ bool ParseRegistration(std::string_view bytes, Registration& r, std::string& err
     error.clear();
     try {
         if (bytes.size() <= 4096) {
-            const auto json = nlohmann::json::parse(bytes);
+            const auto json = Detail::ParseUniqueJson(bytes);
             Registration parsed{json.at("client_id").get<std::string>(), json.at("redirect_uri").get<std::string>(),
                                 json.at("app").get<std::string>()};
             unsigned port;
@@ -333,7 +333,7 @@ bool BrowserLink::Finish(Account& account, const std::atomic<bool>& stop, std::s
     else if (response.status != 200) error = "The provider refused the OAuth token exchange. Check client registration and redirect approval.";
     else {
         try {
-            const auto json = nlohmann::json::parse(reply.bytes.value);
+            const auto json = Detail::ParseUniqueJson(reply.bytes.value);
             const Secret session{nlohmann::json{{"version", 1}, {"pid", json.at("account").at("pid")}, {"token", json.at("nex_token")}}.dump()};
             if (ParseAccount(session.value, account)) return true;
         } catch (const nlohmann::json::exception&) {}

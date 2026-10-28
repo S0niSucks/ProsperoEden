@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "nextendo_http.h"
+#include "nextendo_json.h"
 #include "remote/http.h"
-#include <nlohmann/json.hpp>
 
 namespace Eden::Nextendo {
 namespace {
@@ -42,7 +42,7 @@ AccountResult CheckAccountHttpWithClient(const Account& account, const std::stri
     if (response.status == 401) return AccountResult::rejected;
     if (code != 0 || response.status != 200) return AccountResult::failed;
     try {
-        const auto json = nlohmann::json::parse(reply.bytes);
+        const auto json = Detail::ParseUniqueJson(reply.bytes);
         if (!json.is_object() || !json.contains("username") || !json["username"].is_string())
             return AccountResult::failed;
     } catch (const nlohmann::json::exception&) { return AccountResult::failed; }

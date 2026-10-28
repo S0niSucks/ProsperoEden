@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Session format and account API adapted from Citron-Nextendo; see docs/features/NEXTENDO.md.
 #include "nextendo.h"
-#include <nlohmann/json.hpp>
+#include "nextendo_json.h"
 #include <algorithm>
 #include <cerrno>
 #include <charconv>
@@ -159,7 +159,7 @@ bool ParseAccount(std::string_view bytes, Account& account) {
     try {
         Account parsed;
         if (bytes.front() == '{') {
-            const auto json = Json::parse(bytes);
+            const auto json = Detail::ParseUniqueJson(bytes);
             if (!json.is_object() || json.value("version", 0) != 1 ||
                 !json.contains("pid") || !json["pid"].is_number_unsigned() ||
                 !json.contains("token") || !json["token"].is_string()) return false;
@@ -201,7 +201,7 @@ bool ParseRoutes(std::string_view bytes, Routes& routes) {
     routes.clear();
     if (bytes.size() > MaxFile) return false;
     try {
-        const auto json = Json::parse(bytes);
+        const auto json = Detail::ParseUniqueJson(bytes);
         if (!json.is_object() || json.size() > 64) return false;
         Routes parsed;
         for (const auto& [from, to] : json.items()) {

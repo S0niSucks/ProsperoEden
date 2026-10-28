@@ -141,6 +141,16 @@ int main(int argc, char** argv) {
     assert(!ParseAccount("pid=9\ntoken=9", account));
     assert(!ParseAccount("pid=9\ntoken=bad\r\nAuthorization=leak", account));
     assert(!ParseAccount(R"({"version":1,"pid":-1,"token":"synthetic-test-token"})", account));
+    for (const char* duplicate : {
+        R"({"version":0,"version":1,"pid":9,"token":"synthetic-test-token"})",
+        R"({"version":1,"pid":0,"pid":9,"token":"synthetic-test-token"})",
+        R"({"version":1,"pid":9,"token":null,"token":"synthetic-test-token"})",
+        R"({"version":1,"pid":9,"token":"synthetic-test-token","enabled":false,"enabled":true})",
+        R"({"version":1,"pid":9,"token":"synthetic-test-token","enabled":false,"enabl\u0065d":true})"}) {
+        assert(!ParseAccount(duplicate, account));
+        assert(!account.pid && account.token.empty() && !account.enabled);
+    }
+    assert(ParseAccount(R"({"version":1,"pid":9,"token":"synthetic-test-token","metadata":{"pid":1},"other":[{"pid":2},{"pid":3}]})", account));
     assert(!ParseAccount(std::string(32769, 'x'), account));
     assert(!ValidProfile("../../session") && !ValidProfile(std::string(32, '0')));
     Routes routes;
@@ -151,7 +161,9 @@ int main(int argc, char** argv) {
         R"({"auth.lp1.nintendo.net":"127.0.0.1"})",
         R"({"auth.lp1.nintendo.net.evil.test":"game.nextendo.network"})",
         R"({"*.nintendo.net":"game.nextendo.network"})",
-        R"({"auth.nintendo.net":"game.nextendo.network","AUTH.NINTENDO.NET":"game.nextendo.network"})"})
+        R"({"auth.nintendo.net":"game.nextendo.network","AUTH.NINTENDO.NET":"game.nextendo.network"})",
+        R"({"auth.nintendo.net":"first.nextendo.network","auth.nintendo.net":"second.nextendo.network"})",
+        R"({"auth.nintendo.net":"first.nextendo.network","auth.nintendo.\u006eet":"second.nextendo.network"})"})
         assert(!ParseRoutes(invalid, routes));
     assert(CanonicalHost("A..nextendo.network").empty());
     assert(!IsNextendoHost("evilnextendo.network"));
@@ -205,6 +217,14 @@ int main(int argc, char** argv) {
     Import(store, root);
     const auto file = root / (profile + ".account");
     const auto before = Read(file);
+    const std::string duplicate_session = R"({"version":1,"pid":9,"token":"synthetic-test-token","enabled":false,"enabled":true})";
+    Write(root / "import.txt", duplicate_session);
+    assert(!store.Apply(profile, Action::import_session, stop).error.empty());
+    assert(Read(file) == before && fs::exists(root / "import.txt"));
+    fs::remove(root / "import.txt");
+    Write(file, duplicate_session);
+    assert(!BeginGame(store, profile, false, error) && !error.empty() && !GuestEnabled());
+    Write(file, before);
     Write(file.string() + ".new", "do not overwrite");
     assert(!store.Apply(profile, Action::enable, stop).error.empty() && Read(file) == before);
     fs::remove(file.string() + ".new");

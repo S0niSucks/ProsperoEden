@@ -85,6 +85,15 @@ int remote_http_get(const remote_http_request *request, remote_http_result *resu
     return remote_http_run(request, result);
 }
 
+static int append_header(struct curl_slist **headers, const char *value)
+{
+    struct curl_slist *added = curl_slist_append(*headers, value);
+    if (added == NULL)
+        return 0;
+    *headers = added;
+    return 1;
+}
+
 int remote_http_run(const remote_http_request *request, remote_http_result *result)
 {
     struct curl_slist *headers = NULL;
@@ -156,7 +165,8 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
             return -1;
         }
     }
-    headers = curl_slist_append(headers, "Accept: application/json, */*");
+    if (!append_header(&headers, "Accept: application/json, */*"))
+        goto header_failure;
     if (request->nextendo_client_id != NULL)
     {
         struct curl_slist *added;
@@ -183,13 +193,15 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
     if (request->api_version != NULL)
     {
         (void)snprintf(line, sizeof(line), "api-version: %s", request->api_version);
-        headers = curl_slist_append(headers, line);
+        if (!append_header(&headers, line))
+            goto header_failure;
     }
     if (request->body != NULL)
     {
         (void)snprintf(line, sizeof(line), "Content-Type: %s",
                        request->content_type != NULL ? request->content_type : "application/json");
-        headers = curl_slist_append(headers, line);
+        if (!append_header(&headers, line))
+            goto header_failure;
         (void)curl_easy_setopt(t.easy, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)request->body_size);
         (void)curl_easy_setopt(t.easy, CURLOPT_COPYPOSTFIELDS, request->body);
     }
@@ -212,7 +224,8 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
             return -1;
         }
         (void)curl_easy_setopt(t.easy, CURLOPT_MIMEPOST, form);
-        headers = curl_slist_append(headers, "Expect:"); /* no 100-continue round trip first */
+        if (!append_header(&headers, "Expect:")) /* no 100-continue round trip first */
+            goto header_failure;
     }
     /* A body or a form makes it a POST already, and a redirect (a proxy's to https) then sends it
      * again as a POST with its body; a verb set by hand would go without the body. Only another
@@ -277,6 +290,15 @@ int remote_http_run(const remote_http_request *request, remote_http_result *resu
                        curl_easy_strerror(done));
     else
         (void)snprintf(result->error, sizeof(result->error), "%s", curl_easy_strerror(done));
+    return -1;
+
+header_failure:
+    /* Never lose an existing Authorization/client header list or send a partial request on OOM. */
+    curl_easy_cleanup(t.easy);
+    curl_mime_free(form);
+    curl_slist_free_all(headers);
+    result->curl_code = (int)CURLE_OUT_OF_MEMORY;
+    (void)snprintf(result->error, sizeof(result->error), "The HTTP headers could not be prepared");
     return -1;
 }
 
