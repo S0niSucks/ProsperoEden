@@ -7,82 +7,41 @@
 #include "pe/core/strings.hpp"
 #include "pe/ui/services.hpp"
 
-#include <algorithm>
 #include <string>
-#include <utility>
+#include <array>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
 #include <vector>
 
 namespace pe::host
 {
 
 // A made-up library: invented titles with drawn covers, settings kept in memory.
-class FakeServices : public ui::Services
+class FakeServices final : public ui::Services
 {
   public:
     // covers_directory receives one drawn cover per sample game.
     explicit FakeServices(const std::string &covers_directory);
 
     // What the preview varies between pictures.
-    bool setup_ready = true;
-    bool homebrew_ready = true;
-    bool homebrew_sample = false;
-    std::string launch_error;
-    std::string crash_report; // the previous run's crash report, when it left one
-    bool has_history = true;
-    bool import_available = true;
-    ui::SaveSource import_source = ui::SaveSource::ryujinx;
-    unsigned connected_controllers = 0b0011;
-    Eden::Multiplayer::Snapshot room;
-    Eden::Multiplayer::Connection last_room_connection;
-    Eden::Multiplayer::Connection saved_room{"127.0.0.1", 24872, "PlayerPS5", "private-secret"};
-    Eden::Multiplayer::RoomDirectory directory{{
-        {"Community racing", "Kart Carnival Deluxe", "192.0.2.1", 24872, 3, 8, false, true},
-        {"Friends' island", "Echoes of the Valley", "192.0.2.2", 24872, 2, 8, true, true},
-        {"Another protocol", "Other game", "192.0.2.3", 24872, 0, 8, false, false}}, {}, 0};
-    Eden::Multiplayer::RoomDirectory public_rooms(const std::atomic<bool>&) override { return directory; }
-    Eden::Multiplayer::Snapshot room_status() override { return room; }
-    Eden::Multiplayer::Connection room_connection() override { return saved_room; }
-    void remember_room(const Eden::Multiplayer::Connection& connection, bool private_room) override {
-        if (private_room) saved_room = connection;
-        else saved_room.nickname = connection.nickname;
-    }
-    bool connect_public_room(const Eden::Multiplayer::Connection& connection) override {
-        remember_room(connection, false);
-        last_room_connection = connection;
-        room = {Eden::Multiplayer::Phase::Connecting, {}, {}, {}};
-        return true;
-    }
-    bool connect_room(const Eden::Multiplayer::Connection& connection) override {
-        saved_room = connection;
-        last_room_connection = connection;
-        room = {Eden::Multiplayer::Phase::Connecting, {}, {}, {}};
-        return true;
-    }
-    void leave_room() override { room = {}; }
-    bool can_launch_game() override {
-        return !usb_job.active && !amiibo_job.busy && !cheat_job.busy && (room.phase == Eden::Multiplayer::Phase::Idle || room.phase == Eden::Multiplayer::Phase::Connected);
-    }
-    // Synthetic manager for preview/controller tests. Never opens a network connection or
-    // writes codes; the real job/cache/filesystem operations are tested separately in Docker.
-    ui::CheatDatabase cheat_job;
-    // Synthetic USB service only for controller/render tests. Real filesystem tests are separate.
-    Eden::UsbBackup::Status usb_job;
-    std::string usb_mode, usb_action;
-    int usb_polls = 0, usb_backups = 0, usb_restores = 0, usb_cancels = 0;
-    bool begin_usb_backup() override;
-    Eden::UsbBackup::Status usb_backup_status() override;
-    bool usb_backup_action(const std::string&, const std::string&) override;
-    void cancel_usb_backup() override;
-    void end_usb_backup() override { if (!usb_job.busy && !usb_job.restart) usb_job = {}; }
-    std::string cheat_mode;
-    int cheat_polls = 0, cheat_checks = 0, cheat_installs = 0;
-    std::uint64_t downloaded_title = 0, cheat_pending_title = 0;
-    bool downloaded_chosen = false;
-    ui::CheatDatabase cheat_database() override;
-    bool check_cheat_database(const ui::Game& game, bool offline) override;
-    bool install_cheat_database(const ui::Game& game) override;
-    void cancel_cheat_database() override { if (cheat_job.busy) { cheat_job.busy = false; cheat_job.phase = "cancelled"; ++cheat_job.generation; } }
-#include "amiibo_preview.inc"
+    std::atomic<bool> setup_ready{true};
+    std::atomic<bool> empty_library{false};
+    std::atomic<bool> reject_preferences{false};
+    std::atomic<bool> content_io_available{true};
+    std::atomic<bool> pause_content{false}; // deterministic slow-provider fixture
+    std::atomic<bool> hold_directory_syscall{false}, throw_directory_once{false};
+    std::atomic<unsigned> directory_calls{0}, directory_active{0}, directory_peak{0};
+    std::atomic<bool> directory_requested_images{false};
+    std::atomic<unsigned> games_calls{0}, safe_launch_calls{0}, mods_writes{0};
+    std::atomic<std::size_t> library_limit{0}; // zero keeps the complete immutable fixture library
+    std::atomic<std::uint64_t> last_mods_title{0};
+    void set_launch_error(std::string value) { std::lock_guard lock(state_mutex_); launch_error_ = std::move(value); }
+    void set_crash_report(std::string value) { std::lock_guard lock(state_mutex_); crash_report_ = std::move(value); }
+    std::atomic<bool> has_history{true};
+    std::atomic<bool> import_available{true};
+    std::atomic<ui::SaveSource> import_source{ui::SaveSource::ryujinx};
+    std::atomic<unsigned> connected_controllers{0b0011};
 
     ui::Home home() override;
     std::string clock() override
@@ -93,222 +52,66 @@ class FakeServices : public ui::Services
     {
         return connected_controllers;
     }
-    void vibration_pulse(int percent) override
-    {
-        last_pulse = percent;
-        ++pulses;
-    }
-    int last_pulse = 0; // the vibration the menu last asked for, and how many it asked for
-    int pulses = 0;
     std::string version() override
     {
-        return "v1.000.040";
-    }
-    // The people who play on the preview's console.
-    std::vector<ui::Profile> people{{"Eden", true}};
-    std::vector<ui::Profile> profiles() override
-    {
-        return people;
-    }
-    bool choose_profile(int index) override
-    {
-        if (index < 0 || index >= static_cast<int>(people.size()))
-            return false;
-        for (std::size_t i = 0; i < people.size(); ++i)
-            people[i].playing = static_cast<int>(i) == index;
-        return true;
-    }
-    int add_profile() override
-    {
-        if (people.size() >= 8)
-            return -1;
-        static constexpr const char *kNames[] = {"Marina", "Player 2", "Player 3", "Player 4",
-                                                 "Player 5", "Player 6", "Player 7", "Player 8"};
-        people.push_back({kNames[people.size() - 1], false});
-        return static_cast<int>(people.size()) - 1;
-    }
-    bool rename_profile(int index, int step) override
-    {
-        if (index < 0 || index >= static_cast<int>(people.size()))
-            return false;
-        static constexpr const char *kNames[] = {"Eden", "Marina", "Player 1", "Player 2"};
-        int at = 0;
-        for (int i = 0; i < 4; ++i)
-            if (people[static_cast<std::size_t>(index)].name == kNames[i])
-                at = i;
-        people[static_cast<std::size_t>(index)].name = kNames[((at + step) % 4 + 4) % 4];
-        return true;
-    }
-    bool remove_profile(int index) override
-    {
-        if (people.size() < 2 || index < 0 || index >= static_cast<int>(people.size()) ||
-            people[static_cast<std::size_t>(index)].playing)
-            return false;
-        people.erase(people.begin() + index);
-        return true;
-    }
-    // A newer release for the preview to offer: handed over once. Installing it goes through its
-    // phases a step per look (the launcher looks once a frame); update_fails ends it in a failure.
-    std::string update_version;
-    bool update_installable = true;
-    // The sample release's notes, as the catalog gives them; empty: a release without notes.
-    std::string update_notes =
-        "Warning: This is a pre-release. Your jailbreak environment must provide a local ELF loader on TCP port "
-        "9021.\n\nThis version makes the menu faster to open and adds a few things players asked for.\n\n"
-        "New features\n- Release notes in the update dialog, so you can see what changes before you update.\n"
-        "- A clock in the game menu.\n- Faster scrolling in long game lists, with a letter jump on L2 and R2.\n\n"
-        "Bug fixes and improvements\n- The menu opens about a second sooner on a cold start.\n"
-        "- Covers no longer flicker when a list scrolls quickly.\n- A crash when a controller was disconnected "
-        "during the loading screen is fixed.\n- Saves are written to a temporary file first, so a power loss "
-        "while saving no longer damages them.\n- Better text fitting in Greek, Hungarian and Finnish.\n\n"
-        "Note: Your settings, saves and profiles stay where they are; nothing needs to be moved.\n\n"
-        "Upgrading\nCopy the PPSA99008 folder from the ZIP over the one you have, or install it from the "
-        "update dialog. See the README for every step: "
-        "https://github.com/blackbearreloaded/ProsperoEden/blob/main/README.md#updating\n\n"
-        "Thanks\nThank you to everyone who tested this release and reported what they found.";
-    bool update_notes_truncated = false;
-    bool update_fails = false;
-    int update_steps = -1; // looks since start_update; -1: not begun
-    bool update_cancelled = false;
-    bool take_update(ui::UpdateOffer *offer) override
-    {
-        if (update_version.empty())
-            return false;
-        offer->version = update_version;
-        offer->size = 38215192;
-        offer->installable = update_installable;
-        offer->notes = update_notes;
-        offer->notes_truncated = update_notes_truncated;
-        update_version.clear();
-        return true;
-    }
-    bool start_update() override
-    {
-        update_steps = 0;
-        update_cancelled = false;
-        return true;
-    }
-    ui::UpdateStatus update_status() override
-    {
-        ui::UpdateStatus status;
-        if (update_steps < 0)
-            return status;
-        const int step = update_steps++;
-        constexpr std::uint64_t kSize = 38215192;
-        if (update_cancelled)
-            status.phase = step < 20 ? ui::UpdatePhase::starting : ui::UpdatePhase::cancelled;
-        else if (step < 40)
-            status.phase = ui::UpdatePhase::starting;
-        else if (step < 400)
-        {
-            status.phase = ui::UpdatePhase::downloading;
-            status.total = kSize;
-            status.done = kSize * static_cast<std::uint64_t>(step - 40) / 360;
-        }
-        else if (update_fails)
-        {
-            status.phase = ui::UpdatePhase::failed;
-            status.error = "Download failed: the connection was lost";
-        }
-        else if (step < 520)
-            status.phase = ui::UpdatePhase::unpacking;
-        else
-            status.phase = ui::UpdatePhase::ready;
-        return status;
-    }
-    void cancel_update() override
-    {
-        update_cancelled = true;
-        update_steps = 0;
-    }
-    bool apply_update() override
-    {
-        return update_steps >= 0;
-    }
-    void finish_update() override
-    {
-        update_steps = -1;
-    }
-    // Game files the preview takes away from the folder, as a player would by deleting them.
-    std::vector<std::string> removed;
-    bool game_exists(const std::string &file) override
-    {
-        return std::find(removed.begin(), removed.end(), file) == removed.end();
+        return "R1";
     }
     std::vector<ui::Game> games() override
     {
-        if (homebrew_sample) {
-            ui::Game game = games_.front();
-            game.file = "switch/Tools/Demo.NRO";
-            game.name = "Homebrew fixture";
-            game.format = "NRO";
-            game.title_id = 0;
-            return {game};
-        }
-        std::vector<ui::Game> present;
-        for (const ui::Game &game : games_)
-            if (game_exists(game.file))
-                present.push_back(game);
-        if (has_server)
-            for (ui::Game game : remote_)
-            {
-                // With Office away, only Home's games are there.
-                if (server_fails)
-                    game.sources.erase(std::remove(game.sources.begin(), game.sources.end(), "Office"),
-                                       game.sources.end());
-                if (!game.sources.empty())
-                    present.push_back(game);
-            }
-        std::sort(present.begin(), present.end(),
-                  [](const ui::Game &a, const ui::Game &b) { return a.name < b.name; });
-        return present;
+        ++games_calls;
+        auto result=empty_library ? std::vector<ui::Game>{} : games_;
+        const auto limit=library_limit.load();
+        if(limit && result.size()>limit) result.resize(limit);
+        return result;
     }
+    void arm_safe_launch() override { ++safe_launch_calls; }
     std::string game_path(const std::string &file) override
     {
-        if (!homebrew_ready || (!setup_ready && !Eden::IsHomebrewFile(file))) return {};
         return "/games/roms/" + file;
+    }
+    ui::BoxArt box_art(std::uint64_t title_id) override
+    {
+        // Test faces generated by the host fixture, never distributed with Encore.
+        if (!enable_sample_case_ || title_id != sample_case_title_id_)
+            return {};
+        for (const auto& game : games_)
+            if (game.title_id == title_id)
+                return {game.box_front, game.box_back, sample_case_spine_};
+        return {};
     }
     bool docked(std::uint64_t title_id) override;
     bool set_docked(std::uint64_t title_id, bool docked) override;
     ui::GameSettings game_settings(std::uint64_t) override
     {
+        std::lock_guard lock(state_mutex_);
         return game_settings_;
     }
     bool set_game_settings(std::uint64_t, const ui::GameSettings &settings) override
     {
+        std::lock_guard lock(state_mutex_);
         game_settings_ = settings;
         return true;
     }
-    // What the keyboard gives the next time a game's RNG seed is asked for: a seed, -1 for a
-    // text that is no seed, nothing for a cancelled keyboard.
-    std::optional<std::int64_t> typed_seed;
-    std::optional<std::int64_t> ask_seed(std::int64_t, const std::atomic<bool> &) override
-    {
-        return typed_seed;
-    }
     ui::Preferences preferences() override
     {
+        std::lock_guard lock(state_mutex_);
         return preferences_;
     }
     bool set_preferences(const ui::Preferences &preferences) override
     {
+        if (reject_preferences) return false;
+        std::lock_guard lock(state_mutex_);
         preferences_ = preferences;
         return true;
     }
     const std::vector<std::string> &resolution_labels() override;
     const std::vector<std::string> &resolution_keys() override;
     const std::vector<std::string> &filter_labels() override;
-    const std::vector<std::string> &astc_labels() override;
-    const std::vector<std::string> &post_processing_labels() override;
+    const std::vector<std::string> &anti_aliasing_labels() override;
+    const std::vector<std::string> &performance_profile_labels() override;
     const std::vector<std::string> &language_labels() override;
     std::string language_region(int language) override;
     std::string setup_details() override;
-    std::string crash_reports_folder() override { return "/data/prosperoeden/logs"; }
-    std::vector<std::string> wallpapers() override;
-    std::string wallpapers_folder() override
-    {
-        return wallpapers_directory_;
-    }
     bool folders(const std::string &directory, std::vector<std::string> *names) override;
     ui::FolderInfo folder_info(const std::string &directory) override;
     std::string files_folder() override
@@ -317,6 +120,7 @@ class FakeServices : public ui::Services
     }
     std::string saved_files_folder() override
     {
+        std::lock_guard lock(state_mutex_);
         return saved_folder_;
     }
     std::string default_files_folder() override
@@ -325,20 +129,84 @@ class FakeServices : public ui::Services
     }
     bool set_files_folder(const std::string &directory) override
     {
+        std::lock_guard lock(state_mutex_);
         saved_folder_ = directory;
-        return true;
-    }
-    std::string saved_games_directory;
-    std::string saved_games_folder() override { return saved_games_directory; }
-    bool set_games_folder(const std::string &directory) override
-    {
-        saved_games_directory = directory;
         return true;
     }
     int filesystem_access() override
     {
         return 0;
     }
+    bool independent_storage_available() override { return content_io_available; }
+    bool content_entries(const std::string& directory, std::vector<std::string>* names,
+                         std::vector<std::string>* images, const std::atomic<bool>* cancel) override {
+        if (names) names->clear();
+        if (images) images->clear();
+        ++directory_calls;
+        const auto active=directory_active.fetch_add(1)+1;
+        auto peak=directory_peak.load();
+        while (peak<active && !directory_peak.compare_exchange_weak(peak,active)) {}
+        struct Drain { std::atomic<unsigned>& active; ~Drain() { --active; } } drain{directory_active};
+        directory_requested_images=images!=nullptr;
+        // Host-only noninterruptible-syscall model. The fixture must release it
+        // before teardown; cancellation is intentionally acknowledged afterward.
+        while (hold_directory_syscall.load()) std::this_thread::yield();
+        if (throw_directory_once.exchange(false)) throw std::runtime_error("fixture discovery failure");
+        if (!wait_content(cancel) || !content_io_available) return false;
+        std::vector<std::string> discarded;
+        const bool ok = folders(directory, names ? names : &discarded);
+        if (!ok) return false;
+        if (images) *images = wallpaper_files(directory);
+        return ok;
+    }
+    void activate_content_snapshot() {
+        std::lock_guard lock(content_mutex_);
+        active_locations_ = content_io_available ? saved_locations_ : std::array<std::string,3>{};
+        active_wallpaper_ = content_io_available ? selected_wallpaper_ : std::string{};
+    }
+    std::string location_folder(ui::StorageLocation kind) override {
+        std::lock_guard lock(content_mutex_);
+        return kind != ui::StorageLocation::files && !active_locations_[std::size_t(kind)].empty() ?
+               active_locations_[std::size_t(kind)] : ui::Services::location_folder(kind);
+    }
+    std::string saved_location_folder(ui::StorageLocation kind) override {
+        if (kind == ui::StorageLocation::files) return saved_files_folder();
+        std::lock_guard lock(content_mutex_);
+        return saved_locations_[std::size_t(kind)];
+    }
+    bool set_location_folder(ui::StorageLocation kind, const std::string& directory) override {
+        return set_location_folder(kind,directory,nullptr);
+    }
+    bool set_location_folder(ui::StorageLocation kind, const std::string& directory,
+                             const std::atomic<bool>* cancel) override {
+        if (kind == ui::StorageLocation::files) return set_files_folder(directory);
+        if (!wait_content(cancel) || !content_io_available || reject_preferences) return false;
+        std::lock_guard lock(content_mutex_);
+        saved_locations_[std::size_t(kind)] = directory;
+        if (kind == ui::StorageLocation::wallpapers) selected_wallpaper_.clear();
+        return true;
+    }
+    std::vector<std::string> wallpaper_files(const std::string&) override {
+        return {"Fixture wallpaper.tga"}; // generated art, not user filesystem data
+    }
+    std::vector<std::string> wallpaper_files(const std::string& directory, const std::atomic<bool>* cancel) override {
+        return wait_content(cancel) ? wallpaper_files(directory) : std::vector<std::string>{};
+    }
+    bool set_wallpaper(const std::string& directory, const std::string& name) override {
+        return set_wallpaper(directory,name,nullptr);
+    }
+    bool set_wallpaper(const std::string& directory, const std::string& name,
+                       const std::atomic<bool>* cancel) override {
+        if (!wait_content(cancel) || !content_io_available || reject_preferences) return false;
+        std::lock_guard lock(content_mutex_);
+        saved_locations_[2] = directory; selected_wallpaper_ = name;
+        return true;
+    }
+    std::string wallpaper_image() override {
+        std::lock_guard lock(content_mutex_);
+        return !content_io_available || active_wallpaper_.empty() || games_.empty() ? std::string{} : "wallpaper:" + games_.front().cover;
+    }
+    std::string saved_wallpaper_name() { std::lock_guard lock(content_mutex_); return selected_wallpaper_; }
     bool save_transfer_available() override
     {
         return import_available;
@@ -357,43 +225,29 @@ class FakeServices : public ui::Services
         *message = fill(tr("Exported to {0}."), {"save-export/0100A00B00003000-20261001-213000"});
         return true;
     }
-    // Sample mods, for three of the games and their copies: three, the second switched off, the third with one cheat
-    // beside its files; and two of cheats alone, the cheats folder with cheats chosen one by one
-    // (its two frame rates replace each other) and a loose file of one cheat. None when has_mods
-    // is cleared.
-    bool has_mods = true;
+    // Sample mods, for two of the games: three, the second switched off; none when has_mods is
+    // cleared.
+    std::atomic<bool> has_mods{true};
     std::vector<ui::Mod> mods(std::uint64_t) override;
     bool set_mod_enabled(std::uint64_t, const std::string &name, bool enabled) override;
-    bool set_cheat_enabled(std::uint64_t, const std::string &mod, const std::string &cheat,
-                           bool enabled) override;
-    std::vector<ui::GameCheat> cheats(std::uint64_t title_id) override;
-    // One Mods switch and one Cheats switch for every sample game.
+    bool enable_mod_and_mods(std::uint64_t title_id, const std::string &name) override;
+    // One Mods switch for every sample game.
     bool mods_enabled(std::uint64_t) override
     {
+        std::lock_guard lock(state_mutex_);
         return mods_enabled_;
     }
-    bool set_mods_enabled(std::uint64_t, bool enabled) override
+    bool set_mods_enabled(std::uint64_t title_id, bool enabled) override
     {
+        std::lock_guard lock(state_mutex_);
+        ++mods_writes;
+        last_mods_title=title_id;
         mods_enabled_ = enabled;
         return true;
     }
-    bool cheats_enabled(std::uint64_t) override
+    std::string mods_folder(std::uint64_t) override
     {
-        return cheats_enabled_;
-    }
-    bool set_cheats_enabled(std::uint64_t, bool enabled) override
-    {
-        cheats_enabled_ = enabled;
-        return true;
-    }
-    // Every sample game is in a folder of its own in roms/, named after it.
-    std::string mods_folder(std::uint64_t title_id) override
-    {
-        return "roms/" + game_folder(title_id) + "/mods/";
-    }
-    std::string cheats_folder(std::uint64_t title_id) override
-    {
-        return "roms/" + game_folder(title_id) + "/cheats/";
+        return "mods/0100A00B00003000/";
     }
     bool make_mods_folder(std::uint64_t) override
     {
@@ -401,103 +255,40 @@ class FakeServices : public ui::Services
     }
     bool load_image(const std::string &path, gfx::Image *image) override
     {
+        if (path.starts_with("wallpaper:"))
+            return !games_.empty() && gfx::load_tga(games_.front().cover, image);
         return gfx::load_tga(path, image);
     }
 
-    // Two download sources, "Home" with three games and "Office" with two (one of them Home's
-    // too); a download moves a step each time the queue is looked at (the launcher looks four
-    // times a second) and the game then joins the library. server_fails: Office cannot be
-    // reached; download_fails: a download stops part way.
-    bool has_server = false;
-    bool server_fails = false;
-    bool download_fails = false;
-    ui::Sources sources() override;
-    void refresh_sources() override
-    {
-        ++generation_;
-    }
-    bool download(const ui::Game &game, int source, bool first) override;
-    bool cancel_download(const std::string &key) override;
-    std::vector<ui::Download> downloads() override;
-    // The queue as it is, without moving it on (for the preview to look at).
-    const std::vector<ui::Download> &downloads_now() const
-    {
-        return queue_;
-    }
-    bool delete_game(const ui::Game &game, std::string *message) override;
-
-    // The profile syncs its save data (save_sync_on); a sync takes a few looks of the launcher.
-    // save_sync_conflict: both sides changed; save_sync_fails: the server cannot be reached.
-    // played(): a game just ended, its save data goes up once the menu is back.
-    bool save_sync_on = false;
-    bool save_sync_conflict = false;
-    bool save_sync_fails = false;
-    bool save_sync_too_old = false; // the server runs RomM 4.9.2
-    bool save_sync_wanted(const std::string &) override
-    {
-        return save_sync_on;
-    }
-    void start_save_sync(const std::string &file, bool before) override;
-    ui::SaveSync save_sync() override;
-    void choose_save_data(ui::SaveChoice choice) override;
-    void end_save_sync() override
-    {
-        if (sync_.stage == ui::SaveSyncStage::done || sync_.stage == ui::SaveSyncStage::failed)
-            sync_ = {};
-    }
-    void stop_save_sync() override
-    {
-        sync_ = {};
-    }
-    void played(const std::string &name);
-
-    // Settings > Save sync: two profiles (the second paired with Home), two servers to pair with;
-    // a pairing is approved after a few looks.
-    ui::SaveSyncSetup save_sync_setup() override;
-    std::vector<ui::PairServer> pair_servers() override
-    {
-        return {{"Home", "http://192.168.1.20:3000"}, {"Office", "https://games.example.org"}};
-    }
-    bool start_pairing(int profile, int server) override;
-    ui::PairingStatus pairing() override;
-    void cancel_pairing() override
-    {
-        pair_ = {};
-    }
-    bool unlink_profile(int profile) override;
-
   private:
-    ui::PairingStatus pair_;
-    int pair_looks_ = 0;
-    int pair_profile_ = 0;
-    std::vector<std::string> linked_{"", "kids @ http://192.168.1.20:3000"};
-    ui::SaveSync sync_;
-    int sync_looks_ = 0;
-    std::vector<ui::Game> remote_; // the sources' games not on the console
-    std::vector<ui::Download> queue_;
-    // Where a download that goes on was (verifying reads up to there first), by its key.
-    std::vector<std::pair<std::string, std::uint64_t>> going_on_;
-    std::uint64_t generation_ = 1;
+    bool wait_content(const std::atomic<bool>* cancel) {
+        while (pause_content.load(std::memory_order_acquire)) {
+            if (cancel && cancel->load(std::memory_order_acquire)) return false;
+            std::this_thread::yield();
+        }
+        return !(cancel && cancel->load(std::memory_order_acquire));
+    }
+    std::mutex content_mutex_;
+    std::mutex state_mutex_;
+    std::string launch_error_, crash_report_;
     std::vector<ui::Game> games_;
+    bool preview_botw_ = false; // host-only real scan example, never packaged
+    bool enable_sample_case_ = true; // exercise generic no-scan fallback
+    std::uint64_t sample_case_title_id_ = 0;
+    std::string sample_case_front_;
+    std::string sample_case_back_;
+    std::string sample_case_spine_;
     std::vector<std::uint64_t> handheld_;
     ui::GameSettings game_settings_;
     ui::Preferences preferences_;
     std::string saved_folder_;
-    std::string wallpapers_directory_; // <covers_directory>/wallpapers, read like the console's
+    std::array<std::string, 3> saved_locations_;
+    std::array<std::string, 3> active_locations_;
+    std::string active_wallpaper_;
+    std::string selected_wallpaper_;
     std::vector<std::uint64_t> modded_; // the games that have the sample mods
     std::vector<std::string> mods_off_{"Sharper textures"};
-    std::vector<std::string> cheats_on_{"60 FPS"};
-    bool bonus_cheat_ = true; // the one cheat beside the third mod's files
-    // The name of a sample game, as its folder in roms/ would have it.
-    std::string game_folder(std::uint64_t title_id) const
-    {
-        for (const ui::Game &game : games_)
-            if (game.title_id == title_id)
-                return game.name;
-        return "Game";
-    }
     bool mods_enabled_ = true;
-    bool cheats_enabled_ = true;
 };
 
 } // namespace pe::host

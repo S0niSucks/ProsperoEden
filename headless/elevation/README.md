@@ -1,34 +1,72 @@
-# Filesystem access with upstream Lapy
+# Filesystem access (sandbox elevation)
 
-ProsperoEden uses [PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon),
-created by ArkSama, and pins the cooperative owned-root implementation from
-[ProsperoEden's Lapy fork](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon), based on
-[mpereiraesaa's cooperative helper](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon). The build invokes
-upstream's own `owned-helper` target for `PPSA99008`; it does not copy or modify Lapy's privileged
-source. Before packaging, it verifies the generated manifest's title, mode, ELF and protocol
-hashes, and `root_layout_probe_retry` feature.
+Encore keeps the ProsperoEden 1.000.040 one-shot filesystem helper instead of adopting the newer
+Lapy path.
 
-At single-threaded startup, the client checks both writable /data and access to
-/preinst/common/font. A sandbox mount of /data alone must not skip elevation (#42).
-If either is inaccessible, it publishes the cooperative resident-service request
-through `/download0/elevate_proc`. It waits 1.5 seconds for verified `/data` read/write access and an accessible system-font directory. If
-the resident service claimed the marker, the one-shot path is not started. If the app cancels an
-unclaimed marker, it observes one further grace interval and then sends `/app0/lapy.elf` to the
-local ELF loader on TCP port 9021. The same connection carries upstream's fixed-width
-request/prepare/prepared/response exchange. Only a successful response followed by an actual
-`/data` write/read/delete probe and system-font directory check confirm full access. If font recovery fails but
-/data is still verified writable, the client logs the failure and keeps the existing data paths
-(`data-only`); the launcher can fall back to English without hiding the user's saves.
+It supports Encore's single storage model:
 
-The package includes `lapy.elf`, `lapy-manifest.json`, and Lapy's MIT license. It contains no
-locally implemented kernel mutation code. A jailbreak environment with an ELF loader on port
-9021 is required when a resident Lapy service is not already available.
+- default internal root: `/data/prosperoeden`;
+- optional external root selected by the user;
+- identical folder schema under either root.
 
-The previous donor-release helper passed repeated lifecycle tests on firmware 6.02 and 12.70.
-The pinned target-lifetime helper completed its exit-race stress and a full one-shot elevation on
-firmware 12.70. Other SDK-supported firmware, including ProsperoEden's firmware 6.02 test console,
-remains experimental for this exact pin until it completes an attended launch and clean-exit test.
+The implementation originates from
+[ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate)
+`examples/sandbox-elevation` at `dd44bbd` (GPL-3.0-or-later).
 
-Credits: Lapy was created by [ArkSama](https://github.com/ArkSama), and the cooperative helper
-used here comes from
-[mpereiraesaa and contributors](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/graphs/contributors).
+## Encore target
+
+- Application title ID: `PPSA99008`.
+- Primary validated firmware target: **PS5 13.60**.
+- Requested capability: `Capability::filesystem`.
+- Helper packaged as `/app0/sandbox-elevator.elf`.
+- Request made once during single-threaded startup.
+- Without a usable local ELF-loader/elevation path, the request fails and Encore remains sandboxed
+  rather than treating access as successful.
+
+Other firmware versions are not claimed as validated by Encore until tested on hardware.
+
+## Security properties
+
+This path is intentionally one-shot and narrow at the protocol boundary:
+
+1. The application connects only to the local ELF-loader endpoint at `127.0.0.1:9021`.
+2. Connect/send/receive operations use bounded five-second timeouts.
+3. The protocol is a fixed 24-byte little-endian structure with magic, version, kind, capability,
+   PID and status validation.
+4. Only `Capability::filesystem` is accepted. Arbitrary privilege masks, addresses and kernel
+   pointers are not supplied by the application.
+5. The helper validates the requested PID against the exact title ID `PPSA99008`.
+6. Kernel pointers used while locating the process are validated and process traversal is bounded.
+7. Original credential/filesystem state is captured before modification.
+8. The application performs the same-UID credential-clone handshake first.
+9. The helper refuses to write if the credential pointer did not change or the clone differs from
+   the captured original state.
+10. Elevated state is read back and must exactly match the intended state.
+11. A failed apply attempts a full write-back and verification of the original state.
+12. The helper handles one request and exits; Encore installs no persistent elevation service.
+13. The packaged ELF is structurally validated before release.
+14. The application independently checks user/group identity after the helper returns.
+15. `rollback_failed`, any failed request that changed identity, or a reported success with an
+    unexpected identity terminates the process before privileged filesystem use.
+16. Legacy data migration validates the entire source tree before copying/moving and rejects
+    symlinks or unexpected file types.
+17. Legacy game-file migration is preflighted and rollback-aware; destination conflicts are never
+    silently overwritten.
+
+## Runtime use
+
+After successful filesystem access, Encore resolves one storage root.
+
+Internal storage uses:
+
+```text
+/data/prosperoeden
+```
+
+An external selection changes only that root; it does not create separate configurable paths for
+keys, firmware, ROMs, updates or mods.
+
+`main.cpp` records the access result in the boot trace, performs guarded legacy migration, creates
+the standard root subfolders where possible, and then starts normal launcher/runtime initialization.
+
+The Storage browser rejects `/` so the console root cannot be selected accidentally.

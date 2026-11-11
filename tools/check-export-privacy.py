@@ -1,35 +1,38 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Actual CLI/ZIP privacy qualification in miniature synthetic repos, never real app data.
+"""Exercise the real release CLI in fresh, temporary synthetic repositories.
 
---output retains fixtures, ZIPs, commands, logs and hashes; otherwise use an owned temp folder.
---baseline points to an archived old source tree to demonstrate leaks (not an acceptance gate).
-No native build: the optional root/build symbol input is absent in every miniature repository.
+No real dist, app, credentials, native tools or external services are used. Only
+the fixture's package-image.sh is stubbed: its deterministic payload is NOT PFS
+or PS5 evidence. Independent child-process guards detect private-node inspection.
 """
-import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCES = ('tools/network_privacy.py', 'tools/build_identity.py',
-           'tools/ci/make-dist.py', 'tools/launcher/package-update.py')
-PRIVATE = b'SYNTHETIC-PRIVATE-CANARY-NOT-REAL-USER-DATA'
-STAMP = 1767225600
+sys.path.insert(0, str(ROOT / 'tools'))
+from network_privacy import private_network_path
 
-# This guard does not import the policy under test. Exact fixture nodes/descendants are
-# supplied independently. An attempted denied stat, read, readlink or enumeration is a
-# failure even if pathlib swallows PermissionError. The synthetic payload is never opened.
+SOURCES = ('tools/ci/make-dist.py', 'tools/network_privacy.py',
+           'tools/ci/check-ftp-archive-root.py')
+PRIVATE = b'SYNTHETIC-PRIVATE-CANARY-NOT-USER-DATA'
+PRIVATE_NAME = 'SYNTHETIC-PRIVATE-NAME'
+RELEASE = 'Prospero.Eden-Encore-R1'
+SENTINEL = b'Existing dist must survive refused input.\r\n'
+
+# This does NOT import the policy being tested. Listing a private node's parent
+# is allowed; stat/open/readlink/enumeration of the node or its children is not.
 GUARD = r'''
 import json, os, sys
-nodes = [os.path.normcase(os.path.abspath(path)) for path in json.loads(os.environ['PE_EXPORT_DENIED'])]
-log = os.environ['PE_EXPORT_GUARD_LOG']
+nodes = [os.path.normcase(os.path.abspath(p)) for p in json.loads(os.environ['ENCORE_TEST_DENIED'])]
+log = os.environ['ENCORE_TEST_GUARD_LOG']
 def record(value):
     with open(log, 'a', encoding='utf-8') as stream:
         stream.write(json.dumps(value) + '\n')
@@ -37,8 +40,8 @@ def check(event, value):
     if not isinstance(value, (str, bytes, os.PathLike)): return
     path = os.path.normcase(os.path.abspath(os.fsdecode(value)))
     if any(path == node or path.startswith(node + os.sep) for node in nodes):
-        record({'event': event, 'path': path})
-        raise PermissionError('Synthetic privacy guard blocked ' + event)
+        record({'event': event})
+        raise PermissionError('Synthetic private-node guard')
 record({'guard': 'active'})
 def audit(event, args):
     if event in ('open', 'os.scandir', 'os.listdir') and args: check(event, args[0])
@@ -51,324 +54,294 @@ for name in ('stat', 'lstat', 'readlink'):
     setattr(os, name, guarded)
 '''
 
-
-def digest(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+IMAGE_STUB = r'''
+import json, os
+from pathlib import Path
+import sys
+folder, output = map(Path, sys.argv[1:])
+calls = Path(os.environ['ENCORE_TEST_IMAGE_CALLS'])
+with calls.open('a', encoding='utf-8') as stream:
+    stream.write(json.dumps({'folder': str(folder), 'output': str(output)}) + '\n')
+files = {p.relative_to(folder).as_posix(): p.read_bytes().hex()
+         for p in sorted(folder.rglob('*')) if p.is_file()}
+data = b'SYNTHETIC-IMAGE-NOT-PFS\n' + json.dumps(files, sort_keys=True).encode()
+if os.environ.get('ENCORE_TEST_NONDETERMINISTIC'):
+    data += str(len(calls.read_text().splitlines())).encode()
+output.write_bytes(data)
+'''
 
 
 def write(path, data):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
-    os.utime(path, (STAMP, STAMP))
 
 
-def source_files(source):
-    return (*SOURCES, *(('tools/release_licenses.py',) if (source / 'tools/release_licenses.py').is_file() else ()))
-
-
-def license_fixture():
-    payloads = {'example/COPYING': b'Synthetic license text.  \r\n\n',
-                'example/SOURCE_NOTICES.txt': b'Synthetic notice excerpt, NOT complete source. \n'}
-    manifest = {'format_version': 1, 'scope': 'Synthetic notice fixture; not corresponding source',
-                'files': [{'destination': name, 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()}
-                          for name, data in payloads.items()]}
-    return {**payloads, 'SOURCES.json': (json.dumps(manifest, indent=2) + '\n').encode()}
-
-
-def fixture(source, directory, collector):
+def fixture(directory):
     repo = directory / 'repo'
-    for name in source_files(source):
-        target = repo / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source / name, target)
-    for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md'):
-        write(repo / name, ('Synthetic fixture ' + name + '\n').encode())
-    write(repo / 'docs/CHANGELOG.md', b'## v1.000.001\n\nSynthetic notes.\n')
-    if collector == 'release':
-        for name, data in license_fixture().items():
-            write(repo / 'third_party/licenses' / name, data)
-    folder = repo / 'input' / ('PPSA99008' if collector == 'release' else 'pack')
-    public = {'config/settings.json': b'{"synthetic":true}',
-              'config/network-shares.txt': b'public near match',
+    for name in SOURCES:
+        write(repo / name, (ROOT / name).read_bytes())
+    write(repo / 'headless/prosperoeden/version.h', b'constexpr auto kAppVersion = "R1";\n')
+    docs = {name: ('Synthetic ' + name + '.  \r\n\n').encode() for name in
+            ('README.md', 'INSTALL.md', 'SECURITY.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')}
+    docs['README.md'] += b'## Changes in Encore R1\n\nSynthetic release notes.\n\n## Fixture footer\n'
+    licenses = {'GPL-3.0-or-later.txt': b'Synthetic license.  \r\n\n',
+                'NOTICE': b'Synthetic notice.\n  \n'}
+    for name, data in docs.items():
+        write(repo / name, data)
+    for name, data in licenses.items():
+        write(repo / 'LICENSES' / name, data)
+    app = repo / 'input/PPSA99008'
+    public = {'eboot.bin': b'Synthetic non-executable payload',
+              'sce_sys/param.json': b'{"titleId":"PPSA99008"}',
+              'legal/LICENSE': docs['LICENSE'],
+              'legal/LICENSES/NOTICE': licenses['NOTICE'],
+              'ui/lang/en.txt': b'ShadowMount companion.\r\n',
+              'ui/lang/en.mo': b'Synthetic binary catalog',
+              'config/settings.json': b'{"public":true}',
               'config/nextendo.json': b'public near match',
               'config/nextendo-public/keep.txt': b'public near match',
-              'assets/network-shares.json': b'public asset',
-              'nested/config/settings.json': b'public nested config',
-              'configuration/nextendo/account.txt': b'public near match'}
-    if os.name == 'posix':
-        public.update({'config. /settings-extra.json': b'public alias config',
-                       'config./nextendo-public/keep.txt': b'public alias near match'})
-    if collector == 'release':
-        public.update({'sce_sys/param.json': b'{"contentVersion":"01.000.001"}',
-                       'eboot.bin': b'Synthetic non-executable eboot identity fixture'})
-    else:
-        manifest = {'schema': 1, 'id': 'privacy-fixture', 'name': 'Synthetic fixture',
-                    'version': '1.2.3', 'host_contract': 'launcher-v1.0',
-                    'api': {'major': 1, 'min_minor': 0}, 'entry': 'main.lua',
-                    'font': 'assets/font.pefont', 'assets': {},
-                    'updates': {'feed': 'https://example.invalid/feed.json'}}
-        public.update({'manifest.json': json.dumps(manifest).encode(),
-                       'main.lua': b'return {}\n', 'assets/font.pefont': b'synthetic font bytes'})
+              'config/network-shares.txt': b'public near match',
+              'assets/network-shares.json': b'public outside config',
+              'configuration/nextendo/keep.txt': b'public outside config'}
     for name, data in public.items():
-        write(folder / name, data)
-    return repo, folder, public
+        write(app / name, data)
+    write(repo / 'dist/keep.sentinel', SENTINEL)
+    write(repo / 'tools/ci/package-image.sh',
+          b'#!/usr/bin/env bash\nset -eu\n"$ENCORE_TEST_PYTHON" "$ENCORE_TEST_IMAGE_STUB" "$@"\n')
+    write(repo / 'image-stub.py', IMAGE_STUB.encode())
+    write(repo / 'tools/ci/diagnose-image-repro.py', b'print("Synthetic image mismatch control")\n')
+    write(repo / 'guard/sitecustomize.py', GUARD.encode())
+    return repo, app, public, docs, licenses
 
 
-def invoke(repo, folder, collector, directory, denied=(), extra=()):
-    if collector == 'release':
-        command = [sys.executable, '-B', str(repo / 'tools/ci/make-dist.py'), str(folder)]
-        archive = repo / 'dist/ProsperoEden-v1.000.001.zip'
+def environment(repo, denied):
+    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(repo / 'guard'),
+               ENCORE_TEST_DENIED=json.dumps([str(p.absolute()) for p in denied]),
+               ENCORE_TEST_GUARD_LOG=str(repo / 'guard.jsonl'),
+               ENCORE_TEST_IMAGE_CALLS=str(repo / 'image-calls.jsonl'),
+               ENCORE_TEST_PYTHON=Path(sys.executable).as_posix(),
+               ENCORE_TEST_IMAGE_STUB=(repo / 'image-stub.py').as_posix())
+    # Avoid Windows' WSL launcher; use the already-installed Git Bash, not an install.
+    if os.name == 'nt':
+        bash = Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe'
+        if not bash.is_file():
+            raise RuntimeError('Existing Git Bash is required for the synthetic image stub on Windows')
+        env['PATH'] = str(bash.parent) + os.pathsep + env.get('PATH', '')
+    return env
+
+
+def invoke(repo, app, image_only=False, denied=(), nondeterministic=False):
+    env = environment(repo, denied)
+    if nondeterministic:
+        env['ENCORE_TEST_NONDETERMINISTIC'] = '1'
+    command = [sys.executable, '-B', str(repo / 'tools/ci/make-dist.py')]
+    command += ['--image-only'] if image_only else []
+    # On Windows CreateProcess searches the working directory before System32
+    # (its WSL bash.exe); changing only the child's PATH does not select Git Bash.
+    cwd = env['PATH'].split(os.pathsep)[0] if os.name == 'nt' else repo
+    result = subprocess.run([*command, str(app)], env=env, cwd=cwd,
+                            capture_output=True, text=True, timeout=30)
+    assert PRIVATE.decode() not in result.stdout + result.stderr, 'Credential body was printed'
+    assert PRIVATE_NAME not in result.stdout + result.stderr, 'Private filename was printed'
+    events = [json.loads(line) for line in (repo / 'guard.jsonl').read_text().splitlines()]
+    assert events and events[0] == {'guard': 'active'}, 'CLI access guard was not installed'
+    # Each synthetic image/diagnostic Python subprocess also installs the guard.
+    assert all(event == {'guard': 'active'} for event in events), 'CLI attempted to inspect a private node'
+    return result
+
+
+def calls(repo):
+    path = repo / 'image-calls.jsonl'
+    return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
+
+
+def expected_zip(files):
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zipped:
+        for name, data in files:
+            info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            zipped.writestr(info, data)
+    return output.getvalue()
+
+
+def clean_case(directory, image_only):
+    repo, app, public, docs, licenses = fixture(directory)
+    result = invoke(repo, app, image_only)
+    assert result.returncode == 0, result.stderr
+    image = repo / 'dist' / (RELEASE + '.ffpfsc')
+    assert image.read_bytes().startswith(b'SYNTHETIC-IMAGE-NOT-PFS\n')
+    image_files = json.loads(image.read_bytes().split(b'\n', 1)[1])
+    assert image_files == {name: data.hex() for name, data in public.items()}, 'Image input bytes changed'
+    image_calls = calls(repo)
+    assert len(image_calls) == (1 if image_only else 2)
+    assert all(Path(call['folder']) == app and Path(call['output']) == image for call in image_calls)
+    if image_only:
+        assert (repo / 'dist/keep.sentinel').read_bytes() == SENTINEL
+        assert sorted(p.name for p in (repo / 'dist').iterdir()) == [RELEASE + '.ffpfsc', 'keep.sentinel']
     else:
-        command = [sys.executable, '-B', str(repo / 'tools/launcher/package-update.py'), str(folder),
-                   '--output', str(repo / 'output'), '--url', 'https://example.invalid/fixture.zip', *extra]
-        archive = repo / 'output/privacy-fixture-1.2.3.zip'
-    env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
-    guard_log = directory / 'guard.jsonl'
-    if denied:
-        guard = directory / 'guard'; guard.mkdir()
-        write(guard / 'sitecustomize.py', GUARD.encode())
-        env.update(PYTHONPATH=str(guard), PE_EXPORT_DENIED=json.dumps([str(p.absolute()) for p in denied]),
-                   PE_EXPORT_GUARD_LOG=str(guard_log))
-    result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=20)
-    (directory / 'stdout.log').write_text(result.stdout, encoding='utf-8')
-    (directory / 'stderr.log').write_text(result.stderr, encoding='utf-8')
-    events = [json.loads(line) for line in guard_log.read_text().splitlines()] if guard_log.exists() else []
-    if denied:
-        assert events and events[0] == {'guard': 'active'}, 'CLI access guard was not installed'
-    record = {'command': command, 'returncode': result.returncode, 'guard_attempts': events[1:],
-              'zip_sha256': digest(archive) if archive.exists() else None}
-    (directory / 'cli.json').write_text(json.dumps(record, indent=2))
-    return result, archive, record
-
-
-def inspect(archive, collector, public, licenses=True):
-    prefix = 'PPSA99008/' if collector == 'release' else 'privacy-fixture/'
-    expected = {prefix + name: data for name, data in public.items()}
-    if collector == 'release':
-        expected.update({name: ('Synthetic fixture ' + name + '\n').encode()
-                         for name in ('README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md')})
-        if licenses:
-            expected.update({'third_party/licenses/' + name: data for name, data in license_fixture().items()})
-    with zipfile.ZipFile(archive) as zipped:
-        assert zipped.testzip() is None
-        assert len(zipped.namelist()) == len(set(zipped.namelist())), 'Duplicate ZIP members'
-        actual = {info.filename: zipped.read(info) for info in zipped.infolist()}
-        for name, data in expected.items():
-            assert actual[name] == data, 'Public bytes changed: ' + name
-        if collector == 'release':
-            assert all((info.external_attr >> 16) & 0o777 == 0o777 for info in zipped.infolist())
-            assert all(info.date_time == (2026, 1, 1, 0, 0, 0) for info in zipped.infolist())
-    return sorted(set(actual) - set(expected)), [name for name, data in actual.items() if PRIVATE in data]
-
-
-def verify_integrity(repo, folder, archive, collector, public):
-    # Hash/source-identity checks do not touch the independently specified private nodes.
-    for name, data in public.items():
-        assert (folder / name).read_bytes() == data, 'Source was modified: ' + name
-    if collector == 'release':
+        app_files = [('PPSA99008/' + name, public[name]) for name in sorted(public)]
+        full_files = app_files + list(docs.items()) + [('LICENSES/' + name, licenses[name]) for name in sorted(licenses)]
+        ftp_files = [(name, data) for name, data in app_files if not name.startswith('PPSA99008/legal/')
+                     and not (name.startswith('PPSA99008/ui/lang/') and name.endswith('.txt'))]
+        for suffix, expected in (('.zip', full_files), ('-FTP.zip', ftp_files)):
+            archive = repo / 'dist' / (RELEASE + suffix)
+            assert archive.read_bytes() == expected_zip(expected), 'Clean ZIP bytes/metadata/layout changed'
         for line in (repo / 'dist/SHA256SUMS').read_text().splitlines():
             checksum, name = line.split('  ')
-            assert digest(repo / 'dist' / name) == checksum
-        assert not (repo / 'build').exists(), 'Optional real ELF/symbol inputs must be absent'
-    else:
-        feed = json.loads((repo / 'output/launcher-updates.json').read_text())
-        release = feed['releases'][0]
-        assert feed['id'] == 'privacy-fixture' and release['version'] == '1.2.3'
-        assert release['sha256'] == digest(archive) and release['bytes'] == archive.stat().st_size
-        assert release['host_contract'] == 'launcher-v1.0' and release['api']['major'] == 1
+            assert hashlib.sha256((repo / 'dist' / name).read_bytes()).hexdigest() == checksum
+        assert (repo / 'dist/release-notes.md').read_text() == 'Synthetic release notes.\n'
+        check = subprocess.run([sys.executable, '-B', str(repo / SOURCES[2]), str(repo / 'dist')],
+                               capture_output=True, text=True, timeout=10)
+        assert check.returncode == 0, check.stderr
+    for name, data in public.items():
+        assert (app / name).read_bytes() == data, 'Staged app was rewritten'
+    for name, data in docs.items():
+        assert (repo / name).read_bytes() == data, 'Legal/document text was rewritten'
+    for name, data in licenses.items():
+        assert (repo / 'LICENSES' / name).read_bytes() == data, 'License text was rewritten'
 
 
-def cases():
-    # Each case is separate so case-insensitive hosts never collapse distinct fixture names.
-    return [
-        ('canonical', ['config/network-shares.json'], False),
-        ('staging-prefix', ['config/network-shares.json' + suffix
-                            for suffix in ('.tmp', '.new', '.backup', 'anything')], False),
-        ('mixed-case', ['CoNfIg/NETWORK-SHARES.JSON.new'], False),
-        ('config-dot', ['config./network-shares.json'], True),
-        ('config-space', ['config /network-shares.json.new'], True),
-        ('component-alias', ['nested/CONFIG. /NeTwOrK-ShArEs.JsOn.pending'], True),
-        ('backslash', [r'config\network-shares.json'], True),
-        ('backslash-component', [r'prefix\CONFIG. /NETWORK-SHARES.JSON.tmp'], True),
-        ('nextendo', ['config/nextendo/' + name for name in
-                      ('account.json', 'oauth/refresh.json', 'routes.json', 'tokens/token.bin')], False),
-        ('nextendo-case', ['CoNfIg/NeXtEnDo/routes.json'], False),
-        ('nextendo-alias', ['config. /NEXTENDO. /oauth/refresh.json'], True),
-        ('nextendo-backslash', [r'config\nextendo\tokens\refresh.json'], True),
-    ]
+def rejected_case(directory, image_only, setup):
+    repo, app, _, _, _ = fixture(directory)
+    argument, denied, cleanup = setup(repo, app)
+    try:
+        result = invoke(repo, argument, image_only, denied)
+        assert result.returncode != 0, 'Unsafe input was accepted'
+        assert 'Release preflight refused' in result.stderr, result.stderr
+        assert not calls(repo), 'Image subprocess ran for unsafe input'
+        assert sorted(p.name for p in (repo / 'dist').iterdir()) == ['keep.sentinel'], 'dist was modified'
+        assert (repo / 'dist/keep.sentinel').read_bytes() == SENTINEL
+    finally:
+        cleanup()
 
 
-def qualify(output, baseline, report):
-    hashes = {name: digest(ROOT / name) for name in source_files(ROOT)}
-    report.update(source_files_sha256=hashes, python=sys.version, platform=sys.platform,
-                  test_files_sha256={name: digest(ROOT / name) for name in
-                                     ('tools/check-network-privacy.py', 'tools/check-export-privacy.py')},
-                  scope='Actual packaging CLIs, synthetic data only; no native build/real app data/ELF symbols')
-    sources = [('fixed', ROOT)] + ([('baseline', baseline)] if baseline else [])
-    clean_hashes = {}
-    for label, source in sources:
-        report[label + '_source_files_sha256'] = {name: digest(source / name) for name in source_files(source)}
-        for collector in ('release', 'launcher'):
-            for case, names, posix in [('clean', [], False), *cases()]:
-                if posix and os.name != 'posix':
-                    report['skipped'].append(label + '/' + collector + '/' + case); continue
-                directory = output / label / collector / case
-                repo, folder, public = fixture(source, directory, collector)
-                denied = []
-                for name in names:
-                    path = folder / name; write(path, PRIVATE); denied.append(path)
-                result, archive, record = invoke(repo, folder, collector, directory,
-                                                  denied if label == 'fixed' else ())
-                record.update(source=label, collector=collector, case=case)
-                report['runs'].append(record)
-                if collector == 'launcher' and case == 'backslash-component':
-                    assert result.returncode != 0 and not archive.exists() and not record['guard_attempts'], record
-                    record['observation'] = 'Invalid backslash ancestor rejected before private child access; existing path validation retained'
-                    continue
-                if label == 'baseline' and result.returncode:
-                    record['observation'] = 'Baseline rejected fixture; no leak claimed'
-                    continue
-                assert result.returncode == 0, (label, collector, case, result.stderr)
-                extra, leaks = inspect(archive, collector, public, (source / 'tools/release_licenses.py').is_file())
-                record.update(extra_members=extra, private_canary_members=leaks)
-                if label == 'fixed':
-                    assert not extra and not leaks and not record['guard_attempts'], record
-                verify_integrity(repo, folder, archive, collector, public)
-                assert all(digest(repo / name) == digest(source / name) for name in source_files(source))
-                if case == 'clean': clean_hashes[label, collector] = archive
-    if baseline:
-        for collector in ('release', 'launcher'):
-            before, after = clean_hashes['baseline', collector], clean_hashes['fixed', collector]
-            if collector == 'release' and not (baseline / 'tools/release_licenses.py').is_file():
-                with zipfile.ZipFile(before) as old, zipfile.ZipFile(after) as new:
-                    additions = {'third_party/licenses/' + name for name in license_fixture()}
-                    assert set(new.namelist()) == set(old.namelist()) | additions
-                    for info in old.infolist():
-                        peer = new.getinfo(info.filename)
-                        assert old.read(info) == new.read(peer)
-                        assert (info.date_time, info.external_attr, info.compress_type) == (peer.date_time, peer.external_attr, peer.compress_type)
-                report['release_license_delta'] = {'before_sha256': digest(before), 'after_sha256': digest(after),
-                                                  'added_members': sorted(additions), 'unchanged_old_member_bytes_and_metadata': True}
-            else:
-                assert digest(before) == digest(after), 'Clean ZIP identity changed'
-            assert any(r['source'] == 'baseline' and r['collector'] == collector and
-                       r['private_canary_members'] for r in report['runs'] if 'private_canary_members' in r), 'Baseline leak not reproduced'
-
-    # Blocked nodes must not be inspected, regardless of their underlying file type. The
-    # guard forbids even lstat, and directory canaries include a FIFO/link on Linux.
-    kinds = ['directory'] + (['symlink', 'dangling', 'fifo'] if os.name == 'posix' else [])
-    if os.name != 'posix': report['skipped'].append('POSIX symlink/FIFO physical fixtures (run in Docker)')
-    for collector in ('release', 'launcher'):
-        for kind in kinds:
-            private_nodes = ['config/network-shares.jsonanything', 'config/nextendo']
-            if os.name == 'posix': private_nodes += ['CONFIG. /NEXTENDO. ', r'CONFIG. \NETWORK-SHARES.JSON.stage']
-            for index, private in enumerate(private_nodes):
-                name = kind + '-' + str(index)
-                for label, source in sources if kind == 'directory' else [('fixed', ROOT)]:
-                    directory = output / label / collector / ('blocked-' + name)
-                    repo, folder, public = fixture(source, directory, collector)
-                    path = folder / private; path.parent.mkdir(parents=True, exist_ok=True)
-                    outside = repo / 'synthetic-outside-canary'; write(outside, PRIVATE)
-                    if kind == 'directory':
-                        write(path / 'unreadable/never-open.txt', PRIVATE)
-                        if os.name == 'posix':
-                            os.mkfifo(path / 'never-open.fifo')
-                            (path / 'never-follow.link').symlink_to(outside)
-                            (path / 'unreadable').chmod(0)
-                    elif kind in ('symlink', 'dangling'):
-                        path.symlink_to(outside if kind == 'symlink' else repo / 'nonexistent')
-                    else: os.mkfifo(path)
-                    result, archive, record = invoke(repo, folder, collector, directory, [path, outside])
-                    record.update(source=label, collector=collector, case='blocked-' + name)
-                    report['runs'].append(record)
-                    if label == 'baseline':
-                        assert record['guard_attempts'], 'Baseline did not exercise the pre-deny guard'
-                        record['observation'] = 'Guard records attempted pre-deny access; canary reads prevented'
-                    else:
-                        assert result.returncode == 0 and not record['guard_attempts'], (record, result.stderr)
-                        assert inspect(archive, collector, public) == ([], [])
-                        verify_integrity(repo, folder, archive, collector, public)
-                    # Restore only our own fixture permissions so temporary CI cleanup works.
-                    if kind == 'directory': (path / 'unreadable').chmod(0o700)
-
-    negative_checks(output, report)
-    assert hashes == {name: digest(ROOT / name) for name in source_files(ROOT)}, 'Source checkout was changed'
-    report['passed'] = True
+def private_setup(name, kind, symlinks):
+    def setup(repo, app):
+        path = app / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        cleanup = lambda: None
+        if kind == 'directory':
+            write(path / 'hidden/unknown-stage', PRIVATE)
+            if symlinks:
+                (path / 'broken-link').symlink_to(repo / 'does-not-exist')
+            if hasattr(os, 'mkfifo'):
+                os.mkfifo(path / 'never-open.fifo')
+            if os.name == 'posix':
+                path.chmod(0)
+                cleanup = lambda: path.chmod(0o700)
+        elif kind == 'dangling':
+            path.symlink_to(repo / 'does-not-exist')
+        else:
+            write(path, PRIVATE)
+        return app, [path], cleanup
+    return setup
 
 
-def negative_checks(output, report):
-    for collector in ('release', 'launcher'):
-        kinds = ['public-symlink', 'public-directory-link', 'public-fifo'] if os.name == 'posix' else []
-        if collector == 'launcher':
-            kinds += ['bad-id', 'bad-schema', 'bad-version', 'bad-feed-url', 'bad-contract', 'bad-api',
-                      'missing-resource', 'private-entry', 'private-font', 'inside-output',
-                      'notes-limit', 'bad-min-app', 'path-length', 'path-depth', 'size-limit', 'count-limit',
-                      'expanded-limit', 'bad-zip-url', 'path-backslash', 'path-colon', 'path-control',
-                      'previous-id', 'root-symlink'] if os.name == 'posix' else ['bad-id', 'private-entry', 'inside-output']
-        for kind in kinds:
-            directory = output / 'negative' / collector / kind
-            repo, folder, public = fixture(ROOT, directory, collector)
-            extra = []
-            if kind.startswith('public-'):
-                if kind == 'public-fifo': os.mkfifo(folder / 'forbidden.fifo')
-                elif kind == 'public-directory-link': (folder / 'forbidden.link').symlink_to(folder / 'config', target_is_directory=True)
-                else: (folder / 'forbidden.link').symlink_to(folder / 'main.lua' if collector == 'launcher' else folder / 'eboot.bin')
-            elif kind in ('inside-output', 'bad-min-app', 'notes-limit', 'previous-id', 'bad-zip-url'):
-                if kind == 'inside-output': extra = ['--output', str(folder / 'output')]
-                if kind == 'bad-min-app': extra = ['--min-app', 'invalid']
-                if kind == 'bad-zip-url': extra = ['--url', 'http://example.invalid/fixture.zip']
-                if kind == 'notes-limit':
-                    write(repo / 'notes.txt', b'x' * 8193); extra = ['--notes', str(repo / 'notes.txt')]
-                if kind == 'previous-id':
-                    write(repo / 'previous.json', b'{"schema":1,"id":"other","releases":[]}')
-                    extra = ['--previous', str(repo / 'previous.json')]
-            elif kind.startswith('path-'):
-                name = {'path-length': 'x' * 241, 'path-depth': '/'.join(['dir'] * 21 + ['file']),
-                        'path-backslash': 'public\\file', 'path-colon': 'public:file',
-                        'path-control': 'public\x01file'}[kind]
-                write(folder / name, b'public')
-            elif kind == 'size-limit':
-                with (folder / 'too-large').open('wb') as stream: stream.truncate(64 * 1024**2 + 1)
-            elif kind == 'count-limit':
-                for n in range(4097): write(folder / 'many' / str(n), b'public')
-            elif kind == 'expanded-limit':
-                for n in range(5):
-                    with (folder / ('large-' + str(n))).open('wb') as stream: stream.truncate(60 * 1024**2)
-            elif kind == 'root-symlink':
-                linked = repo / 'linked'; linked.symlink_to(folder, target_is_directory=True); folder = linked
-            else:
-                manifest = json.loads(public['manifest.json'])
-                for case, key, value in [('bad-id', 'id', 'builtin'), ('bad-schema', 'schema', 2),
-                                         ('bad-version', 'version', 'invalid'), ('bad-contract', 'host_contract', 'invalid'),
-                                         ('bad-api', 'api', {'major': 2}), ('missing-resource', 'font', 'missing'),
-                                         ('private-entry', 'entry', 'config/nextendo/account.json'),
-                                         ('private-font', 'font', 'config/network-shares.json')]:
-                    if kind == case: manifest[key] = value
-                if kind == 'bad-feed-url': manifest['updates']['feed'] = 'https://user:pass@example.invalid/feed'
-                if kind in ('private-entry', 'private-font'): write(folder / manifest['entry' if kind == 'private-entry' else 'font'], PRIVATE)
-                write(folder / 'manifest.json', json.dumps(manifest).encode())
-            result, archive, record = invoke(repo, folder, collector, directory, extra=extra)
-            record.update(source='fixed', collector=collector, case=kind)
-            report['runs'].append(record)
-            assert result.returncode != 0, 'Existing validation disabled: ' + kind
-            assert not archive.exists() or kind == 'previous-id', 'Unexpected archive publication: ' + kind
+def link_setup(kind):
+    def setup(repo, app):
+        argument = app
+        if kind == 'root':
+            argument = repo / 'linked-app'
+            argument.symlink_to(app, target_is_directory=True)
+        elif kind == 'ancestor':
+            parent = repo / 'linked-parent'
+            parent.symlink_to(app.parent, target_is_directory=True)
+            argument = parent / app.name
+        elif kind == 'document':
+            (repo / 'LICENSE').unlink()
+            (repo / 'LICENSE').symlink_to(app / 'eboot.bin')
+        elif kind == 'license':
+            (repo / 'LICENSES/link').symlink_to(app / 'eboot.bin')
+        else:
+            target = {'directory': app / 'config', 'file': app / 'eboot.bin',
+                      'dangling': repo / 'missing'}[kind]
+            (app / 'public-link').symlink_to(target, target_is_directory=kind == 'directory')
+        return argument, [], lambda: None
+    return setup
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path)
-    parser.add_argument('--baseline', type=Path)
-    args = parser.parse_args()
-    with tempfile.TemporaryDirectory(prefix='pe-export-privacy-') as tmp:
-        output = args.output.resolve() if args.output else Path(tmp) / 'results'
-        output.mkdir(parents=True, exist_ok=False)
-        report = {'passed': False, 'runs': [], 'skipped': []}
+    private_names = ['config/network-shares.json', 'nested/CoNfIg/NETWORK-SHARES.JSON.new',
+                     'config/network-shares.jsonanything', 'config/network-shares.json.' + PRIVATE_NAME,
+                     'config/nextendo', 'nested/CONFIG/NEXTENDO', 'legal/config/nextendo']
+    aliases = ['config./network-shares.json', 'config /network-shares.json.new',
+               'nested/CONFIG. /NeXtEnDo. ', r'config\nextendo',
+               r'prefix\CONFIG. /NETWORK-SHARES.JSON.tmp']
+    for name in private_names + aliases:
+        assert private_network_path(name), 'Private alias not recognized'
+    for name in ('config/nextendo.json', 'config/nextendo-public/x', 'config/network-shares.txt',
+                 'assets/network-shares.json', 'configuration/nextendo/x'):
+        assert not private_network_path(name), 'Public near match was denied'
+    source_bytes = {name: (ROOT / name).read_bytes() for name in SOURCES}
+    runs, skipped = 0, []
+    with tempfile.TemporaryDirectory(prefix='encore-export-privacy-') as tmp:
+        directory = Path(tmp)
+        symlinks = True
         try:
-            qualify(output, args.baseline.resolve() if args.baseline else None, report)
-        finally:
-            (output / 'report.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
-        print(f'Packaging privacy PASS: {len(report["runs"])} actual CLI invocations; report {digest(output / "report.json")}')
-        print(f'Evidence: {output}' if args.output else 'Owned temporary synthetic fixtures removed on exit')
+            (directory / 'probe-link').symlink_to(directory / 'missing')
+        except (OSError, NotImplementedError):
+            symlinks = False
+            skipped.append('physical symlinks (host permission unavailable)')
+        if os.name != 'posix':
+            skipped.append('physical POSIX dot/space/backslash aliases and FIFO (lexical aliases checked)')
+        # Prove that all independent access traps actually fire.
+        repo, app, _, _, _ = fixture(directory / 'guard-control')
+        target = app / 'guarded'
+        write(target, PRIVATE)
+        control = 'import os\np=' + repr(str(target)) + '\n'
+        control += 'for action in (os.stat, os.lstat, os.readlink, os.scandir, open):\n'
+        control += '    try: action(p)\n    except PermissionError: pass\n    else: raise AssertionError("Inactive guard")\n'
+        result = subprocess.run([sys.executable, '-B', '-c', control], env=environment(repo, [target]),
+                                capture_output=True, text=True, timeout=10)
+        assert result.returncode == 0, result.stderr
+        events = [json.loads(line) for line in (repo / 'guard.jsonl').read_text().splitlines()]
+        assert len(events) == 6 and events[0] == {'guard': 'active'}, 'Access traps were not all exercised'
+        for image_only in (False, True):
+            mode = 'image-only' if image_only else 'all-formats'
+            clean_case(directory / mode / 'clean', image_only)
+            runs += 1
+            for index, name in enumerate(private_names + (aliases if os.name == 'posix' else [])):
+                for kind in ('file', 'directory') + (('dangling',) if symlinks else ()):
+                    rejected_case(directory / mode / f'private-{index}-{kind}', image_only,
+                                  private_setup(name, kind, symlinks))
+                    runs += 1
+            if symlinks:
+                for kind in ('root', 'ancestor', 'file', 'directory', 'dangling') + (() if image_only else ('document', 'license')):
+                    rejected_case(directory / mode / ('link-' + kind), image_only, link_setup(kind))
+                    runs += 1
+            def traversal(repo, app):
+                return app / '..' / app.name, [], lambda: None
+            rejected_case(directory / mode / 'traversal-root', image_only, traversal)
+            runs += 1
+            if os.name == 'posix':
+                for index, name in enumerate(('public\\file', 'public:file', 'public\x01file')):
+                    def unsafe_name(repo, app, name=name):
+                        write(app / name, b'public malformed path')
+                        return app, [], lambda: None
+                    rejected_case(directory / mode / f'unsafe-name-{index}', image_only, unsafe_name)
+                    runs += 1
+            if hasattr(os, 'mkfifo'):
+                def fifo(repo, app):
+                    os.mkfifo(app / 'public.fifo')
+                    return app, [], lambda: None
+                rejected_case(directory / mode / 'public-fifo', image_only, fifo)
+                runs += 1
+        # The existing second image pass must still detect nondeterminism and
+        # preserve the first image, rather than publishing a made-up checksum.
+        repo, app, _, _, _ = fixture(directory / 'image-determinism-control')
+        result = invoke(repo, app, nondeterministic=True)
+        assert result.returncode != 0 and 'FFPFSC reproducibility check failed' in result.stderr
+        assert len(calls(repo)) == 2
+        assert (repo / 'dist' / (RELEASE + '.ffpfsc')).read_bytes().endswith(b'1')
+        assert not (repo / 'dist/SHA256SUMS').exists()
+        runs += 1
+    assert source_bytes == {name: (ROOT / name).read_bytes() for name in SOURCES}, 'Checkout files changed'
+    print(f'ENCORE_EXPORT_PRIVACY_PASS CLI_runs={runs} private_probes=0 formats=full,ftp,image,image-only')
+    print('Clean ZIP bytes/legal text/root layout and image invocation/determinism controls passed; image is synthetic, NOT PFS.')
+    for item in skipped:
+        print('SKIP: ' + item)
 
 
 if __name__ == '__main__':

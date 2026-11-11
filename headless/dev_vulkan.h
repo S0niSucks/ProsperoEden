@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include <atomic>
+#include <cstdint>
 // Development A/B switches for Vulkan device features, set from /app0/dev-settings.txt
 // before the renderer creates its device (tools/prepare-vulkan-port.py applies them).
 namespace Eden::DevVulkan {
@@ -12,6 +14,17 @@ inline bool static_vertex_input = true;
 inline bool disable_descriptor_buffer = false;
 inline bool robustness2 = false; // robustBufferAccess2 + robustImageAccess2
 inline bool trace_pipelines = false; // report first pipeline uses to klog
+// Experimental PS5 all-on: build a usable non-optimized Vulkan pipeline first
+// for new runtime shaders, then optimize with one background worker. Never
+// rebuild disk-preloaded pipelines (those already have optimized binaries).
+// All-on native release: compile a usable first-use pipeline before its
+// bounded idle-worker optimization. Other platforms keep their old default.
+// Per-title fast_pipelines=off remains available for A/B troubleshooting.
+#if defined(PS5_NATIVE) || defined(EDEN_DEV_PROFILE)
+inline bool fast_first_pipelines = true;
+#else
+inline bool fast_first_pipelines = false;
+#endif
 inline bool disable_sparse = false; // no sparse binding: multi-range SSBOs are gathered copies
 inline bool disable_multi_range = false; // bind multi-range SSBOs the pre-2026 way
 // Standard border colours only (no RADV border table). On by default: with custom colours
@@ -22,6 +35,10 @@ inline bool disable_multi_range = false; // bind multi-range SSBOs the pre-2026 
 inline bool disable_custom_border = true;
 inline bool sync_submissions = false; // wait for the GPU after every scheduler flush
 inline bool gpu_time = false; // EDEN_GPU_TIME: GPU execution time of scheduler submissions
+// PS5 launches multiple titles in one process. A VkQueryPool belongs to the
+// old VkDevice after title teardown and MUST NOT be reused by the next title.
+// This epoch changes once before each title's GPU workers start.
+inline std::atomic<std::uint64_t> gpu_time_session{0};
 // No VK_EXT_conditional_rendering (dev-settings conditional_rendering=off). The extension is on:
 // RADV's predication is correct on the console (2.7M predicated conditions in one game, 45k
 // skipped, correct output). LOD swaps and wrong draws blamed on it came from compute
@@ -39,4 +56,29 @@ inline bool compute_barriers = true;
 // 1/60 of conditions that should skip. 2 (hcr=cpu): every condition evaluated on the CPU and the
 // driver predicates the draws from constant 0/1 buffers (the driver check with exact inputs).
 inline int hcr_mode = 1;
+
+// Development-only per-title A/B overrides are globals because generated
+// Vulkan source refers to them directly, but their lifetime is NOT a whole
+// multi-game process. Reset before reading the NEXT title's dev-settings.txt,
+// while the previous VkDevice and its worker threads are already destroyed.
+inline void ResetForTitle() noexcept {
+    disable_null_descriptor = false;
+    static_vertex_input = true;
+    disable_descriptor_buffer = false;
+    robustness2 = false;
+    trace_pipelines = false;
+#if defined(PS5_NATIVE) || defined(EDEN_DEV_PROFILE)
+    fast_first_pipelines = true;
+#else
+    fast_first_pipelines = false;
+#endif
+    disable_sparse = false;
+    disable_multi_range = false;
+    disable_custom_border = true;
+    sync_submissions = false;
+    gpu_time = false;
+    disable_conditional_rendering = false;
+    compute_barriers = true;
+    hcr_mode = 1;
+}
 } // namespace Eden::DevVulkan

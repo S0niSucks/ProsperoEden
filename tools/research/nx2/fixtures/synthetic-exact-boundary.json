@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "synthetic",
+  "virtual_bytes": {"guest": 1000, "gpu": 64000},
+  "memory": {
+    "backing_commit_bytes": 70,
+    "commit_limit_bytes": 128,
+    "resident_components_bytes": {
+      "guest_backing": 40, "graphics": 20, "jit": 10, "runtime": 5
+    },
+    "app_budget_bytes": 100,
+    "safety_margin_bytes": 25
+  },
+  "capabilities": {
+    "graphics_bridge": "synthetic_only",
+    "shader_semantics": "synthetic_only",
+    "task_mesh_or_validated_fallback": "synthetic_only",
+    "cpu_jit_abi": "synthetic_only",
+    "service_contracts": "synthetic_only",
+    "mapping_lifetime_sync": "synthetic_only",
+    "provenance": "synthetic_only"
+  }
+}

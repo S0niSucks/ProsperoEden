@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "fixture_sha256": {
+    "fd_fixture.cpp": "9234623ca0647648b8fb304ae1cbbfec80c45d87ea8e1d761348518c2f64c6a8",
+    "jpeg_fixture.cpp": "d092ca2510827bcf439b6a387ed09c135029a5ee085fb7ef12e7c6a2586c0433",
+    "stb_impl.cpp": "4e953bb574025fa96c1efb0d682a337db9573b2c3284fe4a5b0524c46c6ce1ac",
+    "native_gate.cpp": "5373e92f3295fa23e160f0524d5358a53cd5716846d2a3075058b39acfe677ea"
+  },
+  "synthetic_input_sha256": {
+    "tiny.jpg": "5fb439ce3bbc06f55824401ef6b17e068f549a53aeded0be8cb827defe417de0",
+    "wide.jpg": "f7cb61e31c40fe55ea2453ebd05074dbd30dc98489d5b1956ce82dbc0fd015cd",
+    "invalid.jpg": "25209ef14c33a926baedd3cd4eaf8bad6534bcd35e8f9b67472f8fdc02b49342"
+  }
+}

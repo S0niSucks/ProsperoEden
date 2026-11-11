@@ -5,13 +5,9 @@
 #include "frontend.h"
 
 #include "assets_dir.h"
-#include "hud.h"
-#include "loading_art.h"
 #include "audio_out_init.h"
-#include "boot_trace.h"
 #include "diagnostics.h"
 #include "eden_services.h"
-#include "update_notice.h"
 #include "pe/audio/sounds.hpp"
 #include "pe/core/file.hpp"
 #include "pe/core/strings.hpp"
@@ -19,18 +15,15 @@
 #include "pe/gfx/system_fonts.hpp"
 #include "pe/platform/audio_out.hpp"
 #include "pe/platform/display_egl.hpp"
-#include "pe/ui/runtime_launcher.hpp"
-#include "storage_paths.h"
+#include "pe/ui/launcher.hpp"
 #include "radio_input.h"
+#include <cerrno>
+#include <cstring>
 #include "ps5_system_language.hpp"
+#include "fr_fr_embedded.h"
 #ifdef EDEN_DEV_ROM_ID
 #include "crash_trigger.h"
 #include "development_input.h"
-#include "stop_limit.h"
-#include "system_keyboard.h"
-#include <atomic>
-#include <thread>
-#include <cerrno>
 #include <fstream>
 #endif
 
@@ -38,6 +31,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -81,27 +75,29 @@ float MenuGain(int volume) {
 
 // The launcher speaks the console's language when the app has a catalog for it
 // (ui/lang/<tag>.po, tags as in third_party/ps5_system_language.hpp), and English otherwise.
-// language.txt in the app's folder, holding a tag, chooses another one ("en-US": English).
+// Development profiles may override it with language.txt; release builds always follow the saved setting.
 //
 // Montserrat has Latin and Cyrillic letters. The other scripts (Japanese, Korean, Chinese, Greek,
 // Thai, Arabic: in the launcher's own text, a game's title or a file name) are drawn with the
 // console's own fonts, which the font is told of here every time the launcher opens. A catalog
 // those fonts cannot draw in full is not used: English is better than missing letters.
 void LoadLanguage(pe::gfx::Font& font) {
-    static bool loaded = false;
-    static std::string tag;
-    const bool first = !std::exchange(loaded, true);
     int system_language = -1;
-    int rc = 0;
-    if (first) {
-        rc = sceSystemServiceParamGetInt(ps5::i18n::kSystemLanguageParameter, &system_language);
-        tag = rc == 0 ? ps5::i18n::language_tag(system_language) : ps5::i18n::kFallbackLanguage;
-        std::string chosen;
-        if (pe::read_file(Eden::AppFile("language.txt"), &chosen, 64)) {
-            while (!chosen.empty() && static_cast<unsigned char>(chosen.back()) <= ' ') chosen.pop_back();
-            if (!chosen.empty()) tag = chosen;
-        }
+    const int rc = sceSystemServiceParamGetInt(ps5::i18n::kSystemLanguageParameter, &system_language);
+    const Eden::Preferences preferences = Eden::LoadPreferences();
+    const int language = std::clamp(preferences.language, 0,
+                                    int(std::size(Eden::kLanguageCatalogTags)) - 1);
+    std::string tag = Eden::kLanguageCatalogTags[language];
+#ifdef EDEN_DEV_PROFILE
+    // Development builds may force a catalog without rewriting preferences. Release builds must
+    // never honor a stale language.txt left behind by an older test install.
+    std::string chosen;
+    if (pe::read_file(Eden::AppFile("language.txt"), &chosen, 64)) {
+        while (!chosen.empty() && static_cast<unsigned char>(chosen.back()) <= ' ') chosen.pop_back();
+        if (!chosen.empty()) tag = chosen;
     }
+#endif
+
     std::string folder = "none";
     std::size_t files = 0;
     for (const std::string& candidate : pe::gfx::system_font_folders()) {
@@ -112,14 +108,28 @@ void LoadLanguage(pe::gfx::Font& font) {
         font.use_system_fonts(std::move(found), tag);
         break;
     }
-    if (!first) return;
+
+    // Every launcher instance starts with a clean catalog. This is essential when switching from
+    // a translated language back to English, whose candidate list is deliberately empty.
+    pe::catalog().clear();
     std::string catalog = "none";
     std::size_t texts = 0;
     for (const std::string& candidate : pe::catalog_candidates(tag)) {
         std::string po;
-        if (!pe::read_file(Eden::AppFile("ui/lang/" + candidate + ".po"), &po, 1u << 20)) continue;
+        bool read = pe::read_file(Eden::AppResourceFile("ui/lang/" + candidate + ".po"), &po, 1u << 20);
+        if (!read)
+            read = pe::read_file(Eden::AppResourceFile("ui/lang/" + candidate + ".txt"), &po, 1u << 20);
+        // Some PS5 package-image/ShadowMount paths preserve ui/lang but strip its text payloads.
+        // French is our primary tested locale, so keep an embedded copy as a final in-binary
+        // fallback. The external catalog stays authoritative whenever it is actually present.
+        if (!read && candidate.rfind("fr", 0) == 0) {
+            po.assign(pe::ui::embedded::kFrFr.data(), pe::ui::embedded::kFrFr.size());
+            read = true;
+            catalog = candidate + " (embedded)";
+        }
+        if (!read) continue;
         texts = pe::catalog().load(po);
-        catalog = candidate;
+        if (catalog == "none") catalog = candidate;
         break;
     }
     if (texts != 0 && !pe::catalog().every([&font](std::string_view text) { return font.can_draw(text); })) {
@@ -127,13 +137,14 @@ void LoadLanguage(pe::gfx::Font& font) {
         catalog += " (not used: no font for it)";
         texts = 0;
     }
+    if (tag.rfind("en", 0) != 0 && texts == 0) {
+        Eden::Report("language", ("Requested launcher catalog unavailable: " + tag +
+                                   " under " + Eden::AppFile("ui/lang")).c_str());
+    }
     std::fprintf(stderr, "EDEN_LANGUAGE system=%d rc=0x%x tag=%s catalog=%s texts=%zu\n", system_language,
                  static_cast<unsigned>(rc), tag.c_str(), catalog.c_str(), texts);
     std::fprintf(stderr, "EDEN_FONTS folder=%s files=%zu read=%s\n", folder.c_str(), files,
                  font.system_fonts_read().c_str());
-    // For a report from another console: what is shown depends on both.
-    Eden::BootTrace::Line("system language %s (%d, rc %#x), menu texts %s; console fonts: %zu in %s", tag.c_str(),
-                          system_language, static_cast<unsigned>(rc), catalog.c_str(), files, folder.c_str());
 }
 
 #ifdef EDEN_DEV_ROM_ID
@@ -172,7 +183,23 @@ int SaveCapture(const std::string& path, int width, int height) {
 }
 #endif
 
-std::string RunApp(const std::string& launch_error, bool first_start, Eden::Multiplayer::RoomClient& rooms) {
+std::string RunApp(const std::string& launch_error, bool first_start, bool* restart_requested) {
+    // A fresh/legacy config with no explicit game language follows the PS5 once. Once saved,
+    // Settings > Language remains authoritative and is never overwritten by later system changes.
+    if (first_start && !Eden::HasSavedLanguage()) {
+        int system_language = -1;
+        if (sceSystemServiceParamGetInt(ps5::i18n::kSystemLanguageParameter, &system_language) == 0) {
+            const std::string_view tag = ps5::i18n::language_tag(system_language);
+            const int language = Eden::LanguageIndexForLocale(tag);
+            if (language >= 0) {
+                Eden::Preferences preferences = Eden::LoadPreferences();
+                preferences.language = language;
+                if (Eden::SavePreferences(preferences))
+                    Eden::Report("language", (std::string("Initial game language follows PS5: ") +
+                                               std::string(tag)).c_str());
+            }
+        }
+    }
     const auto opened = Clock::now();
     // What Settings > Video asks for, and what opened.
     int output = std::clamp(Eden::LoadPreferences().output, 0, static_cast<int>(std::size(Eden::kOutputKeys)) - 1);
@@ -182,16 +209,11 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         Eden::Report("menu video failure", pe::ps5::egl_error_name(display.last_error()));
         return {};
     }
-    // Something on screen at once. When the app has just been started that is the console's own
-    // launch picture: it stays until the launcher's first frame, which shows the same picture (the
-    // opening, pe/ui/launcher.cpp), so the app appears without a cut. Later the launcher's own dark.
-    bool splash_hidden = !first_start;
-    if (!first_start) {
-        glClearColor(0.024f, 0.035f, 0.039f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-        display.swap();
-        sceSystemServiceHideSplashScreen();
-    }
+    // Something on screen at once: the launcher's own dark, then the first real frame.
+    glClearColor(0.024f, 0.035f, 0.039f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    display.swap();
+    sceSystemServiceHideSplashScreen();
 
     std::string selected_game;
     {
@@ -199,18 +221,23 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         pe::gfx::Font font;
         std::string font_data;
         const std::string font_path = Eden::AppFile("ui/fonts/montserrat-medium.pefont");
-        const bool shaders = batch.init();
-        const bool font_read = shaders && pe::read_file(font_path, &font_data);
+        const bool shaders_ready = batch.init();
+        errno = 0;
+        const bool font_read = shaders_ready && pe::read_file(font_path, &font_data);
+        const int font_errno = errno;
         const bool ready = font_read && font.load(font_data);
         if (!ready) {
-            const std::string why = !shaders ? std::string{"The launcher's shaders could not be built"} :
-                !font_read ? "The launcher's font could not be read: " + font_path + " (" + std::strerror(errno) + ")" :
-                "The launcher's font is damaged: " + font_path + " (" + std::to_string(font_data.size()) + " bytes)";
+            const std::string why = !shaders_ready ?
+                "The launcher's shaders could not be built" :
+                !font_read ?
+                    "The launcher's font could not be read: " + font_path +
+                        (font_errno ? " (" + std::string{std::strerror(font_errno)} + ")" : "") :
+                    "The launcher's font is invalid: " + font_path + " (" +
+                        std::to_string(font_data.size()) + " bytes)";
             Eden::Report("menu failure", why.c_str());
             glClearColor(0.7f, 0.08f, 0.16f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             display.swap();
-            sceSystemServiceHideSplashScreen();
             batch.release();
             display.close();
             return {};
@@ -220,16 +247,10 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         const pe::ui::Fonts fonts{&font, font_texture};
 
         Eden::Report("setup", "Checking supplied keys and firmware");
-        EdenServices services(launch_error, rooms);
+        EdenServices services(launch_error);
         pe::ui::Textures textures(batch, services);
-        // The look the player chose names the artwork (pe/ui/theme.hpp).
-        pe::ui::use_theme(services.preferences().theme);
-        pe::ui::use_accent(services.preferences().accent);
         if (!textures.load_art(Eden::AppFile("ui")))
             Eden::Report("menu", "Launcher art is incomplete; check the app's ui/art folder");
-        // The picture the console is showing now, for the opening.
-        if (first_start && !textures.load_splash(Eden::AppFile("sce_sys/pic0.dds")))
-            Eden::Report("menu", "The launch picture could not be loaded; the launcher opens without it");
         textures.set_output_scale(static_cast<float>(display.width()) / 1920.0f);
 
         // Sound: its own thread feeds the console's audio port from the mixer.
@@ -244,13 +265,7 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
 
         const bool input_ready = radio_input_init();
         if (!input_ready) Eden::Report("menu failure", "The controller could not be opened");
-        // Once per launch: is a newer release listed? The launcher shows the answer when it comes.
-        Eden::UpdateNotice::Start();
-        pe::ui::RuntimeLauncher launcher(services, textures, fonts, batch, first_start, Eden::kDataDir,
-            audio_ready ? mixer.get() : nullptr, LoadLanguage,
-            [&services](const std::string& root, std::uint64_t bytes) {
-                return services.reserve_theme_import_storage(root, bytes);
-            });
+        pe::ui::Launcher launcher(services, textures, fonts, first_start);
         int menu_volume = launcher.menu_volume();
         mixer->set_bus_gain(pe::audio::Bus::ui, MenuGain(menu_volume));
         std::fprintf(stderr, "EDEN_LAUNCHER display=%dx%d sounds=%d audio=%d ready_ms=%lld\n", display.width(),
@@ -259,7 +274,7 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         bool running = input_ready;
 #ifdef EDEN_DEV_ROM_ID
         static Eden::DevelopmentInput development_input;
-        unsigned development_poll = 0;
+        auto next_development_poll = Clock::now();
         // A capture waits for the screen to settle after the input that asked for it.
         int capture_wait = 60;
         std::fprintf(stderr, "EDEN_DEV_LAUNCHER_READY ready=%d\n", running);
@@ -268,7 +283,15 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
         pe::gfx::Viewport viewport = pe::gfx::fit_viewport(display.width(), display.height());
         auto previous = Clock::now();
         bool first_frame = true;
-        while (running && !launcher.done()) {
+#ifdef EDEN_DEV_ROM_ID
+        // Five-second aggregate only; no text formatting or filesystem I/O
+        // inside a normal menu frame. Distinguish delayed animation from
+        // real input/update, GL draw and swap/presentation frame stalls.
+        auto ui_sample_begin = previous;
+        unsigned ui_frames = 0, ui_late_20 = 0, ui_late_33 = 0, ui_late_50 = 0;
+        long long ui_max_update_us = 0, ui_max_draw_us = 0, ui_max_present_us = 0;
+#endif
+        while (running && !launcher.done() && !launcher.restart_requested()) {
             const auto frame_start = Clock::now();
             // Start-to-start frame time; a long frame does not make the animations jump.
             const float dt = first_frame ? 1.0f / 60.0f :
@@ -278,8 +301,15 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
 
 #ifdef EDEN_DEV_ROM_ID
             const auto now = static_cast<std::uint64_t>(Milliseconds(frame_start.time_since_epoch()));
-            if (++development_poll >= 10) {
-                development_poll = 0;
+            // Manual DualSense use needs at most one synchronous filesystem
+            // command sweep per real second. Script replay gets ~6Hz even
+            // when menu FPS falls: a frame-count timer would become slower
+            // precisely while diagnosing a stuttering launcher. Do not catch
+            // up missed polls in a burst after a slow EGL swap.
+            if (frame_start >= next_development_poll) {
+                next_development_poll = frame_start +
+                    (development_input.active ? std::chrono::milliseconds(160)
+                                              : std::chrono::seconds(1));
                 std::ifstream command(Eden::AppFile("compat-input.txt"));
                 if (development_input.Read(command, now)) {
                     capture_wait = 60;
@@ -292,34 +322,8 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
                     std::fprintf(stderr, "EDEN_DEV_QUIT requested=1\n");
                     running = false;
                 }
-                // The check that the PS5 keyboard opens (system_keyboard.h): asked for from the
-                // launcher, left open for a few seconds, closed again.
-                if (std::remove(Eden::AppFile("keyboard-test.txt").c_str()) == 0) {
-                    std::thread([] {
-                        std::atomic<bool> stop{false};
-                        std::thread closer([&stop] {
-                            std::this_thread::sleep_for(std::chrono::seconds(6));
-                            stop = true;
-                        });
-                        Eden::TextRequest request;
-                        request.title = u"ProsperoEden";
-                        request.initial = u"Eden";
-                        request.max_length = 16;
-                        const Eden::TextAnswer answer = Eden::AskSystemKeyboard(request, stop);
-                        closer.join();
-                        std::fprintf(stderr, "EDEN_DEV_KEYBOARD outcome=%d length=%zu\n",
-                                     static_cast<int>(answer.outcome), answer.text.size());
-                    }).detach();
-                }
                 // The runner's crash request, to test the crash report in the launcher.
                 Eden::Crash::DevelopmentRequest(Eden::AppFile("crash-app.txt"));
-                // The check of what a stop that runs into its limit does (stop_limit.h): the app
-                // starts again, here from an idle launcher.
-                if (std::remove(Eden::AppFile("restart-app.txt").c_str()) == 0) {
-                    std::fprintf(stderr, "EDEN_DEV_RESTART requested=1\n");
-                    Eden::StopLimit::RestartNow();
-                    std::fprintf(stderr, "EDEN_DEV_RESTART refused=1\n");
-                }
             }
             if (!development_input.active) radio_input_poll();
             if (const auto sample = development_input.Sample(now)) {
@@ -347,7 +351,6 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
                 // it is, on the row that was changed.
                 const auto reopen = Clock::now();
                 output = output_open = std::clamp(launcher.output(), 0, static_cast<int>(std::size(Eden::kOutputKeys)) - 1);
-                launcher.release_pack_textures();
                 textures.release();
                 batch.delete_texture(font_texture);
                 font_texture = 0;
@@ -359,7 +362,6 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
                 }
                 font_texture = batch.create_font_texture(font);
                 launcher.set_font_texture(font_texture);
-                launcher.reload_pack_textures();
                 if (!textures.load_art(Eden::AppFile("ui")))
                     Eden::Report("menu", "Launcher art is incomplete; check the app's ui/art folder");
                 textures.set_output_scale(static_cast<float>(display.width()) / 1920.0f);
@@ -393,11 +395,6 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
                 Eden::Report("menu video failure", pe::ps5::egl_error_name(display.last_error()));
                 running = false;
             }
-            if (!splash_hidden) {
-                // The launcher's first frame is up: the console's launch picture can go.
-                sceSystemServiceHideSplashScreen();
-                splash_hidden = true;
-            }
             {
                 // A slow launcher frame names its stage in the log, at most once a second.
                 const auto done = Clock::now();
@@ -410,28 +407,43 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
                         " ms, present " + std::to_string(Milliseconds(done - drawn)) + " ms";
                     Eden::Report("slow frame", detail.c_str());
                 }
+#ifdef EDEN_DEV_ROM_ID
+                if (!captured) {
+                    const long long update_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                        updated - frame_start).count();
+                    const long long draw_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                        drawn - updated).count();
+                    const long long present_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                        done - drawn).count();
+                    const long long whole_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                        done - frame_start).count();
+                    ++ui_frames;
+                    ui_late_20 += whole_us >= 20000;
+                    ui_late_33 += whole_us >= 33000;
+                    ui_late_50 += whole_us >= 50000;
+                    ui_max_update_us = std::max(ui_max_update_us, update_us);
+                    ui_max_draw_us = std::max(ui_max_draw_us, draw_us);
+                    ui_max_present_us = std::max(ui_max_present_us, present_us);
+                }
+                if (done - ui_sample_begin >= std::chrono::seconds(5)) {
+                    std::fprintf(stderr,
+                        "EDEN_UI_FRAMES frames=%u elapsed_ms=%lld late_20=%u late_33=%u late_50=%u "
+                        "max_update_us=%lld max_draw_us=%lld max_present_us=%lld\n",
+                        ui_frames, Milliseconds(done - ui_sample_begin),
+                        ui_late_20, ui_late_33, ui_late_50,
+                        ui_max_update_us, ui_max_draw_us, ui_max_present_us);
+                    ui_sample_begin = done;
+                    ui_frames = ui_late_20 = ui_late_33 = ui_late_50 = 0;
+                    ui_max_update_us = ui_max_draw_us = ui_max_present_us = 0;
+                }
+#endif
             }
         }
 
-        if (!splash_hidden) sceSystemServiceHideSplashScreen();
+        if (restart_requested != nullptr)
+            *restart_requested = launcher.restart_requested();
         selected_game = launcher.selected_game();
         if (!launcher.done()) selected_game.clear();
-        if(const auto* scene=launcher.loading_scene(); scene && !selected_game.empty()) {
-            Eden::Loading::Art art; art.width=scene->atlas.width;art.height=scene->atlas.height;art.rgba=scene->atlas.rgba;
-            Eden::Loading::SetRuntimeArt(std::move(art),true);
-        } else Eden::Loading::SetRuntimeArt({},false);
-        // The loading screen that follows wears the theme's colours (hud.h).
-        {
-            const pe::ui::Theme& theme = pe::ui::th();
-            const auto word = [](const pe::gfx::Color& colour) {
-                const auto byte = [](float value) {
-                    return static_cast<uint32_t>(std::clamp(value, 0.0f, 1.0f) * 255.0f + 0.5f);
-                };
-                return byte(colour.r) << 16 | byte(colour.g) << 8 | byte(colour.b);
-            };
-            Eden::Loading::Palette(word(theme.accent), word(theme.accent_pale), word(theme.accent_deep),
-                                   word(theme.base));
-        }
         // Let the last sound end (the screen is already dark), then give everything back.
         for (int wait = 0; audio_ready && wait < 60 && mixer->active_voices() > 0; ++wait) sceKernelUsleep(10000);
         audio.stop();
@@ -447,8 +459,17 @@ std::string RunApp(const std::string& launch_error, bool first_start, Eden::Mult
 
 } // namespace
 
-std::string SelectProsperoEdenGame(Eden::Multiplayer::RoomClient& rooms, const std::string& launch_error) {
-    // The first time is the app opening; afterwards the launcher returns from a game.
+std::string SelectProsperoEdenGame(const std::string& launch_error) {
+    // The first time is the app opening; afterwards the launcher returns from a game. A language
+    // change rebuilds only the launcher in this same call so translated text/font caches refresh.
     static bool first_start = true;
-    return RunApp(launch_error, std::exchange(first_start, false), rooms);
+    bool opening = std::exchange(first_start, false);
+    for (;;) {
+        bool restart = false;
+        std::string selected = RunApp(launch_error, opening, &restart);
+        opening = false;
+        if (!restart)
+            return selected;
+        std::fprintf(stderr, "EDEN_LANGUAGE launcher-restart=1\n");
+    }
 }

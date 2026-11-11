@@ -1,101 +1,145 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Release files from a built PPSA99008 folder (make release).
+"""Release files from a built PPSA99008 folder (make release, make image).
 
-  tools/ci/make-dist.py APP_DIR
+  tools/ci/make-dist.py [--image-only] APP_DIR
 
-dist/ProsperoEden-vX.Y.Z.zip (the folder plus README, LICENSE, THIRD_PARTY_NOTICES and verified
-third_party/licenses/ at the matching ZIP root path; fixed
-timestamps, so equal inputs give equal bytes), SHA256SUMS (of the ZIP) and release-notes.md (the
-changelog's "vX.Y.Z" section, docs/CHANGELOG.md).
+dist/Prospero.Eden-Encore-RN.zip (the folder plus README, INSTALL, SECURITY, LICENSE,
+THIRD_PARTY_NOTICES and LICENSES/; fixed timestamps, so equal inputs give equal bytes),
+dist/Prospero.Eden-Encore-RN-FTP.zip (minimal PPSA99008 folder for manual FTP installs:
+runtime files only, without installed legal texts or ShadowMount-only .txt language companions),
+dist/Prospero.Eden-Encore-RN.ffpfsc
+(the same title as a package image, tools/ci/package-image.sh), SHA256SUMS and release-notes.md.
 """
 import hashlib
-from itertools import chain
 import json
-import os
 import pathlib
 import re
 import shutil
 import stat
+import subprocess
 import sys
 import zipfile
-from urllib.parse import urljoin
 
 root = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(root / 'tools'))
-from build_identity import identity
-from network_privacy import public_export_paths
-from release_licenses import release_license_entries
+from network_privacy import export_path_metadata, preflight_export_tree
+
 args = sys.argv[1:]
+image_only = args[:1] == ['--image-only']
+if image_only:
+    args = args[1:]
 if len(args) != 1:
     sys.exit(__doc__.strip())
-app = pathlib.Path(args[0]).resolve()
-version = json.loads((app / 'sce_sys/param.json').read_text())['contentVersion']
-tag = 'v' + version.removeprefix('0')
-license_entries = release_license_entries(root)
+app = pathlib.Path(args[0]).absolute()
+version_h = (root / 'headless/prosperoeden/version.h').read_text()
+match = re.search(r'kAppVersion\s*=\s*"([^"]+)"', version_h)
+if not match:
+    sys.exit('Cannot read Encore release name from version.h')
+release = match.group(1)
 dist = root / 'dist'
+image = dist / f'Prospero.Eden-Encore-{release}.ffpfsc'
+# One fail-closed preflight protects BOTH ZIPs and the unchanged raw image input,
+# including --image-only. Never inspect private children, rewrite them, delete dist,
+# or invoke the image tool before this succeeds. Keep staged inputs quiescent.
+try:
+    app_files = preflight_export_tree(app)
+    release_files = []
+    if not image_only:
+        for name in ('README.md', 'INSTALL.md', 'SECURITY.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md'):
+            path = root / name
+            try:
+                metadata = export_path_metadata(path)
+            except FileNotFoundError:
+                continue
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError('Release document must be a regular file')
+            release_files.append((path, name))
+        release_files += [(p, 'LICENSES/' + p.name) for p in preflight_export_tree(root / 'LICENSES')
+                          if p.parent == root / 'LICENSES']
+except (OSError, ValueError, RecursionError):
+    sys.exit('Release preflight refused private or unsafe input. Use a clean, quiescent staged app.')
+
+if image_only:
+    dist.mkdir(exist_ok=True)
+    subprocess.run(['bash', str(root / 'tools/ci/package-image.sh'), str(app), str(image)], check=True)
+    print(f'{image} {hashlib.sha256(image.read_bytes()).hexdigest()}')
+    sys.exit(0)
 shutil.rmtree(dist, ignore_errors=True)
 dist.mkdir()
-archive = dist / f'ProsperoEden-{tag}.zip'
-files = [(p, 'PPSA99008/' + p.relative_to(app).as_posix())
-         for p, metadata in public_export_paths(app) if stat.S_ISREG(metadata.st_mode)]
-readme = root / 'README.md'
-try:
-    readme_mode = readme.lstat().st_mode
-except FileNotFoundError:
-    pass
-else:
-    if not stat.S_ISREG(readme_mode):
-        raise ValueError('README.md must be a regular file')
-    files.append((readme, 'README.md'))
+archive = dist / f'Prospero.Eden-Encore-{release}.zip'
+files = [(p, 'PPSA99008/' + p.relative_to(app).as_posix()) for p in app_files]
+files += release_files
 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
-    for name, data in chain(((name, path.read_bytes()) for path, name in files), license_entries.items()):
+    for path, name in files:
         info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
         info.compress_type = zipfile.ZIP_DEFLATED
-        # Every entry stored as 0777: the console only starts an app whose files are open to all
-        # ("Can't start the game or app", CE-107750-0, otherwise), and a tool that unpacks the
-        # ZIP keeping its permissions would leave 0644 files.
-        info.create_system = 3  # Unix: the high half of external_attr is the mode
-        info.external_attr = 0o100777 << 16
-        zip_file.writestr(info, data)
-with zipfile.ZipFile(archive) as check:
-    closed = [i.filename for i in check.infolist() if (i.external_attr >> 16) & 0o777 != 0o777]
-    if closed:
-        sys.exit(f'ZIP entries not stored as 0777: {closed[:3]}')
+        info.external_attr = 0o644 << 16
+        zip_file.writestr(info, path.read_bytes())
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-(dist / 'SHA256SUMS').write_text(f'{digest}  {archive.name}\n')
+
+# Manual PS5 FTP servers commonly support binary STOR only. FileZilla may switch .txt files to
+# ASCII automatically, so publish a separate runtime-only folder archive for manual FTP installs.
+# The full ZIP and FFPFSC above remain the canonical distribution artifacts and keep every legal
+# notice plus the ShadowMount .txt catalog companions.
+ftp_archive = dist / f'Prospero.Eden-Encore-{release}-FTP.zip'
+ftp_files = []
+for path in app_files:
+    relative = path.relative_to(app)
+    posix = relative.as_posix()
+    if posix == 'legal' or posix.startswith('legal/'):
+        continue
+    if relative.parent.as_posix() == 'ui/lang' and relative.suffix == '.txt':
+        continue
+    ftp_files.append((path, 'PPSA99008/' + posix))
+with zipfile.ZipFile(ftp_archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
+    for path, name in ftp_files:
+        info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0o644 << 16
+        zip_file.writestr(info, path.read_bytes())
+ftp_digest = hashlib.sha256(ftp_archive.read_bytes()).hexdigest()
+
+subprocess.run(['bash', str(root / 'tools/ci/package-image.sh'), str(app), str(image)], check=True)
+image_digest = hashlib.sha256(image.read_bytes()).hexdigest()
+# Prove the package-image path is deterministic before publishing its checksum. This catches a
+# third-party timestamp/randomness regression instead of silently changing release bytes.
+# Pack twice to the SAME canonical destination. A change of output
+# basename can affect tool metadata independently of source determinism.
+# Preserve the original bytes and restore them even after a failed check.
+repro = dist / f'.{image.name}.repro'
+image.replace(repro)
+try:
+    subprocess.run(['bash', str(root / 'tools/ci/package-image.sh'), str(app), str(image)], check=True)
+    repro_digest = hashlib.sha256(image.read_bytes()).hexdigest()
+    if repro_digest != image_digest:
+        # Keep this fail-closed: diagnose the bytes, never waive the mismatch.
+        subprocess.run([sys.executable, str(root / 'tools/ci/diagnose-image-repro.py'),
+                        str(repro), str(image)], check=False)
+        raise SystemExit(f'FFPFSC reproducibility check failed: {image_digest} != {repro_digest}')
+finally:
+    image.unlink(missing_ok=True)
+    repro.replace(image)
+(dist / 'SHA256SUMS').write_text(
+    f'{digest}  {archive.name}\n'
+    f'{ftp_digest}  {ftp_archive.name}\n'
+    f'{image_digest}  {image.name}\n'
+)
 # The unstripped executable of this release, to name the functions in a crash report later
 # (tools/symbolize-crash.py). Kept out of dist/: it is not a release file.
 unstripped = root / 'build/headless-native/llvm-pie.elf'
 if unstripped.exists():
-    symbols = root / 'build/symbols' / f'ProsperoEden-{tag}.elf'
+    symbols = root / 'build/symbols' / f'Prospero.Eden-Encore-{release}.elf'
     symbols.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(unstripped, symbols)
-    build_id, _at = identity(unstripped.read_bytes())
-    source = root / 'build/source-snapshot.json'
-    manifest = {
-        'schema': 1, 'version': tag, 'build_identity': build_id,
-        'elf_sha256': hashlib.sha256(unstripped.read_bytes()).hexdigest(),
-        'eboot_sha256': hashlib.sha256((app / 'eboot.bin').read_bytes()).hexdigest(),
-        'zip_sha256': digest, 'symbols': symbols.name,
-        'source': json.loads(source.read_text()) if source.exists() else None,
-    }
-    provenance = dist / 'build-identity.json'
-    provenance.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
-    with (dist / 'SHA256SUMS').open('a') as sums:
-        sums.write(f'{hashlib.sha256(provenance.read_bytes()).hexdigest()}  {provenance.name}\n')
     print(f'{symbols} (keep it with the release: crash reports are read with it)')
-# The release notes: this version's section of the changelog. A link that is relative there (to
-# another guide, to another version) would lead nowhere on the release's page, so it is pointed
-# at the file as the tag has it.
-changelog = (root / 'docs/CHANGELOG.md').read_text()
-match = re.search(rf'^## {re.escape(tag)}\n(.*?)(?=^## |\Z)', changelog, re.M | re.S)
+readme = (root / 'README.md').read_text()
+heading = f'Encore {release}'
+match = re.search(rf'^## Changes in {re.escape(heading)}\n(.*?)(?=^## )', readme, re.M | re.S)
 if match:
-    repository = os.environ.get('GITHUB_REPOSITORY', 'blackbearreloaded/ProsperoEden')
-    here = f'https://github.com/{repository}/blob/{tag}/docs/CHANGELOG.md'
-    notes = re.sub(r'\]\((?!https?://|mailto:)([^)\s]+)\)', lambda link: f']({urljoin(here, link.group(1))})',
-                   match.group(1).strip())
-    (dist / 'release-notes.md').write_text(notes + '\n')
+    (dist / 'release-notes.md').write_text(match.group(1).strip() + '\n')
 else:
-    print(f'docs/CHANGELOG.md has no "## {tag}" section; no release-notes.md', file=sys.stderr)
+    sys.exit(f'README.md has no "## Changes in {heading}" section; release notes are required')
 print(f'{archive} {digest}')
+print(f'{ftp_archive} {ftp_digest}')
+print(f'{image} {image_digest}')

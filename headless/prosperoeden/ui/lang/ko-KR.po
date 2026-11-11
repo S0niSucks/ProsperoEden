@@ -3,72 +3,65 @@
 # keep UPPERCASE labels uppercase, and keep names (ProsperoEden, Eden, PS5, Vulkan, OpenGL,
 # AMD FSR, DLC, NSP, XCI, prod.keys, Ryujinx) unchanged.
 
-#: pe/ui/save_sync.cpp
-msgid "%Y-%m-%d %H:%M"
-msgstr "%Y.%m.%d %H:%M"
+#: settings_store.h
+msgid "0.25x (minimum)"
+msgstr "0,25x (최소)"
 
 #: settings_store.h
-msgid "0.5x (faster, softer)"
-msgstr "0.5x(빠름, 부드러움)"
+msgid "0.5x (fastest, softer)"
+msgstr "0,5x (가장 빠름, 부드러움)"
 
 #: settings_store.h
 msgid "0.75x (faster)"
 msgstr "0.75x(빠름)"
 
 #: settings_store.h
+msgid "1.25x (recommended)"
+msgstr "1,25x (권장)"
+
+#: settings_store.h
 msgid "1.5x (sharper)"
 msgstr "1.5x(선명함)"
+
+#: pe/ui/settings.cpp
+msgid "100% is full DualSense rumble strength. Lower it if vibration feels too strong."
+msgstr "100%는 전체 DualSense 진동 강도입니다. 진동이 너무 강하다고 느껴지면 낮추십시오."
 
 #: settings_store.h
 msgid "1x (native)"
 msgstr "1x(기본)"
 
 #: settings_store.h
-msgid "2x (sharpest)"
-msgstr "2x(가장 선명함)"
+msgid "2x (high memory)"
+msgstr "2x (메모리 높음)"
 
 #: settings_store.h
-msgid "3x (slower)"
-msgstr "3x(느림)"
+msgid "3x (very high memory)"
+msgstr "3x (메모리 매우 높음)"
 
 #: settings_store.h
-msgid "4x (slowest)"
-msgstr "4x(가장 느림)"
+msgid "4x (extreme memory)"
+msgstr "4x (메모리 극대)"
+
+#: pe/ui/settings.cpp
+msgid "60 Hz is recommended. 120 Hz changes display mode only; the game still needs to render above 60 FPS to benefit."
+msgstr "60Hz를 권장합니다. 120Hz는 디스플레이 모드만 변경합니다. 이점을 얻으려면 게임이 여전히 60FPS 이상으로 렌더링되어야 합니다."
+
+#: pe/ui/library.cpp
+msgid "60 Hz is the safe default. Use 120 Hz only with a compatible display or high-FPS patch."
+msgstr "60Hz가 안전한 기본값입니다. 호환되는 디스플레이나 높은 FPS 패치에서만 120Hz를 사용하세요."
+
+#: pe/ui/settings.cpp
+msgid "8% is recommended. Increase it for stick drift; decrease it for more sensitive aiming."
+msgstr "8%가 권장됩니다. 스틱 드리프트를 위해 늘리십시오. 보다 민감한 조준을 위해서는 이 값을 줄이십시오."
 
 #: eden_services.cpp
 msgid "A firmware NCA cannot be read. Reinstall the firmware dump."
 msgstr "펌웨어 NCA를 읽을 수 없습니다. 펌웨어를 다시 설치하세요."
 
-#: pe/ui/pairing.cpp
-msgid "A pairing is running already."
-msgstr "이미 페어링이 진행 중입니다."
-
 #: pe/ui/browse.cpp
-msgid "ABOUT"
-msgstr "정보"
-
-#. The menu's last section: about this app (its credits, where its files go). One short word.
-#: pe/ui/shell.cpp
-msgid "About"
-msgstr "정보"
-
-#: pe/ui/browse.cpp
-msgid "About ProsperoEden"
-msgstr "ProsperoEden 정보"
-
-#. Time left while downloading; {0} is a number of minutes. Keep it short.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "About {0} min left"
-msgstr "약 {0}분 남음"
-
-#. Time left while downloading; {0} is a number of seconds. Keep it short.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "About {0} s left"
-msgstr "약 {0}초 남음"
-
-#: pe/ui/settings.cpp
-msgid "Above 100%, a game locked to 30 FPS can reach 60, and a game that counts its frames plays faster too."
-msgstr "100%를 넘으면 30 FPS로 고정된 게임이 60에 이를 수 있고, 프레임 수로 시간을 세는 게임은 진행도 빨라집니다."
+msgid "About Eden Encore"
+msgstr "에덴앙코르 소개"
 
 #. Label: which folders the app can read.
 #: pe/ui/browse.cpp
@@ -80,21 +73,14 @@ msgstr "접근 권한"
 msgid "Accessibility"
 msgstr "접근성"
 
-#: pe/ui/profiles.cpp
-msgid "Add"
-msgstr "추가"
+#: pe/ui/settings.cpp
+msgid "ACCESSIBILITY"
+msgstr "접근성"
 
-#: pe/ui/remote.cpp
-msgid "Added to the downloads. Settings, Downloads shows the queue."
-msgstr "다운로드에 추가했습니다. 설정, 다운로드에서 대기열을 볼 수 있습니다."
-
-#: pe/ui/profiles.cpp
-msgid "Added. Cross plays as this profile; left and right change its name."
-msgstr "추가했습니다. 엑스로 이 프로필로 플레이하고, 좌우로 이름을 바꿉니다."
-
-#: pe/ui/library.cpp
-msgid "All cheats"
-msgstr "모든 치트"
+#. {0}: updates, DLC and mods of the game; {1}: the language it will use.
+#: pe/ui/home.cpp
+msgid "Add-ons: {0}  /  Language: {1}"
+msgstr "추가 콘텐츠: {0}  /  언어: {1}"
 
 #: pe/ui/browse.cpp
 msgid "All credit for the Eden emulator goes to its developers and contributors."
@@ -104,69 +90,38 @@ msgstr "Eden 에뮬레이터의 모든 공로는 개발자와 기여자에게 �
 msgid "AMD FSR"
 msgstr "AMD FSR"
 
-#: pe/ui/settings.cpp
-msgid "An image of your own behind this menu."
-msgstr "이 메뉴 뒤에 원하는 이미지를 표시합니다."
-
 #: eden_services.cpp
 msgid "Another language"
 msgstr "다른 언어"
 
-#: pe/ui/settings.cpp
-msgid "Appearance"
-msgstr "모양"
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Anti-aliasing"
+msgstr "계단 현상 제거"
 
 #: pe/ui/settings.cpp
-msgid "Apply"
-msgstr "적용"
-
-#. The button mapping has not been changed.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "As usual"
-msgstr "평소대로"
-
-#: pe/ui/pairing.cpp
-msgid "Asking the server for a code..."
-msgstr "서버에 코드를 요청하는 중..."
-
-#. Setting: how a game's textures in the ASTC format are held in graphics memory. ASTC is a format's name (unchanged).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "ASTC textures"
-msgstr "ASTC 텍스처"
-
-#. A switch. A shader is a small graphics program; keep the word the language's players use for it.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Asynchronous shaders"
-msgstr "비동기 셰이더"
+msgid "ANTI-ALIASING"
+msgstr "계단 현상 제거"
 
 #: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Anti-aliasing smooths jagged edges. None is fastest; FXAA is light; SMAA prioritizes image quality."
+msgstr "앤티앨리어싱은 들쭉날쭉한 가장자리를 부드럽게 만듭니다. 가장 빠른 것은 없습니다. FXAA는 가볍습니다. SMAA는 이미지 품질을 우선시합니다."
+
+#: pe/ui/home.cpp, pe/ui/settings.cpp
 msgid "Audio"
+msgstr "오디오"
+
+#: pe/ui/settings.cpp
+msgid "AUDIO"
 msgstr "오디오"
 
 #: eden_services.cpp
 msgid "Australia"
 msgstr "호주"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Auto"
-msgstr "자동"
-
-#: pe/ui/game_options.cpp
-msgid "Automatic"
-msgstr "자동"
-
 #. Button hint: go back one screen.
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Back"
 msgstr "뒤로"
-
-#: pe/ui/settings.cpp
-msgid "Backend"
-msgstr "렌더러"
-
-#: pe/ui/save_sync.cpp
-msgid "Backing up save data"
-msgstr "세이브 데이터 백업 중"
 
 #. An upscaling filter.
 #: settings_store.h
@@ -178,83 +133,84 @@ msgstr "바이큐빅"
 msgid "Bilinear"
 msgstr "바이리니어"
 
-#: pe/ui/game_options.cpp
-msgid "Bottom left"
-msgstr "왼쪽 아래"
+#: pe/ui/settings.cpp
+msgid "Bilinear is the lightest default. AMD FSR is most useful when rendering below the TV output size."
+msgstr "Bilinear는 가장 가벼운 기본값입니다. AMD FSR은 TV 출력 크기 이하로 렌더링할 때 가장 유용합니다."
 
-#: pe/ui/game_options.cpp
-msgid "Bottom right"
-msgstr "오른쪽 아래"
+#: pe/ui/library.cpp
+msgid "Bilinear is the lightest default. AMD FSR is useful when rendering below the TV output size."
+msgstr "Bilinear는 가장 가벼운 기본값입니다. AMD FSR은 TV 출력 크기 이하로 렌더링할 때 유용합니다."
 
 #. Button hint: move through the list.
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp
+#: pe/ui/browse.cpp
 msgid "Browse"
 msgstr "이동"
 
-#: pe/ui/multiplayer.cpp
-msgid "Browse the public directory and choose a room."
-msgstr "공개 목록을 둘러보고 방을 선택하세요."
+#: pe/ui/library.cpp
+msgid "Browse games"
+msgstr "게임 둘러보기"
 
-#. Which controller button presses each of the game's buttons.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
+msgid "Browse settings"
+msgstr "설정 둘러보기"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Button mapping"
-msgstr "버튼 배치"
+msgstr "버튼 매핑"
 
-#: pe/ui/pairing.cpp, pe/ui/update.cpp
+#: pe/ui/settings.cpp
+msgid "BUTTON MAPPING"
+msgstr "버튼 매핑"
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping reset to global settings."
+msgstr "버튼 매핑이 전역 설정으로 재설정되었습니다."
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping reset to the active profile."
+msgstr "버튼 매핑이 활성 프로필로 재설정되었습니다."
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping saved."
+msgstr "버튼 매핑이 저장되었습니다."
+
+#: pe/ui/settings.cpp
+msgid "BUTTON PROFILE"
+msgstr "버튼 프로필"
+
+#: pe/ui/settings.cpp
+msgid "Button profile"
+msgstr "버튼 프로필"
+
+#: pe/ui/home.cpp, pe/ui/settings.cpp
+msgid "CACHE"
+msgstr "은닉처"
+
+#: pe/ui/settings.cpp
+msgid "Cache: {0}  |  Logs: {1}"
+msgstr "캐시: {0} |  로그: {1}"
+
+#: pe/ui/launcher.cpp
 msgid "Cancel"
 msgstr "취소"
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Cancel download"
-msgstr "다운로드 취소"
-
-#: pe/ui/update.cpp
-msgid "Cancelling"
-msgstr "취소하는 중"
 
 #: eden_services.cpp
 msgid "Cannot read firmware/ in {0}. Install extracted firmware NCAs."
 msgstr "{0}의 firmware/를 읽을 수 없습니다. 추출한 펌웨어 NCA를 설치하세요."
 
 #. Button hint: change the highlighted setting.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Change"
 msgstr "변경"
 
-#: pe/ui/library.cpp
-msgid "Change mode. Saved per game."
-msgstr "모드를 변경합니다. 게임별로 저장됩니다."
-
-#: pe/ui/save_sync.cpp
-msgid "Change nothing"
-msgstr "변경하지 않음"
-
-#. The button mapping has been changed.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Changed"
-msgstr "변경됨"
+#: pe/ui/launcher.cpp
+msgid "Change console mode for this game?"
+msgstr "이 게임의 콘솔 모드를 변경하시겠습니까?"
 
 #. What a mod is made of: cheat codes.
-#: eden_services.cpp, host/fake_services.cpp, pe/ui/library.cpp
+#: eden_services.cpp, host/fake_services.cpp
 msgid "Cheats"
 msgstr "치트"
-
-#. Shown under a cheat that came from the game's cheats folder (not from a mod).
-#: pe/ui/library.cpp
-msgid "Cheats folder"
-msgstr "치트 폴더"
-
-#: pe/ui/pairing.cpp
-msgid "Check that the code there is this one, and approve."
-msgstr "그곳의 코드가 이 코드와 같은지 확인하고 승인하세요."
-
-#: pe/ui/remote.cpp
-msgid "Checking the game files {0}"
-msgstr "게임 파일 확인 중 {0}"
-
-#: pe/ui/remote.cpp
-msgid "Checking {0}"
-msgstr "확인 중 {0}"
 
 #: eden_services.cpp
 msgid "China"
@@ -269,7 +225,7 @@ msgid "Chinese (Traditional)"
 msgstr "중국어(번체)"
 
 #. Button hint: choose the highlighted language.
-#: pe/ui/browse.cpp, pe/ui/save_sync.cpp
+#: pe/ui/browse.cpp
 msgid "Choose"
 msgstr "선택"
 
@@ -277,74 +233,43 @@ msgstr "선택"
 msgid "Choose a game from your library."
 msgstr "라이브러리에서 게임을 선택하세요."
 
-#: pe/ui/settings.cpp
-msgid "Choose a theme or change the launcher layout."
-msgstr "테마를 고르거나 런처 레이아웃을 바꿉니다."
-
-#: pe/ui/settings.cpp
-msgid "Choose the colours and appearance of this menu."
-msgstr "이 메뉴의 색상과 모양을 고릅니다."
-
 #: pe/ui/browse.cpp
-msgid "Choose the folder that holds your keys, firmware and games"
-msgstr "키, 펌웨어, 게임이 들어 있는 폴더를 선택하세요"
+msgid "Choose one root for keys, firmware, games, updates and mods"
+msgstr "키, 펌웨어, 게임, 업데이트 및 모드에 대해 하나의 루트를 선택하세요."
 
 #: pe/ui/browse.cpp
 msgid "Choose the language games use"
 msgstr "게임에서 사용할 언어를 선택하세요"
 
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Circle"
-msgstr "동그라미"
-
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "Close"
-msgstr "닫기"
+msgstr "원"
 
 #: pe/ui/settings.cpp
-msgid "Colour"
-msgstr "색상"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Compact memory"
-msgstr "메모리 압축"
-
-#. A switch: the program code a game used in earlier sessions is prepared (compiled) while the game starts. Keep it short.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Compile ahead"
-msgstr "미리 컴파일"
+msgid "Clear"
+msgstr "분명한"
 
 #: pe/ui/settings.cpp
-msgid "Compiles the code a game used before as it starts, so new areas stutter less."
-msgstr "게임이 이전에 사용한 코드를 시작할 때 컴파일하여 새 지역에서 끊김을 줄입니다."
+msgid "Clear cache"
+msgstr "캐시 지우기"
 
-#. A choice of 'ASTC textures': the textures are kept compressed (less memory). Keep it short.
-#: settings_store.h
-msgid "Compressed"
-msgstr "압축"
+#: pe/ui/launcher.cpp
+msgid "Clear cache?"
+msgstr "캐시를 삭제하시겠습니까?"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connect using a room address, port and password."
-msgstr "방 주소, 포트, 비밀번호로 연결합니다."
+#: eden_services.cpp
+msgid "Cleared {0} of cache."
+msgstr "캐시 {0}개를 지웠습니다."
 
-#: pe/ui/home.cpp, pe/ui/multiplayer.cpp
-msgid "Connected"
-msgstr "연결됨"
+#: pe/ui/launcher.cpp
+msgid "Confirm"
+msgstr "확인"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connecting..."
-msgstr "연결하는 중..."
+#: pe/ui/launcher.cpp
+msgid "Confirm this action?"
+msgstr "이 작업을 확인하시겠습니까?"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connection failed"
-msgstr "연결 실패"
-
-#: pe/ui/multiplayer.cpp
-msgid "Connection problem"
-msgstr "연결 문제"
-
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/launcher.cpp, pe/ui/library.cpp
 msgid "Console mode"
 msgstr "본체 모드"
 
@@ -352,74 +277,57 @@ msgstr "본체 모드"
 msgid "CONTINUE PLAYING"
 msgstr "이어서 플레이"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Controller shortcuts and supported features."
-msgstr "컨트롤러 단축키와 지원 기능."
+#: pe/ui/home.cpp
+msgid "Controller mapping"
+msgstr "컨트롤러 매핑"
 
-#: pe/ui/game_options.cpp
-msgid "Controller type"
-msgstr "컨트롤러 유형"
+#: pe/ui/settings.cpp
+msgid "Controller profile: {0}"
+msgstr "컨트롤러 프로필: {0}"
 
 #: pe/ui/home.cpp
 msgid "CONTROLLERS"
 msgstr "컨트롤러"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp
+msgid "Controllers"
+msgstr "컨트롤러"
+
+#: pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Controls"
 msgstr "조작"
 
 #: pe/ui/settings.cpp
-msgid "Corner"
-msgstr "위치"
-
-#: pe/ui/remote.cpp
-msgid "Could not cancel the download."
-msgstr "다운로드를 취소할 수 없습니다."
-
-#: pe/ui/pairing.cpp
-msgid "Could not change save-sync.json."
-msgstr "save-sync.json을 변경할 수 없습니다."
+msgid "CONTROLS"
+msgstr "조작"
 
 #: pe/ui/library.cpp
 msgid "Could not create the folder. Check that the game files folder can be written."
 msgstr "폴더를 만들지 못했습니다. 게임 파일 폴더에 쓸 수 있는지 확인하세요."
 
 #: pe/ui/library.cpp
-msgid "Could not delete the game."
-msgstr "게임을 삭제할 수 없습니다."
+msgid "Could not load game library. Reopen Encore to retry."
+msgstr "게임 라이브러리를 로드할 수 없습니다. 다시 시도하려면 Encore를 다시 여세요."
 
-#: eden_services.cpp
-msgid "Could not delete {0}."
-msgstr "{0}을(를) 삭제할 수 없습니다."
+#: pe/ui/library.cpp
+msgid "Could not load game list. Please try again."
+msgstr "게임 목록을 로드할 수 없습니다. 다시 시도해 주세요."
 
 #: pe/ui/launcher.cpp
 msgid "Could not save settings. Please try again."
 msgstr "설정을 저장하지 못했습니다. 다시 시도해 주세요."
 
 #: pe/ui/browse.cpp
-msgid "Could not save the folder. Please try again."
-msgstr "폴더를 저장하지 못했습니다. 다시 시도해 주세요."
+msgid "Could not save the storage root. Please try again."
+msgstr "저장소 루트를 저장할 수 없습니다. 다시 시도해 주세요."
 
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/profiles.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp
 msgid "Could not save. Please try again."
 msgstr "저장하지 못했습니다. 다시 시도해 주세요."
 
-#: pe/ui/multiplayer.cpp
-msgid "Could not start the connection or save its settings."
-msgstr "연결을 시작하거나 설정을 저장할 수 없습니다."
-
-#: pe/ui/settings.cpp
-msgid "CPU"
-msgstr "CPU"
-
-#: pe/ui/settings.cpp
-msgid "CPU by core"
-msgstr "코어별 CPU"
-
-#. The DualSense button labelled CREATE: keep the label if the language's players do.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Create"
-msgstr "CREATE"
+msgstr "만들다"
 
 #. Button hint: make the folder a game's mods go in.
 #: pe/ui/library.cpp
@@ -435,183 +343,128 @@ msgstr "{0}을(를) 만들었습니다. 각 모드의 폴더를 그 안에 복�
 msgid "Credits and setup"
 msgstr "크레딧 및 설정 안내"
 
-#. A DualSense button (the X-shaped one). Name the shape, not the letter.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Cross"
-msgstr "엑스"
+msgstr "십자가"
+
+#: pe/ui/settings.cpp, settings_store.h
+msgid "Custom"
+msgstr "사용자 지정"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Custom PS5"
+msgstr "맞춤형 PS5"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Custom Switch"
+msgstr "맞춤형 스위치"
 
 #: pe/ui/settings.cpp
-msgid "Default"
-msgstr "기본값"
+msgid "Customize"
+msgstr "사용자 정의"
+
+#: pe/ui/settings.cpp
+msgid "Customize every guest button. The profile automatically becomes Custom PS5 or Custom Switch."
+msgstr "모든 게스트 버튼을 맞춤설정하세요. 프로필은 자동으로 Custom PS5 또는 Custom Switch가 됩니다."
+
+#: pe/ui/settings.cpp
+msgid "DATA"
+msgstr "데이터"
+
+#: pe/ui/settings.cpp
+msgid "Data: {0}"
+msgstr "데이터: {0}"
 
 #. A per-game setting that follows the general setting; {0} is its value.
-#: pe/ui/game_options.cpp
+#: pe/ui/library.cpp
 msgid "Default ({0})"
 msgstr "기본값({0})"
 
-#: pe/ui/browse.cpp
-msgid "Default folder"
-msgstr "기본 폴더"
-
-#: pe/ui/browse.cpp
-msgid "Default folder saved. Reopen ProsperoEden to use it."
-msgstr "기본 폴더를 저장했습니다. ProsperoEden을 다시 열면 적용됩니다."
-
-#: pe/ui/library.cpp
-msgid "Delete"
-msgstr "삭제"
-
-#: pe/ui/library.cpp
-msgid "Delete from console"
-msgstr "본체에서 삭제"
-
-#: eden_services.cpp
-msgid "Deleted 1 file ({0}). Save data and settings are kept."
-msgstr "파일 1개를 삭제했습니다({0}). 세이브 데이터와 설정은 유지됩니다."
-
-#: eden_services.cpp, host/fake_services.cpp
-msgid "Deleted {1} files ({0}). Save data and settings are kept."
-msgstr "파일 {1}개를 삭제했습니다({0}). 세이브 데이터와 설정은 유지됩니다."
+#: pe/ui/settings.cpp
+msgid "DETAILED LOGGING"
+msgstr "자세한 로깅"
 
 #: pe/ui/settings.cpp
 msgid "Detailed logging"
 msgstr "상세 로그"
 
 #: pe/ui/settings.cpp
-msgid "Detailed logs apply to the next game launch."
-msgstr "상세 로그는 다음 게임 실행부터 적용됩니다."
-
-#: pe/ui/settings.cpp
 msgid "Detailed logs on"
 msgstr "상세 로그 켜짐"
 
-#: pe/ui/settings.cpp
+#: pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Diagnostics"
 msgstr "진단"
 
+#: pe/ui/settings.cpp
+msgid "DIAGNOSTICS"
+msgstr "진단"
+
 #. Console mode: the console as if connected to a TV. Keep it short (about 9 letters).
-#: pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Docked"
 msgstr "TV 모드"
 
-#: pe/ui/pairing.cpp
+#: pe/ui/library.cpp
+msgid "Docked can improve graphics but may cost performance; Handheld is lighter for demanding games."
+msgstr "도킹하면 그래픽이 향상되지만 성능이 저하될 수 있습니다. 핸드헬드는 까다로운 게임에 적합합니다."
+
+#: pe/ui/home.cpp
 msgid "Done"
 msgstr "완료"
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Download"
-msgstr "다운로드"
-
-#: pe/ui/library.cpp
-msgid "Download and play"
-msgstr "다운로드 후 플레이"
-
-#: pe/ui/remote.cpp
-msgid "Download cancelled."
-msgstr "다운로드를 취소했습니다."
-
-#: pe/ui/remote.cpp
-msgid "Download failed"
-msgstr "다운로드 실패"
-
-#: pe/ui/remote.cpp
-msgid "Download from"
-msgstr "다운로드할 소스"
-
-#: pe/ui/remote.cpp
-msgid "Download in the background"
-msgstr "백그라운드에서 다운로드"
-
-#. {0} is a size such as 36.4 MB.
-#: pe/ui/update.cpp
-msgid "Download size: {0}"
-msgstr "다운로드 크기: {0}"
-
-#: pe/ui/library.cpp
-msgid "Download the game to change its settings."
-msgstr "설정을 변경하려면 게임을 다운로드하세요."
-
-#: pe/ui/update.cpp
-msgid "Downloading"
-msgstr "다운로드 중"
-
-#: pe/ui/remote.cpp
-msgid "Downloading {0}"
-msgstr "다운로드 중 {0}"
-
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "Downloads"
-msgstr "다운로드"
-
-#: pe/ui/remote.cpp
-msgid "Downloads need an FTP server running on the console, on port {0}."
-msgstr "다운로드하려면 본체의 포트 {0}에서 FTP 서버가 실행 중이어야 합니다."
-
-#: pe/ui/settings.cpp
-msgid "Draws an effect once its shader is ready instead of pausing. Things can be missing for a moment."
-msgstr "셰이더가 준비되면 효과를 그리며 게임을 멈추지 않습니다. 잠시 보이지 않는 것이 있을 수 있습니다."
 
 #: pe/ui/settings.cpp
 msgid "Draws the menu's small text larger."
 msgstr "메뉴의 작은 글자를 더 크게 표시합니다."
 
-#: pe/ui/game_options.cpp
-msgid "Dual Joy-Cons"
-msgstr "Joy-Con 2개"
+#: pe/ui/settings.cpp
+msgid "DualSense mapping, calibration, vibration and shortcuts."
+msgstr "DualSense 매핑, 교정, 진동 및 단축키."
 
 #: settings_store.h
 msgid "Dutch"
 msgstr "네덜란드어"
 
-#: pe/ui/profiles.cpp
-msgid "Each profile keeps its own save data, settings and recent games."
-msgstr "프로필마다 저장 데이터, 설정, 최근 게임이 따로 있습니다."
+#: pe/ui/browse.cpp
+msgid "Eden Encore builds on the proven ProsperoEden 0.40 PS5 base for firmware 13.60, with the Eden core, safer recovery, and targeted compatibility, performance and TV-first UX improvements."
+msgstr "Eden Encore는 펌웨어 13.60용 입증된 ProsperoEden 0.40 PS5 기반을 기반으로 하며 Eden 코어, 보다 안전한 복구 및 대상 호환성, 성능 및 TV 우선 UX 개선 기능을 갖추고 있습니다."
 
-#: pe/ui/pairing.cpp
-msgid "Each profile keeps its save data on a server, as its own user there. Pair one with Cross: no typing, your phone does the signing in."
-msgstr "프로필마다 서버의 개별 사용자로 세이브 데이터를 보관합니다. 엑스로 페어링하세요. 입력할 필요 없이 휴대폰으로 로그인합니다."
-
-#: pe/ui/settings.cpp
-msgid "Each profile's save data on a server of its own, synced before and after a game."
-msgstr "각 프로필의 세이브 데이터를 전용 서버에 보관하고 게임 전후에 동기화합니다."
-
-#: pe/ui/settings.cpp
-msgid "Eden's debug messages in the logs of a game."
-msgstr "게임 로그에 Eden의 디버그 메시지를 남깁니다."
-
-#. A button hint: opens the keyboard to type a number. One short word, and not the word used for Change.
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "Edit"
-msgstr "편집"
+msgstr "편집하다"
 
 #: pe/ui/settings.cpp
-msgid "Enable colors"
-msgstr "색 사용"
+msgid "Edit custom mapping"
+msgstr "맞춤 매핑 수정"
 
+#: pe/ui/browse.cpp
+msgid "Encore uses the same keys, firmware, roms, updates and mods folders under every storage root."
+msgstr "Encore는 모든 저장소 루트 아래에서 동일한 키, 펌웨어, ROM, 업데이트 및 모드 폴더를 사용합니다."
+
+#. Label of the shortcut that ends the running game.
 #: pe/ui/settings.cpp
-msgid "End the game and return to this menu"
-msgstr "게임을 종료하고 이 메뉴로 돌아가기"
+msgid "END GAME"
+msgstr "게임 종료"
 
 #: settings_store.h
 msgid "English (UK)"
 msgstr "영어(영국)"
 
-#: host/fake_services.cpp, settings_store.h
+#: settings_store.h
 msgid "English (US)"
 msgstr "영어(미국)"
-
-#. Shown when what was typed for the RNG seed is not such a number.
-#: pe/ui/game_options.cpp
-msgid "Enter a number between 0 and 4294967295."
-msgstr "0에서 4294967295 사이의 숫자를 입력하세요."
-
-#: pe/ui/multiplayer.cpp
-msgid "Enter a UDP port between 1 and 65535."
-msgstr "1에서 65535 사이의 UDP 포트를 입력하세요."
 
 #: eden_services.cpp
 msgid "Europe"
 msgstr "유럽"
+
+#: pe/ui/launcher.cpp
+msgid "Exit Eden Encore"
+msgstr "에덴앙코르 나가기"
+
+#: pe/ui/launcher.cpp
+msgid "Exit Eden Encore?"
+msgstr "에덴 앙코르를 종료하시겠습니까?"
 
 #. Button hint: copy the game's save out to a folder.
 #: pe/ui/library.cpp
@@ -619,37 +472,26 @@ msgid "Export a copy"
 msgstr "사본 내보내기"
 
 #: eden_services.cpp
-msgid "Export failed. Check that the game files folder can be written."
-msgstr "내보내지 못했습니다. 게임 파일 폴더에 쓸 수 있는지 확인하세요."
+msgid "Export failed. Check that the storage root can be written."
+msgstr "내보내기에 실패했습니다. 저장소 루트에 쓸 수 있는지 확인하십시오."
 
 #. {0} is a folder.
 #: eden_services.cpp, host/fake_services.hpp
 msgid "Exported to {0}."
 msgstr "{0}에 내보냈습니다."
 
-#. A switch: the emulated processor's floating-point math is less exact and faster. CPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster CPU emulation"
-msgstr "더 빠른 CPU 에뮬레이션"
-
-#. A switch: memory transfers to the emulated graphics processor are less exact and faster. DMA is a name (unchanged).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster DMA"
-msgstr "더 빠른 DMA"
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Faster games, at some cost in accuracy."
-msgstr "정확도를 조금 낮추고 게임을 더 빠르게 합니다."
-
-#. A switch: the emulated graphics processor is less exact and faster. GPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster GPU emulation"
-msgstr "더 빠른 GPU 에뮬레이션"
-
 #. What a mod is made of: files that replace the game's own.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Files"
 msgstr "파일"
+
+#: pe/ui/settings.cpp
+msgid "FILESYSTEM"
+msgstr "파일 시스템"
+
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Final app output size. Choose 1080p for lower memory use, 1440p for balance, or 2160p for maximum output detail."
+msgstr "최종 앱 출력 크기. 메모리 사용량을 줄이려면 1080p를 선택하고, 밸런스를 맞추려면 1440p를, 출력 세부정보를 최대화하려면 2160p를 선택하세요."
 
 #: pe/ui/settings.cpp
 msgid "Fine-tune your experience"
@@ -671,60 +513,22 @@ msgstr "펌웨어 준비됨"
 msgid "Firmware SystemVersion data is missing or unreadable. Install a complete firmware dump."
 msgstr "펌웨어의 SystemVersion 데이터가 없거나 읽을 수 없습니다. 완전한 펌웨어를 설치하세요."
 
+#: pe/ui/settings.cpp
+msgid "Fixed Encore folder structure"
+msgstr "Encore 폴더 구조 수정"
+
 #: pe/ui/browse.cpp
 msgid "FOLDERS"
 msgstr "폴더"
 
-#. A kind of setting that this game takes from the launcher's Settings menu.
-#: pe/ui/library.cpp
-msgid "Follows Settings"
-msgstr "설정을 따름"
-
-#: pe/ui/game_options.cpp
-msgid "For every controller. A game can have its own."
-msgstr "모든 컨트롤러에 적용됩니다. 게임마다 따로 정할 수 있습니다."
-
+#. Label: the frames-per-second counter drawn over a game.
 #: pe/ui/settings.cpp
-msgid "FPS"
-msgstr "FPS"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "FPS overlay"
+msgid "FPS OVERLAY"
 msgstr "FPS 표시"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen method"
-msgstr "프레임 생성 방식"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen multiplier"
-msgstr "프레임 생성 배율"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen target"
-msgstr "프레임 생성 목표"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
-msgid "ROMs and updates"
-msgstr "ROM 및 업데이트"
-
-msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
-msgstr "키, 펌웨어, 저장 데이터를 옮기지 않고 roms/ 및 updates/를 선택합니다."
-
-msgid "Frame generation"
-msgstr "프레임 생성"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame generation needs Lossless.dll, from Lossless Scaling, in the lossless folder."
-msgstr "프레임 생성에는 lossless 폴더에 Lossless Scaling의 Lossless.dll이 필요합니다."
-
 #: pe/ui/settings.cpp
-msgid "Frame generation needs MihawkGen weights (network.fgw)."
-msgstr "프레임 생성에는 MihawkGen 가중치(network.fgw)가 필요합니다."
-
-#: pe/ui/settings.cpp
-msgid "Frame time"
-msgstr "프레임 시간"
+msgid "FPS overlay"
+msgstr "FPS 표시"
 
 #: settings_store.h
 msgid "French"
@@ -734,27 +538,30 @@ msgstr "프랑스어"
 msgid "French (Canada)"
 msgstr "프랑스어(캐나다)"
 
-#: pe/ui/remote.cpp
-msgid "From {0}"
-msgstr "{0}에서"
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "FSR sharpness"
+msgstr "FSR 선명도"
+
+#: pe/ui/settings.cpp
+msgid "FSR SHARPNESS"
+msgstr "FSR 선명도"
+
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "FSR sharpness changes detail recovery only when AMD FSR is selected. Lower it if the picture looks grainy or over-sharpened."
+msgstr "FSR 선명도는 AMD FSR을 선택한 경우에만 세부 복구를 변경합니다. 사진이 거칠거나 지나치게 선명해 보이면 낮추세요."
 
 #. The app can read every folder of the console.
-#: pe/ui/browse.cpp
+#: eden_services.cpp, pe/ui/browse.cpp
 msgid "Full filesystem"
 msgstr "전체 파일 시스템"
 
-#. A choice of 'ASTC textures': the textures are kept uncompressed (more memory). Keep it short.
 #: settings_store.h
-msgid "Full quality"
-msgstr "전체 품질"
+msgid "FXAA"
+msgstr "FXAA"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Game audio; PS5 system-menu music is unchanged."
 msgstr "게임 소리입니다. PS5 시스템 메뉴 음악은 바뀌지 않습니다."
-
-#: pe/ui/launcher.cpp
-msgid "Game cannot start now."
-msgstr "지금은 게임을 시작할 수 없습니다."
 
 #. {0} is the reason, a sentence in English; {1} is a file.
 #: eden_services.cpp, host/fake_services.cpp
@@ -762,18 +569,34 @@ msgid "Game could not start: {0} Details: {1}"
 msgstr "게임을 시작할 수 없습니다: {0} 자세한 내용: {1}"
 
 #: pe/ui/library.cpp
-msgid "GAME DETAILS"
-msgstr "게임 상세 정보"
+msgid "Game library unavailable"
+msgstr "게임 라이브러리를 사용할 수 없습니다"
 
-#: pe/ui/browse.cpp, pe/ui/settings.cpp
-msgid "Game files"
-msgstr "게임 파일"
+#: pe/ui/library.cpp
+msgid "Game overrides reset to global defaults."
+msgstr "Game overrides reset to global defaults."
+
+#: pe/ui/settings.cpp
+msgid "Game render scale follows the selected profile. Lower it for performance or memory; raise it only when a game has headroom."
+msgstr "게임 렌더링 규모는 선택한 프로필을 따릅니다. 성능이나 메모리를 위해 낮추십시오. 게임에 헤드룸이 있을 때만 올립니다."
+
+#: pe/ui/settings.cpp
+msgid "GAME RESOLUTION"
+msgstr "게임 해상도"
+
+#: pe/ui/settings.cpp
+msgid "Game resolution"
+msgstr "게임 해상도"
 
 #: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Game settings"
 msgstr "게임 설정"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
+msgid "GAME VOLUME"
+msgstr "게임 음량"
+
+#: pe/ui/settings.cpp
 msgid "Game volume"
 msgstr "게임 음량"
 
@@ -785,9 +608,9 @@ msgstr "게임 음량과 이 메뉴의 효과음."
 msgid "GAMES"
 msgstr "게임"
 
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "Games on your network, downloaded when you play them."
-msgstr "네트워크에 있는 게임을 플레이할 때 다운로드합니다."
+#: pe/ui/home.cpp
+msgid "Games and cache"
+msgstr "게임과 캐시"
 
 #: pe/ui/browse.cpp
 msgid "Games use this language when they offer it, and their own default otherwise. It applies when a game starts."
@@ -805,17 +628,13 @@ msgstr "독일어"
 msgid "GETTING STARTED"
 msgstr "시작하기"
 
-#: pe/ui/settings.cpp
-msgid "Gives back memory a game left empty, 16 KiB at a time. More free memory; a game that writes there again can stutter for a moment."
-msgstr "게임이 비워 둔 메모리를 16KiB 단위로 반환합니다. 여유 메모리가 늘어나며, 그곳에 다시 쓰는 게임은 잠깐 끊길 수 있습니다."
+#: pe/ui/library.cpp, pe/ui/mapping.cpp
+msgid "Global ({0})"
+msgstr "글로벌({0})"
 
-#: pe/ui/multiplayer.cpp
-msgid "Go offline"
-msgstr "오프라인으로 전환"
-
-#: pe/ui/settings.cpp
-msgid "GPU"
-msgstr "GPU"
+#: pe/ui/mapping.cpp
+msgid "Global controller profile: {0}"
+msgstr "전역 컨트롤러 프로필: {0}"
 
 #: pe/ui/settings.cpp
 msgid "Graphics backend and how games are scaled to your TV."
@@ -826,27 +645,30 @@ msgid "Graphics backend initialization failed. Try another backend in Settings; 
 msgstr "그래픽 백엔드를 초기화하지 못했습니다. 설정에서 다른 백엔드를 사용해 보세요. 드라이버 정보는 stderr.log와 eden_log.txt를 참고하세요."
 
 #. Console mode: the console as if held in the hands. Keep it short (about 9 letters).
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Handheld"
 msgstr "휴대 모드"
+
+#: pe/ui/settings.cpp
+msgid "Health and storage tools. Cache cleanup never removes saves, settings, keys or games."
+msgstr "건강 및 저장 도구. 캐시 정리는 저장 파일, 설정, 키 또는 게임을 제거하지 않습니다."
+
+#: settings_store.h
+msgid "High"
+msgstr "높은"
+
+#: pe/ui/settings.cpp
+msgid "HIGH CONTRAST"
+msgstr "고대비"
 
 #. A switch: solid dark panels, brighter text.
 #: pe/ui/settings.cpp
 msgid "High contrast"
 msgstr "고대비"
 
-#. The menu's first section, its opening screen (not a house, and not the PS5's own home screen).
-#: pe/ui/shell.cpp
+#: pe/ui/launcher.cpp
 msgid "Home"
 msgstr "홈"
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "How games are drawn and scaled to your TV."
-msgstr "게임을 그리는 방식과 TV에 맞춘 확대 방식."
-
-#: pe/ui/settings.cpp
-msgid "Images in this folder: {0}"
-msgstr "이 폴더의 이미지: {0}"
 
 #. Button hint: copy a save in.
 #: pe/ui/library.cpp
@@ -870,25 +692,13 @@ msgstr "가져왔습니다. 대체된 세이브 데이터는 백업했습니다.
 msgid "IN USE"
 msgstr "사용 중"
 
-#: pe/ui/multiplayer.cpp
-msgid "Incompatible"
-msgstr "호환되지 않음"
+#: pe/ui/browse.cpp
+msgid "Internal storage"
+msgstr "내부 저장소"
 
-#: pe/ui/save_sync.cpp
-msgid "It goes to the server."
-msgstr "서버로 보냅니다."
-
-#: pe/ui/save_sync.cpp
-msgid "It is tried again when the menu opens next."
-msgstr "다음에 메뉴를 열 때 다시 시도합니다."
-
-#: pe/ui/save_sync.cpp
-msgid "It replaces this console's."
-msgstr "이 본체의 데이터를 대체합니다."
-
-#: pe/ui/pairing.cpp
-msgid "It was declined on the server."
-msgstr "서버에서 거부되었습니다."
+#: pe/ui/browse.cpp
+msgid "Internal storage saved. Reopen Encore to use it."
+msgstr "내부 저장소가 저장되었습니다. Encore를 다시 열어 사용하세요."
 
 #: settings_store.h
 msgid "Italian"
@@ -901,35 +711,6 @@ msgstr "일본"
 #: settings_store.h
 msgid "Japanese"
 msgstr "일본어"
-
-#: pe/ui/multiplayer.cpp
-msgid "Join a room before launching a game, then choose Local Wireless in the game."
-msgstr "게임을 실행하기 전에 방에 참가한 다음 게임에서 로컬 통신을 선택하세요."
-
-#: pe/ui/launcher.cpp
-msgid "Join a room successfully or leave it before starting a game."
-msgstr "게임을 시작하기 전에 방에 참가하거나 방에서 나가세요."
-
-#: pe/ui/multiplayer.cpp
-msgid "Join room"
-msgstr "방 참가"
-
-#. keys, firmware and roms are folder names (unchanged). TRIANGLE is the controller's triangle button, in capitals.
-#: pe/ui/browse.cpp
-msgid "Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown."
-msgstr "keys, firmware, roms 폴더를 한곳에 두세요. △ 버튼을 누르면 표시된 폴더를 사용합니다."
-
-#: pe/ui/save_sync.cpp
-msgid "Keep this console's"
-msgstr "이 본체의 데이터 유지"
-
-#: pe/ui/settings.cpp
-msgid "Keeps the last line before a crash, but games stutter. From the next start."
-msgstr "충돌 직전의 마지막 줄이 남지만 게임이 끊깁니다. 다음 실행부터 적용됩니다."
-
-#: pe/ui/settings.cpp
-msgid "Keeps what a game reads back from the GPU exact. Off is faster, and some effects break."
-msgstr "게임이 GPU에서 다시 읽는 내용을 정확하게 유지합니다. 끄면 더 빠르지만 일부 효과가 깨집니다."
 
 #. Label: the encryption keys file (prod.keys).
 #: pe/ui/browse.cpp
@@ -948,17 +729,21 @@ msgstr "한국"
 msgid "Korean"
 msgstr "한국어"
 
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
 msgid "Language"
+msgstr "언어"
+
+#: pe/ui/settings.cpp
+msgid "LANGUAGE"
 msgstr "언어"
 
 #: pe/ui/browse.cpp
 msgid "LANGUAGES"
 msgstr "언어"
 
-#: pe/ui/game_options.cpp
-msgid "Large"
-msgstr "크게"
+#: pe/ui/settings.cpp
+msgid "LARGER TEXT"
+msgstr "큰 글자"
 
 #. A switch: the menu's small text is drawn larger.
 #: pe/ui/settings.cpp
@@ -970,90 +755,65 @@ msgstr "큰 글자"
 msgid "Last game opened"
 msgstr "마지막으로 연 게임"
 
+#: pe/ui/library.cpp
+msgid "Launch game"
+msgstr "게임 실행"
+
 #: pe/ui/settings.cpp
-msgid "Launcher"
-msgstr "런처"
+msgid "LAYOUT"
+msgstr "공들여 나열한 것"
 
-#: pe/ui/multiplayer.cpp
-msgid "Leave / cancel"
-msgstr "나가기 / 취소"
-
-#: pe/ui/multiplayer.cpp
-msgid "Leave room"
-msgstr "방 나가기"
-
-#: pe/ui/multiplayer.cpp
-msgid "Leave the room before changing connection details."
-msgstr "연결 정보를 변경하기 전에 방에서 나가세요."
-
-#: pe/ui/profiles.cpp
-msgid "Leaving the room. Select the profile again when disconnected."
-msgstr "방에서 나가는 중입니다. 연결이 끊어지면 프로필을 다시 선택하세요."
-
-#: pe/ui/multiplayer.cpp
-msgid "Leaving..."
-msgstr "나가는 중..."
-
-#: pe/ui/game_options.cpp
-msgid "Left Joy-Con"
-msgstr "Joy-Con (L)"
-
-#. Pressing the left stick down like a button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Left stick press"
 msgstr "왼쪽 스틱 누르기"
 
-#: pe/ui/settings.cpp
-msgid "Less exact floating-point math: faster, and a few games misbehave."
-msgstr "덜 정확한 부동 소수점 연산: 더 빠르지만 일부 게임이 오작동합니다."
-
-#: pe/ui/settings.cpp
-msgid "Less exact memory transfers to the GPU: faster, and a few games show wrong graphics."
-msgstr "GPU로의 메모리 전송이 덜 정확함: 더 빠르지만 일부 게임에서 그래픽이 잘못 보입니다."
-
 #: pe/ui/library.cpp
-msgid "LIBRARY"
-msgstr "라이브러리"
+msgid "Left/right: Global, PlayStation or Switch for this game; Cross: edit individual buttons."
+msgstr "왼쪽/오른쪽: 이 게임의 글로벌, PlayStation 또는 Switch; 크로스: 개별 버튼을 편집합니다."
 
-#: pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/launcher.cpp
 msgid "Library"
 msgstr "라이브러리"
 
-#: pe/ui/pairing.cpp
-msgid "Linked"
-msgstr "연결됨"
+#: pe/ui/library.cpp
+msgid "Loading artwork"
+msgstr "작품 로드 중"
 
-#: pe/ui/multiplayer.cpp
-msgid "Loading public rooms..."
-msgstr "공개 방을 불러오는 중..."
+#: pe/ui/launcher.cpp
+msgid "Loading game library..."
+msgstr "게임 라이브러리 로드 중..."
 
 #: pe/ui/settings.cpp
-msgid "Lowest GPU accuracy: faster in demanding games, and graphics can be wrong."
-msgstr "가장 낮은 GPU 정확도: 무거운 게임에서 더 빠르지만 그래픽이 잘못 보일 수 있습니다."
+msgid "LOGS"
+msgstr "로그"
 
 #: pe/ui/settings.cpp
 msgid "Make the menu easier to see and follow."
 msgstr "메뉴를 더 보기 쉽고 따라가기 쉽게 만듭니다."
 
-#: pe/ui/game_options.cpp
-msgid "Medium"
-msgstr "중간"
+#: pe/ui/home.cpp
+msgid "Max. players: {0}"
+msgstr "최대. 플레이어: {0}"
 
 #: pe/ui/settings.cpp
-msgid "Memory"
-msgstr "메모리"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Menu keybinds"
-msgstr "메뉴 버튼"
-
-#: pe/ui/browse.cpp
-msgid "Menu sound effects made with ElevenLabs."
-msgstr "메뉴 효과음은 ElevenLabs로 제작했습니다."
+msgid "MENU SOUNDS"
+msgstr "메뉴 효과음"
 
 #: pe/ui/settings.cpp
 msgid "Menu sounds"
 msgstr "메뉴 효과음"
+
+#: settings_store.h
+msgid "Minimum"
+msgstr "최소"
+
+#: pe/ui/settings.cpp
+msgid "Minimum reduces GPU load and may use lower GPU accuracy for speed. Recommended balances quality and stability. High and Ultra raise image quality when the game has headroom."
+msgstr "최소값은 GPU 로드를 줄이고 속도를 위해 더 낮은 GPU 정확도를 사용할 수 있습니다. 권장 사항은 품질과 안정성의 균형을 유지합니다. 높음 및 울트라는 게임에 여유 공간이 있을 때 이미지 품질을 높입니다."
+
+#: pe/ui/library.cpp
+msgid "Minimum, Recommended, High and Ultra apply the title-aware Encore profile. Manual changes become Custom for this game."
+msgstr "최소, 권장, 높음 및 울트라는 제목 인식 Encore 프로필을 적용합니다. 수동 변경 사항은 이 게임에 대해 사용자 지정이 됩니다."
 
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Missing or empty keys/prod.keys in {0}."
@@ -1069,15 +829,11 @@ msgstr "모드"
 msgid "Mods"
 msgstr "모드"
 
-#: pe/ui/home.cpp, pe/ui/multiplayer.cpp, pe/ui/shell.cpp
-msgid "Multiplayer"
-msgstr "멀티플레이"
+#: pe/ui/settings.cpp
+msgid "MUTE"
+msgstr "음소거"
 
-#: pe/ui/multiplayer.cpp
-msgid "MULTIPLAYER"
-msgstr "멀티플레이"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Mute"
 msgstr "음소거"
 
@@ -1086,7 +842,7 @@ msgid "Muted"
 msgstr "음소거됨"
 
 #. Button hint: move the highlight.
-#: pe/ui/update.cpp
+#: pe/ui/home.cpp
 msgid "Navigate"
 msgstr "이동"
 
@@ -1095,47 +851,14 @@ msgstr "이동"
 msgid "Nearest"
 msgstr "니어리스트"
 
-#: pe/ui/pairing.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Needs attention"
 msgstr "확인 필요"
-
-#: pe/ui/theme.cpp
-msgid "Neutral glass, clean and still."
-msgstr "중립적인 유리, 깔끔하고 차분함."
-
-#: pe/ui/profiles.cpp
-msgid "New profile"
-msgstr "새 프로필"
 
 #. {0} is the folder used the next time the app starts.
 #: pe/ui/browse.cpp
 msgid "Next launch: {0}"
 msgstr "다음 실행: {0}"
-
-#: pe/ui/multiplayer.cpp
-msgid "Nickname"
-msgstr "닉네임"
-
-#: pe/ui/multiplayer.cpp
-msgid "Nickname: {0}"
-msgstr "닉네임: {0}"
-
-#: pe/ui/library.cpp
-msgid "No cheats"
-msgstr "치트 없음"
-
-#. <build ID>.txt stays as it is: a cheat file is named after the game version's build ID. {0} is a folder such as roms/Game/cheats/.
-#: pe/ui/library.cpp
-msgid "No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}."
-msgstr "이 게임에는 아직 치트가 없습니다. 치트 파일(<build ID>.txt)을 {0}에 복사하세요."
-
-#: pe/ui/remote.cpp
-msgid "No download source is set up. Save a file named {0} that lists your sources, as this one does with a RomM server, then open this menu again. Downloads need an FTP server running on the console, on port {1}."
-msgstr "다운로드 소스가 설정되지 않았습니다. 이 예시의 RomM 서버처럼 소스를 나열한 {0} 파일을 저장한 다음 이 메뉴를 다시 여세요. 다운로드하려면 본체의 포트 {1}에서 FTP 서버가 실행 중이어야 합니다."
-
-#: pe/ui/remote.cpp
-msgid "No downloads. In the Library, Square puts a game from a source in the queue."
-msgstr "다운로드가 없습니다. 라이브러리에서 네모를 누르면 소스의 게임을 대기열에 넣습니다."
 
 #: pe/ui/browse.cpp
 msgid "No firmware folder"
@@ -1154,66 +877,27 @@ msgstr "여기에는 폴더가 없습니다."
 msgid "No mods"
 msgstr "모드 없음"
 
+#. {0} is a folder; roms/ is a folder name (unchanged).
 #: pe/ui/library.cpp
-msgid "No mods for this game yet. Copy each mod's folder to {0}."
-msgstr "이 게임에는 아직 모드가 없습니다. 각 모드의 폴더를 {0}에 복사하세요."
-
-#: pe/ui/multiplayer.cpp
-msgid "No public rooms are available."
-msgstr "이용 가능한 공개 방이 없습니다."
+msgid "No mods for this game yet. Copy each mod's folder to {0}, next to roms/."
+msgstr "이 게임에는 아직 모드가 없습니다. 각 모드의 폴더를 roms/ 옆의 {0}에 복사하세요."
 
 #: pe/ui/library.cpp
 msgid "No ROM files found."
 msgstr "ROM 파일을 찾을 수 없습니다."
 
-#: pe/ui/library.cpp
-msgid "No ROM selected"
-msgstr "선택한 ROM 없음"
-
 #: pe/ui/browse.cpp
 msgid "No roms folder"
 msgstr "roms 폴더 없음"
 
-#: pe/ui/pairing.cpp
-msgid "No server to pair with: add a RomM server to sources.json, or set save-sync.json up over FTP."
-msgstr "페어링할 서버가 없습니다: sources.json에 RomM 서버를 추가하거나 FTP로 save-sync.json을 설정하세요."
-
-#: pe/ui/pairing.cpp
-msgid "Nobody approved the code in time."
-msgstr "시간 안에 코드가 승인되지 않았습니다."
+#: pe/ui/library.cpp
+msgid "No screenshots available"
+msgstr "사용 가능한 스크린샷이 없습니다."
 
 #. No add-ons (updates or DLC).
-#: pe/ui/library.cpp
+#: pe/ui/library.cpp, settings_store.h
 msgid "None"
 msgstr "없음"
-
-#: pe/ui/remote.cpp
-msgid "Not connected yet"
-msgstr "아직 연결되지 않음"
-
-#: pe/ui/pairing.cpp
-msgid "Not linked"
-msgstr "연결 안 됨"
-
-#: pe/ui/pairing.cpp
-msgid "Not linked: its save data stays on the console"
-msgstr "연결 안 됨: 세이브 데이터는 본체에 남습니다"
-
-#: pe/ui/library.cpp
-msgid "Not on the console"
-msgstr "본체에 없음"
-
-#: pe/ui/pairing.cpp
-msgid "Not paired"
-msgstr "페어링 안 됨"
-
-#: pe/ui/remote.cpp
-msgid "Not reachable"
-msgstr "연결할 수 없음"
-
-#: pe/ui/settings.cpp
-msgid "Not set up"
-msgstr "설정되지 않음"
 
 #. Short status at the right of the Save data row.
 #: pe/ui/library.cpp
@@ -1221,18 +905,18 @@ msgid "Nothing to import"
 msgstr "가져올 항목 없음"
 
 #. A setting that is switched off.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Off"
 msgstr "끔"
 
-#: pe/ui/multiplayer.cpp
-msgid "Offline"
-msgstr "오프라인"
-
 #. A setting that is switched on.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "On"
 msgstr "켬"
+
+#: pe/ui/settings.cpp
+msgid "One root for keys, firmware, games, updates, mods and transfers."
+msgstr "키, 펌웨어, 게임, 업데이트, 모드 및 전송을 위한 단일 루트입니다."
 
 #. Short tag on a folder row.
 #: pe/ui/browse.cpp
@@ -1244,119 +928,55 @@ msgstr "열기"
 msgid "Open"
 msgstr "열기"
 
-#: pe/ui/update.cpp
-msgid "Open it again to use version {0}."
-msgstr "다시 열면 버전 {0}을(를) 사용할 수 있습니다."
-
 #: pe/ui/home.cpp
 msgid "Open library"
 msgstr "라이브러리 열기"
 
-#. The DualSense button labelled OPTIONS: keep the label if the language's players do.
-#: pe/ui/game_options.cpp
+#: pe/ui/home.cpp
+msgid "Open quick settings"
+msgstr "빠른 설정 열기"
+
+#: pe/ui/home.cpp
+msgid "Open settings"
+msgstr "설정 열기"
+
+#: pe/ui/home.cpp
+msgid "Open storage"
+msgstr "오픈 스토리지"
+
+#: pe/ui/library.cpp
+msgid "Open the per-game DualSense mapping. Global uses Settings > Controls; Custom overrides it only for this game."
+msgstr "게임별 DualSense 매핑을 엽니다. 전역에서는 설정 > 컨트롤을 사용합니다. 사용자 정의는 이 게임에서만 이를 재정의합니다."
+
+#: pe/ui/mapping.cpp
 msgid "Options"
-msgstr "OPTIONS"
-
-#. Setting: the size of the picture sent to the TV (1080p, 1440p or 2160p). Not the same as 'Resolution', which scales the game's own picture (1x, 2x...).
-#: pe/ui/settings.cpp
-msgid "Output resolution"
-msgstr "출력 해상도"
-
-#: pe/ui/game_options.cpp
-msgid "Overlay corner"
-msgstr "표시 위치"
-
-#: pe/ui/settings.cpp
-msgid "Overlay options"
-msgstr "표시 옵션"
-
-#: pe/ui/game_options.cpp
-msgid "Overlay size"
-msgstr "표시 크기"
+msgstr "옵션"
 
 #. Button hint: jump a page of the list (L1 / R1).
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp
 msgid "Page"
 msgstr "페이지"
-
-#: pe/ui/pairing.cpp
-msgid "Pair"
-msgstr "페어링"
-
-#: pe/ui/pairing.cpp
-msgid "Pair again"
-msgstr "다시 페어링"
-
-#: pe/ui/pairing.cpp
-msgid "Pair {0}"
-msgstr "{0} 페어링"
-
-#: pe/ui/pairing.cpp
-msgid "Pair {0} with"
-msgstr "{0} 페어링 대상"
-
-#: pe/ui/pairing.cpp
-msgid "Paired"
-msgstr "페어링됨"
-
-#: pe/ui/pairing.cpp
-msgid "Paired. The profile's save data syncs from now on."
-msgstr "페어링했습니다. 이제부터 프로필의 세이브 데이터가 동기화됩니다."
 
 #: pe/ui/browse.cpp
 msgid "Parent folder"
 msgstr "상위 폴더"
-
-#: pe/ui/multiplayer.cpp
-msgid "Password"
-msgstr "비밀번호"
 
 #. What a mod is made of: a change to the game's program (not a game update).
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Patch"
 msgstr "패치"
 
-#. A settings category: options that make games run faster, at some cost in accuracy.
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Performance"
-msgstr "성능"
-
-#: pe/ui/settings.cpp
-msgid "Ping"
-msgstr "핑"
-
-#. Button and button hint: start the game shown. Keep it to one short word.
-#: pe/ui/home.cpp, pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "Play"
 msgstr "플레이"
 
-#: pe/ui/save_sync.cpp
-msgid "Play anyway"
-msgstr "그래도 플레이"
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "PlayStation"
+msgstr "플레이스테이션"
 
-#: pe/ui/profiles.cpp
-msgid "Play as"
-msgstr "이 프로필로"
-
-#: pe/ui/library.cpp
-msgid "Play when downloaded"
-msgstr "다운로드되면 플레이"
-
-#: pe/ui/save_sync.cpp
-msgid "Play with this console's; you are asked again next time."
-msgstr "이 본체의 데이터로 플레이합니다. 다음에 다시 묻습니다."
-
-#: pe/ui/pairing.cpp
-msgid "playing"
-msgstr "플레이 중"
-
-#: pe/ui/profiles.cpp
-msgid "Playing"
-msgstr "플레이 중"
-
-#: pe/ui/profiles.cpp
-msgid "Playing as {0}"
-msgstr "{0}(으)로 플레이"
+#: pe/ui/settings.cpp
+msgid "PlayStation Auto keeps Cross/Circle menu semantics while adapting gameplay to physical Switch positions. Switch stays fixed; editing any button creates a custom profile."
+msgstr "PlayStation Auto는 물리적인 스위치 위치에 게임플레이를 적용하면서 십자형/원형 메뉴 의미를 유지합니다. 스위치는 고정되어 있습니다. 버튼을 편집하면 사용자 정의 프로필이 생성됩니다."
 
 #: settings_store.h
 msgid "Polish"
@@ -1370,40 +990,19 @@ msgstr "포르투갈어"
 msgid "Portuguese (Brazil)"
 msgstr "포르투갈어(브라질)"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Post-processing"
-msgstr "후처리"
-
 #. Eden is the emulator's name (unchanged).
 #: pe/ui/browse.cpp
 msgid "Powered by Eden"
 msgstr "Powered by Eden"
 
-#. Update dialog headline while the download starts.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "Preparing"
-msgstr "준비 중"
-
-#: pe/ui/library.cpp
-msgid "Press again to delete the game and its updates and DLC from the console. Save data and settings are kept."
-msgstr "다시 누르면 게임과 업데이트, DLC를 본체에서 삭제합니다. 세이브 데이터와 설정은 유지됩니다."
+#: pe/ui/settings.cpp
+msgid "Preset"
+msgstr "프리셋"
 
 #. Asked before a save is imported over the one in use.
 #: pe/ui/library.cpp
 msgid "Press again to replace this game's save. The current one is backed up."
 msgstr "다시 누르면 이 게임의 세이브 데이터를 교체합니다. 현재 데이터는 백업됩니다."
-
-#: pe/ui/multiplayer.cpp
-msgid "Private room"
-msgstr "비공개 방"
-
-#: pe/ui/multiplayer.cpp
-msgid "PRIVATE ROOM"
-msgstr "비공개 방"
-
-#: pe/ui/game_options.cpp
-msgid "Pro Controller"
-msgstr "Pro 컨트롤러"
 
 #: eden_services.cpp
 msgid "prod.keys could not supply an NCA header key. Replace it with a valid key dump."
@@ -1417,168 +1016,138 @@ msgstr "prod.keys 있음"
 msgid "prod.keys missing"
 msgstr "prod.keys 없음"
 
-#: pe/ui/save_sync.cpp
-msgid "Profile {0}"
-msgstr "프로필 {0}"
-
-#: pe/ui/profiles.cpp, pe/ui/settings.cpp
-msgid "Profiles"
-msgstr "프로필"
-
 #: pe/ui/browse.cpp
 msgid "PROJECT CREDITS"
 msgstr "프로젝트 크레딧"
-
-#: pe/ui/update.cpp
-msgid "ProsperoEden closes now."
-msgstr "ProsperoEden이 지금 종료됩니다."
-
-#: pe/ui/update.cpp
-msgid "ProsperoEden closes to finish the update."
-msgstr "업데이트를 마치기 위해 ProsperoEden이 종료됩니다."
-
-#: eden_services.cpp
-msgid "ProsperoEden could not get access to the console's storage, so it cannot read your settings, saves and games. Nothing was changed. Close ProsperoEden and open it again. (Code {0})"
-msgstr "ProsperoEden이 콘솔 저장 공간에 접근하지 못해 설정, 저장 데이터, 게임을 읽을 수 없습니다. 아무것도 변경되지 않았습니다. ProsperoEden을 닫고 다시 여세요. (코드 {0})"
-
-#: pe/ui/browse.cpp
-msgid "ProsperoEden is an unofficial PS5 port brought to you by BlackBearReloaded."
-msgstr "ProsperoEden은 BlackBearReloaded가 제공하는 비공식 PS5 이식판입니다."
 
 #. Shown on the home screen after the app crashed and started again; {0} is a file.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "ProsperoEden stopped because of an error. A report was saved to {0}."
 msgstr "오류로 인해 ProsperoEden이 중지되었습니다. 보고서가 {0}에 저장되었습니다."
 
-#: pe/ui/update.cpp
-msgid "ProsperoEden was not changed."
-msgstr "ProsperoEden은 변경되지 않았습니다."
+#: pe/ui/browse.cpp
+msgid "PS5 13.60 FORK"
+msgstr "PS5 13.60 포크"
 
 #. Why a game did not start.
 #: eden_services.cpp
 msgid "PS5 controller initialization failed"
 msgstr "PS5 컨트롤러를 초기화하지 못했습니다"
 
-#: pe/ui/browse.cpp
-msgid "PS5 EDITION"
-msgstr "PS5 에디션"
+#: pe/ui/home.cpp
+msgid "QUICK SETTINGS"
+msgstr "빠른 설정"
 
-#: pe/ui/multiplayer.cpp
-msgid "Public rooms"
-msgstr "공개 방"
+#: pe/ui/home.cpp
+msgid "Quick settings"
+msgstr "빠른 설정"
 
-#: pe/ui/multiplayer.cpp
-msgid "PUBLIC ROOMS"
-msgstr "공개 방"
-
-#: pe/ui/settings.cpp
-msgid "Put images in the wallpapers folder to show them here."
-msgstr "wallpapers 폴더에 이미지를 넣으면 여기에 표시됩니다."
-
-#: pe/ui/remote.cpp
-msgid "Queued"
-msgstr "대기 중"
-
-#: pe/ui/remote.cpp
-msgid "Queued, from {0}"
-msgstr "대기 중, {0}에서"
-
-#. The usual value of RNG seed: no fixed seed, a new random one at every start of the game.
-#: pe/ui/game_options.cpp
-msgid "Random"
-msgstr "무작위"
-
-#. A switch, on by default: what a game reads back from the graphics processor is kept exact. Keep the term the language's emulator players use, or translate it plainly.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Reactive flushing"
-msgstr "반응형 플러싱"
-
-#: pe/ui/remote.cpp
-msgid "Read the lists again"
-msgstr "목록 다시 읽기"
-
-#: pe/ui/remote.cpp
-msgid "Reading the game lists..."
-msgstr "게임 목록을 읽는 중..."
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Reading..."
-msgstr "읽는 중..."
+#: pe/ui/home.cpp
+msgid "Quit"
+msgstr "종료"
 
 #: pe/ui/settings.cpp
 msgid "Ready"
 msgstr "준비됨"
 
+#: pe/ui/launcher.cpp
+msgid "Recent"
+msgstr "최근의"
+
 #: pe/ui/home.cpp
 msgid "RECENTLY PLAYED"
 msgstr "최근 플레이"
+
+#: settings_store.h
+msgid "Recommended"
+msgstr "권장"
+
+#: pe/ui/settings.cpp
+msgid "Recommended defaults restored."
+msgstr "Recommended defaults restored."
+
+#: pe/ui/settings.cpp
+msgid "REDUCE MOTION"
+msgstr "움직임 줄이기"
 
 #. A switch: no drifting, sliding or zooming on screen.
 #: pe/ui/settings.cpp
 msgid "Reduce motion"
 msgstr "움직임 줄이기"
 
-#: pe/ui/multiplayer.cpp
-msgid "Refresh"
-msgstr "새로 고침"
-
 #. Setting: how many times a second the TV picture is refreshed while a game runs (60 or 120 Hz).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Refresh rate"
 msgstr "주사율"
 
-#: pe/ui/browse.cpp
+#. Label: see 'Refresh rate'.
+#: pe/ui/settings.cpp
+msgid "REFRESH RATE"
+msgstr "주사율"
+
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
 msgid "REGION"
 msgstr "지역"
 
-#: pe/ui/game_options.cpp
-msgid "Regular"
-msgstr "보통"
-
-#: pe/ui/profiles.cpp
-msgid "Remove"
-msgstr "빼기"
-
-#: pe/ui/profiles.cpp
-msgid "Rename"
-msgstr "이름 변경"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Renderer"
 msgstr "렌더러"
 
-#: pe/ui/game_options.cpp
+#: pe/ui/settings.cpp
+msgid "RENDERER"
+msgstr "렌더러"
+
+#: pe/ui/mapping.cpp
 msgid "Reset"
 msgstr "초기화"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/launcher.cpp
+msgid "Reset controller mapping?"
+msgstr "컨트롤러 매핑을 재설정하시겠습니까?"
+
+#: pe/ui/library.cpp
+msgid "Reset overrides"
+msgstr "Reset overrides"
+
+#: pe/ui/launcher.cpp
+msgid "Reset this game's custom settings?"
+msgstr "이 게임의 사용자 정의 설정을 재설정하시겠습니까?"
+
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Resolution"
 msgstr "해상도"
 
-#: pe/ui/game_options.cpp
-msgid "Right Joy-Con"
-msgstr "Joy-Con (R)"
+#: pe/ui/library.cpp
+msgid "Resolution follows the selected title-aware profile. Lower it for performance or memory; raise it only when the title has headroom."
+msgstr "해상도는 선택한 제목 인식 프로필을 따릅니다. 성능이나 메모리를 위해 낮추십시오. 제목에 헤드룸이 있는 경우에만 올리세요."
 
-#: pe/ui/game_options.cpp
+#: pe/ui/launcher.cpp
+msgid "Restore default settings?"
+msgstr "기본 설정을 복원하시겠습니까?"
+
+#: pe/ui/settings.cpp
+msgid "Restore defaults"
+msgstr "Restore defaults"
+
+#: pe/ui/mapping.cpp
 msgid "Right stick press"
 msgstr "오른쪽 스틱 누르기"
 
-#. A game setting. RNG is a random number generator and the seed is the number it starts from. A game with a seed is loaded at the same place in memory at every start, which some mods need. Keep it short; RNG and seed may stay in English where players say them so.
-#: pe/ui/game_options.cpp
-msgid "RNG seed"
-msgstr "RNG 시드"
-
-#: eden_services.cpp, pe/ui/launcher.cpp
+#: pe/ui/launcher.cpp, pe/ui/library.cpp
 msgid "ROM missing from the game files folder"
 msgstr "게임 파일 폴더에 ROM이 없습니다"
 
-#: pe/ui/multiplayer.cpp
-msgid "Room address"
-msgstr "방 주소"
+#: eden_services.cpp
+msgid "ROM missing from the storage root"
+msgstr "저장소 루트에 ROM이 없습니다."
 
-#: pe/ui/multiplayer.cpp
-msgid "Room {0} of {1}"
-msgstr "방 {0} / {1}"
+#: pe/ui/settings.cpp
+msgid "ROOT"
+msgstr "뿌리"
+
+#: pe/ui/settings.cpp
+msgid "Runtime health, storage and recovery tools."
+msgstr "런타임 상태, 저장 및 복구 도구."
 
 #: settings_store.h
 msgid "Russian"
@@ -1588,6 +1157,18 @@ msgstr "러시아어"
 #: pe/ui/library.cpp
 msgid "Ryujinx save found"
 msgstr "Ryujinx 세이브 있음"
+
+#: pe/ui/library.cpp
+msgid "Safe launch"
+msgstr "안전한 발사"
+
+#: pe/ui/library.cpp
+msgid "Safe launch: OpenGL, Handheld, 1x, 60 Hz, 1080p and mods off for this launch only."
+msgstr "Safe launch: OpenGL, Handheld, 1x, 60 Hz, 1080p and mods off for this launch only."
+
+#: eden_services.cpp, pe/ui/browse.cpp
+msgid "Sandbox only"
+msgstr "샌드박스 전용"
 
 #. The app can read only its own folder; {0} is a number.
 #: pe/ui/browse.cpp
@@ -1599,196 +1180,91 @@ msgstr "샌드박스(코드 {0}): 앱 폴더만"
 msgid "Save data"
 msgstr "세이브 데이터"
 
-#: pe/ui/save_sync.cpp
-msgid "Save data backed up"
-msgstr "세이브 데이터 백업됨"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data changed on both sides"
-msgstr "세이브 데이터가 양쪽에서 변경됨"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data from the server"
-msgstr "서버의 세이브 데이터를 가져옴"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data left as it was"
-msgstr "세이브 데이터를 그대로 둠"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data not backed up"
-msgstr "세이브 데이터가 백업되지 않음"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data not synced"
-msgstr "세이브 데이터가 동기화되지 않음"
-
 #. Short status at the right of the Save data row: a folder with a save to import.
 #: pe/ui/library.cpp
 msgid "Save folder found"
 msgstr "세이브 폴더 있음"
 
-#: pe/ui/pairing.cpp, pe/ui/settings.cpp
-msgid "Save sync"
-msgstr "세이브 데이터 동기화"
-
-#: pe/ui/pairing.cpp
-msgid "save-sync.json cannot be read ({0}). Nothing syncs until it is corrected over FTP."
-msgstr "save-sync.json을 읽을 수 없습니다({0}). FTP로 수정할 때까지 동기화되지 않습니다."
-
-#: pe/ui/pairing.cpp
-msgid "save-sync.json cannot be read: correct it over FTP first."
-msgstr "save-sync.json을 읽을 수 없습니다: 먼저 FTP로 수정하세요."
-
-#: pe/ui/game_options.cpp, pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp
 msgid "Saved for this game. Applies on next launch."
 msgstr "이 게임에 저장했습니다. 다음 실행부터 적용됩니다."
 
-#: pe/ui/save_sync.cpp
-msgid "Saved {0}. It goes to the server."
-msgstr "저장 시각: {0}. 서버로 보냅니다."
-
-#: pe/ui/save_sync.cpp
-msgid "Saved {0}. It replaces this console's."
-msgstr "저장 시각: {0}. 이 본체의 데이터를 대체합니다."
-
 #. Shown after choosing 120 Hz.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Saved. A display that cannot show 120 Hz stays at 60 Hz."
 msgstr "저장했습니다. 120Hz를 지원하지 않는 디스플레이는 60Hz로 유지됩니다."
 
-#: pe/ui/settings.cpp
-msgid "Saved. Applies the next time ProsperoEden opens."
-msgstr "저장했습니다. 다음에 ProsperoEden을 열 때 적용됩니다."
-
-#: pe/ui/browse.cpp, pe/ui/launcher.cpp
+#: pe/ui/launcher.cpp
 msgid "Saved. Applies when a game starts."
 msgstr "저장했습니다. 게임을 시작할 때 적용됩니다."
 
-#. Shown after choosing 'Full quality' for 'ASTC textures'. 1x is a resolution scale (unchanged). It has two lines: keep it short.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Saved. Full quality uses four times the graphics memory for these textures and can run out above 1x."
-msgstr "저장했습니다. 전체 품질은 이 텍스처에 그래픽 메모리를 4배 사용하며 1x를 넘으면 부족할 수 있습니다."
-
-#: pe/ui/settings.cpp
-msgid "Saved. Post-processing needs the Vulkan renderer."
-msgstr "저장했습니다. 후처리에는 Vulkan 렌더러가 필요합니다."
-
-#: pe/ui/browse.cpp
-msgid "Saved. Reopen ProsperoEden to use this folder."
-msgstr "저장했습니다. ProsperoEden을 다시 열면 이 폴더를 사용합니다."
-
-#. About the Update notices switch; homebrew.page is a site's name and stays as it is; About is the menu's last section (use its translation).
-#: pe/ui/settings.cpp
-msgid "Says when homebrew.page has a newer version. Off, only About names it."
-msgstr "homebrew.page에 새 버전이 있으면 알려 줍니다. 끄면 정보에만 표시됩니다."
-
-#: pe/ui/pairing.cpp
-msgid "Scan the code with your phone, or open the address below."
-msgstr "휴대폰으로 코드를 스캔하거나 아래 주소를 여세요."
-
-#. Button hint: move through a long text (Up/Down).
-#: pe/ui/update.cpp
-msgid "Scroll"
-msgstr "스크롤"
-
-#: pe/ui/game_options.cpp
-msgid "Secondary"
-msgstr "보조 동작"
-
-#. Button hint beside L1 and R1: they move between the menu's sections (Home, Library, Multiplayer, Settings, About).
-#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/settings.cpp
-msgid "Sections"
-msgstr "섹션"
-
 #. Button hint: choose the highlighted item (not the Select button).
-#: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Select"
 msgstr "선택"
+
+#: pe/ui/library.cpp
+msgid "Select a game"
+msgstr "게임 선택"
+
+#: pe/ui/library.cpp
+msgid "Select a game to begin"
+msgstr "게임을 선택해 시작하세요"
 
 #. Heading: the language highlighted in the list.
 #: pe/ui/browse.cpp
 msgid "SELECTED"
 msgstr "선택됨"
 
+#: pe/ui/home.cpp
+msgid "SELECTED GAME"
+msgstr "선택한 게임"
+
 #. Why a game did not start (the file is gone).
 #: eden_services.cpp
 msgid "Selected ROM is no longer available"
 msgstr "선택한 ROM을 더 이상 사용할 수 없습니다"
 
-#: pe/ui/save_sync.cpp
-msgid "Server too old for save sync"
-msgstr "서버가 오래되어 동기화할 수 없음"
-
-#: pe/ui/home.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Settings"
 msgstr "설정"
 
+#. Label: whether keys and firmware are in place.
 #: pe/ui/settings.cpp
-msgid "SETTINGS"
-msgstr "설정"
+msgid "SETUP"
+msgstr "설정 상태"
 
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Setup required"
 msgstr "설정 필요"
 
-#: eden_services.cpp, host/fake_services.cpp
+#: host/fake_services.cpp
 msgid "Setup required: {0} Open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen ProsperoEden."
 msgstr "설정 필요: {0} 설정의 게임 파일에서 keys, firmware, roms 폴더가 들어 있는 폴더를 선택하거나 파일을 {1}에 넣은 다음 ProsperoEden을 다시 여세요."
 
-#: pe/ui/settings.cpp
-msgid "Setup status and detailed logs."
-msgstr "설정 상태와 상세 로그."
+#: eden_services.cpp
+msgid "Setup required: {0} Open Settings, Storage to choose the root that holds the standard keys, firmware and roms folders (or add the files to {1}), then reopen Encore."
+msgstr "설정 필요: {0} 설정, 저장소를 열어 표준 키, 펌웨어 및 ROM 폴더가 있는 루트를 선택한 다음(또는 {1}에 파일을 추가) Encore를 다시 엽니다."
 
 #: eden_services.cpp
 msgid "Setup validation failed. Check that firmware and key files are readable and valid."
 msgstr "설정 검증에 실패했습니다. 펌웨어와 키 파일을 읽을 수 있고 올바른지 확인하세요."
 
-#: pe/ui/pairing.cpp
-msgid "Several servers can keep the save data. Which one should this profile use?"
-msgstr "세이브 데이터를 보관할 수 있는 서버가 여러 개입니다. 이 프로필은 어느 서버를 사용할까요?"
-
-#: pe/ui/remote.cpp
-msgid "Several sources have this game. Which one should it come from?"
-msgstr "이 게임이 여러 소스에 있습니다. 어디에서 받을까요?"
-
 #: pe/ui/settings.cpp
-msgid "Show an image of your own behind the menu."
-msgstr "메뉴 뒤에 원하는 이미지를 표시합니다."
+msgid "Shows live FPS while playing. Off is cleaner for normal use; Touchpad + R1 toggles it at any time."
+msgstr "재생하는 동안 실시간 FPS를 표시합니다. Off는 정상적인 사용을 위해 더 깨끗합니다. 터치패드 + R1은 언제든지 전환할 수 있습니다."
 
-#: pe/ui/settings.cpp
-msgid "Show or hide the FPS overlay"
-msgstr "FPS 표시 켜기/끄기"
-
-#: pe/ui/multiplayer.cpp
-msgid "Showing the previous list."
-msgstr "이전 목록을 표시합니다."
-
-#: pe/ui/pairing.cpp
-msgid "Sign in to {0} as the user this profile's save data belongs to."
-msgstr "이 프로필의 세이브 데이터가 속한 사용자로 {0}에 로그인하세요."
-
-#: pe/ui/settings.cpp
-msgid "Size"
-msgstr "크기"
-
-#. Button and hint: not now (the dialog shows again the next time the app opens).
-#: pe/ui/update.cpp
-msgid "Skip"
-msgstr "건너뛰기"
-
-#. A switch: fewer checks when a game changes memory the graphics processor uses. CPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Skip CPU invalidation"
-msgstr "CPU 무효화 건너뛰기"
-
-#: pe/ui/settings.cpp
-msgid "Skips some checks when a game changes memory the GPU uses: faster, and textures can be stale."
-msgstr "GPU가 쓰는 메모리를 게임이 바꿀 때 일부 검사를 건너뜁니다. 더 빠르지만 텍스처가 오래된 상태일 수 있습니다."
+#: settings_store.h
+msgid "SMAA"
+msgstr "SMAA"
 
 #: pe/ui/settings.cpp
 msgid "Solid panels, brighter text and an outlined highlight."
 msgstr "불투명한 패널, 더 밝은 글자, 테두리가 있는 강조 표시."
+
+#: eden_services.cpp
+msgid "Some cache files could not be removed."
+msgstr "일부 캐시 파일을 제거할 수 없습니다."
 
 #: settings_store.h
 msgid "Spanish"
@@ -1798,27 +1274,9 @@ msgstr "스페인어"
 msgid "Spanish (Latin America)"
 msgstr "스페인어(중남미)"
 
-#: pe/ui/settings.cpp
-msgid "Speed"
-msgstr "속도"
-
-#. Settings > Performance: how fast a game may run, as a percentage of the console it was made for.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Speed limit"
-msgstr "속도 제한"
-
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Square"
-msgstr "네모"
-
-#: pe/ui/profiles.cpp
-msgid "Square again takes {0} off the list. Its save data stays on the console."
-msgstr "네모를 다시 누르면 {0}을(를) 목록에서 뺍니다. 저장 데이터는 본체에 남습니다."
-
-#: pe/ui/pairing.cpp
-msgid "Square again unlinks {0}. Its save data stays on the console and on the server."
-msgstr "네모를 다시 누르면 {0}의 연결을 해제합니다. 세이브 데이터는 본체와 서버에 남습니다."
+msgstr "정사각형"
 
 #. The app creates its user the first time a game runs.
 #: eden_services.cpp
@@ -1831,37 +1289,56 @@ msgid "STARTING"
 msgstr "시작 중"
 
 #: pe/ui/settings.cpp
+msgid "STICK DEADZONE"
+msgstr "스틱 데드존"
+
+#: pe/ui/settings.cpp
+msgid "Stick deadzone"
+msgstr "스틱 데드존"
+
+#: pe/ui/settings.cpp
 msgid "Stops the background drifting and the screens sliding, here and on the loading screen."
 msgstr "배경의 움직임과 화면 슬라이드를 멈춥니다. 로딩 화면에도 적용됩니다."
+
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/settings.cpp
+msgid "Storage"
+msgstr "저장 공간"
+
+#: pe/ui/settings.cpp
+msgid "STORAGE"
+msgstr "저장 공간"
+
+#: pe/ui/home.cpp
+msgid "Storage not configured"
+msgstr "저장소가 구성되지 않았습니다."
+
+#: pe/ui/home.cpp
+msgid "Storage ready"
+msgstr "저장 준비됨"
+
+#: pe/ui/browse.cpp
+msgid "Storage root saved. Reopen Encore to use it."
+msgstr "저장소 루트가 저장되었습니다. Encore를 다시 열어 사용하세요."
 
 #: pe/ui/browse.cpp
 msgid "Supply your own files"
 msgstr "파일은 직접 준비하세요"
 
-#: pe/ui/save_sync.cpp
-msgid "Sync the save data once more."
-msgstr "세이브 데이터를 한 번 더 동기화합니다."
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Switch"
+msgstr "스위치"
 
-#: pe/ui/save_sync.cpp
-msgid "Syncing save data"
-msgstr "세이브 데이터 동기화 중"
+#: pe/ui/home.cpp
+msgid "Switch card"
+msgstr "카드 전환"
 
-#. A category of a game's settings: how the emulated console itself behaves.
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "System"
-msgstr "시스템"
+msgstr "체계"
 
 #: eden_services.cpp
 msgid "Taiwan"
 msgstr "대만"
-
-#: pe/ui/save_sync.cpp
-msgid "Take the server's"
-msgstr "서버의 데이터 사용"
-
-#: pe/ui/profiles.cpp
-msgid "Taken off the list. Its save data stays on the console."
-msgstr "목록에서 뺐습니다. 저장 데이터는 본체에 남습니다."
 
 #: settings_store.h
 msgid "Thai"
@@ -1873,125 +1350,25 @@ msgid "THANKS"
 msgstr "감사의 말"
 
 #: pe/ui/browse.cpp
-msgid "Thanks to the whole PS5 homebrew community and to every developer whose drivers, tools and libraries make ProsperoEden possible."
-msgstr "PS5 홈브루 커뮤니티 여러분과 ProsperoEden을 가능하게 한 드라이버, 도구, 라이브러리의 모든 개발자에게 감사드립니다."
+msgid "Thanks to the whole PS5 homebrew community and to every developer whose drivers, tools and libraries make Eden Encore possible."
+msgstr "전체 PS5 홈브루 커뮤니티와 Eden Encore를 가능하게 해주는 드라이버, 도구 및 라이브러리를 보유한 모든 개발자에게 감사드립니다."
 
-#: pe/ui/settings.cpp
-msgid "The accent colour of the current theme."
-msgstr "현재 테마의 강조 색상."
-
-#: pe/ui/remote.cpp
-msgid "The download stopped"
-msgstr "다운로드가 중단되었습니다"
-
-#: pe/ui/settings.cpp
-msgid "The folder that holds your keys, firmware and games."
-msgstr "키, 펌웨어, 게임이 들어 있는 폴더."
-
-#: pe/ui/save_sync.cpp
-msgid "The game does not start."
-msgstr "게임이 시작되지 않습니다."
-
-#: pe/ui/remote.cpp
-msgid "The game list of {0} could not be read."
-msgstr "{0}의 게임 목록을 읽을 수 없습니다."
-
-#: pe/ui/remote.cpp
-msgid "The game lists are read: {0} game."
-msgstr "게임 목록을 읽었습니다: 게임 {0}개."
-
-#: pe/ui/remote.cpp
-msgid "The game lists are read: {0} games."
-msgstr "게임 목록을 읽었습니다: 게임 {0}개."
+#: eden_services.cpp
+msgid "The game could not allocate PS5 memory. Close Eden Encore completely before retrying to release memory retained between games."
+msgstr "게임에서 PS5 메모리를 할당할 수 없습니다. 게임 사이에 유지된 메모리를 해제하려고 다시 시도하기 전에 Eden Encore를 완전히 닫으십시오."
 
 #. Why a game stopped. 'Settings, Video' is the menu path; 'the game's own settings' is the Game settings dialog of the Library.
 #: eden_services.cpp
 msgid "The game ran out of graphics memory. Lower the resolution in Settings, Video (or in the game's own settings) and start it again."
 msgstr "게임의 그래픽 메모리가 부족합니다. 설정의 비디오(또는 게임별 설정)에서 해상도를 낮춘 다음 다시 시작하세요."
 
-#: pe/ui/save_sync.cpp
-msgid "The game starts when its save data is in step."
-msgstr "세이브 데이터 동기화가 끝나면 게임이 시작됩니다."
-
-#: pe/ui/remote.cpp
-msgid "The game starts when the download is done."
-msgstr "다운로드가 끝나면 게임이 시작됩니다."
-
-#: pe/ui/game_options.cpp, pe/ui/multiplayer.cpp
-msgid "The keyboard could not be opened."
-msgstr "키보드를 열 수 없습니다."
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "The language games use when they offer it."
 msgstr "게임이 지원할 때 사용할 언어."
-
-#. Under the title Theme: what a theme changes.
-#: pe/ui/settings.cpp
-msgid "The look of this menu."
-msgstr "이 메뉴의 모양입니다."
-
-#: pe/ui/pairing.cpp
-msgid "The profile or the server is no longer there."
-msgstr "프로필 또는 서버가 더 이상 없습니다."
-
-#: pe/ui/profiles.cpp
-msgid "The profile that is playing stays. Choose another one first."
-msgstr "플레이 중인 프로필은 남습니다. 먼저 다른 프로필을 고르세요."
-
-#: pe/ui/pairing.cpp
-msgid "The profile's save data syncs as {0} from now on."
-msgstr "이제부터 프로필의 세이브 데이터가 {0}(으)로 동기화됩니다."
-
-#: pe/ui/pairing.cpp
-msgid "The profile's save data syncs with the server from now on."
-msgstr "이제부터 프로필의 세이브 데이터가 서버와 동기화됩니다."
-
-#. Shown at the end of release notes that were cut short; homebrew.page is a site's name and stays as it is.
-#: pe/ui/update.cpp
-msgid "The rest is on the app's page on homebrew.page."
-msgstr "나머지는 homebrew.page의 앱 페이지에 있습니다."
-
-#: pe/ui/save_sync.cpp
-msgid "The server does not have {0}."
-msgstr "서버에 {0}이(가) 없습니다."
-
-#: pe/ui/save_sync.cpp
-msgid "The server runs RomM {0}; the save sync needs RomM {1} or newer. Update the server: until then no save data is synced with it."
-msgstr "서버가 RomM {0}을(를) 실행 중입니다. 세이브 데이터 동기화에는 RomM {1} 이상이 필요합니다. 서버를 업데이트하세요. 그때까지 세이브 데이터는 동기화되지 않습니다."
-
-#: pe/ui/remote.cpp
-msgid "The source no longer has this game."
-msgstr "소스에 이 게임이 더 이상 없습니다."
-
-#: pe/ui/update.cpp
-msgid "The update could not finish"
-msgstr "업데이트를 완료할 수 없습니다"
-
-#. A tile of Settings and its dialog's title: the look of this menu (its colours and artwork).
-#: pe/ui/settings.cpp
-msgid "Theme"
-msgstr "테마"
-
-#: pe/ui/settings.cpp
-msgid "Theme and launcher settings."
-msgstr "테마 및 런처 설정."
-
-#: pe/ui/save_sync.cpp
-msgid "This console and the server both have save data the other does not know. Which one should stay? The other is kept as a backup."
-msgstr "이 본체와 서버에 서로 모르는 세이브 데이터가 각각 있습니다. 어느 쪽을 남길까요? 다른 쪽은 백업으로 보관됩니다."
-
-#: pe/ui/browse.cpp
-msgid "THIS FOLDER"
-msgstr "이 폴더"
 
 #: pe/ui/browse.cpp
 msgid "This folder cannot be opened."
 msgstr "이 폴더를 열 수 없습니다."
-
-#. The game has a button mapping of its own.
-#: pe/ui/game_options.cpp
-msgid "This game"
-msgstr "이 게임"
 
 #: eden_services.cpp
 msgid "This game has no save to export yet."
@@ -2001,104 +1378,52 @@ msgstr "이 게임에는 아직 내보낼 세이브 데이터가 없습니다."
 msgid "This game's settings cannot be saved (no title ID)."
 msgstr "이 게임의 설정을 저장할 수 없습니다(타이틀 ID 없음)."
 
-#: pe/ui/multiplayer.cpp
-msgid "This room uses a different protocol version."
-msgstr "이 방은 다른 프로토콜 버전을 사용합니다."
+#: pe/ui/browse.cpp
+msgid "THIS ROOT"
+msgstr "이 루트"
 
 #. ryujinx/, save-import/ and roms/ are folder names (unchanged); {0} is the game's ID.
 #: eden_services.cpp
 msgid "To import, copy a Ryujinx folder to ryujinx/ or a save to save-import/{0}/, next to roms/."
 msgstr "가져오려면 Ryujinx 폴더를 ryujinx/에, 또는 세이브 데이터를 save-import/{0}/에 복사하세요(roms/ 옆)."
 
-#: pe/ui/game_options.cpp
-msgid "Top left"
-msgstr "왼쪽 위"
-
-#: pe/ui/game_options.cpp
-msgid "Top right"
-msgstr "오른쪽 위"
-
-#. The DualSense controller's touch pad, pressed as a button. Use the name players know.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Touchpad"
 msgstr "터치패드"
 
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Triangle"
-msgstr "세모"
-
-#. One line about the theme named Canopy: its artwork is a tropical sunset, its panels are dark green glass, its accent colour is lime green.
-#: pe/ui/theme.cpp
-msgid "Tropical dusk, dark green glass and lime."
-msgstr "열대의 황혼, 짙은 녹색 유리와 라임색."
-
-#: pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/update.cpp
-msgid "Try again"
-msgstr "다시 시도"
-
-#: pe/ui/remote.cpp
-msgid "Trying again."
-msgstr "다시 시도합니다."
+msgstr "삼각형"
 
 #. Button hint: switch the highlighted mod on or off.
 #: pe/ui/library.cpp
 msgid "Turn on or off"
 msgstr "켜기/끄기"
 
-#: pe/ui/multiplayer.cpp
-msgid "UDP port"
-msgstr "UDP 포트"
+#: pe/ui/settings.cpp
+msgid "Turns DualSense vibration on or off for games."
+msgstr "게임에 대한 DualSense 진동을 켜거나 끕니다."
 
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Unavailable"
-msgstr "사용할 수 없음"
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "TV output"
+msgstr "TV 출력"
 
-#: pe/ui/save_sync.cpp
-msgid "Understood"
-msgstr "확인"
+#: pe/ui/settings.cpp
+msgid "TV OUTPUT"
+msgstr "TV 출력"
 
-#. A Speed limit choice: no limit at all (as fast as the console can).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Unlimited"
-msgstr "제한 없음"
+#: settings_store.h
+msgid "Ultra"
+msgstr "울트라"
 
-#: pe/ui/pairing.cpp
-msgid "Unlink"
-msgstr "연결 해제"
-
-#: pe/ui/pairing.cpp
-msgid "Unlinked. Its save data is no longer synced."
-msgstr "연결을 해제했습니다. 세이브 데이터는 더 이상 동기화되지 않습니다."
-
-#. Update dialog headline while the downloaded release is extracted.
-#: pe/ui/update.cpp
-msgid "Unpacking"
-msgstr "압축 푸는 중"
+#: pe/ui/home.cpp, pe/ui/library.cpp
+msgid "Unknown"
+msgstr "알려지지 않은"
 
 #. Short tag on the 'Parent folder' row.
 #: pe/ui/browse.cpp
 msgid "UP"
 msgstr "위로"
-
-#. Notification title: a newer release of this app is listed (not a game update).
-#: pe/ui/launcher.cpp, pe/ui/update.cpp
-msgid "Update available"
-msgstr "업데이트가 있습니다"
-
-#. Settings switch: whether the app says at its start that a newer release of this app is listed (not game updates).
-#: pe/ui/settings.cpp
-msgid "Update notices"
-msgstr "업데이트 알림"
-
-#. Button: download and install the newer release of this app now.
-#: pe/ui/update.cpp
-msgid "Update now"
-msgstr "지금 업데이트"
-
-#: pe/ui/update.cpp
-msgid "Update ready"
-msgstr "업데이트 준비 완료"
 
 #. A game update; {0} is its version, for example 1.2.0.
 #: eden_services.cpp, host/fake_services.cpp
@@ -2109,154 +1434,79 @@ msgstr "업데이트 {0}"
 msgid "UPDATES, DLC"
 msgstr "업데이트, DLC"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Upscaling filter"
+msgstr "확대 필터"
+
+#: pe/ui/settings.cpp
+msgid "UPSCALING FILTER"
 msgstr "확대 필터"
 
 #: eden_services.cpp
 msgid "USA"
 msgstr "미국"
 
+#: pe/ui/browse.cpp
+msgid "Use extracted firmware NCA files. Choose the root in Settings, Storage; restart the app after changing it."
+msgstr "추출된 펌웨어 NCA 파일을 사용합니다. 설정, 저장소에서 루트를 선택합니다. 앱을 변경한 후 다시 시작하세요."
+
+#: pe/ui/browse.cpp
+msgid "Use this root"
+msgstr "이 루트를 사용하세요"
+
 #: pe/ui/settings.cpp
-msgid "Use another home screen, library and menu layout."
-msgstr "다른 홈 화면, 라이브러리, 메뉴 레이아웃을 사용합니다."
+msgid "VIBRATION"
+msgstr "진동"
 
-#: pe/ui/browse.cpp
-msgid "Use extracted firmware NCA files. Choose the folder in Settings, Game files; restart the app after changing it."
-msgstr "추출한 펌웨어 NCA 파일을 사용하세요. 폴더는 설정의 게임 파일에서 선택하고, 변경한 뒤에는 앱을 다시 시작하세요."
-
-#: pe/ui/browse.cpp
-msgid "Use this folder"
-msgstr "이 폴더 사용"
-
-#. {0} is the app's new version number, for example 1.000.060.
-#: pe/ui/update.cpp
-msgid "Version {0}"
-msgstr "버전 {0}"
-
-#. {0}: the newer release's number, for example 1.000.050; homebrew.page is a site's name and stays as it is.
-#: pe/ui/browse.cpp, pe/ui/launcher.cpp
-msgid "Version {0} is on homebrew.page"
-msgstr "버전 {0}이(가) homebrew.page에 있습니다"
-
-#. Update dialog: a newer release of this app; {0} is its number, for example 1.000.060.
-#: pe/ui/update.cpp
-msgid "Version {0} is ready to install."
-msgstr "버전 {0}을(를) 설치할 수 있습니다."
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Vibration"
 msgstr "진동"
 
 #: pe/ui/settings.cpp
-msgid "Vibration off"
-msgstr "진동 끔"
-
-#: pe/ui/settings.cpp
-msgid "Vibration on"
-msgstr "진동 켬"
+msgid "VIBRATION STRENGTH"
+msgstr "진동 강도"
 
 #: pe/ui/settings.cpp
 msgid "Vibration strength"
-msgstr "진동 세기"
+msgstr "진동 강도"
 
-#: pe/ui/settings.cpp
-msgid "Vibration, button mapping and the shortcuts during a game."
-msgstr "진동, 버튼 배치, 게임 중 바로 가기."
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/settings.cpp
 msgid "Video"
 msgstr "비디오"
 
-#: pe/ui/home.cpp
-msgid "VIEW ALL GAMES"
-msgstr "모든 게임 보기"
+#: pe/ui/settings.cpp
+msgid "VIDEO"
+msgstr "비디오"
+
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Video preset"
+msgstr "비디오 프리셋"
+
+#: pe/ui/settings.cpp
+msgid "VIDEO PRESET"
+msgstr "비디오 프리셋"
 
 #. Vulkan is a name (unchanged).
 #: pe/ui/settings.cpp
 msgid "Vulkan (recommended)"
 msgstr "Vulkan(권장)"
 
-#: pe/ui/pairing.cpp
-msgid "Waiting for the approval  ·  the code works {0} more"
-msgstr "승인 대기 중  ·  코드 유효 시간 {0} 남음"
-
-#: pe/ui/remote.cpp
-msgid "Waiting for {0}"
-msgstr "{0} 대기 중"
-
-#: pe/ui/remote.cpp
-msgid "Waiting to download"
-msgstr "다운로드 대기 중"
-
 #: pe/ui/settings.cpp
-msgid "Wallpaper"
-msgstr "배경화면"
+msgid "Vulkan is recommended on PS5. Use OpenGL only as a fallback for a game with Vulkan issues."
+msgstr "Vulkan은 PS5에서 권장됩니다. OpenGL은 Vulkan 문제가 있는 게임에 대한 대체 수단으로만 사용하십시오."
 
-#: pe/ui/settings.cpp
-msgid "What the FPS overlay's line says, and how the chip is drawn."
-msgstr "FPS 표시 줄에 보일 내용과 모양을 정합니다."
+#: pe/ui/library.cpp
+msgid "Vulkan is recommended on PS5. Use OpenGL only as a fallback for a title with Vulkan issues."
+msgstr "Vulkan은 PS5에서 권장됩니다. Vulkan 문제가 있는 타이틀에 대한 대체 수단으로만 OpenGL을 사용하십시오."
 
-#. Button on the update dialog: opens the new release's notes (what changes in it). Keep it short.
-#: pe/ui/update.cpp
-msgid "What's new"
-msgstr "새로운 기능"
-
-#. Title of the release notes view; {0} is the new version, for example 1.000.080.
-#: pe/ui/update.cpp
-msgid "What's new in version {0}"
-msgstr "버전 {0}의 새로운 기능"
-
-#: pe/ui/game_options.cpp
-msgid "Which face button does what in the menu."
-msgstr "메뉴에서 어떤 버튼이 무엇을 하는지."
-
-#: pe/ui/settings.cpp
-msgid "Who is playing. Each profile keeps its own save data and settings."
-msgstr "누가 플레이하는지. 프로필마다 저장 데이터와 설정이 따로 있습니다."
-
-#: pe/ui/save_sync.cpp
-msgid "With this console's save data; it is not synced."
-msgstr "이 본체의 세이브 데이터 사용. 동기화되지 않습니다."
-
-#: pe/ui/save_sync.cpp
-msgid "With this console's save data; it is synced after the game."
-msgstr "이 본체의 세이브 데이터 사용. 게임 후에 동기화됩니다."
-
-#: pe/ui/pairing.cpp
-msgid "with {0}"
-msgstr "대상: {0}"
-
-#: pe/ui/settings.cpp
-msgid "Write logs at once"
-msgstr "로그 즉시 기록"
-
-#: pe/ui/save_sync.cpp
-msgid "You are asked again next time."
-msgstr "다음에 다시 묻습니다."
-
-#: pe/ui/save_sync.cpp
-msgid "You are told again at the next sync."
-msgstr "다음 동기화 때 다시 알려 드립니다."
-
-#. Update dialog: installing the new app version keeps the player's files.
-#: pe/ui/update.cpp
-msgid "Your games, saves and settings are kept."
-msgstr "게임, 저장 데이터, 설정은 그대로 유지됩니다."
+#: pe/ui/library.cpp
+msgid "Your games"
+msgstr "내 게임"
 
 #. Headline when no game has been played yet.
 #: pe/ui/home.cpp
 msgid "Your next adventure"
 msgstr "다음 모험"
-
-#: pe/ui/save_sync.cpp
-msgid "Your save data is checked against the server's."
-msgstr "세이브 데이터를 서버의 데이터와 비교합니다."
-
-#. How many settings of a kind this game has of its own; {0} is a number.
-#: pe/ui/library.cpp
-msgid "{0} changed"
-msgstr "{0}개 변경"
 
 #. {0} is how many DLC (add-on content) a game has installed.
 #: eden_services.cpp, host/fake_services.cpp
@@ -2264,7 +1514,7 @@ msgid "{0} DLC"
 msgstr "DLC {0}개"
 
 #. Exactly one game. In a language with more than two plural forms, word it so that it reads well with any number (Games: {0}).
-#: pe/ui/browse.cpp, pe/ui/remote.cpp
+#: pe/ui/browse.cpp
 msgid "{0} game"
 msgstr "게임 {0}개"
 
@@ -2273,12 +1523,8 @@ msgstr "게임 {0}개"
 msgid "{0} game installed"
 msgstr "게임 {0}개 설치됨"
 
-#: pe/ui/remote.cpp
-msgid "{0} game lists could not be read."
-msgstr "게임 목록 {0}개를 읽을 수 없습니다."
-
 #. Any number of games other than one (also 0). See '{0} game'.
-#: pe/ui/browse.cpp, pe/ui/library.cpp, pe/ui/remote.cpp
+#: pe/ui/browse.cpp
 msgid "{0} games"
 msgstr "게임 {0}개"
 
@@ -2288,7 +1534,7 @@ msgid "{0} games installed"
 msgstr "게임 {0}개 설치됨"
 
 #. {0} is 60 or 120 (hertz).
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp
 msgid "{0} Hz"
 msgstr "{0}Hz"
 
@@ -2328,32 +1574,12 @@ msgid "{0} of {1} mods on"
 msgstr "모드 {1}개 중 {0}개 켜짐"
 
 #. How many of a game's mods are switched on: 2 of 3 on.
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp
 msgid "{0} of {1} on"
 msgstr "{1}개 중 {0}개 켜짐"
 
-#: pe/ui/settings.cpp
-msgid "{0} of {1} profiles"
-msgstr "프로필 {1}개 중 {0}개"
-
-#: pe/ui/save_sync.cpp
-msgid "{0} on {1}"
-msgstr "{1}의 {0}"
-
-#: pe/ui/multiplayer.cpp
-msgid "{0} public rooms"
-msgstr "공개 방 {0}개"
-
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "{0} sources"
-msgstr "소스 {0}개"
-
-#: pe/ui/save_sync.cpp
-msgid "{0} · Profile {1}"
-msgstr "{0} · 프로필 {1}"
-
 #. A percentage (a volume): write it as the language does, for example with a space before the sign.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "{0}%"
 msgstr "{0}%"
 
@@ -2367,730 +1593,170 @@ msgstr "{0}/(NSP 또는 XCI)"
 msgid "{0}/ (one folder per game ID)"
 msgstr "{0}/(타이틀 ID마다 폴더 하나)"
 
-#: pe/ui/settings.cpp
-msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
-msgstr "충돌 보고서 (FTP): {0}\n문제 보고에 crash-*.txt와 해당 로그를 첨부하세요."
+#: pe/ui/library.cpp
+msgid "GB"
+msgstr "GB"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Finish or cancel the cheat request before starting a game."
-msgstr "게임을 시작하기 전에 치트 확인을 완료하거나 취소하세요."
+#: pe/ui/library.cpp
+msgid "Enlarge cover"
+msgstr "표지 확대"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check online for cheats"
-msgstr "온라인에서 치트 확인"
+#: pe/ui/library.cpp
+msgid "Close"
+msgstr "닫기"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Use offline cheat cache"
-msgstr "오프라인 치트 캐시 사용"
+#: pe/ui/library.cpp
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Install checked cheats (off)"
-msgstr "확인된 치트 설치 (비활성)"
+#: pe/ui/library.cpp
+msgid "Zoom out"
+msgstr "축소"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
-msgstr "설치 전에 확인하세요. 치트를 선택할 때까지 다운로드한 코드는 비활성 상태입니다. 코드를 사용하기 전에 저장 데이터를 백업하세요."
+#: pe/ui/library.cpp
+msgid "Zoom in"
+msgstr "확대"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Checking effective game build"
-msgstr "실제 사용되는 게임 빌드 확인 중"
+#: pe/ui/library.cpp
+msgid "Move cover"
+msgstr "표지 이동"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Downloading cheat catalog"
-msgstr "치트 카탈로그 다운로드 중"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Appearance"
+msgstr "모양"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Installing cheats, disabled"
-msgstr "치트를 비활성 상태로 설치 중"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "APPEARANCE"
+msgstr "모양"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Installed. Select cheats below to enable them."
-msgstr "설치되었습니다. 아래에서 치트를 선택하면 활성화됩니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "THEME"
+msgstr "테마"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cheats checked. Ready to install, disabled."
-msgstr "치트를 확인했습니다. 비활성 상태로 설치할 수 있습니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Theme"
+msgstr "테마"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "No cheats match this exact build."
-msgstr "이 빌드와 정확히 일치하는 치트가 없습니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "DEFAULT"
+msgstr "기본값"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cancelled"
-msgstr "취소됨"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "PREVIEW"
+msgstr "미리 보기"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Could not complete the cheat request."
-msgstr "치트 확인을 완료하지 못했습니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "System Settings"
+msgstr "본체 설정"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "{0} compatible cheats"
-msgstr "호환 치트 {0}개"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "All Software"
+msgstr "모든 소프트웨어"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Offline cache (not a fresh download)"
-msgstr "오프라인 캐시 (새 다운로드 아님)"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Active"
+msgstr "사용 중"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cancelling cheat request..."
-msgstr "치트 확인 취소 중..."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Configure"
+msgstr "설정"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check online or load a matching offline cache first."
-msgstr "먼저 온라인에서 확인하거나 일치하는 오프라인 캐시를 불러오세요."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Keys found"
+msgstr "키를 찾음"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
-msgstr "X를 다시 누르면 치트를 비활성 상태로 설치합니다. 기존 파일은 유지됩니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Keys missing"
+msgstr "키가 없음"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Could not start the cheat request. Choose a local game and try again."
-msgstr "확인을 시작하지 못했습니다. 로컬 게임을 선택하고 다시 시도하세요."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Games found"
+msgstr "게임을 찾음"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Library view"
-msgstr "라이브러리 보기"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "No games found"
+msgstr "게임이 없음"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Cover Flow"
-msgstr "Cover Flow"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Game files"
+msgstr "폴더 탐색 · 소프트웨어"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Grid"
-msgstr "격자"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Back to HOME"
+msgstr "뒤로 · 홈"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Browse covers in a grid or in perspective with Cover Flow."
-msgstr "표지를 격자 또는 Cover Flow의 원근 보기로 탐색합니다."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose your preferred language"
+msgstr "선택 · 언어"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Cover unavailable"
-msgstr "표지를 사용할 수 없음"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Select a settings category"
+msgstr "선택 · 범주"
 
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
 
-#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
-msgid "USB backup"
-msgstr "USB 백업"
-
-#: pe/ui/settings.cpp
-msgid "Back up or restore app data"
-msgstr "앱 데이터 백업 또는 복원"
-
-#: pe/ui/settings.cpp
-msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
-msgstr "설정, 프로필, 모든 저장 데이터를 USB 드라이브에 백업합니다. ROM과 캐시는 제외됩니다."
-
-#: pe/ui/usb_backup.cpp
-msgid "USB backup needs storage access and no game starting."
-msgstr "USB 백업에는 저장소 접근 권한이 필요하며, 게임이 시작 중이면 안 됩니다."
-
-#: pe/ui/usb_backup.cpp
-msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
-msgstr "설정, 프로필, 모든 저장 데이터가 포함됩니다. ROM, 로그, 캐시는 제외됩니다."
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
-msgstr "복원 준비 및 검증이 끝났습니다. ProsperoEden을 닫은 뒤 다시 여세요."
-
-#: pe/ui/usb_backup.cpp
-msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
-msgstr "FTP로 앱 데이터를 변경하지 마세요. 복원은 다음 시작 전에 적용됩니다. 기존 파일은 여기에 보관됩니다:"
-
-#: pe/ui/usb_backup.cpp
-msgid "Validating copied data..."
-msgstr "복사한 데이터 검증 중..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Copying app data..."
-msgstr "앱 데이터 복사 중..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Preparing and checking data..."
-msgstr "데이터 준비 및 확인 중..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
-msgstr "취소하면 이 작업을 중지합니다. 작업이 끝날 때까지 USB 드라이브를 연결해 두세요."
-
-#: pe/ui/usb_backup.cpp
-msgid "Back up app data"
-msgstr "앱 데이터 백업"
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore from a backup"
-msgstr "백업에서 복원"
-
-#: pe/ui/usb_backup.cpp
-msgid "Storage jobs pause here. Do not change app data over FTP."
-msgstr "여기서는 저장소 작업이 일시 중지됩니다. FTP로 앱 데이터를 변경하지 마세요."
-
-#: pe/ui/usb_backup.cpp
-msgid "Choose a USB drive"
-msgstr "USB 드라이브 선택"
-
-#: pe/ui/usb_backup.cpp
-msgid "Choose a completed backup"
-msgstr "완료된 백업 선택"
-
-#: pe/ui/usb_backup.cpp
-msgid "No completed backups or accessible drives found. Cancel goes back."
-msgstr "완료된 백업이나 접근 가능한 드라이브가 없습니다. 취소하면 돌아갑니다."
-
-#: pe/ui/usb_backup.cpp
-msgid "Data: {0} in {1} files"
-msgstr "데이터: {0}, 파일 {1}개"
-
-#: pe/ui/usb_backup.cpp
-msgid "Required (with reserve): {0} / Available: {1}"
-msgstr "필요 공간(여유분 포함): {0} / 사용 가능: {1}"
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
-msgstr "복원 시 다음 시작에서 백업 파일을 기존 데이터와 병합합니다. 기존 파일은 복구 폴더에 보관됩니다. 백업에 없는 파일은 변경하지 않습니다."
-
-#: pe/ui/usb_backup.cpp
-msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
-msgstr "날짜가 붙은 새 폴더를 만듭니다. 기존 백업은 절대 덮어쓰지 않습니다. 백업에 개인 정보와 서비스 접근 토큰이 포함될 수 있으니 이 드라이브를 타인과 공유하지 마세요."
-
-#: pe/ui/usb_backup.cpp
-msgid "Not enough space"
-msgstr "공간 부족"
-
-#: pe/ui/usb_backup.cpp
-msgid "Stage restore"
-msgstr "복원 준비"
-
-#: pe/ui/usb_backup.cpp
-msgid "Create backup"
-msgstr "백업 만들기"
-
-#: pe/ui/usb_backup.cpp
-msgid "Backup complete and verified."
-msgstr "백업 완료 및 검증됨."
-
-#: pe/ui/usb_backup.cpp
-msgid "Operation stopped. Existing data was kept."
-msgstr "작업이 중지되었습니다. 기존 데이터는 보존되었습니다."
-
-#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
-msgid "Amiibo"
-msgstr "Amiibo"
-
-#: pe/ui/settings.cpp
-msgid "Optional catalog and photos"
-msgstr "선택 사항인 카탈로그와 사진"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Cancelling Amiibo request..."
-msgstr "Amiibo 요청 취소 중..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Amiibo sync could not start. Check storage access and try again."
-msgstr "Amiibo 동기화를 시작할 수 없습니다. 저장소 접근 권한을 확인하고 다시 시도하세요."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
-msgstr "공개 이름과 선택한 사진을 가져옵니다. 태그 데이터나 키를 읽거나 전송하거나 다운로드하지 않습니다."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download the public catalog?"
-msgstr "공개 카탈로그를 다운로드할까요?"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download this model's photo?"
-msgstr "이 모델의 사진을 다운로드할까요?"
-
-#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
-msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
-msgstr "amiiboapi.org에 연결하며, 선택한 사진은 raw.githubusercontent.com에서 가져옵니다. 이미지에는 제삼자의 권리가 적용될 수 있습니다. 기존 로컬 이름, 덤프, 이미지는 보존됩니다."
-
-#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
-msgid "Confirm download"
-msgstr "다운로드 확인"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Downloading public catalog..."
-msgstr "공개 카탈로그 다운로드 중..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Downloading selected photo..."
-msgstr "선택한 사진 다운로드 중..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Saving validated cache..."
-msgstr "검증된 캐시 저장 중..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Checking local catalog..."
-msgstr "로컬 카탈로그 확인 중..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Cancellation keeps local data. A file already saved stays available offline."
-msgstr "취소해도 로컬 데이터는 보존됩니다. 이미 저장된 파일은 오프라인에서도 사용할 수 있습니다."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download / refresh public catalog..."
-msgstr "공개 카탈로그 다운로드 / 갱신..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Use offline catalog"
-msgstr "오프라인 카탈로그 사용"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Select to fetch photo; existing art is kept."
-msgstr "선택하면 사진을 가져옵니다. 기존 이미지는 보존됩니다."
-
-#: pe/ui/amiibo_ui.inc
-msgid "{0} public models available offline"
-msgstr "오프라인에서 사용 가능한 공개 모델: {0}"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Request failed. Use offline catalog or retry."
-msgstr "요청에 실패했습니다. 오프라인 카탈로그를 사용하거나 다시 시도하세요."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Request cancelled. Local data was kept."
-msgstr "요청이 취소되었습니다. 로컬 데이터는 보존되었습니다."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Catalog ready. Photos are fetched only when selected."
-msgstr "카탈로그가 준비되었습니다. 사진은 선택한 경우에만 가져옵니다."
-
-#: pe/ui/amiibo_ui.inc
-msgid "No network activity until you confirm a download."
-msgstr "다운로드를 확인하기 전에는 네트워크를 사용하지 않습니다."
-
-#: pe/ui/launcher.cpp
-msgid "Finish or cancel the Amiibo request before starting a game."
-msgstr "게임을 시작하기 전에 Amiibo 요청을 완료하거나 취소하세요."
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "Amiibo download confirmation"
-msgstr "Amiibo 다운로드 확인"
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
-msgstr "이 런처는 공개 이름과 선택 사항인 사진을 요청합니다. 태그 데이터나 키를 읽거나 전송하거나 다운로드하지 않습니다."
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "Public catalog only"
-msgstr "공개 카탈로그만"
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "{0} explicitly selected model photos"
-msgstr "명시적으로 선택한 모델 사진: {0}"
-
-#: pe/ui/usb_backup.cpp
-msgid "{0} of {1}"
-msgstr "{1} 중 {0}"
-
-
-#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
-msgid "Nextendo (experimental)"
-msgstr "Nextendo (실험적 기능)"
-
-#: pe/ui/multiplayer.cpp
-msgid "Link a community account. Separate from local rooms; off by default."
-msgstr "커뮤니티 계정을 연결합니다. 로컬 방과는 별개이며 기본적으로 꺼져 있습니다."
-
-#: pe/ui/nextendo.inc
-msgid "Service routing on"
-msgstr "서비스 라우팅 켜짐"
-
-#: pe/ui/nextendo.inc
-msgid "Service routing off"
-msgstr "서비스 라우팅 꺼짐"
-
-#: pe/ui/nextendo.inc
-msgid "Account linked to this profile"
-msgstr "이 프로필에 계정이 연결됨"
-
-#: pe/ui/nextendo.inc
-msgid "No account linked"
-msgstr "연결된 계정 없음"
-
-#: pe/ui/nextendo.inc
-msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
-msgstr "로컬 방이 아닌 커뮤니티 서비스입니다. 게임 내 로그인과 PS5 온라인 플레이는 아직 검증되지 않았습니다."
-
-#: pe/ui/nextendo.inc
-msgid "Confirm replace"
-msgstr "교체 확인"
-
-#: pe/ui/nextendo.inc
-msgid "Replace linked session"
-msgstr "연결된 세션 교체"
-
-#: pe/ui/nextendo.inc
-msgid "Import my session"
-msgstr "내 세션 가져오기"
-
-#: pe/ui/nextendo.inc
-msgid "Turn routing off"
-msgstr "라우팅 끄기"
-
-#: pe/ui/nextendo.inc
-msgid "Turn routing on"
-msgstr "라우팅 켜기"
-
-#: pe/ui/nextendo.inc
-msgid "Check account"
-msgstr "계정 확인"
-
-#: pe/ui/nextendo.inc
-msgid "Confirm unlink"
-msgstr "연결 해제 확인"
-
-#: pe/ui/nextendo.inc
-msgid "Unlink account"
-msgstr "계정 연결 해제"
-
-#: pe/ui/nextendo.inc
-msgid "Link in this PS5's browser"
-msgstr "이 PS5의 브라우저에서 연결"
-
-#: pe/ui/nextendo.inc
-msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
-msgstr "브라우저 연결에는 등록을 마친 본인의 클라이언트를 nextendo/oauth.json (0600)에 설정해야 합니다. 또는 본인 세션을 nextendo/import.txt로 가져오세요. 연결해도 라우팅은 꺼진 상태로 유지됩니다. 켜기 전에 검증된 경로가 필요합니다. docs/features/NEXTENDO.md를 참고하세요."
-
-#: pe/ui/nextendo.inc
-msgid "Working... Circle cancels."
-msgstr "처리 중... 동그라미 버튼으로 취소."
-
-#: pe/ui/nextendo.inc
-msgid "Account accepted. This is not a game connection test."
-msgstr "계정이 승인되었습니다. 게임 연결 테스트가 아닙니다."
-
-#: pe/ui/nextendo.inc
-msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
-msgstr "ProsperoEden을 실행한 채로 이 PS5의 브라우저를 사용하세요. 휴대전화나 다른 기기에서는 이 루프백 콜백 주소에 접근할 수 없습니다."
-
-#: pe/ui/nextendo.inc
-msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
-msgstr "반드시 이 PS5에서 여세요 (5분 후 만료, 동그라미 버튼으로 취소):"
-
-#: pe/ui/nextendo.inc
-msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
-msgstr "ProsperoEden을 계속 실행하세요. 휴대전화나 다른 기기에서 열지 마세요."
-
-#: pe/ui/nextendo.inc
-msgid "Back / cancel"
-msgstr "뒤로 / 취소"
-
-msgid "Network"
-msgstr "네트워크"
-
-msgid "Read-only network game. Saves, mods and caches stay local."
-msgstr "네트워크 게임은 읽기 전용입니다. 세이브 데이터, 모드, 캐시는 본체에 저장됩니다."
-
-msgid "Location name"
-msgstr "위치 이름"
-
-msgid "Protocol"
-msgstr "프로토콜"
-
-msgid "Server IPv4"
-msgstr "서버 IPv4"
-
-msgid "Share / export"
-msgstr "공유 / 내보내기 경로"
-
-msgid "Games folder"
-msgstr "게임 폴더"
-
-msgid "Updates / DLC folder"
-msgstr "업데이트 / DLC 폴더"
-
-msgid "Enabled"
-msgstr "사용"
-
-msgid "Server port"
-msgstr "서버 포트"
-
-msgid "SMB user"
-msgstr "SMB 사용자"
-
-msgid "SMB password"
-msgstr "SMB 비밀번호"
-
-msgid "SMB domain"
-msgstr "SMB 도메인"
-
-msgid "SMB encryption"
-msgstr "SMB 암호화"
-
-msgid "NFS UID"
-msgstr "NFS UID"
-
-msgid "NFS GID"
-msgstr "NFS GID"
-
-msgid "NFS mount port"
-msgstr "NFS 마운트 포트"
-
-msgid "Timeout (ms)"
-msgstr "시간 제한 (ms)"
-
-msgid "Cache (MiB)"
-msgstr "캐시 (MiB)"
-
-msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
-msgstr "TCP를 통한 SMB2/3 또는 NFS v3입니다. 프로토콜을 바꾸면 편집 중인 공유 설정과 SMB 인증 정보가 지워집니다."
-
-msgid "Numeric IPv4 only. No server is contacted while you edit."
-msgstr "숫자로 된 IPv4 주소만 사용할 수 있습니다. 편집 중에는 서버에 접속하지 않습니다."
-
-msgid "SMB: share name only. NFS: absolute export path, for example /games."
-msgstr "SMB: 공유 이름만 입력하세요. NFS: /games와 같은 절대 내보내기 경로를 입력하세요."
-
-msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
-msgstr "공유 / 내보내기 경로 기준의 상대 경로입니다. 비워 두면 해당 루트를 사용합니다. 링크나 .. 경로 요소는 사용할 수 없습니다."
-
-msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
-msgstr "선택 사항이며 게임 폴더 기준의 상대 경로입니다. 이 폴더와 한 단계 아래 폴더에서 게임에 맞는 업데이트 / DLC를 검색합니다."
-
-msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
-msgstr "확인하면 입력 내용을 숨기는 시스템 키보드로 비밀번호를 교체합니다. 네모 버튼으로 지우고, 세모 버튼으로 저장된 비밀번호를 복원합니다."
-
-msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
-msgstr "사용자를 비워 두면 SMB2 게스트로 접속합니다. 비밀번호, 도메인, 암호화 설정도 지우세요. 서명된 로그인에는 사용자가 필요합니다."
-
-msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
-msgstr "암호화를 필수로 설정하려면 SMB3와 사용자가 필요합니다. 지원하지 않는 서버에는 연결되지 않으며, 알리지 않고 보안 수준을 낮추지 않습니다."
-
-msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
-msgstr "NFS v3 AUTH_SYS 숫자 ID (0–2147483647)입니다. 서버에서 읽기 전용 접근을 설정하세요."
-
-msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
-msgstr "0이면 서버의 portmapper에 mountd 포트를 요청합니다. 그 외에는 고정 TCP 마운트 포트 (1–65535)를 사용합니다."
-
-msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
-msgstr "작업별 시간 제한은 250–15000밀리초입니다. 검색에는 별도의 읽기 한도도 적용됩니다."
-
-msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
-msgstr "연결된 위치마다 1–32 MiB의 읽기 전용 캐시를 사용합니다. 게임 전체를 다운로드하지 않습니다."
-
-msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
-msgstr "저장하기 전까지 변경 사항은 편집 중인 설정에만 남습니다. 취소하면 저장된 설정은 바뀌지 않습니다."
-
-msgid "Network settings saved."
-msgstr "네트워크 설정을 저장했습니다."
-
-msgid "Edit network location"
-msgstr "네트워크 위치 편집"
-
-msgid "Add network location"
-msgstr "네트워크 위치 추가"
-
-msgid "Network shares"
-msgstr "네트워크 공유"
-
-msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
-msgstr "읽기 전용 SMB / NFS · 최대 4개 위치 · 비공개 입력용 키보드 내장"
-
-msgid "Remove this network location?"
-msgstr "이 네트워크 위치를 삭제할까요?"
-
-msgid "Discard unsaved changes?"
-msgstr "저장하지 않은 변경 사항을 버릴까요?"
-
-msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
-msgstr "저장된 연결 설정만 삭제합니다. 서버의 파일과 본체의 세이브 데이터는 삭제하지 않습니다."
-
-msgid "The saved network configuration will not change."
-msgstr "저장된 네트워크 설정은 바뀌지 않습니다."
-
-msgid "Confirm"
-msgstr "확인"
-
-msgid "Keep editing / back"
-msgstr "계속 편집 / 뒤로"
-
-msgid "Working… Circle cancels before save is committed."
-msgstr "처리 중… 저장이 확정되기 전에는 동그라미 버튼으로 취소할 수 있습니다."
-
-msgid "Not set"
-msgstr "미설정"
-
-msgid "Connecting and scanning…"
-msgstr "연결 및 검색 중…"
-
-msgid "Connected · {0} games"
-msgstr "연결됨 · 게임 {0}개"
-
-msgid "Disconnected"
-msgstr "연결 안 됨"
-
-msgid "Save (no connection)"
-msgstr "저장 (연결하지 않음)"
-
-msgid "Save and reconnect"
-msgstr "저장 후 다시 연결"
-
-msgid "Cancel editing"
-msgstr "편집 취소"
-
-msgid "Reconnect saved locations"
-msgstr "저장된 위치에 다시 연결"
-
-msgid "Disconnect / cancel"
-msgstr "연결 해제 / 취소"
-
-msgid "{0} / {1} · L1 / R1 to page"
-msgstr "{0} / {1} · L1 / R1으로 페이지 이동"
-
-msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
-msgstr "저장만 하면 서버에 접속하지 않습니다. '저장 후 다시 연결'을 선택하면 사용 설정된 위치를 명시적으로 다시 불러와 연결합니다."
-
-msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
-msgstr "편집할 위치 또는 '네트워크 위치 추가'를 선택하세요. 네모 버튼을 누르면 확인 후 선택한 위치를 삭제합니다."
-
-msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
-msgstr "인증 정보는 config/network-shares.json (0600)에 비공개 평문으로 저장되며, 암호화되지 않습니다. 이 파일이나 저장 준비 중인 사본을 공유하지 마세요."
-
-msgid "Edit / select"
-msgstr "편집 / 선택"
-
-msgid "Replace"
-msgstr "교체"
-
-msgid "Clear"
-msgstr "지우기"
-
-msgid "Keep saved"
-msgstr "저장된 값 유지"
-
-msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
-msgstr "Nextendo 게임 세션을 연결할까요? 신원 정보를 공유하고 게임 매치메이킹을 허용합니다 (identity, game.matchmaking). 친구, 접속 상태, 프로필 편집 권한은 요청하지 않습니다. 게임 라우팅은 별도로 켜기 전까지 꺼진 상태로 유지됩니다."
-
-msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
-msgstr "Nextendo 게임 세션을 연결하기 전에 신원 정보 공유 및 게임 매치메이킹 권한을 확인하세요."
-
-msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
-msgstr "게임 전용 Nextendo 세션에서는 원격 확인을 사용할 수 없습니다. 다시 연결하여 새 게임 세션을 받으세요. 저장된 세션은 삭제되지 않았습니다."
-
-msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
-msgstr "Nextendo 게임 세션이 만료되었거나 시계가 잘못되었습니다. 활성화하거나 게임을 실행하기 전에 다시 연결하세요."
-
-msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
-msgstr "Nextendo 게임 연결에 실패했습니다. 등록, 동의, 연결 상태, 신뢰할 수 있는 인증서를 확인하세요."
-
-msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
-msgstr "oauth.json이 올바르지 않습니다. 등록된 client_id와 HTTP 127.0.0.1 redirect_uri (포트 >= 1024 또는 {port})를 입력하세요. app은 선택 사항입니다."
-
-msgid "Nextendo action cancelled."
-msgstr "Nextendo 작업을 취소했습니다."
-
-msgid "Nextendo action failed. Retry or unlink the session."
-msgstr "Nextendo 작업에 실패했습니다. 다시 시도하거나 세션 연결을 해제하세요."
-
-msgid "Play read-only SMB or NFS games without downloading them."
-msgstr "읽기 전용 SMB 또는 NFS 게임을 다운로드 없이 플레이합니다."
-
-msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
-msgstr "네트워크 공유 설정이 올바르지 않습니다. 편집 전에 가져온 JSON을 수정하세요. 파일은 교체되지 않았습니다."
-
-msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
-msgstr "네트워크 설정은 일반 파일이어야 하며 (최대 64 KiB), 상위 디렉터리에도 링크가 없어야 합니다."
-
-msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
-msgstr "이 편집기 밖에서 네트워크 설정이 변경되었습니다. 편집기를 다시 여세요. 아무것도 덮어쓰지 않았습니다."
-
-msgid "Cancelled. The saved network settings were not changed."
-msgstr "취소했습니다. 저장된 네트워크 설정은 바뀌지 않았습니다."
-
-msgid "Saved, but directory sync could not be confirmed."
-msgstr "저장했지만 디렉터리 동기화를 확인하지 못했습니다."
-
-msgid "Could not save network settings. The previous file was preserved."
-msgstr "네트워크 설정을 저장하지 못했습니다. 이전 파일은 보존되었습니다."
-
-msgid "The network settings keyboard is unavailable."
-msgstr "네트워크 설정 키보드를 사용할 수 없습니다."
-
-msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
-msgstr "올바르지 않은 값입니다. 숫자로 된 IPv4, 안전한 경로, 유효한 포트, 시간 제한 250–15000 ms, 캐시 1–32 MiB를 사용하세요. SMB 인증 정보에는 사용자가 필요합니다."
-
-msgid "Server IPv4 and share / export are required. Enter them before saving."
-msgstr "서버 IPv4와 공유 / 내보내기 경로는 필수입니다. 저장하기 전에 입력하세요."
-
-msgid "This network location already exists. Edit it instead."
-msgstr "이 네트워크 위치는 이미 있습니다. 기존 위치를 편집하세요."
-
-msgid "At most four network locations can be saved."
-msgstr "네트워크 위치는 최대 4개까지 저장할 수 있습니다."
-
-msgid "Network settings are unavailable while another protected job or a game is starting."
-msgstr "다른 보호된 작업이 실행 중이거나 게임을 시작하는 동안에는 네트워크 설정을 사용할 수 없습니다."
-
-msgid "Reopen the network location before editing."
-msgstr "편집하기 전에 네트워크 위치를 다시 여세요."
-
-msgid "Network location"
-msgstr "네트워크 위치"
-
-msgid "SMB"
-msgstr "SMB"
-
-msgid "NFS v3 / AUTH_SYS"
-msgstr "NFS v3 / AUTH_SYS"
-
-msgid "Required (SMB3)"
-msgstr "필수 (SMB3)"
-
-msgid "Off (signing required with a user)"
-msgstr "끄기 (사용자 지정 시 서명 필수)"
-
-msgid "Replacement set"
-msgstr "교체할 값 설정됨"
-
-msgid "Set / keep existing"
-msgstr "설정됨 / 기존 값 유지"
-
-msgid "Network location name"
-msgstr "네트워크 위치 이름"
-
-msgid "Network server IPv4"
-msgstr "네트워크 서버 IPv4"
-
-msgid "Network share / export"
-msgstr "네트워크 공유 / 내보내기 경로"
-
-msgid "Network games folder (relative)"
-msgstr "네트워크 게임 폴더 (상대 경로)"
-
-msgid "Network updates / DLC folder (relative)"
-msgstr "네트워크 업데이트 / DLC 폴더 (상대 경로)"
-
-msgid "SMB user (empty = guest)"
-msgstr "SMB 사용자 (비어 있음 = 게스트)"
-
-msgid "SMB password (private replacement)"
-msgstr "SMB 비밀번호 (비공개 교체)"
-
-msgid "SMB domain (optional)"
-msgstr "SMB 도메인 (선택 사항)"
-
-msgid "NFS AUTH_SYS UID"
-msgstr "NFS AUTH_SYS UID"
-
-msgid "NFS AUTH_SYS GID"
-msgstr "NFS AUTH_SYS GID"
-
-msgid "NFS mount port (0 = portmapper)"
-msgstr "NFS 마운트 포트 (0 = portmapper)"
-
-msgid "Network server TCP port"
-msgstr "네트워크 서버 TCP 포트"
-
-msgid "Network cache (1-32 MiB)"
-msgstr "네트워크 캐시 (1-32 MiB)"
-
-msgid "Network timeout (250-15000 ms)"
-msgstr "네트워크 시간 제한 (250-15000 ms)"
-
-msgid "Enter a replacement; Cancel keeps the current password"
-msgstr "교체할 비밀번호를 입력하세요. 취소하면 현재 비밀번호를 유지합니다"
-
-msgid "Confirm to use this value; Cancel keeps the previous value"
-msgstr "확인하면 이 값을 사용합니다. 취소하면 이전 값을 유지합니다"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Software options: Triangle"
+msgstr "소프트웨어 · Triangle"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Browse folders: D-pad / Open: A"
+msgstr "폴더 탐색 · D-pad / A"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Encore home screen"
+msgstr "홈 · Encore"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Switch home screen"
+msgstr "홈 · Switch"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Original Encore interface"
+msgstr "인터페이스 · Encore"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Switch-style interface"
+msgstr "인터페이스 · Switch"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose Encore or Switch. Your games and control mapping stay unchanged."
+msgstr "선택 · Encore / Switch. 소프트웨어 / 조작 — 변경 없음."
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose the launcher interface without changing game or controller settings."
+msgstr "선택 · 인터페이스. 소프트웨어 / 조작 — 변경 없음."
+
+#: pe/ui/switch_theme.cpp
+msgid "About"
+msgstr "정보"
+
+#: pe/ui/switch_theme.cpp
+msgid "Multiplayer"
+msgstr "멀티플레이"
+
+#: pe/ui/switch_theme.cpp
+msgid "Volume"
+msgstr "음량"
+
+#: pe/ui/switch_theme.cpp
+msgid "Controller profile"
+msgstr "컨트롤러 프로필"
+
+#: pe/ui/switch_theme.cpp
+msgid "Cache"
+msgstr "캐시"
+
+#: pe/ui/switch_theme.cpp
+msgid "Manage"
+msgstr "관리"
+
+#: pe/ui/switch_theme.cpp
+msgid "Open folders"
+msgstr "폴더 열기"
+
+#: pe/ui/switch_theme.cpp
+msgid "Filter"
+msgstr "필터"
+
+#: pe/ui/switch_theme.cpp
+msgid "Eden Encore"
+msgstr "Eden Encore"

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The output's refresh rate for a game session: what Settings > Video (or the game's own
 // settings) asks for, and what the display took. 120 Hz needs the package to declare it
-// (attribute3 in sce_sys/param.json), a display that shows it and the console's own 120 Hz output
+// (tools/package-headless-native.sh), a display that shows it and the console's own 120 Hz output
 // setting; otherwise the session presents at 60 Hz. The launcher always runs at 60 Hz.
 // Also the size of the picture a session puts out.
 #pragma once
@@ -34,10 +34,14 @@ inline constexpr int kSettleSeconds = 5;
 inline std::atomic<int> game_millihertz{60000};
 // Frames left out since the session began (SkipFrame).
 inline std::atomic<unsigned> skipped_frames{0};
-// Frames made since the process started: GraphicsWindow::frame_total's cross-thread copy, and the
-// clock a recorded controller session is keyed on (gameplay_test.h), so a replay lands each
-// recorded state back on the frame it was taken on.
-inline std::atomic<unsigned> gameplay_frame{0};
+// A per-process monotonic timestamp needs a reset between native title
+// sessions; all renderer owners use the same atomic state, not a static
+// non-atomic timestamp left over from the previous game's output mode.
+inline std::atomic<long long> last_shown_frame_ns{0};
+inline void ResetSkipFrameTracking() noexcept {
+    last_shown_frame_ns.store(0, std::memory_order_relaxed);
+    skipped_frames.store(0, std::memory_order_relaxed);
+}
 
 // Whether the frame the game just made is left out. True only when the game's clock runs faster
 // than the output refreshes (240 FPS on a 120 Hz output, 120 FPS on a 60 Hz one) and the last
@@ -49,15 +53,23 @@ inline bool SkipFrame() {
     const int output = output_millihertz.load(std::memory_order_relaxed);
     const int game = game_millihertz.load(std::memory_order_relaxed);
     if (output <= 0 || game <= output + output / 20) return false;
-    static long long last_shown_ns = 0;
     const long long now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::steady_clock::now().time_since_epoch()).count();
     const long long refresh_ns = 1'000'000'000'000LL / output;
-    if (now_ns - last_shown_ns < refresh_ns * 3 / 4) {
-        skipped_frames.fetch_add(1, std::memory_order_relaxed);
-        return true;
+    const long long minimum_spacing = refresh_ns * 3 / 4;
+    long long previous = last_shown_frame_ns.load(std::memory_order_relaxed);
+    for (;;) {
+        // CAS preserves the newest frame across concurrent renderer
+        // submissions. A worker that sampled an older timestamp must
+        // not replace a newer shown frame's timestamp.
+        if (previous > now_ns ||
+            (previous > 0 && now_ns - previous < minimum_spacing)) {
+            skipped_frames.fetch_add(1, std::memory_order_relaxed);
+            return true;
+        }
+        if (last_shown_frame_ns.compare_exchange_weak(
+                previous, now_ns, std::memory_order_relaxed))
+            return false;
     }
-    last_shown_ns = now_ns;
-    return false;
 }
 } // namespace Eden::Display

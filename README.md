@@ -1,232 +1,289 @@
+<div align="center">
+  <img src="assets/icon0.png" alt="Prospero.Eden Encore logo" width="154">
+
+  <h1>Prospero.Eden Encore</h1>
+
+  <h3>Console-native emulation, made for the living room.</h3>
+
+  <p><strong>A controller-first PS5 emulator fork for firmware 13.60: NSP, XCI, NSZ, XCZ, NRO, NSO, NCA, NAX and KIP loaders, LZ4 + ZBIC/zstd decoding, TV navigation and reproducible builds.</strong></p>
+
+  <p><strong>English</strong> · <a href="README.fr.md">Français</a></p>
+  <p><kbd>Firmware 13.60 · hardware-tested target</kbd> <kbd>Vulkan + OpenGL</kbd> <kbd>TV-first UI</kbd> <kbd>Dynarmic</kbd></p>
+  <p>
+    <a href="INSTALL.md"><strong>Install</strong></a> ·
+    <a href="#-why-encore"><strong>Benefits</strong></a> ·
+    <a href="#-compatibility--current-limits"><strong>Compatibility</strong></a> ·
+    <a href="#-builds--validation"><strong>Builds</strong></a> ·
+    <a href="ACCESSIBILITY.md"><strong>Accessibility</strong></a> ·
+    <a href="#credits"><strong>Credits</strong></a>
+  </p>
+</div>
+
 <p align="center">
-  <img src="sce_sys/icon0.png" width="128" alt="ProsperoEden icon">
+  <a href="https://github.com/niakw/ProsperoEden-Encore/actions/workflows/encore-core-preflight.yml?query=branch%3Amain"><img alt="Source and host validation" src="https://img.shields.io/badge/quality-source%20%2B%20host%20gates-465d87"></a>
+  <a href="https://github.com/niakw/ProsperoEden-Encore/actions/workflows/build-040-zbic.yml?query=branch%3Amain"><img alt="Native build verification" src="https://img.shields.io/badge/build-native%20package%20checks-5e4db2"></a>
+  <a href="LICENSE"><img alt="License GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-31313a"></a>
 </p>
 
-<h1 align="center">ProsperoEden</h1>
+<p align="center"><img src="assets/screenshots/eden-encore-home-sample-art.png" alt="Eden Encore Home in English with the original wallpaper and fictional sample game artwork" width="860"></p>
 
-<p align="center">
-  <strong>An unofficial Eden emulator port for PlayStation 5 homebrew</strong>
-</p>
-
-**ProsperoEden is an unofficial PlayStation 5 port of [Eden](https://github.com/eden-emulator/mirror)** - an accurate, high-performance emulator. All credit for the emulator core belongs to the Eden project and its contributors. ProsperoEden is not affiliated with or endorsed by the Eden team or Sony.
-
-This is an early alpha. Video, audio, controller input, and saves have been confirmed working. Compatibility and performance will vary between games. The current release is **v1.005.000**. What changed in it, and in every release before, is in the [changelog](docs/CHANGELOG.md#v1005000).
-
-This integration branch targets **v1.006.000**, which is **not yet qualified or published**.
-See its [changeset and remaining gates](docs/CHANGESET_1006000.md); the previously confirmed
-package does not validate the newly integrated features.
-
-> This local integration branch has additional, unreleased work. See the
-> [draft changeset](docs/CHANGELOG.md#unreleased-integration) and
-> [test/remaining-feature matrix](docs/UPSTREAM_INTEGRATION.md); a successful Docker build
-> does not qualify its new features or reported game fixes on the PS5.
-
-## Source code
-
-The complete ProsperoEden source is in this repository: the PS5 frontend and launcher in `headless/`, and the build and packaging tools in `tools/`. To build it yourself, run `make` on Linux (Ubuntu 26.04; WSL works). It fetches every dependency at its pinned revision and writes the release files to `dist/`; `make help` lists the other targets. See [docs/BUILDING.md](docs/BUILDING.md). A release ZIP built by GitHub Actions can be checked with `gh attestation verify <ZIP> -R blackbearreloaded/ProsperoEden` (GitHub CLI); this covers releases built from now on (after v1.000.090), not earlier ones.
-
-Local-wireless multiplayer through Eden rooms is new in v1.000.110 and experimental. See the
-[setup guide and current limitations](docs/MULTIPLAYER.md) and the
-[validation status](docs/MULTIPLAYER_IMPLEMENTATION.md); Tailscale forwarding is not yet qualified.
-
-## Project foundation
+<sub>Preview: the games, illustrated covers and descriptions are **fictional demonstration content**, not a compatibility list. The screenshot is rendered by Encore’s actual launcher.</sub>
 
 > [!IMPORTANT]
-> **Built on the [PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate), the same native foundation used by ProsperoLight.**
-> It provides the native PS5 application structure, runtime, packaging, and homebrew deployment foundation.
+> **FC27 performance — live master tracker:** [F07 P0/P1/P2 priorities and sparse-JIT qualification](docs/FC27_F07_MASTER_TRACKER.md). [F01–F06 host exit gates](docs/FC27_EXIT_GATES_2026-10-22.md) are separate from on-console playability. Source-review totals are not remaining optimization counts.
+>
+> **Firmware 13.60 is Encore's primary hardware-tested target, not a universal compatibility guarantee.** The launcher and selected titles have been exercised on this firmware, but game performance, saved control profiles and end-of-match stability still need work. Other firmware versions are **not** qualified. A current development build is **not** automatically a stable release.
+>
+> **Before a console test:** [source, logs, upstream and package checklist](docs/PRETEST_AUDIT_2026-10-14.md) — verify that the artifact and symbols match the exact tested SHA.
 
-> [!IMPORTANT]
-> **Graphics are powered by [ps5-opengl](https://github.com/blackbearreloaded/ps5-opengl).**
-> This OpenGL implementation provides the native PS5 rendering layer used by the Eden graphics backend.
+---
 
-> [!IMPORTANT]
-> **Vulkan is powered by Mihawk's [PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa) and [PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan).**
-> Mihawk's Mesa/RADV driver for the PS5 runs ProsperoEden's Vulkan renderer. Many thanks to Mihawk for this work and for [all of the PS5 projects](https://github.com/mihawk-99) behind it.
+## ✨ Why Encore?
 
-> [!IMPORTANT]
-> **Thanks to [ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan) by mpereiraesaa**, an experimental Vulkan graphics and compute API for native PS5 homebrew.
+Emulation on a console is more than booting a game. It should be navigable from the couch, recoverable when settings go wrong and honest about what the hardware actually does.
 
-## Features
+| | What Encore brings |
+| --- | --- |
+| **🎮 TV-first experience** | Tropical-neon launcher, game artwork, recent titles, controller navigation, quick settings and language support. |
+| **🧩 Game files and compression** | NSP, XCI, NSZ, XCZ, NRO, NSO, NCA, NAX and KIP selection; LZ4 and ZBIC/zstd decoding. Some files require extra program content to boot. |
+| **🛟 Recovery without surprises** | One-session Safe Launch, confirmed resets and guarded migration without silently overwriting saved preferences. |
+| **⚙️ Per-title profiles** | Minimum, Recommended, High and Ultra, plus Custom when you edit a preset. |
+| **🎨 Graphics choices** | Vulkan/RADV and OpenGL, shader cache management, upscaling and anti-aliasing controls. |
+| **🔍 Explainable performance** | Frame-time windows, guest/JIT activity, memory pressure, cache locks and IPC—not FPS alone. |
+| **🔐 Safer native operation** | One-shot filesystem access, fail-closed recovery paths, bounded logs and package provenance checks. |
 
-- **Vulkan renderer (recommended)** - the default backend, running on Mihawk's PS5 Mesa (RADV) driver.
-- **OpenGL renderer** - still available through ps5-opengl. Switch between them in **Settings > Video**.
-- **Resolution and upscaling** - render at 0.5x to 4x of the game's resolution and choose the filter that scales it to your TV (Bilinear, AMD FSR, Bicubic or Nearest) in **Settings > Video**. Textures in a format the PS5's GPU cannot read (ASTC) are kept compressed (as BC3), which takes a quarter of the graphics memory they would need decoded. **ASTC textures** in **Settings > Video**, and in each game's settings, can be set to **Full quality** instead: those textures are then kept decoded, which uses four times the graphics memory for them and can make a game run out of memory above 1x.
-- **Output resolution** - the picture is made at 1080p, 1440p or 2160p: **Output resolution** in **Settings > Video**. The menu is drawn at that size too, and the PS5 scales it to your TV.
-- **Optional frame-rate recovery** - some games drop from 30 to 20 FPS when frames are a little late. An advanced [per-game clock adjustment](docs/SETTINGS.md#adaptive-guest-clock) can help those games. It is off by default because it can slow games that pace their frames by the same clock.
-- **120 Hz output** - on a display that shows 120 Hz, games can run on a 120 Hz output: **Refresh rate** in **Settings > Video**, or in one game's settings. A frame that is a little late is then shown 8 ms later instead of 17 ms, and patches for more than 60 FPS need it. The menu stays at 60 Hz.
-- **Frame generation** - between two of a game's own pictures ProsperoEden can show one made up from them, so a 30 FPS game looks like 60: **Frame generation** in **Settings > Video**, or in one game's settings. Two methods: **MihawkGen**, which comes with the app, or Lossless Scaling with your own copy of it; see [Frame generation](docs/SETTINGS.md#frame-generation).
-- **Post-processing (ReShade FX)** - a look drawn over the game's picture: **Post-processing** in **Settings > Video**, or in one game's settings, with the Vulkan renderer. Six presets come with the app (Anime, Cinematic, Clean, Dreamy, Retro, Vivid). Presets of your own (`.fxp`) go in `/data/prosperoeden/user/post_presets/` and the ReShade FX effects they use (`.fx`, with any `.fxh` they include) in `/data/prosperoeden/user/post_shaders/`; a game's own presets and effects go in its game folder's `reshade/`, and are offered for that game only. They are listed after a restart. See [Post-processing](docs/SETTINGS.md#post-processing).
-- **Game files anywhere** - keys, firmware, and games can live in any folder the PS5 can read: internal storage, an M.2 or external drive, or a USB device.
-- **Folder browser** - pick the game files folder in **Settings > Game files**, or keep ROMs/updates on another drive through **Settings > ROMs and updates**, without moving keys, firmware or saves. It shows how many files each folder holds. Hold L1/R1 to page quickly.
-- **Library** - your games as covers, with the selected game's details beside them. The home screen has **Continue Playing** and **Recently Played**, which keep working after you move your files.
-- **Launcher** - an animated interface drawn with OpenGL, with sound effects (their level is in **Settings > Audio**) and a loading screen that shows the game's cover while it starts. It opens from the console's own launch picture without a cut: the mark appears over the picture and goes to its place as the menu arrives (any button skips it). Its five sections (Home, Library, Multiplayer, Settings, About) are on a rail at the left: L1 and R1 go from one to the next, and Left from a screen's edge opens the rail. The home screen shows which controllers are connected.
-- **Themes** - the launcher's look is a theme, chosen in **Settings > Theme**. It comes with one, Canopy; [docs/THEMES.md](docs/THEMES.md) says what a theme is made of.
-- **Wallpapers** - an image of your own behind the menu instead of the theme's artwork: PNG or JPEG files (also BMP, GIF, TGA and DDS), chosen in **Settings > Appearance > Wallpaper**. Use `/data/prosperoeden/wallpapers`, `wallpapers/` in your game files folder, or a configured USB folder; see [docs/WALLPAPERS.md](docs/WALLPAPERS.md).
-- **Profiles** - everyone who plays has their own save data, settings and recently played games: **Settings > Profiles**; see [Profiles](docs/SETTINGS.md#profiles).
-- **Settings per game** - a game can differ from Settings in its video, performance, audio, controls and language, and has its own Handheld / Docked mode (Triangle in the Library); see [Settings per game](docs/SETTINGS.md#settings-per-game).
-- **Button mapping** - choose which DualSense button presses each of the game's buttons, for every controller, in **Settings > Controls**, or for one game in its settings; see [Button mapping](docs/SETTINGS.md#button-mapping).
-- **Your language** - the launcher follows the language the PS5 is set to (29 languages; English otherwise).
-- **Accessibility** - larger text, high contrast and reduced motion, in **Settings > Accessibility**.
-- **Save data in and out** - import a game's save from a folder or from a Ryujinx data folder, and export a copy (Triangle in the Library, then **Save data**).
-- **Compressed games** - NSZ and XCZ files (NSPs and XCIs compressed with [nsz](https://github.com/nicoboss/nsz)) play as they are; see [Compressed games](docs/INSTALL.md#compressed-games-nsz-and-xcz).
-- **Switch homebrew** - `.nro` files in `roms/`, its game folders or a copied `roms/switch/` tree use Eden's NRO loader without keys/firmware. Embedded titles and icons appear when available; see [NRO homebrew](docs/INSTALL.md#nro-homebrew) for limits.
-- **Game updates and DLC** - keep each game in a folder of its own in `roms`, with its update and DLC files (NSP, XCI, NSZ or XCZ) beside it; see [Game files folder](docs/INSTALL.md#game-files-folder). They apply when the game starts, and each game's details show the update version and DLC count.
-- **Download sources** - the games on servers in your network, such as a [RomM](https://github.com/rommapp/romm) server, appear in the Library next to the ones on the console. A game is downloaded when you play it, or ahead of time through a download queue, and then runs from the console like any other: nothing is streamed. Downloads need an FTP server running on the console; see [Download sources](docs/DOWNLOADS.md#download-sources).
-- **Save sync** - each profile can keep its save data on a server, such as a [RomM](https://github.com/rommapp/romm) server, as Steam does: it is synced before a game starts and after it ended, and when it changed on two devices you choose which one stays. A profile is paired with its server by a QR code, no typing. See [Save sync](docs/SAVES.md#save-sync).
-- **Mods and cheats** - patches and replacement game files from the `mods` folder in the game's folder, and cheats from its `cheats` folder. Each has a list of its own in the game's settings (Triangle in the Library, then **Mods** or **Cheats**), where every mod and every cheat is switched on or off, and a switch for all of them at once.
-  The integration branch also adds explicit **Check online**, **Use offline cache** and
-  confirmed **Install (off)** actions under **Cheats**, with exact effective-build matching,
-  progress and cancellation. Downloads never enable codes or overwrite existing cheats.
-  See [the cheat manager record](docs/CHEAT_DATABASE.md) for source configuration and test limits;
-  console qualification is still pending.
-- **Performance switches** - seven switches that trade accuracy for speed (compiling a game's code ahead, asynchronous shaders, faster GPU, CPU and DMA emulation, and more) in **Settings > Performance**; see [Performance settings](docs/SETTINGS.md#performance-settings).
-- **Shader cache** - shaders compiled in earlier sessions are loaded when a game starts, so an effect stutters only the first time it appears.
-- **In-game shortcuts** - a performance overlay (Touchpad + R1), and Touchpad + L1 to end the game and return to the library. Leaving takes ten seconds at most, also while a game is still loading.
-- **Settings in one place** - a single JSON file under `/data/prosperoeden`, with game volume, mute, and detailed logging options. Logs keep the previous session.
-- **Speed limit** - **Settings > Performance > Speed limit** (and each game's own) lets a game run at 150%, 200%, 300% or without a limit: a game locked to 30 FPS can reach 60 at 200% when the console has time to spare, and a game timed by its frames plays faster with it; see [Speed limit](docs/SETTINGS.md#speed-limit).
-- **Updates from the menu** - when a newer release is listed on [homebrew.page](https://homebrew.page/ps5), ProsperoEden offers to install it each time it opens; **Skip** keeps the current version, and **Settings > Diagnostics > Update notices** off stops the offer (About still names the newer version); see [Updating](docs/INSTALL.md#updating).
-- **Crash reports** - if ProsperoEden stops because of an error, it saves a report with that session's logs, starts again and shows where the report is. **Settings > Diagnostics** also keeps the FTP log-folder path visible; attach the dated `crash-*.txt` report and its matching logs.
-- **Controllers, audio, and saves** - up to four DualSense controllers (one per signed-in PS5 user) with rumble and motion controls, game audio, and save data work out of the box. A game that gives a player a single Joy-Con is played with the whole DualSense: the shapes are that Joy-Con's four buttons, the D-pad and either stick are its stick, and L1/R1 and L2/R2 are its shoulder buttons. When the game has the Joy-Con held sideways, the DualSense is still held as usual: the stick, the buttons and the motion sensors are turned to match.
-- **Controller type per game** - some games take a Pro Controller and then only work with another controller. In **Library > Game settings > Controls**, **Controller type** gives the game a Pro Controller, the Handheld controller, Dual Joy-Cons, a Left Joy-Con or a Right Joy-Con. Left on **Automatic**, the game gets what it takes, a Pro Controller first.
-- **Typing text** - when a game asks for text (a character's name, an answer during an event), the PS5's own on-screen keyboard opens, and what you enter goes to the game. A USB or Bluetooth keyboard the PS5 supports types into it too.
+**Accessibility:** [Larger text, High contrast, Reduce motion and controller navigation](ACCESSIBILITY.md) are documented with known limitations.
 
-## Install
+**Our approach:** preserve a working native foundation, select and adapt upstream improvements, then validate **source → native package → real hardware** independently.
+
+<details>
+<summary><strong>Encore vs the original port</strong></summary>
+
+| Dimension | Original foundation | Encore's emphasis |
+| --- | --- | --- |
+| Hardware target | Broad upstream development | Firmware **13.60-focused** qualification |
+| Launcher | Native frontend | TV-first hero, library, recents and quick settings |
+| Content loading | Earlier formats | **NSP, XCI, NSZ, XCZ, NRO, NSO, NCA, NAX, KIP; LZ4 + ZBIC/zstd** |
+| Recovery | Base defaults | Temporary Safe Launch and confirmed resets |
+| Storage | Original path behavior | One internal/external root structure and guarded migration |
+| Controller settings | Base mappings | Controller-first launcher profiles; game-owned actions still under investigation |
+| Graphics | Upstream rendering | Pinned native adaptations and compiled-source evidence |
+| Verification | Upstream test coverage | Host regressions, native packaging and device tests kept separate |
+
+Encore is **not** an official upstream release or a promise that every newer upstream commit has been included.
+
+</details>
+
+---
+
+## 📦 Game formats and executable compression
+
+| Category | Formats | Current scope |
+| --- | --- | --- |
+| Library game containers | **NSP** (`.nsp`), **XCI** (`.xci`) | Existing game discovery and launch |
+| Compressed game containers | **NSZ** (`.nsz`), **XCZ** (`.xcz`) | Experimental NCZ reader, games, updates and DLC; native and hardware qualification pending |
+| Internal executable compression | **LZ4**, **ZBIC / zstd** | Existing NSO segment decoding; **not** game-file extensions |
+| Direct-loader files | **NRO, NSO, NCA, NAX, KIP** | Selectable; successful execution depends on complete compatible contents. |
+
+**Extracted ExeFS directories** are also discovered when `roms/<title>/` contains real, non-symlinked `main` and `main.npdm` files. They appear as `EXEFS` in the Library; this is a directory layout, not another ROM extension.
+
+NCZ block compression permits random reads directly from the compressed file. Solid compression may unpack one running title to `/data/prosperoeden/user/cache/nsz/`; this can require approximately the full uncompressed game size. Outside a running game, bounded, validated pieces are reused for metadata reads. A developer build that contains the feature is not a console-tested release.
+
+[Compressed games, space requirements and cancellation](INSTALL.md#compressed-nsz-and-xcz-games) · [Source and tests](headless/ncz.h) · [Complete format matrix](docs/CONTENT_FORMAT_MATRIX_2026-10-23.md)
+
+---
+
+## 🚀 Install Encore
 
 > [!TIP]
-> **Use [ShadowMountPlus 1.7beta4](https://github.com/drakmor/ShadowMountPlus/releases/tag/1.7beta4) or newer.** It mounts ProsperoEden from the folder (or drive) you copy it to, and it also mounts `/data` and USB and extended storage drives into the app's sandbox, so ProsperoEden reaches its data and your game files with nothing else to load. With an older ShadowMountPlus, ProsperoEden falls back to its bundled [Lapy](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon) helper (see [Elevation credits](#elevation-credits)).
+> For a tested release, use [GitHub Releases](https://github.com/niakw/ProsperoEden-Encore/releases), read the release's **specific firmware/gameplay validation notes**, and verify checksums. GitHub Actions artifacts are experimental unless separately qualified.
 
-1. Download and extract the release ZIP.
-2. Copy the included `PPSA99008` folder to `/data/homebrew/PPSA99008` on the PS5 (or to another folder ShadowMountPlus scans, such as `/mnt/usb0/homebrew/PPSA99008`).
-3. Make sure your jailbreak environment's local ELF loader is listening on TCP port 9021 (most setups have it). [Updates from the menu](docs/INSTALL.md#updating) use it, and with a ShadowMountPlus older than 1.7beta4 ProsperoEden sends its bundled Lapy helper through it.
-4. Put your own legally dumped keys, firmware, and games in a **game files folder** ([its layout](docs/INSTALL.md#game-files-folder)). It can be anywhere the PS5 can read: internal storage, an M.2 or external drive, or a USB device.
-5. Launch **ProsperoEden**, open **Settings > Game files**, browse to that folder and select it. The default is `/data/prosperoeden`.
-6. Close and reopen ProsperoEden, then open **Library**. Setup is checked when the app opens, so reopen it after changing the folder or adding keys or firmware.
+**Available packaging paths when published:** full ZIP with the application folder; optional FFPFSC image. The native title ID is `PPSA99008`.
 
-## Guides
+**Application folder:** `/data/homebrew/PPSA99008/`.
 
-<a name="game-files-folder"></a><a name="app-data"></a><a name="updating"></a><a name="going-back-to-the-previous-version"></a><a name="moving-save-data"></a><a name="mods"></a><a name="quick-start-with-romm"></a><a name="download-sources"></a><a name="romm"></a><a name="save-sync"></a><a name="romm-1"></a><a name="performance-settings"></a><a name="frame-generation"></a><a name="post-processing"></a><a name="profiles"></a><a name="settings-per-game"></a><a name="button-mapping"></a><a name="language-and-accessibility"></a><a name="upgrading-from-an-earlier-alpha"></a><a name="roadmap"></a>
+**Persistent data root:** `/data/prosperoeden/`, containing `keys/`, `firmware/`, `roms/`, `updates/`, `mods/`, `save-import/` and `save-export/`.
 
-| Guide | What is in it |
-|---|---|
-| [Game files, app data and updates](docs/INSTALL.md) | The layout of the game files folder, where settings, saves and logs are kept, updating from the menu or by hand, going back to the previous version |
-| [Settings](docs/SETTINGS.md) | The Performance switches, post-processing (ReShade FX presets), frame generation, profiles, settings per game, button mapping, language and accessibility |
-| [Save data](docs/SAVES.md) | Moving save data in and out, and save sync with a server |
-| [Download sources and RomM](docs/DOWNLOADS.md) | Games from a RomM server or another source in your network, and the download queue |
-| [Mods and cheats](docs/MODS.md) | Patches and replacement game files, and cheats, each in a list of their own |
-| [Smash Ultimate 13.0.4](docs/SMASH_MODS.md) | Tested Skyline/ARCropolis setup and moveset installation |
-| [Multiplayer](docs/MULTIPLAYER.md) | Local wireless play through Eden rooms: setup and current limits |
-| [Forwarders](docs/FORWARDER.md) | Starting a game from its own tile on the PS5's home screen |
-| [Themes](docs/THEMES.md) | What a launcher theme is made of |
-| [Wallpapers](docs/WALLPAPERS.md) | Your own image behind the launcher's screens, the folder it reads and the formats it supports |
-| [Building](docs/BUILDING.md) | Building from source, and how releases are made |
-| [Changelog](docs/CHANGELOG.md) | What changed in each release |
-| [Roadmap](docs/ROADMAP.md) | What is planned |
+Changing to external storage changes the **root**, not the subdirectory layout. Do **not** delete your persistent data root when upgrading an installation. Encore does not provide commercial software, keys, games or firmware.
 
-Reading this from a release ZIP? The guides are at <https://github.com/blackbearreloaded/ProsperoEden/tree/main/docs>.
+**Full setup and upgrades:** [INSTALL.md](INSTALL.md) · [Build from source](docs/BUILDING.md) · [Support](SUPPORT.md).
 
-## In-game shortcuts
+---
 
-The touchpad is pressed as a button. On its own, clicking the left half of the touchpad presses Minus (or its configured [button mapping](docs/SETTINGS.md#button-mapping)); clicking the right half presses Plus. A tap is delivered on release, and a longer press holds the button. If touch coordinates are unavailable, the configured touchpad mapping is used. Touchpad + L1/R1 shortcuts work from either half and never reach the game.
+## 🎛️ Built for the couch
 
-| Shortcut | Action |
-|---|---|
-| Touchpad + R1 | Toggle the performance HUD |
-| Touchpad + L1 | End the running game and return to the library |
-| Left touchpad click + Square | Open/close the Amiibo and session-cheat strip ([usage and limits](docs/INSTALL.md#in-game-quick-commands-and-amiibo)) |
+| Feature | What to expect |
+| --- | --- |
+| **Home, Library, Recents** | Controller-friendly navigation, game metadata, cover/banner enrichment and offline fallback |
+| **Animated game launch** | Real 3D rotating case with authentic scans per face when available. Missing front/back are reconstructed from cached game art, distinct screenshots, title and description by the native OpenGL renderer, without image generation. [Artwork details](docs/LAUNCH_CASE_ARTWORK.md) |
+| **Quick Settings** | Per-title video changes without digging through debugging menus |
+| **Video profiles** | **Minimum → Recommended → High → Ultra**; Custom after manual adjustment |
+| **Safe Launch** | Conservative OpenGL, 1× internal resolution, 1080p, bilinear, handheld, 60 Hz and mods off for that run only |
+| **Controls** | Native launcher mapping profiles, vibration and deadzones |
+| **Languages** | Launcher catalogs for **29 languages**, including complex-script text shaping |
+| **Visual tuning** | Resolution, filters, upscaling, sharpening and anti-aliasing options |
 
-## Issues and reports
+Safe Launch does **not** erase saves or permanently overwrite preferences. **Game-specific action binding** is distinct from the launcher's physical controller mapping, and is not yet fully proven for the main match test.
 
-Problems and ideas go to [GitHub issues](https://github.com/blackbearreloaded/ProsperoEden/issues). Reports about a particular game are welcome: name the game, and say what happens and where.
+<details>
+<summary><strong>Under the hood: CPU, graphics, JIT and memory</strong></summary>
 
-A report that can be acted on has:
+- **Dynarmic remains the production JIT.** Experimental cross-core shared JIT and anticipatory compilation remain disabled in stable profiles due to unqualified concurrency/lifetime behavior.
+- **Vulkan/RADV and OpenGL** are independent graphics routes. The native graphics build uses pinned source adaptations, tests, source fingerprints and archive checks rather than treating source presence as proof of compiled integration.
+- **Shader cache** allocation and file size do not prove hit rate. Cold pipeline creation, long CPU waits and shader-cache reuse must be measured separately.
+- **Memory** package declarations, sparse page tables, committed guest backing and JIT code-cache policies are not interchangeable. The single native PS5 release now selects demand-backed sparse RX/RW JIT aliases, with physical backing reclaimed only after a quiesced full-cache invalidation. Host checks exist; runtime memory savings and stability on firmware 13.60 remain unqualified, and physical memory is not unlimited.
+- **Diagnostics** can distinguish a running compositor from actual guest progression; detailed capture has costs and is not automatically enabled in quiet gameplay.
 
-- the game and its version (and any update or mod in use);
-- the ProsperoEden version, the PS5 model and system software version, and what the console runs (kstuff-lite or etaHEN, ShadowMountPlus version);
-- the renderer, resolution and Performance switches;
-- the debug logs, attached as a ZIP: turn on **Settings > Diagnostics > Detailed logging**, make the problem happen again, then zip `/data/prosperoeden/logs` (after a crash, the crash report and the logs beside it);
-- for a problem at a certain spot in a game, your save data from just before it, attached as a ZIP: Triangle on the game in the Library, **Save data**, **Export a copy**, then zip the folder it writes in `/data/prosperoeden/save-export`. With it the spot can be reached without playing the game up to there.
+See [Architecture](docs/PS5_NATIVE_ARCHITECTURE.md), [Performance roadmap](docs/PERFORMANCE_ROADMAP.md) and [Integration audit](docs/INTEGRATION_AUDIT_CPU_GPU_JIT_2026-10-14.md).
 
-**No piracy.** ProsperoEden is for games you own and dumped yourself. Do not ask for, post or link to game files, keys or firmware, here or in any of the project's channels, and do not ask where to find them. Such posts are removed.
+</details>
 
-## Elevation credits
+---
 
-Filesystem elevation uses [PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon),
-created by ArkSama. ProsperoEden follows the cooperative owned-root design and implementation
-from [ProsperoEden's Lapy fork](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon), based on
-[mpereiraesaa's cooperative helper](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon). The build
-pins that source, builds its exact-title one-shot helper without local payload changes,
-verifies the upstream-generated manifest, and includes the resulting ELF in the release.
-The donor-release and firmware 13.60 fixes pinned here were merged upstream in
-[PS5-Lapy-JB-Daemon PR #48](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/48) and
-[PR #49](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/49).
-The pinned `57fcc19` helper also includes the guarded target-lifetime and fail-closed accounting
-changes from [PR #50](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/50). The previous
-`54a095c` helper passed five automated launch/elevate/close cycles on firmware 6.02 and five on
-12.70 with root access and balanced donor references. The pinned helper completed the target-exit
-stress and a full one-shot elevation on firmware 12.70; it still requires an attended
-ProsperoEden qualification run on firmware 6.02.
+## 🧪 Compatibility & current limits
 
-## Thanks
+| Target | Evidence | Status |
+| --- | --- | --- |
+| **Firmware 13.60** | Device boot, launcher and selected title sessions | **Primary tested target** |
+| Other firmware versions | No equivalent hardware qualification | **Not claimed** |
+| Newer NSO content | ZBIC/zstd and LZ4 source/native paths | **Implemented; title-dependent** |
+| Main match test | Gameplay captured across full sessions | **Stutters and end-match freeze unresolved** |
+| Adventure title sessions | Previously reported broadly playable | **Not a universal compatibility claim** |
+| Custom game actions | Launcher mapping ≠ guest's saved control actions | **In-match persistence unresolved** |
+| In-game HUD freshness | Graphics activity can outlive guest progress | **Under investigation** |
 
-Thank you to the people who test ProsperoEden on their own consoles and report what they find:
+**Performance, stated accurately:** the last available full-match capture (`2efd8b3c`) recorded **858 frame intervals above 50 ms**, ten above 500 ms and a prolonged guest-progress stall while presentation remained active. Later changes have passed various source/native checks; **no matching later device capture proves these changes improved FPS or removed the freeze**.
 
-- **Jones** ([X](https://x.com/Jonesskulls), [GitHub](https://github.com/AgentJonesy)), for helping with testing.
-- **Phronesis**, for helping with testing.
-- **szampan** ([GitHub](https://github.com/heni0xyz)), for helping with testing.
-- **BunkinBacon**, for helping with testing.
-- **Cold** ([GitHub](https://github.com/JMUtechnologies)), for testing and for submitting a prototype of per-game presets and in-app compatibility reports ([#127](https://github.com/blackbearreloaded/ProsperoEden/pull/127), not merged).
+[Read the measured stress analysis](docs/FC27_STRESS_REPLAY_2026-10-14.md) · [Gameplay recovery plan](docs/GAMEPLAY_FREEZE_RECOVERY_PLAN.md)
 
-Thank you also to the code, documentation and translation contributors (several also help with testing):
+> [!WARNING]
+> A 30 FPS compositor counter is not proof that a game is advancing. Encore does **not** promise universal title compatibility, 60 FPS, glitch-free HUD updates or automatic conversion of custom gameplay bindings.
 
-- **Mihawk** ([GitHub](https://github.com/mihawk-99)), besides the driver the Vulkan renderer runs on and the MihawkGen frame generation: cheats that can be chosen one by one, the fix for the crash when a game with cheats stops, the driver's shader cache working on the console, a fix for games that come without control data, and the driver build reading its versions from one place.
-- **quatrixone** ([GitHub](https://github.com/quatrixone)), for the Performance settings and their seven switches, also per game, and for a much faster first compilation of a game's code.
-- **Martin Pham** ([GitHub](https://github.com/MartinPham)), for starting a game straight from its path, which is what forwarders on the home screen use.
-- **matschi95** ([GitHub](https://github.com/matschi95)), for the RomM integration (browsing, downloading and playing games from your own server, and save sync) and for finding and fixing the stutter that log writes caused every few seconds.
-- **v0ltfault** ([GitHub](https://github.com/v0ltfault)), for tracking down why every game ended at its first picture on system software 7.40, with a fix and a write-up of the findings.
-- **gyn7561** ([GitHub](https://github.com/gyn7561)), for bringing frame generation to the PS5, with its settings, and for the log lines that say why it is or is not running.
-- **Bauls Deep** ([GitHub](https://github.com/bawsdeep)), for testing, the Slate theme and accent presets and their polish, wallpapers of your own, menu button remapping, the Vulkan submission fix, the Nix shell that sets up the whole build environment with one command, for the texture collector's lookahead, where the fix for the half-second freezes began, for the development timers and the recorded-input replay, for the FPS overlay as a system monitor, and for bringing MihawkGen frame generation into the app.
-- **lunar-me** ([GitHub](https://github.com/lunar-me)), for a correction to the README.
-- **OverkillLabs** ([GitHub](https://github.com/OverkillLabs3)), for testing, the fix that keeps the fast path for exclusive memory accesses with Faster CPU emulation on, and for PS5 Pro memory mode.
-- **EIREXE** ([GitHub](https://github.com/EIREXE)), for the RNG seed per game, which lets mods that tell an emulator from a console by where the game is loaded work.
-- **rpromas** ([GitHub](https://github.com/rpromas)), for finding and fixing the crash in games that open the microphone.
-- **mzet97** ([GitHub](https://github.com/mzet97)), for finding and fixing why the texture collector stopped freeing graphics memory, which let it fill up at resolutions above 1x.
-- **Guilherme Amado** ([GitHub](https://github.com/GuilhermeAmado)), for HD rumble through DualSense audio haptics, with motor fallback.
-- **Tiang-88** ([GitHub](https://github.com/Tiang-88)), for per-game console memory layouts and showing the game's own resolution in the performance overlay.
-- **kasobos67** ([GitHub](https://github.com/kasobos67)), for custom launcher support, and launcher pack updates from a feed with a faster library for packs.
-- **Rockiu0** ([GitHub](https://github.com/Rockiu0)), for JIT and memory-access optimizations, GPU command and texture-cache improvements, Vulkan rendering fixes, CPU scheduling and vsync changes, OpenGL queue tuning, build tooling, and OnionHEN elevation support.
-- **cippy-9** ([GitHub](https://github.com/cippy-9)), for the Malay (ms-MY) translation.
-- **Oliv3rmoon** ([GitHub](https://github.com/Oliv3rmoon)), for letting games with many pipelines start, keeping the driver's pipeline cache when a write is cut short, naming the refused allocation in crash reports, and reading a packed update's languages for a game's language.
+---
 
-<!-- bbr-footer:start -->
-<!-- Generated by ps5-homebrew-dev-protocol/scripts/readme-footer. Edit the template there, not here. -->
+## 📦 Builds & validation
+
+<kbd>main — official branch</kbd> · <kbd>Source & host checks</kbd> · <kbd>Native package checks</kbd> · <kbd>On-device qualification</kbd>
+
+1. **Source and host gates:** lock in memory/JIT lifetime, launcher contracts, source-provenance assertions and trace-derived regressions.
+2. **Native build:** compile, link, assemble, inspect the installable title and upload both application archives and debug symbols.
+3. **Real hardware:** independently verify startup, controls, frame pacing, content freshness, gameplay progression and safe return to the launcher.
+
+[Source preflight](https://github.com/niakw/ProsperoEden-Encore/actions/workflows/encore-core-preflight.yml?query=branch%3Amain) · [Native build artifacts](https://github.com/niakw/ProsperoEden-Encore/actions/workflows/build-040-zbic.yml?query=branch%3Amain) · [Build guide](docs/BUILDING.md)
+
+Download an artifact from a **successful run matching the commit you want to test**, not a previous green build. Passing CI alone does not make a release.
+
+## Changes in Encore R1
+
+- A firmware-13.60-focused native port with a redesigned launcher, controller-first UX and one-session Safe Launch.
+- ZBIC/zstd loading alongside the existing LZ4 path.
+- Title-aware video presets, multilingual UI and guarded data migration.
+- A pinned native graphics/toolchain integration with explicit provenance and regression checks.
+- Reworked observability and crash-recovery paths, with open tracking of gameplay stutter, content freshness and saved in-game controls.
+
+---
+
+## 🛡️ Safety, independence and responsible use
+
+Encore hardens one-shot filesystem operations and rejects unsafe migrations, but **filesystem access is not a post-elevation sandbox**. Bounded logs, pinned sources and automated checks reduce specific risks without making the environment infallible.
+
+See [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SUPPORT.md](SUPPORT.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+This is an unofficial community fork. It does not ship copyrighted commercial games, firmware, keys or DLC, and it does not grant third-party distribution rights.
+
+---
 
 ## Credits
 
-Built with the [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) by John Törnblom (ps5-payload-dev).
-Third-party components, authors and licenses are listed in
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+**Encore project history — development since 4 October 2026.** Our work began on **4 October 2026** in the [original `niakw/Prospero.Eden-Encore` fork](https://github.com/niakw/Prospero.Eden-Encore). On **30 October 2026**, we moved that work to this [independent repository](https://github.com/niakw/ProsperoEden-Encore) to make Encore easier to discover. The former fork remains linked as part of the project's history; this repository move does **not** reset Encore's development start date or replace the upstream credits below.
 
-## License
+Encore is built from and depends on the work of many upstream projects. The list below covers the
+**direct repositories and pinned build/runtime inputs used by Encore**. Each entry identifies
+its upstream author, known contributor or project-maintainer account; a project account is not
+presented as the sole person who wrote its code. This list is not exhaustive; transitive dependencies of
+Eden and the individual licence details are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Copyright © 2026 BlackBearReloaded. Licensed under GPL-3.0-or-later; see [LICENSE](LICENSE). Third-party components keep their own licenses. Binary releases are built from the tagged source in this repository.
+### Emulator and launcher foundations
 
-## Disclaimer
+- [ProsperoEden](https://github.com/blackbearreloaded/ProsperoEden) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — original PS5 emulator port/fork Encore is based on.
+- [ProsperoEden integration](https://github.com/Swordpdf/ProsperoEden) — **Authors / maintainers: Oliv3rmoon and Leonardo Medeiros de Mello Jr, alongside the upstream community** — selected controller recovery, loader diagnostics, ExeFS history, library interchange, bounded NRO/image metadata and export-privacy adaptations; [scope and validation](docs/PROSPEROEDEN_PORTS_2026-10-30.md).
+- [Eden](https://github.com/eden-emulator/mirror) — **Authors / maintainers: Eden Emulator Project team (`@eden-emulator`) and contributors** — emulator core used by Encore.
+- [Citron Neo emulator](https://github.com/citron-neo/emulator) — **Authors / maintainers: Citron Neo team (`@citron-neo`); SM/audio fixes by `@HopeSuffers`** — upstream HLE ServiceManager/audio initialization fixes referenced by Encore's **disabled-by-default experimental** backport (not part of the current shipping binary).
+- [ProsperoPuzzles](https://github.com/blackbearreloaded/ProsperoPuzzles) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — origin of the launcher drawing/text/animation/sound framework used by Encore.
 
-- **No affiliation.** This is an independent homebrew project. It is not
-  affiliated with, endorsed by, or sponsored by Sony Interactive Entertainment.
-  "PlayStation", "PS5" and related marks are trademarks of Sony Interactive
-  Entertainment Inc. This project is not affiliated with or endorsed by the Eden project.
-- **No proprietary material.** No Sony SDK, firmware, encryption keys or
-  decrypted system modules are included.
-- **No warranty.** This project is provided "as is", without warranty of any
-  kind, to the extent permitted by law. See sections 15 and 16 of the GPL.
-- **Use at your own risk.** Running homebrew requires a modified console, which
-  may void its warranty, breach the platform's terms of service, or cause data
-  loss.
-- **Legal use only.** Use it only with hardware, accounts and content you own.
-  This project does not support or enable piracy.
+### PS5 platform, graphics and packaging
 
-## AI assistance
+- [PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — native runtime, packaging and base platform integration.
+- [PS5 OpenGL](https://github.com/blackbearreloaded/ps5-opengl) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — OpenGL 4.6 runtime used by Encore.
+- [Mihawk's PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa) — **Authors / maintainers: Mihawk (`@mihawk-99`) and Mesa contributors** — Mesa/RADV source used by the Vulkan path.
+- [Mihawk's PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan) — **Authors / maintainers: Mihawk (`@mihawk-99`)** — PS5 Vulkan/RADV build and link recipes.
+- [Mihawk's PS5 PayloadSDK](https://github.com/mihawk-99/PS5_PayloadSDK) — **Authors / maintainers: Mihawk (`@mihawk-99`) and upstream SDK authors** — PayloadSDK fork used by the RADV toolchain.
+- [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) — **Authors / maintainers: John Törnblom (`@john-tornblom`) and contributors `@ps5-payload-dev`** — PS5 homebrew SDK used by the native toolchain.
+- [ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan) — **Authors / maintainers: `@mpereiraesaa` and contributors** — earlier PS5 Vulkan platform work used by the graphics stack.
+- [PSBrew/MkPFS](https://github.com/PSBrew/MkPFS) — **Authors / maintainers: PSBrew team (`@PSBrew`)** — optional reproducible `.ffpfsc` image packaging.
+- [SharpProspero](https://github.com/SvenGDK/SharpProspero) — **Authors / maintainers: SvenGDK (`@SvenGDK`)** — source/reference used by the native packaging toolchain.
 
-This project was developed with AI assistance from OpenAI and/or Anthropic tools.
-<!-- bbr-footer:end -->
+### Compatibility, media, text and build inputs
+
+- [Encore overrides](https://github.com/niakw/encore-overrides) — **Authors / maintainers: `@niakw`** — companion database/source of the four general video tiers, title-specific overrides and the generated PlayStation Auto control profile.
+- [ghost-land/Nlib-API](https://github.com/ghost-land/Nlib-API) — **Authors / maintainers: ghost-land team (`@ghost-land`) and contributors** — runtime title metadata and rich launcher media source (icons, 1080p banners, screenshots and local-player metadata).
+- [kinnay/zbic](https://github.com/kinnay/zbic) — **Authors / maintainers: `@kinnay`; zstd source files from Atmosphère** — ZBIC/zstd NSO decompression support.
+- [FFmpeg](https://github.com/FFmpeg/FFmpeg) — **Authors / maintainers: Fabrice Bellard (original creator), FFmpeg team and contributors** — H.264/VP8/VP9 decoding in the PS5 build.
+- [HarfBuzz](https://github.com/harfbuzz/harfbuzz) — **Authors / maintainers: Behdad Esfahbod, David Corbett, Khaled Hosny and HarfBuzz contributors** — shaping for Arabic, Thai and other complex scripts in the launcher.
+- [fmt](https://github.com/fmtlib/fmt) — **Authors / maintainers: Victor Zverovich (`@vitaut`) and contributors** — formatting headers used by build/runtime validation paths.
+- [LLVM](https://github.com/llvm/llvm-project) — **Authors / maintainers: LLVM community (`@llvm`) and contributors** — compiler-rt pieces used by the PS5 cross build.
+- [pacbrew](https://github.com/ps5-payload-dev/pacbrew-repo) — **Authors / maintainers: ps5-payload-dev team and contributors** — pinned PS5 OpenSSL/zlib packages.
+- [zlib](https://github.com/madler/zlib) — **Authors / maintainers: Jean-loup Gailly and Mark Adler (`@madler`)** — pinned native dependency used by the PS5 toolchain setup.
+- [Boost.Context](https://github.com/boostorg/context) — **Authors / maintainers: Boost.Context team and Boost contributors** — pinned context runtime source used by Eden's PS5 build.
+- [Xbyak](https://github.com/herumi/xbyak) — **Authors / maintainers: Mitsunari Shigeo (`@herumi`)** — x86/x64 JIT assembler used by Dynarmic/Eden and adapted by Encore's JIT allocator path.
+- [SPIRV-LLVM-Translator](https://github.com/KhronosGroup/SPIRV-LLVM-Translator) — **Authors / maintainers: Khronos Group and SPIRV-LLVM-Translator contributors** — macOS host-toolchain support for the graphics build.
+- [stb](https://github.com/nothings/stb) — **Authors / maintainers: Sean T. Barrett (`@nothings`) and authors of stb components** — launcher font baking/system-font loading support.
+
+### PS5 input/audio research reused directly
+
+- [ps5-native-gamepad-input-research](https://github.com/blackbearreloaded/ps5-native-gamepad-input-research) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — native DualSense/gamepad integration reference/code.
+- [ps5-audio-decoding-research](https://github.com/blackbearreloaded/ps5-audio-decoding-research) — **Authors / maintainers: BlackBearReloaded (`@blackbearreloaded`)** — native audio integration reference/code.
+
+All credit for the original projects belongs to their respective authors and contributors. Encore's
+changes do not imply endorsement by those projects or their maintainers.
+
+## Community
+
+- [Contributing](CONTRIBUTING.md)
+- [Support](SUPPORT.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+
+## License and legal
+
+Prospero.Eden Encore is an **unofficial community fork** distributed under
+**GPL-3.0-or-later**. See [LICENSE](LICENSE). Third-party components keep their
+own licenses and attribution; the component map is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and the collected full texts
+are in [LICENSES](LICENSES/). Release ZIPs and the installable PS5 title carry
+those notices; the standalone `.ffpfsc` therefore keeps a `legal/` directory
+inside the installed title.
+
+Encore is not affiliated with, sponsored by, endorsed by, or supported by Sony
+Interactive Entertainment, Nintendo, the Eden Emulator Project, or other
+upstream projects unless they expressly state otherwise. Product, project and
+company names and logos are used only for attribution, compatibility
+identification or description of upstream lineage. Copyright licensing does
+not itself grant trademark rights.
+
+No encryption keys, Nintendo firmware, commercial games, DLC, updates or other
+proprietary console content are included. Use only software and console data
+you are lawfully entitled to use.
+
+Nlib is queried at runtime; Encore does not ship a pre-seeded Nlib media
+library. Copyright/trademark rights in remote icons, banners, screenshots and
+metadata remain with their respective rightsholders. Encore does not claim
+that such remote media is public-domain, royalty-free or independently
+redistributable.
+
+The launcher SFX are generated locally and deterministically by
+`tools/launcher/generate-sfx.py`; no third-party audio samples or external
+generative-audio service output is included.
+
+This project is provided **without warranty**, subject to the complete terms in
+the applicable licenses.

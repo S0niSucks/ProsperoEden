@@ -1,54 +1,65 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "eden_services.h"
-#include "cheat_identity.h"
-#include "cheat_download.h"
+#ifdef PS5_NATIVE
+#include "ps5_profile_avatar_staging.hpp"
+#endif
 
 #include "assets_dir.h"
-#include "crash_report.h"
-#include "diagnostics.h"
-#include "multiplayer_logging.h"
-#include "network/room.h"
-#include "network/metadata.h"
-#include "metadata_bridge.h"
-#include "mods.h"
-#include "profiles.h"
-#include "nextendo.h"
-#include "nextendo_http.h"
-#include "nextendo_oauth.h"
-#include "update_notice.h"
-#include "game_name.h"
-#include "game_files.h"
-#include "wallpaper_paths.h"
 #include "library_file.h"
+#include "crash_report.h"
+#ifdef PS5_NATIVE
+#include "boot_trace.h"
+#include "log_pipe.h"
+#include "performance.h"
+#endif
+#include "diagnostics.h"
+#include "encore_overrides_runtime.h"
+#include "metadata_bridge.h"
+#include "title_id_fallback.h"
+#include "mods.h"
 #include "native_directory.h"
-#include "reshade_folder.h"
 #include "pe/core/strings.hpp"
+#include "pe/gfx/image.hpp"
+#include "common/net/net.h"
+#include "network_audit.h"
 #include "radio_input.h"
-#include "remote/backends.h"
-#include "remote/remote.h"
-#include "remote/save_sync.h"
-#include "save_sync_config.h"
+#include "settings_store.h"
 #include "version.h"
-#include "video_core/post_processing/fx_preset.h"
-#include "../system_keyboard.h"
-#include "common/string_util.h"
 
 #include <algorithm>
-#include <stdexcept>
+#include <array>
+#include <chrono>
 #include <cctype>
-#include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <ctime>
 #include <dirent.h>
 #include <exception>
 #include <fcntl.h>
 #include <filesystem>
+#include <fstream>
+#include <future>
 #include <initializer_list>
-#include <map>
+#include <memory>
+#include <mutex>
+#include <nlohmann/json.hpp>
+#include <stb_image.h>
 #include <sys/stat.h>
+#include <system_error>
+#include <thread>
+#include <unordered_map>
+#include <unordered_set>
 #include <unistd.h>
+
+#ifdef PS5_NATIVE
+// Resolve the foreground console user's cached image only. This is a
+// read-only platform call; no account, PSN, registry or cache modification.
+extern "C" int sceUserServiceInitialize(void* params);
+extern "C" int sceUserServiceGetForegroundUser(std::int32_t* user_id);
+#endif
 
 namespace {
 
@@ -57,8 +68,1004 @@ using pe::tr;
 
 bool IsFile(const std::string& path) {
     struct stat info {};
+    if (lstat(path.c_str(), &info) == 0) return S_ISREG(info.st_mode);
+    if (errno != EPERM && errno != EACCES) return false;
     return stat(path.c_str(), &info) == 0 && S_ISREG(info.st_mode);
 }
+
+#ifdef PS5_NATIVE
+bool IsReadableAvatarFile(const std::string& path) {
+    if (!IsFile(path)) return false;
+    // stat() can succeed even when a sandboxed title cannot open the
+    // privileged cache. Do not choose an unreadable PNG over a valid DDS.
+    const int fd = ::open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+    if (fd < 0) return false;
+    struct stat info{};
+    const bool readable = ::fstat(fd, &info) == 0 &&
+                          S_ISREG(info.st_mode) && info.st_size >= 128 &&
+                          info.st_size <= 4 * 1024 * 1024;
+    (void)::close(fd);
+    return readable;
+}
+#endif
+
+std::uint64_t ResolveTitleId(const std::string& path, const std::string& file) {
+    const std::uint64_t metadata_id = eden_game_title_id(path.c_str());
+    if (metadata_id != 0) return metadata_id;
+    const std::uint64_t filename_id = Eden::TitleIdFromRomFilename(file);
+    if (filename_id != 0)
+        std::fprintf(stderr, "EDEN_TITLE_ID_FALLBACK file=%s title_id=%016llX\n", file.c_str(),
+                     static_cast<unsigned long long>(filename_id));
+    return filename_id;
+}
+
+std::string NlibHeroPath(std::uint64_t title_id) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/hero-" + id + ".tga";
+}
+
+std::string NlibIconPath(std::uint64_t title_id) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/nlib-icon-" + id + ".tga";
+}
+
+std::string NlibScreenshotPath(std::uint64_t title_id, int index) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/screen-" + id + "-" + std::to_string(index) + ".tga";
+}
+
+
+std::string NlibLanguageCode(int language) {
+    language = std::clamp(language, 0, static_cast<int>(std::size(Eden::kLanguageKeys)) - 1);
+    std::string key = Eden::kLanguageKeys[static_cast<std::size_t>(language)];
+    const std::size_t dash = key.find('-');
+    std::string base = dash == std::string::npos ? key : key.substr(0, dash);
+    static constexpr const char* supported[] = {
+        "en", "ja", "es", "de", "fr", "nl", "pt", "it", "zh", "ko", "ru"};
+    for (const char* code : supported)
+        if (base == code) return base;
+    return "en";
+}
+
+std::string NlibMetadataPath(std::uint64_t title_id, const std::string& language) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/nlib-" + id + "-" + language + ".json";
+}
+
+std::string JoinJsonStrings(const nlohmann::json& value) {
+    if (!value.is_array()) return {};
+    std::string result;
+    for (const auto& item : value) {
+        if (!item.is_string()) continue;
+        if (!result.empty()) result += " · ";
+        result += item.get<std::string>();
+    }
+    return result;
+}
+
+bool AtomicWriteText(const std::string& path, const std::string& body) {
+    std::error_code directory_error;
+    const std::filesystem::path parent = std::filesystem::path(path).parent_path();
+    if (!parent.empty()) std::filesystem::create_directories(parent, directory_error);
+    if (directory_error) return false;
+    const std::string staged = path + ".new";
+    std::FILE* file = std::fopen(staged.c_str(), "wb");
+    if (!file) return false;
+    const bool written = std::fwrite(body.data(), 1, body.size(), file) == body.size();
+    const bool closed = std::fclose(file) == 0;
+    if (!written || !closed || std::rename(staged.c_str(), path.c_str()) != 0) {
+        (void)std::remove(staged.c_str());
+        return false;
+    }
+    return true;
+}
+
+bool WriteJpegTga(const std::string& encoded, const std::string& output,
+                  bool tall_case = false) {
+    // Read JPEG dimensions BEFORE allocation. Nlib artwork is fetched in
+    // parallel, so malformed/oversized JPEGs must not cause a multi-image
+    // transient allocation spike on a memory-constrained console.
+    if (encoded.empty() || encoded.size() > (16u << 20)) return false;
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    const bool dimensions_read = stbi_info_from_memory(
+            reinterpret_cast<const unsigned char*>(encoded.data()),
+            static_cast<int>(encoded.size()), &width, &height, &channels);
+    const bool standard_oversized = width > 4096 || height > 2160;
+    if (!dimensions_read || width <= 0 || height <= 0 ||
+        (standard_oversized && !tall_case) ||
+        (tall_case && (width > 4096 || height > 4096)) ||
+        static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height) > 3840u * 2160u)
+        return false;
+
+    unsigned char* rgba = stbi_load_from_memory(
+        reinterpret_cast<const unsigned char*>(encoded.data()), static_cast<int>(encoded.size()),
+        &width, &height, &channels, 4);
+    // The decoded buffer and the output file are owned from acquisition to
+    // return; an allocation failure mid-write must not leak either.
+    const std::unique_ptr<unsigned char, decltype(&stbi_image_free)> pixels(
+        rgba, &stbi_image_free);
+    if (!rgba || width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+        return false;
+    }
+
+    std::FILE* file = std::fopen(output.c_str(), "wb");
+    const auto close_file = [](std::FILE* stream) { (void)std::fclose(stream); };
+    // Non-const, like the FILE owner in settings_store.h: the final close
+    // below transfers the handle out with release(); constness would not
+    // compile (A50 run02 compile-candidate error).
+    std::unique_ptr<std::FILE, decltype(close_file)> output_file(file, close_file);
+    if (!file) {
+        return false;
+    }
+
+    // Case scans are unusually tall. Store only the resolution needed by
+    // the launcher: uncompressed TGA stays under 13 MiB, even for a 4K source.
+    // Normal Nlib images keep their previous pixel-for-pixel behaviour.
+    const float scale = tall_case ?
+        std::min({1.0f, 1500.0f / width, 2100.0f / height}) : 1.0f;
+    const int output_width = std::max(1, static_cast<int>(width * scale));
+    const int output_height = std::max(1, static_cast<int>(height * scale));
+    unsigned char header[18]{};
+    header[2] = 2;
+    header[12] = static_cast<unsigned char>(output_width);
+    header[13] = static_cast<unsigned char>(output_width >> 8);
+    header[14] = static_cast<unsigned char>(output_height);
+    header[15] = static_cast<unsigned char>(output_height >> 8);
+    header[16] = 32;
+    header[17] = 0x28; // top-left origin + 8 alpha bits
+    bool ok = std::fwrite(header, 1, sizeof(header), output_file.get()) == sizeof(header);
+    std::vector<unsigned char> row(static_cast<std::size_t>(output_width) * 4);
+    for (int y = 0; ok && y < output_height; ++y) {
+        const int source_y = y * height / output_height;
+        const unsigned char* source = rgba + static_cast<std::size_t>(source_y) *
+                                               static_cast<std::size_t>(width) * 4;
+        for (int x = 0; x < output_width; ++x) {
+            const std::size_t offset = static_cast<std::size_t>(x * width / output_width) * 4;
+            row[4 * x + 0] = source[offset + 2];
+            row[4 * x + 1] = source[offset + 1];
+            row[4 * x + 2] = source[offset + 0];
+            row[4 * x + 3] = source[offset + 3];
+        }
+        ok = std::fwrite(row.data(), 1, row.size(), output_file.get()) == row.size();
+    }
+    ok = std::fclose(output_file.release()) == 0 && ok;
+    return ok;
+}
+
+std::string NlibPlayersPath(std::uint64_t title_id) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/players-" + id + ".txt";
+}
+
+// Nlib JPEGs are converted into uncompressed BGRA TGA before being cached.
+// A filename alone is not sufficient: incomplete/old files previously showed
+// permanently empty tiles and prevented download retries. Validate the header
+// and complete payload without allocating or decoding image buffers.
+bool ValidNlibTga(const std::string& path) {
+    struct stat info{};
+    if (stat(path.c_str(), &info) != 0 || !S_ISREG(info.st_mode) ||
+        info.st_size < 18) return false;
+    std::FILE* file = std::fopen(path.c_str(), "rb");
+    if (!file) return false;
+    unsigned char header[18]{};
+    const bool readable = std::fread(header, 1, sizeof(header), file) == sizeof(header);
+    std::fclose(file);
+    if (!readable || header[1] != 0 || header[2] != 2 || header[16] != 32)
+        return false;
+    const unsigned width = static_cast<unsigned>(header[12]) |
+                           (static_cast<unsigned>(header[13]) << 8);
+    const unsigned height = static_cast<unsigned>(header[14]) |
+                            (static_cast<unsigned>(header[15]) << 8);
+    if (width == 0 || height == 0 || width > 4096 || height > 2160 ||
+        static_cast<std::uint64_t>(width) * height > 3840u * 2160u)
+        return false;
+    const std::uint64_t bytes = 18u + header[0] +
+        static_cast<std::uint64_t>(width) * height * 4u;
+    return static_cast<std::uint64_t>(info.st_size) >= bytes;
+}
+
+std::string CachedNlibHero(std::uint64_t title_id) {
+    if (title_id == 0) return {};
+    const std::string path = NlibHeroPath(title_id);
+    return ValidNlibTga(path) ? path : std::string{};
+}
+
+int CachedNlibPlayers(std::uint64_t title_id) {
+    if (title_id == 0) return 0;
+    std::FILE* file = std::fopen(NlibPlayersPath(title_id).c_str(), "rb");
+    if (!file) return 0;
+    int players = 0;
+    const int read = std::fscanf(file, "%d", &players);
+    (void)std::fclose(file);
+    return read == 1 && players > 0 && players <= 16 ? players : 0;
+}
+
+void CacheNlibPlayers(std::uint64_t title_id, int players) {
+    if (title_id == 0 || players <= 0 || players > 16) return;
+    (void)mkdir(Eden::CoversDir().c_str(), 0777);
+    const std::string path = NlibPlayersPath(title_id);
+    const std::string staged = path + ".new";
+    std::FILE* file = std::fopen(staged.c_str(), "wb");
+    if (!file) return;
+    const bool written = std::fprintf(file, "%d\n", players) > 0;
+    const bool closed = std::fclose(file) == 0;
+    if (!written || !closed || std::rename(staged.c_str(), path.c_str()) != 0)
+        (void)std::remove(staged.c_str());
+}
+
+constexpr int kNlibCacheSchema = 3; // v3 persists artwork refresh epochs
+
+struct NlibEnrichment {
+    bool artwork_changed = false; // a cached image was replaced
+    std::string icon;
+    std::string hero;
+    std::vector<std::string> screenshots;
+    int max_players = 0;
+    std::string name;
+    std::string intro;
+    std::string description;
+    std::string publisher;
+    std::string developer;
+    std::string release_date;
+    std::string categories;
+};
+
+std::string CachedNlibIcon(std::uint64_t title_id) {
+    if (title_id == 0) return {};
+    const std::string path = NlibIconPath(title_id);
+    return ValidNlibTga(path) ? path : std::string{};
+}
+
+std::vector<std::string> CachedNlibScreens(std::uint64_t title_id) {
+    std::vector<std::string> screens;
+    if (title_id == 0) return screens;
+    for (int index = 1; index <= 3; ++index) {
+        const std::string path = NlibScreenshotPath(title_id, index);
+        if (ValidNlibTga(path)) screens.push_back(path);
+    }
+    return screens;
+}
+
+bool LoadNlibMetadata(std::uint64_t title_id, const std::string& language, nlohmann::json* out) {
+    if (out == nullptr) return false;
+    std::ifstream file(NlibMetadataPath(title_id, language), std::ios::binary);
+    if (!file) return false;
+    try {
+        file >> *out;
+        return out->is_object();
+    } catch (...) {
+        return false;
+    }
+}
+
+void ApplyNlibMetadata(const nlohmann::json& json, NlibEnrichment* result) {
+    if (result == nullptr || !json.is_object()) return;
+    const auto string_value = [&](const char* key) -> std::string {
+        const auto it = json.find(key);
+        return it != json.end() && it->is_string() ? it->get<std::string>() : std::string{};
+    };
+    result->name = string_value("name");
+    result->intro = string_value("intro");
+    result->description = string_value("description");
+    result->publisher = string_value("publisher");
+    result->developer = string_value("developer");
+    result->release_date = string_value("releaseDate");
+    result->categories = json.contains("category") ? JoinJsonStrings(json["category"]) : std::string{};
+    const auto players_it = json.find("numberOfPlayers");
+    const int players = players_it != json.end() && players_it->is_number_integer() ?
+        players_it->get<int>() : 0;
+    if (players > 0 && players <= 16) result->max_players = players;
+}
+
+bool CacheNlibJpeg(const std::string& endpoint, const std::string& path,
+                   std::size_t minimum_bytes = 1024,
+                   const std::atomic<bool>* cancel = nullptr) {
+    // Cancellation avoids new network requests and expensive JPEG/PNG-to-TGA
+    // conversion; an HTTP request already in flight must time out naturally.
+    if (cancel && cancel->load(std::memory_order_acquire)) return false;
+    const auto response = Common::Net::MakeRequest("https://api.nlib.cc", endpoint);
+    if (!response || (cancel && cancel->load(std::memory_order_acquire)))
+        return false;
+    const std::string& body = *response;
+    const bool jpeg = body.size() >= 2 &&
+        static_cast<unsigned char>(body[0]) == 0xff &&
+        static_cast<unsigned char>(body[1]) == 0xd8;
+    const bool png = body.size() >= 8 &&
+        std::memcmp(body.data(), "\x89PNG\r\n\x1a\n", 8) == 0;
+    // stb_image decodes both; reject unexpected HTML/error responses instead
+    // of persisting them as permanently broken thumbnails.
+    if (body.size() < minimum_bytes || body.size() > (16u << 20) || (!jpeg && !png))
+        return false;
+    if (cancel && cancel->load(std::memory_order_acquire)) return false;
+    (void)mkdir(Eden::CoversDir().c_str(), 0777);
+    const std::string staged = path + ".new";
+    if (WriteJpegTga(body, staged) && std::rename(staged.c_str(), path.c_str()) == 0)
+        return true;
+    (void)std::remove(staged.c_str());
+    return false;
+}
+
+// Optional real retail case images from the build-time filtered public catalog.
+// No full metadata archive, credentials, HTTP or XML parsing on the console.
+// Matching is exact and skips colliding release editions at index-generation time.
+using BoxIndex = std::unordered_map<std::string, std::array<std::vector<std::string>, 6>>;
+
+std::string CaseKey(const std::string& title) {
+    std::string key;
+    key.reserve(title.size());
+    bool spaced = false;
+    for (unsigned char byte : title) {
+        char c = static_cast<char>(byte);
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            key.push_back(c);
+            spaced = false;
+        } else if (!key.empty() && !spaced) {
+            key.push_back(' ');
+            spaced = true;
+        }
+    }
+    while (!key.empty() && key.back() == ' ') key.pop_back();
+    return key;
+}
+
+bool SafeCaseFilename(const std::string& file) {
+    if (file.size() < 40 || file.size() > 48) return false;
+    for (unsigned char c : file)
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.'))
+            return false;
+    const auto dot = file.rfind('.');
+    if (dot == std::string::npos) return false;
+    const std::string ext = file.substr(dot);
+    return ext == ".jpg" || ext == ".jpeg" || ext == ".png";
+}
+
+// The host index carries region:filename for each actual flat scan.
+// Select a localized physical edition independently for front/back/spine.
+// Fallbacks remain available (including North American scans for EN users).
+bool SafeCaseCandidate(const std::string& token) {
+    const auto colon = token.find(':');
+    if (colon == std::string::npos) return SafeCaseFilename(token); // v3 fallback
+    if (colon == 0 || colon > 12) return false;
+    for (std::size_t i = 0; i < colon; ++i) {
+        const char c = token[i];
+        if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')))
+            return false;
+    }
+    return SafeCaseFilename(token.substr(colon + 1));
+}
+
+std::vector<std::string> LocaleCaseCandidates(
+    const std::vector<std::string>& entries, int language_choice, int face) {
+    language_choice = std::clamp(language_choice, 0,
+        static_cast<int>(std::size(Eden::kLanguageKeys)) - 1);
+    const std::string locale = Eden::kLanguageKeys[language_choice];
+    std::vector<std::string> regions;
+    if (locale == "en-US" || locale == "es-419" || locale == "pt-BR")
+        regions = {"us", "ca", "world", "uk", "eu", "fr"};
+    else if (locale == "en-GB")
+        // UK rear copy should stay English; use the US scan before an
+        // unlocalized European back. PEGI European fronts remain preferred.
+        regions = face == 1 ? std::vector<std::string>{"uk", "us", "ca", "world", "eu"} :
+                              std::vector<std::string>{"uk", "eu", "us", "world", "ca"};
+    else if (locale == "fr-CA")
+        regions = {"ca", "fr", "us", "world", "eu"};
+    else if (locale == "fr")
+        regions = {"fr", "eu", "world", "uk", "ca", "us"};
+    else if (locale == "ja")
+        regions = {"jp", "asia", "world", "us", "eu"};
+    else if (locale == "ko" || locale.rfind("zh", 0) == 0)
+        regions = {"asia", "kr", "jp", "world", "us", "eu"};
+    else {
+        const auto hyphen = locale.find('-');
+        const std::string lang = locale.substr(0, hyphen);
+        regions = {lang, "eu", "world", "uk", "us", "ca"};
+    }
+    struct Candidate { int priority; std::size_t order; std::string file; };
+    std::vector<Candidate> choices;
+    choices.reserve(entries.size());
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        const std::string& token = entries[i];
+        if (!SafeCaseCandidate(token)) continue;
+        const auto colon = token.find(':');
+        const std::string region = colon == std::string::npos ?
+            "other" : token.substr(0, colon);
+        const std::string file = colon == std::string::npos ?
+            token : token.substr(colon + 1);
+        int priority = 100;
+        for (std::size_t position = 0; position < regions.size(); ++position)
+            if (region == regions[position]) {
+                priority = static_cast<int>(position);
+                break;
+            }
+        choices.push_back({priority, i, file});
+    }
+    std::stable_sort(choices.begin(), choices.end(),
+        [](const Candidate& a, const Candidate& b) {
+            return a.priority < b.priority;
+        });
+    std::vector<std::string> sorted;
+    sorted.reserve(choices.size());
+    // The original linear duplicate scan was quadratic in the size of a
+    // game's LaunchBox case index. Preserve the stable region-first ordering,
+    // but admit each distinct filename in expected constant time.
+    std::unordered_set<std::string> seen;
+    seen.reserve(choices.size());
+    for (const auto& candidate : choices)
+        if (seen.insert(candidate.file).second)
+            sorted.push_back(candidate.file);
+    return sorted;
+}
+
+const BoxIndex& RetailCaseIndex() {
+    static const BoxIndex index = [] {
+        BoxIndex items;
+        // Mounted titles can expose eboot.bin but omit auxiliary ui/ files.
+        // Use the same fallback search as fonts, translations and launcher art.
+        const std::string catalog_path = Eden::AppResourceFile("ui/box-art-index.tsv");
+        std::ifstream input(catalog_path);
+        const bool opened = static_cast<bool>(input);
+        if (!opened) {
+            std::fprintf(stderr, "EDEN_CASE_INDEX status=missing path=%s\n",
+                         catalog_path.c_str());
+        }
+        std::string row;
+        while (std::getline(input, row) && items.size() < 20000) {
+            if (row.empty() || row[0] == '#' || row.size() > 5000) continue;
+            const auto a = row.find('\t');
+            if (a == std::string::npos) continue;
+            const auto b = row.find('\t', a + 1);
+            if (b == std::string::npos) continue;
+            const auto c = row.find('\t', b + 1);
+            const std::string title = row.substr(0, a);
+            const std::string front = row.substr(a + 1, b - a - 1);
+            const std::string back = row.substr(b + 1,
+                c == std::string::npos ? c : c - b - 1);
+            const auto d = c == std::string::npos ? c : row.find('\t', c + 1);
+            const std::string spine = c == std::string::npos ? "-" :
+                row.substr(c + 1, d == std::string::npos ? d : d - c - 1);
+            std::array<std::string, 3> scene_columns{"-", "-", "-"};
+            std::size_t start = d;
+            for (std::string& scene : scene_columns) {
+                if (start == std::string::npos) break; // v4 index remains supported
+                const std::size_t end = row.find('\t', start + 1);
+                scene = row.substr(start + 1,
+                    end == std::string::npos ? end : end - start - 1);
+                start = end;
+            }
+            if (title.empty() || title.size() > 170) continue;
+            const auto split_candidates = [](const std::string& value) {
+                std::vector<std::string> found;
+                if (value == "-") return found;
+                std::size_t start = 0;
+                while (start < value.size() && found.size() < 12) {
+                    const auto end = value.find(';', start);
+                    const std::string part = value.substr(
+                        start, end == std::string::npos ? end : end - start);
+                    if (!SafeCaseCandidate(part)) {
+                        found.clear();
+                        break; // reject an invalid indexed row
+                    }
+                    found.push_back(part);
+                    if (end == std::string::npos) break;
+                    start = end + 1;
+                }
+                return found;
+            };
+            auto fronts = split_candidates(front);
+            auto backs = split_candidates(back);
+            auto spines = split_candidates(spine);
+            if ((front != "-" && fronts.empty()) ||
+                (back != "-" && backs.empty()) ||
+                (spine != "-" && spines.empty())) continue;
+            std::array<std::vector<std::string>, 3> scenes{};
+            for (int i = 0; i < 3; ++i)
+                scenes[i] = split_candidates(scene_columns[i]);
+            // Invalid optional scene metadata must never invalidate valid
+            // original front/back/spine entries from the same row.
+            items.emplace(title, std::array<std::vector<std::string>, 6>{
+                std::move(fronts), std::move(backs), std::move(spines),
+                std::move(scenes[0]), std::move(scenes[1]), std::move(scenes[2])});
+        }
+        std::fprintf(stderr, "EDEN_CASE_INDEX status=%s entries=%zu path=%s\n",
+                     opened ? "loaded" : "missing", items.size(), catalog_path.c_str());
+        return items;
+    }();
+    return index;
+}
+
+std::string CaseFacePath(std::uint64_t title_id, const char* side) {
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    return Eden::CoversDir() + "/box-" + side + "-" + id + ".tga";
+}
+
+// Scenic images are actual LaunchBox screenshots/fanart, cached separately
+// from genuine physical box scans. Original covers never read these paths.
+std::vector<std::string> CachedCaseScenes(std::uint64_t title_id) {
+    std::vector<std::string> scenes;
+    if (title_id == 0) return scenes;
+    for (int i = 1; i <= 3; ++i) {
+        const std::string side = "scene-" + std::to_string(i);
+        const std::string path = CaseFacePath(title_id, side.c_str());
+        if (ValidNlibTga(path)) scenes.push_back(path);
+    }
+    return scenes;
+}
+
+// Nlib screenshots are retained first; independent LaunchBox pictures fill
+// empty slots and support the rear collage, never the actual back scan.
+void AppendCaseScenes(std::vector<std::string>& screens, std::uint64_t title_id) {
+    for (const auto& scene : CachedCaseScenes(title_id)) {
+        if (screens.size() >= 6) break;
+        if (std::find(screens.begin(), screens.end(), scene) == screens.end())
+            screens.push_back(scene);
+    }
+}
+
+bool FetchCaseFace(const std::vector<std::string>& candidates,
+                   const std::string& destination, bool narrow_spine,
+                   const std::atomic<bool>* cancel) {
+    if (candidates.empty() ||
+        (cancel && cancel->load(std::memory_order_acquire))) return false;
+    std::string best;
+    std::string best_source;
+    std::size_t attempts = 0;
+    std::size_t transport_failures = 0;
+    std::size_t invalid_responses = 0;
+    // The index is ranked by REGION, then by alternative. Take the first
+    // DECODABLE face from the highest available region, not the face with the
+    // most pixels across regions (which wrongly selected North America over
+    // Europe). Generated older cached covers are migrated by .source markers.
+    // Manual .png/.jpg/.jpeg overrides are protected in EnsureRetailCase.
+    // No network activity occurs on the launch/render thread.
+    for (const std::string& filename : candidates) {
+        if (attempts >= 3 ||
+            (cancel && cancel->load(std::memory_order_acquire))) break;
+        if (!SafeCaseFilename(filename)) {
+            ++invalid_responses;
+            continue;
+        }
+        ++attempts;
+        const auto response = Common::Net::MakeRequest(
+            "https://images.launchbox-app.com", "/" + filename);
+        if (!response) {
+            ++transport_failures;
+            std::fprintf(stderr, "EDEN_CASE_CDN status=network-failed file=%s attempt=%zu side=%s\n",
+                         filename.c_str(), attempts, narrow_spine ? "spine" : "face");
+            continue;
+        }
+        if (cancel && cancel->load(std::memory_order_acquire)) break;
+        const std::string& body = *response;
+        const bool jpeg = body.size() >= 2 &&
+            static_cast<unsigned char>(body[0]) == 0xff &&
+            static_cast<unsigned char>(body[1]) == 0xd8;
+        const bool png = body.size() >= 8 &&
+            std::memcmp(body.data(), "\x89PNG\r\n\x1a\n", 8) == 0;
+        if (body.size() < 1024 || body.size() > (16u << 20) || (!jpeg && !png)) {
+            ++invalid_responses;
+            std::fprintf(stderr, "EDEN_CASE_CDN status=invalid-body file=%s bytes=%zu jpeg=%d png=%d\n",
+                         filename.c_str(), body.size(), jpeg, png);
+            continue;
+        }
+        int w = 0, h = 0, channels = 0;
+        if (!stbi_info_from_memory(
+                reinterpret_cast<const unsigned char*>(body.data()),
+                static_cast<int>(body.size()), &w, &h, &channels) ||
+            w < (narrow_spine ? 64 : 128) ||
+            h < (narrow_spine ? 600 : 200) || w > 4096 || h > 4096 ||
+            static_cast<std::uint64_t>(w) * h > 3840u * 2160u) {
+            ++invalid_responses;
+            std::fprintf(stderr, "EDEN_CASE_CDN status=invalid-image file=%s bytes=%zu width=%d height=%d\n",
+                         filename.c_str(), body.size(), w, h);
+            continue;
+        }
+        // A larger image from a different region is NOT a better scan of
+        // this edition. Once the first region-ranked usable candidate
+        // decodes, do not replace it with an unrelated region.
+        best = body;
+        best_source = filename;
+        break;
+    }
+    if (best.empty() || (cancel && cancel->load(std::memory_order_acquire))) {
+        std::fprintf(stderr,
+                     "EDEN_CASE_FETCH status=unavailable side=%s attempts=%zu network=%zu invalid=%zu\n",
+                     narrow_spine ? "spine" : "face",
+                     attempts, transport_failures, invalid_responses);
+        return false;
+    }
+    (void)mkdir(Eden::CoversDir().c_str(), 0777);
+    const std::string staged = destination + ".new";
+    if (WriteJpegTga(best, staged, true) &&
+        std::rename(staged.c_str(), destination.c_str()) == 0) {
+        // Provenance for a generated TGA. A newer index can replace stale
+        // US artwork even when the cached US image has higher resolution.
+        // The TGA remains usable if this tiny receipt write fails.
+        std::ofstream receipt(destination + ".source", std::ios::trunc);
+        if (receipt) receipt << best_source << '\n';
+        std::fprintf(stderr, "EDEN_CASE_FETCH status=stored side=%s source=%s attempts=%zu bytes=%zu\n",
+                     narrow_spine ? "spine" : "face", best_source.c_str(), attempts, best.size());
+        return true;
+    }
+    (void)std::remove(staged.c_str());
+    std::fprintf(stderr, "EDEN_CASE_FETCH status=write-failed side=%s attempts=%zu\n",
+                 narrow_spine ? "spine" : "face", attempts);
+    return false;
+}
+
+unsigned EnsureRetailCase(std::uint64_t title_id, const std::string& name,
+                      const std::string& alternate_name, int language_choice,
+                      const std::atomic<bool>* cancel) {
+    if (title_id == 0 || (cancel && cancel->load(std::memory_order_acquire))) return 0;
+    const auto& index = RetailCaseIndex();
+    const auto selected = [&]() -> BoxIndex::const_iterator {
+        auto it = index.find(CaseKey(name));
+        if (it != index.end()) return it;
+        return index.find(CaseKey(alternate_name));
+    }();
+    if (selected == index.end()) {
+        std::fprintf(stderr, "EDEN_CASE_LOOKUP title=%016llX status=no-match name=%s alternate=%s index_entries=%zu\n",
+                     static_cast<unsigned long long>(title_id), name.c_str(),
+                     alternate_name.c_str(), index.size());
+        return 0;
+    }
+    std::fprintf(stderr,
+                 "EDEN_CASE_LOOKUP title=%016llX status=match front=%zu back=%zu spine=%zu scenes=%zu/%zu/%zu\n",
+                 static_cast<unsigned long long>(title_id),
+                 selected->second[0].size(), selected->second[1].size(),
+                 selected->second[2].size(), selected->second[3].size(),
+                 selected->second[4].size(), selected->second[5].size());
+    // Both Home and Library may enrich the same title at once. Serialize
+    // background fetches so the second worker reads the first worker's
+    // finished cache, but never hold launcher teardown hostage to this wait.
+    // No socket request or mutex sleep runs on the UI/render thread.
+    static std::array<std::mutex, 64> locks;
+    std::unique_lock guard(locks[title_id % locks.size()], std::defer_lock);
+    while (!guard.try_lock()) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    if (cancel && cancel->load(std::memory_order_acquire)) return 0;
+    static std::mutex retry_mutex;
+    static std::unordered_map<std::uint64_t, std::chrono::steady_clock::time_point> retries;
+    {
+        std::lock_guard retry(retry_mutex);
+        const auto it = retries.find(title_id);
+        if (it != retries.end() && std::chrono::steady_clock::now() < it->second)
+            return 0;
+        // Failed image hosts, cancellation or an incomplete side must not
+        // disable all retries for four hours on a newly installed game.
+        retries[title_id] = std::chrono::steady_clock::now() + std::chrono::minutes(5);
+    }
+    bool all_ready = true;
+    unsigned changed_faces = 0;
+    const bool both_faces_cached_at_start =
+        ValidNlibTga(CaseFacePath(title_id, "front")) &&
+        ValidNlibTga(CaseFacePath(title_id, "back"));
+    for (int side = 0; side < 6; ++side) {
+        if (cancel && cancel->load(std::memory_order_acquire)) {
+            // Aborted title switch must not lock the next attempt out for
+            // five minutes after a partial or cancelled CDN transaction.
+            all_ready = false;
+            break;
+        }
+        // Front and back always fetch first. A successful first-pass pair
+        // can be followed by its spine in the SAME background enrichment;
+        // otherwise the 5-minute retry could leave a complete paper wrap
+        // without its printed spine until the next launcher session.
+        if (side == 2 && !both_faces_cached_at_start &&
+            (!ValidNlibTga(CaseFacePath(title_id, "front")) ||
+             !ValidNlibTga(CaseFacePath(title_id, "back")))) {
+            all_ready = false;
+            continue; // still fetch real scenic media for the missing back
+        }
+        if (side >= 3 && ValidNlibTga(CaseFacePath(title_id, "back")))
+            continue; // authentic back never needs a constructed collage
+        const auto candidates = LocaleCaseCandidates(selected->second[side], language_choice, side);
+        if (candidates.empty()) continue;
+        const char* const names[] = {
+            "front", "back", "spine", "scene-1", "scene-2", "scene-3"};
+        const std::string path = CaseFacePath(title_id, names[side]);
+        // User-provided original scans win. Cached low-resolution CDN scans
+        // may be upgraded when a better ranked alternative becomes available.
+        const std::string base = path.substr(0, path.size() - 4);
+        if (IsFile(base + ".png") || IsFile(base + ".jpg") ||
+            IsFile(base + ".jpeg")) continue;
+        // Revalidate region provenance when the package index changes.
+        // Older TGA files without .source (or from another region) must be
+        // re-fetched, not silently accepted solely for their pixel count.
+        std::ifstream receipt(path + ".source");
+        std::string cached_source;
+        if (receipt) std::getline(receipt, cached_source);
+        if (cached_source == candidates.front() && ValidNlibTga(path)) {
+            // Generated retail scans are uncompressed BGRA TGA. stb_image's
+            // stbi_info() may reject these perfectly readable files, which
+            // previously triggered a fresh CDN download on every enrichment.
+            // Match box_art() and the native TGA loader's header contract.
+            std::FILE* input = std::fopen(path.c_str(), "rb");
+            if (input) {
+                unsigned char header[18]{};
+                if (std::fread(header, 1, sizeof(header), input) == sizeof(header)) {
+                    const int width = static_cast<int>(header[12]) |
+                                      (static_cast<int>(header[13]) << 8);
+                    const int height = static_cast<int>(header[14]) |
+                                       (static_cast<int>(header[15]) << 8);
+                    if ((side == 2 && width >= 64 && height >= 600) ||
+                        (side != 2 && width >= 128 && height >= 200)) {
+                        std::fclose(input);
+                        continue;
+                    }
+                }
+                std::fclose(input);
+            }
+        }
+        // If network retrieval fails, the old cached TGA remains usable;
+        // source migration is retried later without blocking rendering.
+        if (!FetchCaseFace(candidates, path, side == 2, cancel)) {
+            all_ready = false;
+            std::fprintf(stderr, "EDEN_CASE_FACE title=%016llX side=%d status=unavailable\n",
+                         static_cast<unsigned long long>(title_id), side);
+        } else {
+            changed_faces |= (1u << side); // Only successful atomic replacements.
+            // A fallback candidate remains usable, but only retry its higher
+            // priority European/locale scan on the next bounded refresh.
+            std::ifstream refreshed(path + ".source");
+            std::string actual;
+            if (refreshed) std::getline(refreshed, actual);
+            if (actual != candidates.front()) all_ready = false;
+        }
+    }
+    if (all_ready || (cancel && cancel->load(std::memory_order_acquire))) {
+        // A fully successful refresh needs no retry guard; a cancelled
+        // refresh is immediately retryable on the next launcher session.
+        std::lock_guard retry(retry_mutex);
+        retries.erase(title_id);
+    }
+    return changed_faces;
+}
+
+NlibEnrichment CachedNlibEnrichment(std::uint64_t title_id, int language_choice) {
+    NlibEnrichment result;
+    if (title_id == 0) return result;
+    result.icon = CachedNlibIcon(title_id);
+    result.hero = CachedNlibHero(title_id);
+    result.screenshots = CachedNlibScreens(title_id);
+    result.max_players = CachedNlibPlayers(title_id);
+    nlohmann::json metadata;
+    if (LoadNlibMetadata(title_id, NlibLanguageCode(language_choice), &metadata))
+        ApplyNlibMetadata(metadata, &result);
+    if (result.hero.empty() && !result.screenshots.empty())
+        result.hero = result.screenshots.front();
+    return result;
+}
+
+// Nlib enriches the launcher only; no game ever depends on the network. The ROM icon stays the
+// offline fallback. Cards prefer Nlib's square icon, Home prefers its 16:9 banner, and Library
+// details use all available gameplay screenshots (up to the current API cap). Every
+// title is queued for complete artwork at startup, not only on Library selection.
+NlibEnrichment EnsureNlibEnrichment(std::uint64_t title_id, int language_choice,
+                                       const std::atomic<bool>* cancel = nullptr) {
+    const auto cancelled = [cancel] {
+        return cancel && cancel->load(std::memory_order_acquire);
+    };
+    if (title_id == 0 || cancelled()) return {};
+
+    // Home and Library can request the same title at the same time. Cache writes use
+    // the same .new staging path, so serialize per hash bucket while leaving other
+    // titles free to enrich in parallel.
+    static std::array<std::mutex, 16> title_locks;
+    std::scoped_lock title_lock{title_locks[title_id % title_locks.size()]};
+    if (cancelled()) return {};
+
+    NlibEnrichment result = CachedNlibEnrichment(title_id, language_choice);
+    const std::string language = NlibLanguageCode(language_choice);
+    nlohmann::json metadata;
+    const bool cached_metadata = LoadNlibMetadata(title_id, language, &metadata);
+    const bool current_metadata_cache = cached_metadata && metadata.is_object() &&
+        metadata.value("_encore_cache_schema", 0) >= kNlibCacheSchema;
+    const auto now_seconds = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    std::int64_t last_metadata_check = 0;
+    std::int64_t last_artwork_check = 0;
+    if (cached_metadata && metadata.is_object()) {
+        const auto checked = metadata.find("_encore_checked_at");
+        if (checked != metadata.end() && checked->is_number_integer())
+            last_metadata_check = checked->get<std::int64_t>();
+        const auto artwork = metadata.find("_encore_artwork_checked_at");
+        if (artwork != metadata.end() && artwork->is_number_integer())
+            last_artwork_check = artwork->get<std::int64_t>();
+    }
+    // Legacy schema-v2 metadata (including negative art results) must expire.
+    // Use persisted timestamps rather than PS5 filesystem mtime syscalls.
+    const bool metadata_expired = !current_metadata_cache ||
+        last_metadata_check <= 0 || now_seconds < last_metadata_check ||
+        now_seconds - last_metadata_check >= 7LL * 24 * 60 * 60;
+    // Valid but outdated images are refreshed monthly, atomically.
+    const bool artwork_expired = last_artwork_check <= 0 ||
+        now_seconds < last_artwork_check ||
+        now_seconds - last_artwork_check >= 30LL * 24 * 60 * 60;
+
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    // Bounded retry map is launcher-only and independent of PS5 filesystem
+    // timestamps. Old filesystem::last_write_time caused an unnecessary native
+    // syscall on every selection, even for a title absent from Nlib.
+    static std::mutex retry_guard;
+    static std::unordered_map<std::string, std::chrono::steady_clock::time_point> next_retry;
+    const std::string retry_key = std::string{id} + ":" + language;
+    std::fprintf(stderr,
+                 "EDEN_NLIB_BEGIN title_id=%s lang=%s cached_meta=%d cache_schema=%d cached_icon=%d cached_hero=%d cached_screens=%zu cached_players=%d\n",
+                 id, language.c_str(), cached_metadata, current_metadata_cache, !result.icon.empty(), !result.hero.empty(),
+                 result.screenshots.size(), result.max_players);
+
+    try {
+        bool refreshed_metadata = false;
+        // One localized metadata request tells us which media exist and fills the selected game's
+        // actual title/intro/publisher/etc. The response is cached separately per Nlib language.
+        bool has_icon = cached_metadata && metadata.contains("icon") && metadata["icon"].is_string();
+        bool has_banner = cached_metadata && metadata.contains("banner") && metadata["banner"].is_string();
+        int screen_count = static_cast<int>(result.screenshots.size());
+        if (cached_metadata && metadata.contains("screens") && metadata["screens"].is_object())
+            screen_count = std::max(screen_count, metadata["screens"].value("count", 0));
+        // A title can acquire Nlib artwork after it was first catalogued.
+        // Refresh sparse metadata periodically without filesystem timestamp
+        // calls, and never suppress downloads already described by cached
+        // metadata just because a refresh is temporarily rate-limited.
+        const bool sparse_metadata = current_metadata_cache &&
+                                    (!has_icon || !has_banner || screen_count == 0);
+        const bool needs_metadata = metadata_expired || sparse_metadata;
+        bool may_request_metadata = needs_metadata;
+        if (needs_metadata) {
+            std::lock_guard lock(retry_guard);
+            const auto it = next_retry.find(retry_key);
+            if (it != next_retry.end() && std::chrono::steady_clock::now() < it->second)
+                may_request_metadata = false;
+        }
+        if (needs_metadata && !may_request_metadata && !current_metadata_cache)
+            return result;
+        if (may_request_metadata) {
+            if (cancelled()) return result;
+            const std::string metadata_endpoint = std::string{"/nx/"} + id + "?lang=" + language +
+                "&fields=name,intro,description,publisher,developer,releaseDate,category,languages,"
+                "numberOfPlayers,icon,banner,screens";
+            if (const auto response = Common::Net::MakeRequest("https://api.nlib.cc", metadata_endpoint)) {
+                metadata = nlohmann::json::parse(*response);
+                if (metadata.is_object()) {
+                    refreshed_metadata = true;
+                    metadata["_encore_cache_schema"] = kNlibCacheSchema;
+                    metadata["_encore_checked_at"] = now_seconds;
+                    metadata["_encore_artwork_checked_at"] = last_artwork_check;
+                    (void)AtomicWriteText(NlibMetadataPath(title_id, language), metadata.dump());
+                    ApplyNlibMetadata(metadata, &result);
+                    has_icon = metadata.contains("icon") && metadata["icon"].is_string();
+                    has_banner = metadata.contains("banner") && metadata["banner"].is_string();
+                    if (metadata.contains("screens") && metadata["screens"].is_object())
+                        screen_count = std::max(screen_count, metadata["screens"].value("count", 0));
+                }
+                std::lock_guard lock(retry_guard);
+                if (!metadata.is_object() || !has_icon || !has_banner || screen_count == 0)
+                    next_retry[retry_key] = std::chrono::steady_clock::now() +
+                                            std::chrono::minutes(30);
+                else
+                    next_retry.erase(retry_key);
+            } else {
+                // Keep previously cached image links on a transient timeout.
+                // A newly discovered title retries in five minutes.
+                std::lock_guard lock(retry_guard);
+                next_retry[retry_key] = std::chrono::steady_clock::now() +
+                                        std::chrono::minutes(5);
+                if (!current_metadata_cache) return result;
+            }
+        }
+        if (cancelled()) return result;
+        if (result.max_players > 0) CacheNlibPlayers(title_id, result.max_players);
+        const bool refresh_existing_artwork = refreshed_metadata && artwork_expired;
+
+        // Nlib banner, icon and every advertised screenshot are fetched in
+        // ONE pass for every installed title. Independent HTTPS requests run
+        // concurrently on this background worker, not serially at 3 seconds
+        // each. No hidden "screens later in Library" scheduling.
+        std::vector<std::future<bool>> downloads;
+        const auto request_media = [&](std::string endpoint, std::string path,
+                                       std::size_t minimum = 1024) {
+            if (cancelled()) return;
+            downloads.emplace_back(std::async(std::launch::async,
+                [endpoint = std::move(endpoint), path = std::move(path), minimum, cancel] {
+                    return CacheNlibJpeg(endpoint, path, minimum, cancel);
+                }));
+        };
+
+        // A screenshot-backed hero does not prove a real banner was cached.
+        if (has_banner && (CachedNlibHero(title_id).empty() || refresh_existing_artwork))
+            request_media(std::string{"/nx/"} + id + "/banner/1080p",
+                          NlibHeroPath(title_id), 4096);
+        if (has_icon && (CachedNlibIcon(title_id).empty() || refresh_existing_artwork))
+            request_media(std::string{"/nx/"} + id + "/icon/512",
+                          NlibIconPath(title_id));
+
+        const int wanted_screens = std::clamp(screen_count, 0, 3);
+        for (int index = 1; index <= wanted_screens; ++index) {
+            if (cancelled()) break;
+            const std::string path = NlibScreenshotPath(title_id, index);
+            if (!ValidNlibTga(path) || refresh_existing_artwork)
+                request_media(std::string{"/nx/"} + id + "/screen/" + std::to_string(index),
+                              path, 4096);
+        }
+        // Join only in the background enrichment task. The UI thread remains
+        // free to render/input; title mutex excludes duplicate .new file writes.
+        int failed_media = 0;
+        for (auto& pending : downloads) {
+            if (pending.get()) result.artwork_changed = true;
+            else ++failed_media;
+        }
+        if (!cancelled() && refreshed_metadata && artwork_expired && failed_media == 0) {
+            metadata["_encore_artwork_checked_at"] = now_seconds;
+            (void)AtomicWriteText(NlibMetadataPath(title_id, language), metadata.dump());
+        }
+        if (failed_media > 0)
+            std::fprintf(stderr, "EDEN_NLIB_ASSETS title_id=%s failed=%d attempted=%zu\n",
+                         id, failed_media, downloads.size());
+
+        const NlibEnrichment complete = CachedNlibEnrichment(title_id, language_choice);
+        if (!complete.icon.empty()) result.icon = complete.icon;
+        if (!complete.hero.empty()) result.hero = complete.hero;
+        result.screenshots = complete.screenshots;
+        if (result.hero.empty() && !result.screenshots.empty())
+            result.hero = result.screenshots.front();
+    } catch (const std::exception& error) {
+        Eden::Report("artwork", (std::string{"Nlib unavailable: "} + error.what()).c_str());
+    }
+
+    std::fprintf(stderr,
+                 "EDEN_NLIB_RESULT title_id=%s icon=%d hero=%d screens=%zu players=%d\n", id,
+                 !result.icon.empty(), !result.hero.empty(), result.screenshots.size(),
+                 result.max_players);
+    return result;
+}
+
+std::uintmax_t TreeBytes(const std::filesystem::path& root,
+                        const std::atomic<bool>* cancel = nullptr) {
+    if (cancel && cancel->load(std::memory_order_acquire)) return 0;
+    std::error_code error;
+    if (!std::filesystem::exists(root, error)) return 0;
+    std::uintmax_t bytes = 0;
+    std::filesystem::recursive_directory_iterator it(
+        root, std::filesystem::directory_options::skip_permission_denied, error), end;
+    while (!error && it != end) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return 0;
+        std::error_code entry_error;
+        if (it->is_regular_file(entry_error)) {
+            const auto size = it->file_size(entry_error);
+            if (!entry_error) bytes += size;
+        }
+        it.increment(error);
+        if (error) error.clear(); // Skip an unreadable entry and continue where possible.
+    }
+    return bytes;
+}
+
+std::string StorageSize(std::uintmax_t bytes) {
+    constexpr std::uintmax_t KiB = 1024;
+    constexpr std::uintmax_t MiB = KiB * 1024;
+    constexpr std::uintmax_t GiB = MiB * 1024;
+    char text[64];
+    if (bytes >= GiB)
+        std::snprintf(text, sizeof(text), "%.1f GB", static_cast<double>(bytes) / static_cast<double>(GiB));
+    else if (bytes >= MiB)
+        std::snprintf(text, sizeof(text), "%.1f MB", static_cast<double>(bytes) / static_cast<double>(MiB));
+    else
+        std::snprintf(text, sizeof(text), "%.0f KB", static_cast<double>(bytes) / static_cast<double>(KiB));
+    return text;
+}
+
 
 // A game's update and DLC: "Update 1.2.0, 2 DLC"; brief leaves the word out ("v1.2.0, 2 DLC") for
 // places with little room.
@@ -97,6 +1104,7 @@ GameLanguage LanguageFor(const std::string& path, uint64_t title_id, int choice)
 constexpr const char* kLaunchErrors[] = {
     TR("Selected ROM is no longer available"),
     TR("PS5 controller initialization failed"),
+    TR("The game could not allocate PS5 memory. Close Eden Encore completely before retrying to release memory retained between games."),
     TR("Graphics backend initialization failed. Try another backend in Settings; see stderr.log and eden_log.txt for "
        "driver details."),
     TR("The game ran out of graphics memory. Lower the resolution in Settings, Video (or in the game's own settings) "
@@ -113,15 +1121,16 @@ std::string LaunchError(const std::string& reason) {
 
 // Names of the subfolders (folders = true) or regular files in path, sorted without regard
 // to case. Unlike ReadNativeDirectory, an odd entry is skipped rather than failing the
-// folder: the Game files browser walks the whole console filesystem.
+// folder: the Storage browser walks available roots/directories so an external root can be chosen.
 std::vector<std::string> ListEntries(const std::string& path, bool folders, bool& ok) {
     ok = false;
     std::vector<std::string> names;
-    const int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY);
-    if (fd < 0) return names;
+    const Eden::UserContent::Descriptor directory(
+        open(path.c_str(), O_RDONLY | O_DIRECTORY));
+    if (directory.value < 0) return names;
     std::vector<char> buffer(65536);
     for (;;) {
-        const int count = sceKernelGetdents(fd, buffer.data(), static_cast<int>(buffer.size()));
+        const int count = sceKernelGetdents(directory.value, buffer.data(), static_cast<int>(buffer.size()));
         if (count == 0) { ok = true; break; }
         if (count < 0 || count > static_cast<int>(buffer.size())) break;
         for (std::size_t offset = 0; offset + offsetof(dirent, d_name) < static_cast<std::size_t>(count);) {
@@ -134,25 +1143,42 @@ std::vector<std::string> ListEntries(const std::string& path, bool folders, bool
             const std::string entry(name, strnlen(name, length - offsetof(dirent, d_name)));
             offset += length;
             if (entry.empty() || entry == "." || entry == "..") continue;
+            if (type == DT_LNK) continue;
             bool is_folder = type == DT_DIR, is_file = type == DT_REG;
-            if (type == DT_UNKNOWN || type == DT_LNK) {
+            if (type == DT_UNKNOWN) {
                 struct stat info {};
                 const std::string full = path == "/" ? "/" + entry : path + "/" + entry;
-                if (stat(full.c_str(), &info) != 0) continue;
+                if (lstat(full.c_str(), &info) == 0) {
+                    if (S_ISLNK(info.st_mode)) continue;
+                } else if (errno != EPERM && errno != EACCES) {
+                    continue;
+                } else if (stat(full.c_str(), &info) != 0) {
+                    continue;
+                }
                 is_folder = S_ISDIR(info.st_mode);
                 is_file = S_ISREG(info.st_mode);
             }
             if (folders ? is_folder : is_file) names.push_back(entry);
         }
     }
-    close(fd);
-    const auto lower = [](std::string text) {
-        for (char& c : text) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return text;
+    // Case-insensitive order without building two lowered copies per
+    // comparison: the result is identical to comparing lowered copies
+    // byte-by-byte (std::tolower on unsigned char, "C" locale), so the
+    // visible order and the skip semantics are unchanged.
+    const auto lower_less = [](const std::string &a, const std::string &b) {
+        const std::size_t common = std::min(a.size(), b.size());
+        for (std::size_t i = 0; i < common; ++i) {
+            const unsigned char first = static_cast<unsigned char>(
+                std::tolower(static_cast<unsigned char>(a[i])));
+            const unsigned char second = static_cast<unsigned char>(
+                std::tolower(static_cast<unsigned char>(b[i])));
+            if (first != second)
+                return first < second;
+        }
+        return a.size() < b.size();
     };
-    std::sort(names.begin(), names.end(), [&](const std::string& a, const std::string& b) {
-        return lower(a) < lower(b);
-    });
+    if (names.size() > 1)
+        std::sort(names.begin(), names.end(), lower_less);
     return names;
 }
 
@@ -173,82 +1199,51 @@ int CountFiles(const std::string& directory, std::initializer_list<const char*> 
     return ok ? count : -1;
 }
 
-// Homebrew copied as a switch/ tree. Bounded traversal, no symlinks or hidden folders; paths stay
-// relative to roms/ so history, covers, forwarders and library.json use the same stable names.
-std::vector<std::string> HomebrewFiles(const std::string& roms) {
-    std::vector<std::string> files, pending{"switch"};
-    const auto readable_type = [](const std::string& path, bool folder) {
-        // lstat is denied on some native mounts even when the file is readable. O_NOFOLLOW
-        // rejects links without that call; fstat describes the descriptor we actually opened.
-        const int fd = open(path.c_str(), O_RDONLY | O_NOFOLLOW | O_NONBLOCK | (folder ? O_DIRECTORY : 0));
-        if (fd < 0) return false;
-        struct stat info {};
-        const bool valid = fstat(fd, &info) == 0 && (folder ? S_ISDIR(info.st_mode) : S_ISREG(info.st_mode));
-        close(fd);
-        return valid;
-    };
-    unsigned examined = 0;
-    while (!pending.empty() && examined < 16384) {
-        const std::string folder = std::move(pending.back());
-        pending.pop_back();
-        if (!readable_type(JoinPath(roms, folder), true)) continue;
-        bool ok = false;
-        for (const auto& name : ListEntries(JoinPath(roms, folder), false, ok)) {
-            if (++examined > 16384) break;
-            const std::string file = folder + "/" + name;
-            if (Eden::ValidHomebrewPath(file) && readable_type(JoinPath(roms, file), false)) files.push_back(file);
-        }
-        for (const auto& name : ListEntries(JoinPath(roms, folder), true, ok)) {
-            if (++examined > 16384) break;
-            const std::string next = folder + "/" + name;
-            // The sentinel validates depth and every directory component using the same rules.
-            if (Eden::ValidHomebrewPath(next + "/_.nro")) pending.push_back(next);
-        }
-    }
-    std::sort(files.begin(), files.end());
-    return files;
-}
-
-// Game containers and game folders one level down, each one game with its update and DLC beside
-// it; -1 when the folder cannot be read. Counting only roms/ missed games in their own folders.
-int CountGames(const std::string& roms) {
-    const auto rom = [](const std::string& name) { return Eden::IsGameFile(name); };
+// Unlike the nine regular file extensions, an extracted ExeFS game is a
+// symlink-free directory containing "main" and "main.npdm".
+int CountExeFsFolders(const std::string& directory) {
     bool ok = false;
     int count = 0;
-    for (const std::string& name : ListEntries(roms, false, ok))
-        count += rom(name) && Eden::ValidRomPath(name);
-    if (!ok) return -1;
-    bool listed = false;
-    for (const std::string& folder : ListEntries(roms, true, listed)) {
-        if (folder.empty() || folder[0] == '.' || folder == "switch") continue;
-        bool read = false;
-        const auto files = ListEntries(JoinPath(roms, folder), false, read);
-        count += std::any_of(files.begin(), files.end(), [&](const std::string& name) {
-            return rom(name) && Eden::ValidRomPath(folder + "/" + name);
-        });
+    for (const auto& name : ListEntries(directory, true, ok)) {
+        if (Eden::IsDeconstructedGameDirectory(std::filesystem::path(directory) / name))
+            ++count;
     }
-    return count + static_cast<int>(HomebrewFiles(roms).size());
+    return ok ? count : -1;
+}
+
+unsigned int HashPath(const std::string& path) {
+    unsigned int hash = 2166136261u;
+    for (const unsigned char byte : path) hash = (hash ^ byte) * 16777619u;
+    return hash;
 }
 
 // A title from the file's name: without its extension and the tags dumps carry
 // ("Name [0100...][v0]", "Name (USA)").
 std::string CleanTitle(const std::string& filename) {
-    std::string title = std::filesystem::path(filename).stem().string();
+    const auto selected_path = std::filesystem::path(filename);
+    const std::string base = Eden::IsDeconstructedGameSelection(filename)
+                                 ? selected_path.parent_path().filename().string()
+                                 : selected_path.stem().string();
+    std::string title = base;
     if (title.rfind("[Game] ", 0) == 0) title.erase(0, 7);
     if (const auto tag = title.find_first_of("[("); tag != std::string::npos && tag > 0) title.erase(tag);
     while (!title.empty() && (title.back() == ' ' || title.back() == '_' || title.back() == '-')) title.pop_back();
-    return title.empty() ? std::filesystem::path(filename).stem().string() : title;
+    return title.empty() ? base : title;
 }
 
 // Covers are keyed by the ROM's file name, not its full path, so they survive a new game
-// files folder (storage_paths.h).
-std::string CoverPath(const std::string& filename) { return Eden::CoverFile(filename); }
+// files folder.
+std::string CoverPath(const std::string& filename) {
+    char name[16]{};
+    std::snprintf(name, sizeof(name), "/%08x.tga", HashPath(filename));
+    return Eden::CoversDir() + name;
+}
 
 // The game's own name is kept beside its cover once the ROM has been read, so the home screen
 // can name its games without opening them.
 std::string NamePath(const std::string& filename) {
     char name[16]{};
-    std::snprintf(name, sizeof(name), "/%08x.name", Eden::HashPath(filename));
+    std::snprintf(name, sizeof(name), "/%08x.name", HashPath(filename));
     return Eden::CoversDir() + name;
 }
 
@@ -273,26 +1268,16 @@ void SaveTitle(const std::string& filename, const std::string& title) {
         (void)std::remove(staged.c_str());
 }
 
-// The name kept for a game, when it is one that can be shown (game_name.h: an earlier version
-// kept whatever the game's first name held), else the name its file gives.
 std::string GameTitle(const std::string& filename) {
     const std::string saved = SavedTitle(filename);
-    return Eden::UsableName(saved) ? Eden::PlainName(saved) : CleanTitle(filename);
+    return saved.empty() ? CleanTitle(filename) : saved;
 }
 
 // The cached cover of a ROM, extracted from it when missing; empty when it has none.
 std::string EnsureCover(const std::string& filename, std::string* title = nullptr) {
     const std::string cover = CoverPath(filename);
     if (Eden::FileExists(cover) && !title) return cover;
-    if (Eden::Network::IsPath(filename)) {
-        const auto metadata = Eden::Network::CachedMetadata(filename);
-        if (!metadata.title.empty()) {
-            SaveTitle(filename, metadata.title);
-            if (title) *title = metadata.title;
-        }
-        return Eden::FileExists(cover) ? cover : std::string{};
-    }
-    const std::string rom = Eden::GamesPath("roms/" + filename);
+    const std::string rom = Eden::GamePath(filename);
     if (!Eden::FileExists(rom)) return {};
     (void)mkdir(Eden::CoversDir().c_str(), 0777);
     char extracted[513]{};
@@ -307,86 +1292,20 @@ std::string EnsureCover(const std::string& filename, std::string* title = nullpt
     return Eden::FileExists(cover) ? cover : std::string{};
 }
 
-// The names of the download sources, by their keys.
-std::map<std::string, std::string> SourceNames() {
-    std::map<std::string, std::string> names;
-    if (Eden::FilesystemAccess())
-        for (const Eden::Remote::SourceStatus& source : Eden::Remote::Current().sources) names[source.key] = source.name;
-    return names;
-}
-
-// "6.4 GB", "512.0 MB".
-std::string SizeLabel(double bytes) {
-    char size[32];
-    if (bytes >= 1073741824.0) std::snprintf(size, sizeof(size), "%.1f GB", bytes / 1073741824.0);
-    else std::snprintf(size, sizeof(size), "%.1f MB", bytes / 1048576.0);
-    return size;
-}
-
-// The folders and files in a folder, read the console's way (ListEntries).
-std::vector<std::string> ListFolder(const std::string& folder) {
-    bool ok = false;
-    std::vector<std::string> names = ListEntries(folder, true, ok);
-    for (std::string& name : ListEntries(folder, false, ok)) names.push_back(std::move(name));
-    return names;
-}
-
-bool WriteCover(const std::string& encoded, const std::string& path) {
-    return eden_write_cover_tga(reinterpret_cast<const unsigned char*>(encoded.data()), encoded.size(), path.c_str()) != 0;
-}
-
-// Whether a file in a game folder is an update or DLC rather than a game (eden_rom_content),
-// remembered by its size and time so that each file is read once. A file that cannot be read is
-// taken for a game, as one directly in roms/ always is. Called with the metadata reader held.
-bool AddOnInGameFolder(const std::string& path) {
-    struct Seen {
-        off_t size;
-        time_t modified;
-        bool addon;
-    };
-    static std::map<std::string, Seen> seen;
-    struct stat info {};
-    if (stat(path.c_str(), &info) != 0) return false;
-    if (const auto found = seen.find(path);
-        found != seen.end() && found->second.size == info.st_size && found->second.modified == info.st_mtime)
-        return found->second.addon;
-    const int content = eden_rom_content(path.c_str(), Eden::AssetsPath("keys").c_str());
-    const bool addon = content == EDEN_CONTENT_UPDATE || content == EDEN_CONTENT_DLC;
-    seen[path] = {info.st_size, info.st_mtime, addon};
-    return addon;
-}
-
-// The games in roms/, by their paths in it: its NSP, XCI, NSZ and XCZ files, and those in its game
-// folders (one level down, issue 168) that hold a game and not its update or DLC. Called with the
-// metadata reader held.
-std::vector<std::string> GameFiles() {
-    const auto rom = [](const std::string& name) { return Eden::IsGameFile(name); };
-    const std::string roms = Eden::GamesPath("roms");
-    std::vector<std::string> files;
-    bool ok = false;
-    for (const std::string& name : ListEntries(roms, false, ok))
-        if (rom(name) && Eden::ValidRomPath(name)) files.push_back(name);
-    for (const std::string& folder : ListEntries(roms, true, ok)) {
-        if (folder.empty() || folder[0] == '.' || folder == "switch") continue;
-        bool listed = false;
-        for (const std::string& name : ListEntries(JoinPath(roms, folder), false, listed)) {
-            const std::string file = folder + "/" + name;
-            if (rom(name) && Eden::ValidRomPath(file) &&
-                (Eden::IsHomebrewFile(file) || !AddOnInGameFolder(JoinPath(roms, file))))
-                files.push_back(file);
-        }
+int CountInstalledGames() {
+    std::error_code error;
+    const auto entries = Eden::ReadNativeDirectory(Eden::GamesDir(), error);
+    if (error) return 0;
+    int count = 0;
+    for (const auto& entry : entries) {
+        const std::string filename = entry.path().filename().string();
+        const bool exefs = Eden::IsDeconstructedGameDirectory(entry.path());
+        const std::string selection = exefs ? filename + "/main" : filename;
+        if (Eden::ValidRomFilename(selection) &&
+            IsFile(Eden::GamePath(selection))) ++count;
     }
-    for (auto& file : HomebrewFiles(roms)) files.push_back(std::move(file));
-    return files;
+    return count;
 }
-
-// The game folder of a game in one (the path of its folder in roms/), else empty.
-std::string GameFolderOf(const std::string& file) {
-    const auto slash = Eden::IsHomebrewFile(file) ? file.find_last_of('/') : file.find('/');
-    return slash == std::string::npos ? std::string{} : Eden::GamesPath("roms/" + file.substr(0, slash));
-}
-
-int CountInstalledGames() { return static_cast<int>(GameFiles().size()); }
 
 // The labels of a setting, in the player's language (tools/launcher/strings.py lists them).
 template <std::size_t N>
@@ -426,339 +1345,80 @@ std::string SetupMessage(const std::string& english) {
     return english;
 }
 
+void RefreshEncoreOverridesManifest() {
+    try {
+        constexpr std::string_view kHost = "https://raw.githubusercontent.com";
+        constexpr std::string_view kPath = "/niakw/encore-overrides/main/runtime-manifest.json";
+        const auto response = Common::Net::MakeRequest(std::string{kHost}, std::string{kPath});
+        if (!response) {
+            Eden::Report("overrides", "Remote runtime manifest unavailable; using embedded snapshot");
+            return;
+        }
+        Eden::EncoreOverridesRuntime::State checked;
+        if (!Eden::EncoreOverridesRuntime::ParseManifestText(*response, &checked)) {
+            Eden::Report("overrides", "Remote runtime manifest rejected; using embedded snapshot");
+            return;
+        }
+        if (!AtomicWriteText(Eden::EncoreOverridesRuntime::ManifestPath(), *response)) {
+            Eden::Report("overrides", "Could not cache remote runtime manifest");
+            return;
+        }
+        Eden::Report("overrides",
+                     ("Runtime manifest cached: revision " +
+                      std::to_string(checked.database_revision) + ", " +
+                      std::to_string(checked.titles.size()) + " specific title(s)").c_str());
+    } catch (const std::exception& error) {
+        Eden::Report("overrides", (std::string{"Remote runtime manifest failed: "} + error.what()).c_str());
+    }
+}
+
+void StartEncoreOverridesRefresh() {
+    static std::once_flag once;
+    std::call_once(once, [] {
+        // Never block launcher startup on GitHub. The validated cache becomes authoritative on the
+        // next process start (or before first profile lookup if the fetch finishes early enough).
+        std::thread(RefreshEncoreOverridesManifest).detach();
+    });
+}
+
 } // namespace
 
-namespace {
-// The PS5's users: who is in front, who is signed in, and their names.
-struct LoginUsers {
-    int id[4];
-};
-extern "C" int sceUserServiceInitialize(const void* parameters);
-extern "C" int sceUserServiceGetForegroundUser(int* user);
-extern "C" int sceUserServiceGetLoginUserIdList(LoginUsers* list);
-extern "C" int sceUserServiceGetUserName(int user, char* name, std::size_t size);
-
-// The names a profile can take: the signed-in PS5 users', then "Player 1" to "Player 8".
-std::vector<std::string> ProfileNames() {
-    std::vector<std::string> names;
-    LoginUsers users{{-1, -1, -1, -1}};
-    if (sceUserServiceGetLoginUserIdList(&users) >= 0) {
-        for (const int user : users.id) {
-            char name[17]{};
-            if (user < 0 || sceUserServiceGetUserName(user, name, sizeof(name)) < 0 || name[0] == '\0') continue;
-            if (std::find(names.begin(), names.end(), name) == names.end()) names.emplace_back(name);
-        }
-    }
-    for (int number = 1; number <= static_cast<int>(Eden::Profiles::kMax); ++number) {
-        const std::string name = "Player " + std::to_string(number);
-        if (std::find(names.begin(), names.end(), name) == names.end()) names.push_back(name);
-    }
-    return names;
-}
-
-// save-sync.json follows the profiles: an entry for each, in their order, with their names
-// (save_sync_config.h). Only with filesystem access, where the remote config folder is.
-void KeepSaveSyncFile(const std::vector<Eden::Profiles::Profile>& profiles) {
-    if (!Eden::FilesystemAccess() || profiles.empty()) return;
-    std::vector<Eden::SaveSync::Owner> owners;
-    for (const auto& profile : profiles) owners.push_back({profile.Key(), profile.name});
-    if (!Eden::SaveSync::Reconcile(owners))
-        Eden::Report("save sync", "save-sync.json is not readable as JSON: it is left as it is");
-}
-
-// ---- save sync ----
-
-std::string SyncFolder() { return Eden::ConfigFile("remote") + "/save-sync"; }
-// The games whose save data is still to be synced after they were played, by profile.
-std::string PendingFile() { return SyncFolder() + "/pending.json"; }
-
-// A field of a JSON object as text; empty when it is not there or no text (save-sync.json and
-// sources.json are edited by hand).
-std::string TextOf(const nlohmann::json& object, const char* key) {
-    if (!object.is_object()) return {};
-    const auto found = object.find(key);
-    return found != object.end() && found->is_string() ? found->get<std::string>() : std::string{};
-}
-std::string TextOf(const Eden::SaveSync::Json& object, const char* key) {
-    if (!object.is_object()) return {};
-    const auto found = object.find(key);
-    return found != object.end() && found->is_string() ? found->get<std::string>() : std::string{};
-}
-
-// A profile's entry in save-sync.json when it names a backend: what syncs its save data.
-struct SyncSetup {
-    std::string type;
-    nlohmann::json settings;
-    bool automatic = true;
-};
-bool SyncSetupOf(const std::string& profile, SyncSetup* setup) {
-    if (!Eden::FilesystemAccess() || profile.empty()) return false;
-    const Eden::SaveSync::Config config = Eden::SaveSync::Read();
-    const Eden::SaveSync::Entry* entry = config.readable ? Eden::SaveSync::Find(config, profile) : nullptr;
-    if (entry == nullptr || entry->type.empty()) return false;
-    setup->type = entry->type;
-    setup->settings = nlohmann::json::parse(entry->settings.dump(), nullptr, false);
-    setup->automatic = config.automatic;
-    return true;
-}
-
-// The names in a save folder (SaveArchive::Lister): false when it cannot be read whole.
-bool ListSaveFolder(const std::string& folder, std::vector<std::string>* names) {
-    bool ok = false;
-    *names = ListEntries(folder, true, ok);
-    if (!ok) return false;
-    std::vector<std::string> files = ListEntries(folder, false, ok);
-    names->insert(names->end(), files.begin(), files.end());
-    return ok;
-}
-
-std::vector<std::pair<std::string, std::string>> ReadPending() {
-    std::vector<std::pair<std::string, std::string>> pending;
-    std::string text;
-    if (!Eden::Settings::ReadFile(PendingFile(), text)) return pending;
-    const nlohmann::json list = nlohmann::json::parse(text, nullptr, false);
-    if (!list.is_array()) return pending;
-    for (const nlohmann::json& item : list)
-        if (!TextOf(item, "profile").empty() && !TextOf(item, "file").empty())
-            pending.emplace_back(TextOf(item, "profile"), TextOf(item, "file"));
-    return pending;
-}
-
-void WritePending(const std::vector<std::pair<std::string, std::string>>& pending) {
-    if (pending.empty()) {
-        (void)std::remove(PendingFile().c_str());
-        return;
-    }
-    nlohmann::json list = nlohmann::json::array();
-    for (const auto& [profile, file] : pending) list.push_back({{"profile", profile}, {"file", file}});
-    std::error_code ignored;
-    std::filesystem::create_directories(SyncFolder(), ignored);
-    (void)Eden::Settings::WriteFile(PendingFile(), list.dump(2) + "\n");
-}
-
-// The servers a profile can be paired with: the download sources whose kind of server can pair,
-// with what their entry in save-sync.json starts from (the type, the address, the platform).
-struct PairSource {
-    std::string name;
-    std::string address;
-    nlohmann::json settings;
-    const Eden::Remote::Pairing* pairing = nullptr;
-};
-std::vector<PairSource> PairSources() {
-    std::vector<PairSource> list;
-    std::string text;
-    if (!Eden::FilesystemAccess() || !Eden::Settings::ReadFile(Eden::ConfigFile("remote") + "/sources.json", text))
-        return list;
-    const nlohmann::json document = nlohmann::json::parse(text, nullptr, false);
-    if (!document.is_object() || !document.contains("sources") || !document["sources"].is_array()) return list;
-    for (const nlohmann::json& source : document["sources"]) {
-        if (!source.is_object()) continue;
-        // sources.json is written by hand: a field that is no text is not there.
-        const std::string type = TextOf(source, "type");
-        const std::string url = TextOf(source, "url");
-        const Eden::Remote::Backend* backend = Eden::Remote::FindBackend(type);
-        if (url.empty() || backend == nullptr || backend->saves == nullptr || backend->pairing == nullptr) continue;
-        PairSource item;
-        item.name = TextOf(source, "name").empty() ? type : TextOf(source, "name");
-        item.address = url;
-        item.settings = {{"type", type}, {"url", url}};
-        if (source.contains("platform")) item.settings["platform"] = source["platform"];
-        item.pairing = backend->pairing;
-        list.push_back(std::move(item));
-    }
-    return list;
-}
-
-std::string CurrentProfile(int user) {
-    const auto who = Eden::Profiles::Resolve(user);
-    return who.profiles.empty() ? std::string{} : who.profiles[static_cast<std::size_t>(who.current)].Key();
-}
-
-std::string ProfileName(const std::string& key) {
-    for (const auto& profile : Eden::Profiles::Read())
-        if (profile.Key() == key) return profile.name;
-    return {};
-}
-} // namespace
-
-Eden::Multiplayer::Snapshot EdenServices::room_status() { return rooms_.GetSnapshot(); }
-Eden::Multiplayer::RoomDirectory EdenServices::public_rooms(const std::atomic<bool>& stop) {
-    return Eden::Multiplayer::FetchRoomDirectory(Network::network_version, stop);
-}
-Eden::Multiplayer::Connection EdenServices::room_connection() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_); // settings reads can migrate legacy files
-    auto result = Eden::LoadRoomConnection();
-    if (result.nickname.empty()) result.nickname = "PlayerPS5";
-    return result;
-}
-bool EdenServices::connect_room(const Eden::Multiplayer::Connection& connection) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    {
-        const std::lock_guard lock(bridge_);
-        if (!Eden::SaveRoomConnection(connection)) return false;
-    }
-    return rooms_.Connect(connection);
-}
-void EdenServices::remember_room(const Eden::Multiplayer::Connection& connection, bool private_room) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return;
-    const std::lock_guard lock(bridge_);
-    if (private_room) {
-        (void)Eden::SaveRoomConnection(connection);
-        return;
-    }
-    auto saved = Eden::LoadRoomConnection();
-    if (saved.nickname == connection.nickname) return;
-    saved.nickname = connection.nickname;
-    (void)Eden::SaveRoomConnection(saved);
-}
-bool EdenServices::connect_public_room(const Eden::Multiplayer::Connection& connection) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    { // Do not call the admitted remember_room() recursively. Connect may wait; release bridge first.
-        const std::lock_guard lock(bridge_);
-        auto saved = Eden::LoadRoomConnection();
-        if (saved.nickname != connection.nickname) {
-            saved.nickname = connection.nickname;
-            (void)Eden::SaveRoomConnection(saved);
-        }
-    }
-    return rooms_.Connect(connection);
-}
-void EdenServices::leave_room() { rooms_.Leave(); }
-bool EdenServices::can_launch_game() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ ||
-        cheat_manager_.Status().busy || amiibo_sync_.Status().busy) return false;
-    const auto phase = rooms_.GetSnapshot().phase;
-    return phase == Eden::Multiplayer::Phase::Idle || phase == Eden::Multiplayer::Phase::Connected;
-}
-std::optional<std::string> EdenServices::room_text(int field, const std::string& initial,
-                                                const std::atomic<bool>& stop) {
-    if (field < 0 || field > 3) return std::nullopt;
-    const char16_t* titles[]{u"Room address", u"UDP port", u"Nickname", u"Room password"};
-    const std::size_t limits[]{253, 5, 20, 128};
-    Eden::TextRequest request;
-    request.title = titles[field];
-    request.initial = Common::UTF8ToUTF16(initial);
-    request.max_length = limits[field];
-    request.numbers = field == 1;
-    request.password = field == 3;
-    const auto answer = Eden::AskSystemKeyboard(request, stop);
-    if (answer.outcome == Eden::TextOutcome::unavailable)
-        throw std::runtime_error("The system keyboard is unavailable");
-    if (answer.outcome != Eden::TextOutcome::accepted) return std::nullopt;
-    return Common::UTF16ToUTF8(answer.text);
-}
-
-#include "nextendo_services.inc"
-#include "theme_storage_services.inc"
-
-std::optional<std::int64_t> EdenServices::ask_seed(std::int64_t current, const std::atomic<bool>& stop) {
-    Eden::TextRequest request;
-    request.title = u"RNG seed";
-    request.initial = Common::UTF8ToUTF16(current >= 0 ? std::to_string(current) : std::string{});
-    request.max_length = 10;  // 4294967295
-    request.numbers = true;
-    const auto answer = Eden::AskSystemKeyboard(request, stop);
-    if (answer.outcome == Eden::TextOutcome::unavailable)
-        throw std::runtime_error("The system keyboard is unavailable");
-    if (answer.outcome != Eden::TextOutcome::accepted) return std::nullopt;
-    return Eden::RngSeedFromText(Common::UTF16ToUTF8(answer.text));
-}
-
-EdenServices::EdenServices(std::string launch_error, Eden::Multiplayer::RoomClient& rooms)
-    : rooms_(rooms), launch_error_(std::move(launch_error)),
-      cheat_manager_(bridge_, [this](const Eden::CheatManagerRequest& request) {
-          // Called with bridge_ held, including immediately before publication. Recheck
-          // destinations/source as well as the effective build after a queued job or HTTP.
-          pe::ui::Game game;
-          game.file = request.file;
-          game.title_id = request.program;
-          if (!Eden::FilesystemAccess() || !game_exists(request.file) || CheatRequest(game) != request)
-              return Eden::CheatManager::Build{};
-          const auto id = Eden::ProbeCheatIdentity(request.path, request.game_folder, request.program);
-          if (id.program == request.program) {
-              std::string build;
-              for (const auto byte : id.build) {
-                  build += "0123456789ABCDEF"[byte >> 4];
-                  build += "0123456789ABCDEF"[byte & 15];
-              }
-              Eden::Report("cheats", ("Effective main build: " + build).c_str());
-          }
-          return id.program == request.program ? id.build : Eden::CheatManager::Build{};
-      }) {
+EdenServices::EdenServices(std::string launch_error)
+    : launch_error_(std::move(launch_error)),
+      resolution_labels_(Labels(Eden::kResolutionLabels)),
+      resolution_keys_(Labels(Eden::kResolutionKeys)),
+      filter_labels_(Labels(Eden::kUpscalingFilterLabels)),
+      anti_aliasing_labels_(Labels(Eden::kAntiAliasingLabels)),
+      performance_profile_labels_(Labels(Eden::kPerformanceProfileLabels)),
+      language_labels_(Labels(Eden::kLanguageLabels)) {
     (void)mkdir(Eden::ConfigDir().c_str(), 0777);
-    // The folder the wallpapers are put in (docs/WALLPAPERS.md), so it exists to be filled.
-    (void)mkdir(Eden::WallpapersDir().c_str(), 0777);
-    // Who is playing (profiles.h): the profile this PS5 user chose last, else the one chosen last.
-    (void)sceUserServiceInitialize(nullptr); // already done by the controller code: refused, harmless
-    if (sceUserServiceGetForegroundUser(&user_) < 0) user_ = -1;
-    const auto who = Eden::Profiles::Resolve(user_);
-    if (!who.profiles.empty())
-        Eden::Report("profile", (who.profiles[static_cast<std::size_t>(who.current)].name + " (" +
-                                 std::to_string(who.current + 1) + " of " + std::to_string(who.profiles.size()) +
-                                 ")").c_str());
-    KeepSaveSyncFile(who.profiles);
-    if (Eden::FilesystemAccess()) (void)network_editor_connection(true); // reserves before async discovery
+    // The repository currently publishes no runtime-manifest.json; a silent
+    // HTTPS request on every boot can only fail and is not required when all
+    // authored game profiles are compiled from our pinned vendored catalogue.
+    // Keep explicit diagnostic/dev opt-in for future validated remote manifests.
+    const char* remote_overrides = std::getenv("EDEN_OVERRIDES_REMOTE_REFRESH");
+    if (remote_overrides != nullptr && std::strcmp(remote_overrides, "1") == 0)
+        StartEncoreOverridesRefresh();
     setup_ = eden_startup_error();
     Eden::Report("setup", setup_.empty() ? "Keys and firmware startup checks passed" : setup_.c_str());
-    // A games folder of its own that is not there (a USB drive not plugged in): the Library finds no
-    // games in it, and no download goes there, which would make its folders on the console's own
-    // storage instead.
-    const bool games_there = Eden::GamesDir() == Eden::AssetsDir() || Eden::DirectoryExists(Eden::GamesDir());
-    if (!games_there)
-        Eden::Report("games folder", ("Not found: " + Eden::GamesDir() + " (\"games_folder\"); no games are listed "
-                                      "from it and downloads wait until it is there").c_str());
-    // The download sources' games and the download queue (remote/remote.h): only with filesystem access,
-    // where the game files folder can be written.
-    if (Eden::FilesystemAccess() && games_there)
-        Eden::Remote::Start({Eden::ConfigFile("remote"), Eden::CoversDir(), Eden::GamesPath("roms"),
-                             Eden::GamesPath("updates"), Eden::GamesPath(".remote-downloads")},
-                            WriteCover, ListFolder);
-    // The games played since their save data was last synced after them.
-    if (Eden::FilesystemAccess()) {
-        std::vector<SyncJob> jobs;
-        for (const auto& [profile, file] : ReadPending()) jobs.push_back({profile, file});
-        if (!jobs.empty()) StartSync(std::move(jobs), false);
-    }
-}
-
-EdenServices::~EdenServices() {
-    StopNetworkJobs(); // no admission/bridge held across network cancellation/joins
-    usb_stop_ = true;
-    if (usb_thread_.joinable()) usb_thread_.join();
-    amiibo_sync_.Stop(); // no network/cache worker may outlive launcher settings or launch
-    cheat_manager_.Stop(); // no probe may outlive the metadata bridge or the launcher
-    if (Eden::FilesystemAccess()) Eden::Remote::Stop();
-    {
-        const std::lock_guard lock(sync_lock_);
-        sync_stop_ = true;
-    }
-    sync_changed_.notify_all();
-    if (sync_thread_.joinable()) sync_thread_.join();
-    pair_stop_ = true;
-    if (pair_thread_.joinable()) pair_thread_.join();
 }
 
 pe::ui::Home EdenServices::home() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {}; // cover extraction and history seeding are writers, too
+    return home(nullptr);
+}
+
+pe::ui::Home EdenServices::home(const std::atomic<bool>* cancel) {
+    const auto cancelled = [cancel] {
+        return cancel && cancel->load(std::memory_order_acquire);
+    };
+    if (cancelled()) return {};
     const std::lock_guard lock(bridge_);
+    if (cancelled()) return {};
     pe::ui::Home home;
-    home.setup_ready = setup_.empty() && Eden::FilesystemAccess();
-    home.homebrew_ready = Eden::FilesystemAccess();
-    if (!Eden::FilesystemAccess()) {
-        // No data is kept anywhere else (storage_paths.h): say so, and start nothing.
-        home.status = fill(tr("ProsperoEden could not get access to the console's storage, so it cannot read your settings, saves and games. Nothing was changed. Close ProsperoEden and open it again. (Code {0})"),
-                           {std::to_string(Eden::FilesystemAccessStatus())});
-    } else if (!home.setup_ready) {
-        home.status = fill(tr("Setup required: {0} Open Settings, Game files to choose the folder that holds your "
-                              "keys, firmware and roms folders (or add the files to {1}), then reopen ProsperoEden."),
+    home.setup_ready = setup_.empty();
+    if (!home.setup_ready) {
+        home.status = fill(tr("Setup required: {0} Open Settings, Storage to choose the root that holds the standard "
+                              "keys, firmware and roms folders (or add the files to {1}), then reopen Encore."),
                            {SetupMessage(setup_), Eden::AssetsDir()});
     } else if (launch_error_.starts_with(Eden::Crash::kNotice)) {
         // The previous run ended with a crash report (headless/crash_report.h).
@@ -772,47 +1432,54 @@ pe::ui::Home EdenServices::home() {
     }
 
     home.last_file = Eden::LoadLastGame();
-    // A game no longer in the game files folder is not offered: the most recent one that is
-    // takes its place (or none).
-    if (!home.last_file.empty() && !game_exists(home.last_file)) {
+    // If the last game was removed, fall back to the most recent one that still exists.
+    if (!home.last_file.empty() && !IsFile(Eden::GamePath(home.last_file))) {
         home.last_file.clear();
         for (const auto& name : Eden::LoadRecentGames()) {
-            if (game_exists(name)) {
+            if (Eden::ValidRomFilename(name) && IsFile(Eden::GamePath(name))) {
                 home.last_file = name;
                 break;
             }
         }
     }
-    const bool network_last = Eden::Network::IsPath(home.last_file);
-    const std::string last_path = network_last ? home.last_file : Eden::GamesPath("roms/" + home.last_file);
-    home.last_exists = !home.last_file.empty() && game_exists(home.last_file);
+    if (cancelled()) return {};
+    const std::string last_path = Eden::GamePath(home.last_file);
+    home.last_exists = !home.last_file.empty() && IsFile(last_path);
     if (!home.last_file.empty()) {
         std::string title = GameTitle(home.last_file);
         std::string cover = CoverPath(home.last_file);
         bool has_cover = Eden::FileExists(cover);
-        if (home.last_exists && pe::ui::ready_for_game(home, home.last_file) && !has_cover) {
+        if (home.last_exists && home.setup_ready && !has_cover) {
             cover = EnsureCover(home.last_file, &title);
             has_cover = !cover.empty();
         }
         home.last_title = title;
         home.last_caption = home.last_exists ? tr("Last game opened") :
-                                               tr("ROM missing from the game files folder");
+                                               tr("ROM missing from the storage root");
         home.last_caption_warning = !home.last_exists;
         if (has_cover) home.last_cover = cover;
     }
     // The last game's update and DLC and the language it will use; when it does not offer the
-    // chosen one, the caption says so.
-    if (home.last_exists && pe::ui::ready_for_game(home, home.last_file)) {
-        if (home.setup_ready && !network_last)
-            eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
-                             Eden::AssetsPath("keys").c_str());
-        const uint64_t title_id = network_last ?
-            Eden::Network::CachedMetadata(last_path).title_id :
-            eden_game_title_id(last_path.c_str());
-        const GameLanguage language = network_last ? GameLanguage{} :
-            LanguageFor(last_path, title_id, Eden::PreferencesFor(title_id).language);
+    // chosen one, the caption says so. The same metadata is reused by Recent cards so selecting
+    // one can become the Home hero without opening the full library first.
+    if (cancelled()) return {};
+    const int selected_language = Eden::LoadPreferences().language;
+    if (home.setup_ready)
+        eden_scan_addons(Eden::AssetsPath("updates").c_str(), Eden::AssetsPath("keys").c_str());
+    if (cancelled()) return {};
+    if (home.setup_ready && home.last_exists) {
+        const uint64_t title_id = ResolveTitleId(last_path, home.last_file);
+        const GameLanguage language = LanguageFor(last_path, title_id, selected_language);
         home.last_title_id = title_id;
-        if (!network_last) home.last_addons = AddOnSummary(title_id);
+        const NlibEnrichment nlib = CachedNlibEnrichment(title_id, selected_language);
+        if (!nlib.icon.empty()) home.last_cover = nlib.icon;
+        home.last_hero = nlib.hero;
+        home.last_screenshot = nlib.screenshots.empty() ? std::string{} : nlib.screenshots.front();
+        home.last_max_players = nlib.max_players;
+        home.last_intro = nlib.intro;
+        home.last_description = nlib.description;
+        if (!nlib.name.empty()) home.last_title = nlib.name;
+        home.last_addons = AddOnSummary(title_id);
         home.last_language = language.label;
         if (!language.note.empty()) {
             home.last_caption = language.note;
@@ -827,13 +1494,36 @@ pe::ui::Home EdenServices::home() {
         history.push_back(home.last_file);
     }
     for (const auto& name : history) {
-        if (!game_exists(name)) continue;
-        home.recents.push_back({name, GameTitle(name), EnsureCover(name)});
+        if (cancelled()) return {};
+        const std::string recent_path = Eden::GamePath(name);
+        if (!IsFile(recent_path)) continue;
+        pe::ui::Recent recent;
+        recent.file = name;
+        recent.title = GameTitle(name);
+        recent.cover = EnsureCover(name);
+        if (home.setup_ready) {
+            recent.title_id = ResolveTitleId(recent_path, name);
+            if (recent.title_id != 0) {
+                const NlibEnrichment nlib = CachedNlibEnrichment(recent.title_id, selected_language);
+                if (!nlib.icon.empty()) recent.cover = nlib.icon;
+                recent.hero = nlib.hero;
+                recent.screenshot = nlib.screenshots.empty() ? std::string{} : nlib.screenshots.front();
+                recent.max_players = nlib.max_players;
+                recent.intro = nlib.intro;
+                recent.description = nlib.description;
+                if (!nlib.name.empty()) recent.title = nlib.name;
+                recent.addons = AddOnSummary(recent.title_id);
+                recent.language = LanguageFor(recent_path, recent.title_id, selected_language).label;
+            }
+        }
+        home.recents.push_back(std::move(recent));
+        if (home.recents.size() == 7) break;
     }
+    if (cancelled()) return {};
     const int installed = CountInstalledGames();
     home.system_status = fill(installed == 1 ? tr("{0} game installed") : tr("{0} games installed"),
                               {std::to_string(installed)}) +
-        "  /  " + (home.setup_ready ? tr("Firmware ready") : tr("Setup required"));
+        "  /  " + (home.setup_ready ? tr("Guest firmware checks passed") : tr("Setup required"));
     return home;
 }
 
@@ -845,59 +1535,150 @@ std::string EdenServices::clock() {
     return label;
 }
 
-unsigned EdenServices::controllers() { return radio_input_controllers(); }
-void EdenServices::vibration_pulse(int percent) {
-    if (percent > 0) radio_input_pulse(static_cast<unsigned>(percent));
+std::string EdenServices::profile_avatar() {
+#ifdef PS5_NATIVE
+    // Do not scan another account's cache if the active-user lookup fails.
+    // Query is deliberately issued on the launcher's background worker.
+    // The controller can already have initialized UserService; calling
+    // Initialize again must not cause it to be terminated underneath Pad.
+    static std::once_flag user_service_once;
+    std::call_once(user_service_once, [] {
+        (void)sceUserServiceInitialize(nullptr);
+    });
+    std::int32_t user_id = -1;
+    if (sceUserServiceGetForegroundUser(&user_id) != 0 ||
+        user_id == -1 || user_id == 0)
+        return {};
+
+// Only consume NiakPS5's optional, local, explicitly owner-bound stage.
+// A title is not entitled to read another account's portrait. This remains
+// optional: Encore still reads its own foreground PS5 user cache directly.
+    constexpr const char* staged_root="/data/NiakPS5/assets/";
+    constexpr const char* staged_marker="/data/NiakPS5/assets/niak-profile-source.txt";
+    if (pe::ps5::avatar_owner_marker_matches(staged_marker,
+            static_cast<std::uint32_t>(user_id), "png") &&
+        IsReadableAvatarFile(std::string(staged_root)+"niak-profile.png")) {
+        std::fprintf(stderr,"EDEN_PROFILE_AVATAR format=staged_png status=found\n");
+        return std::string(staged_root)+"niak-profile.png";
+    }
+    if (pe::ps5::avatar_owner_marker_matches(staged_marker,
+            static_cast<std::uint32_t>(user_id), "dds") &&
+        IsReadableAvatarFile(std::string(staged_root)+"niak-profile.dds")) {
+        std::fprintf(stderr,"EDEN_PROFILE_AVATAR format=staged_dds status=found\n");
+        return std::string(staged_root)+"niak-profile.dds";
+    }
+
+    // Account-scoped native cache remains the independent fallback.
+    // Keep the lookup bound to the active user, never enumerate all users.
+    // Some console caches contain only pre-scaled DDS avatars (no PNG).
+    // Prefer the full-colour PNG, then a 128px DDS suitable for the 54px UI.
+    // Directory prefixes vary between local cache revisions.
+    for (const char* digits : {"%08x", "%08X"}) {
+        char id[16]{};
+        if (std::snprintf(id, sizeof(id), digits,
+                          static_cast<unsigned>(user_id)) != 8)
+            continue;
+        for (const char* prefix : {"0x", "0X", ""}) {
+            const std::string root =
+                std::string("/system_data/priv/cache/profile/") + prefix + id + "/";
+            if (IsReadableAvatarFile(root + "avatar.png")) {
+                std::fprintf(stderr, "EDEN_PROFILE_AVATAR format=png status=found\n");
+                return root + "avatar.png";
+            }
+            for (const char* name : {"avatar128.dds", "avatar260.dds",
+                                     "avatar64.dds", "avatar440.dds"}) {
+                if (IsReadableAvatarFile(root + name)) {
+                    std::fprintf(stderr, "EDEN_PROFILE_AVATAR format=dds status=found\n");
+                    return root + name;
+                }
+            }
+        }
+    }
+    std::fprintf(stderr, "EDEN_PROFILE_AVATAR status=missing_for_active_user\n");
+#endif
+    return {};
 }
 
+unsigned EdenServices::controllers() { return radio_input_controllers(); }
+
 std::string EdenServices::version() {
-    // "01.000.040" reads as v1.000.040.
-    const char* text = Eden::kAppVersion;
-    while (text[0] == '0' && text[1] != '.' && text[1] != '\0') ++text;
-    return std::string("v") + text;
+    return Eden::kBuildVersion;
 }
 
 std::vector<pe::ui::Game> EdenServices::games() {
+    return games(nullptr);
+}
+
+std::vector<pe::ui::Game> EdenServices::games(const std::atomic<bool>* cancel) {
     // The launcher reads the list beside its menu (pe/ui/library.cpp), so the metadata reader
-    // is used by one thread at a time.
-    const std::lock_guard admission(job_admission_mutex_);
+    // is used by one thread at a time. Cancellation is sampled between titles,
+    // not in the middle of metadata extraction or an in-flight file operation.
+    if (cancel && cancel->load(std::memory_order_acquire)) return {};
+    std::unique_lock lock(bridge_);
     std::vector<pe::ui::Game> games;
-    // A scan scheduled just before the protected session may enter after its bridge drain.
-    // Do not let that late scan write covers/catalog/settings behind a pending restore.
-    if (usb_active_) return games;
-    const std::lock_guard lock(bridge_);
     (void)mkdir(Eden::ConfigDir().c_str(), 0777);
     (void)mkdir(Eden::CoversDir().c_str(), 0777);
-    // Without a roms folder there are still the download sources' games.
-    const std::vector<std::string> files = GameFiles();
-    if (setup_.empty())
-        eden_scan_addons(Eden::GamesPath("updates").c_str(), Eden::GamesPath("roms").c_str(),
-                         Eden::AssetsPath("keys").c_str());
-    // The download sources' games, each title once: one that is on the console can be downloaded
-    // again, and is deleted from the console in its settings.
-    const std::vector<Eden::Remote::Title> titles = Titles();
-    const std::map<std::string, std::string> names = SourceNames();
-    std::vector<bool> local(titles.size(), false);
-    const auto sources_of = [&](const Eden::Remote::Title& title) {
-        std::vector<std::string> sources;
-        for (const Eden::Remote::Game& game : title.games)
-            sources.push_back(names.contains(game.source) ? names.at(game.source) : game.source);
-        return sources;
-    };
-    for (const std::string& file : files) {
-        std::string format = file.substr(file.size() - 3);
+    std::error_code directory_error;
+    const auto entries = Eden::ReadNativeDirectory(Eden::GamesDir(), directory_error);
+    if (directory_error) {
+        Eden::Report("library", ("EDEN_ROM_SCAN directory_error=" +
+                                 directory_error.message()).c_str());
+        // Do not publish a spurious empty library on a transient PS5 mount/
+        // getdents failure. Launcher::finish_scan catches the exception and
+        // preserves the previous complete snapshot.
+        throw std::system_error(directory_error, "ROM directory scan failed");
+    }
+    if (cancel && cancel->load(std::memory_order_acquire)) return games;
+    eden_scan_addons(Eden::AssetsPath("updates").c_str(), Eden::AssetsPath("keys").c_str());
+    if (cancel && cancel->load(std::memory_order_acquire)) return {};
+    const int language_choice = Eden::LoadPreferences().language;
+    // A failed stat or unexpected file type previously hid a title with no
+    // diagnostic. Keep the UI thread free of IO: report only on this worker.
+    std::size_t rom_candidates = 0;
+    std::size_t stat_failures = 0;
+    std::size_t non_regular = 0;
+    // Enumerate local assets immediately. Enrichment is independently queued for
+    // all installed titles by Launcher, so even games never selected acquire Nlib
+    // banners/icons/screenshots. Disk scanning itself must stay network-free.
+    for (const auto& entry : entries) {
+        if (cancel && cancel->load(std::memory_order_acquire))
+            return {}; // discard partial results and stop per-title disk work
+        const std::string entry_name = entry.path().filename().string();
+        const bool deconstructed = Eden::IsDeconstructedGameDirectory(entry.path());
+        // For ExeFS, select the actual native loader input "main" while
+        // displaying the containing folder as the game title.
+        const std::string file = deconstructed ? entry_name + "/main" : entry_name;
+        if (!Eden::ValidRomFilename(file)) continue;
+        const std::size_t dot = entry_name.find_last_of('.');
+        std::string format = deconstructed ? "EXEFS" :
+            (dot == std::string::npos ? std::string{} : entry_name.substr(dot + 1));
         std::transform(format.begin(), format.end(), format.begin(),
                        [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-        const std::string path = Eden::GamesPath("roms/" + file);
+        ++rom_candidates;
+        const std::string path = Eden::GamePath(file);
         struct stat info {};
-        if (stat(path.c_str(), &info) != 0 || !S_ISREG(info.st_mode)) continue;
+        if (stat(path.c_str(), &info) != 0) {
+            ++stat_failures;
+            if (stat_failures <= 3)
+                Eden::Report("library", ("EDEN_ROM_SCAN stat_failed=" + file +
+                                         " errno=" + std::to_string(errno)).c_str());
+            continue;
+        }
+        if (!S_ISREG(info.st_mode)) {
+            ++non_regular;
+            continue;
+        }
+        char size[32];
+        const double bytes = static_cast<double>(info.st_size);
+        if (bytes >= 1073741824.0) std::snprintf(size, sizeof(size), "%.1f GB", bytes / 1073741824.0);
+        else std::snprintf(size, sizeof(size), "%.1f MB", bytes / 1048576.0);
         pe::ui::Game game;
-        game.name = CleanTitle(std::filesystem::path(file).filename().string());
+        game.name = CleanTitle(entry_name);
         game.format = format;
-        game.size = SizeLabel(static_cast<double>(info.st_size));
+        game.size = size;
         game.file = file;
         // A game whose data cannot be read is still listed, by its file name.
-        if (setup_.empty() || Eden::IsHomebrewFile(file)) try {
+        try {
             char title[513]{};
             // The cover is replaced in one step: the menu may be loading the old one right now.
             const std::string cover = CoverPath(file);
@@ -912,13 +1693,30 @@ std::vector<pe::ui::Game> EdenServices::games() {
                 game.cover = cover;
             else
                 (void)std::remove(staged.c_str());
-            game.title_id = eden_game_title_id(path.c_str());
-            if (const std::string folder = GameFolderOf(file); game.title_id && !folder.empty()) {
-                const std::lock_guard folders(game_folders_lock_);
-                game_folders_[game.title_id] = folder;
+            if (cancel && cancel->load(std::memory_order_acquire))
+                return {}; // extraction finished; skip ID/Nlib/add-on metadata
+            game.title_id = ResolveTitleId(path, file);
+            if (game.title_id != 0) {
+                const NlibEnrichment nlib = CachedNlibEnrichment(game.title_id, language_choice);
+                if (!nlib.icon.empty()) game.cover = nlib.icon;
+                game.hero = nlib.hero;
+                game.screenshots = nlib.screenshots;
+                AppendCaseScenes(game.screenshots, game.title_id);
+                game.max_players = nlib.max_players;
+                if (!nlib.name.empty()) game.name = nlib.name;
+                game.intro = nlib.intro;
+                game.description = nlib.description;
+                game.publisher = nlib.publisher;
+                game.developer = nlib.developer;
+                game.release_date = nlib.release_date;
+                game.categories = nlib.categories;
+                // Render already-cached real paper scans immediately during
+                // local enumeration, without waiting for network enrichment.
+                const pe::ui::BoxArt cached_case = box_art(game.title_id);
+                game.box_front = cached_case.front;
+                game.box_back = cached_case.back;
             }
-            // The game's own language (Library > Game settings > Language) or Settings > Language.
-            const GameLanguage language = LanguageFor(path, game.title_id, Eden::PreferencesFor(game.title_id).language);
+            const GameLanguage language = LanguageFor(path, game.title_id, language_choice);
             game.addons = AddOnSummary(game.title_id);
             game.addons_short = AddOnSummary(game.title_id, true);
             game.language = language.label;
@@ -928,548 +1726,371 @@ std::vector<pe::ui::Game> EdenServices::games() {
         }
         games.push_back(std::move(game));
     }
-    // The games on the console, for other homebrew to read (library_file.h): a forwarder maker
-    // lists them with their names and covers.
-    if (Eden::FilesystemAccess()) {
+
+    // Publish only the complete local snapshot, while the scan's bridge lock
+    // still orders concurrent scans. Never wait for or export Nlib network work.
+    if (Eden::FilesystemAccess() && !(cancel && cancel->load(std::memory_order_acquire))) {
         std::vector<Eden::LibraryFile::Game> listed;
-        for (const pe::ui::Game& game : games) {
-            const std::string cover = CoverPath(game.file);
-            listed.push_back({game.file, Eden::GamesPath("roms/" + game.file), game.name, game.title_id,
-                              Eden::FileExists(cover) ? cover : std::string{}});
+        listed.reserve(games.size());
+        for (const auto& game : games)
+            listed.push_back({game.file, Eden::GamePath(game.file),
+                              game.name, game.title_id, game.cover});
+        std::sort(listed.begin(), listed.end(), [](const auto& a, const auto& b) { return a.file < b.file; });
+        try {
+            if (!Eden::LibraryFile::Write(std::string{Eden::kDataDir} + "/library.json",
+                                         Eden::LibraryFile::Text(Eden::AssetsDir(), listed, Eden::GamesDir())))
+                Eden::Report("library", "Could not export library.json; library remains available");
+        } catch (const std::exception&) {
+            Eden::Report("library", "Could not serialize library.json; library remains available");
         }
-        if (!Eden::LibraryFile::Write(std::string{Eden::kDataDir} + "/library.json",
-                                      Eden::LibraryFile::Text(Eden::GamesDir(), listed)))
-            Eden::Report("library", "Could not write library.json");
     }
-    // Which games of the console a title is: by title ID, by name or by file (Remote::SameAsLocal).
-    for (pe::ui::Game& game : games) {
-        const std::string normal_name = Eden::Remote::NormalName(game.name);
-        for (std::size_t i = 0; i < titles.size(); ++i)
-            if (std::any_of(titles[i].games.begin(), titles[i].games.end(), [&](const Eden::Remote::Game& entry) {
-                    return Eden::Remote::SameAsLocal(entry, game.title_id, normal_name, game.file);
-                })) {
-                game.sources = sources_of(titles[i]);
-                game.key = titles[i].key;
-                local[i] = true;
-                break;
-            }
-    }
-    // The titles that are not on the console (yet); one that is shows as above.
-    for (std::size_t i = 0; i < titles.size(); ++i) {
-        if (local[i]) continue;
-        const Eden::Remote::Game& entry = titles[i].games.front();
-        pe::ui::Game game;
-        game.name = entry.name.empty() ? CleanTitle(entry.file) : entry.name;
-        game.format = entry.file.size() > 4 ? entry.file.substr(entry.file.size() - 3) : std::string{};
-        std::transform(game.format.begin(), game.format.end(), game.format.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-        game.size = entry.size > 0 ? SizeLabel(static_cast<double>(entry.size)) : std::string{"-"};
-        game.file = entry.file;
-        // The first source's cover, or another one's when it has none.
-        for (const Eden::Remote::Game& other : titles[i].games)
-            if (game.cover.empty()) game.cover = other.cover;
-        game.sources = sources_of(titles[i]);
-        game.key = titles[i].key;
-        game.remote = true;
-        games.push_back(std::move(game));
-    }
-    // Bound the whole network metadata pass, not five seconds per NAS file.
-    Eden::Network::ReadBudget library_budget(128u << 20);
-    for (const auto& entry : Eden::Network::Games()) {
-        pe::ui::Game game;
-        game.file = entry.uri;
-        game.name = entry.name;
-        if (const auto saved = SavedTitle(entry.uri); Eden::UsableName(saved)) game.name = Eden::PlainName(saved);
-        game.format = entry.uri.substr(entry.uri.size() - 3);
-        std::transform(game.format.begin(), game.format.end(), game.format.begin(),
-            [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-        game.size = SizeLabel(static_cast<double>(entry.size)) + " / " + tr("Network") + " / " + entry.location;
-        game.addons = tr("Read-only network game. Saves, mods and caches stay local.");
-        game.network = true;
-        if (setup_.empty() || Eden::IsHomebrewFile(entry.uri)) {
-            Eden::Network::ReadBudget metadata_budget;
-            const auto metadata = Eden::Network::InspectGame(entry.uri, Eden::AssetsPath("keys"), CoverPath(entry.uri));
-            if (metadata.content == EDEN_CONTENT_UPDATE || metadata.content == EDEN_CONTENT_DLC) continue;
-            game.title_id = metadata.title_id;
-            if (!metadata.title.empty()) { game.name = metadata.title; SaveTitle(entry.uri, game.name); }
-            if (game.title_id) {
-                const auto language = LanguageFor(entry.uri, game.title_id, Eden::PreferencesFor(game.title_id).language);
-                game.language = language.label; game.language_note = language.note;
-                game.addons = AddOnSummary(game.title_id);
-                game.addons_short = AddOnSummary(game.title_id, true);
-            }
-            if (!metadata.error.empty()) game.addons = metadata.error;
-        }
-        if (Eden::FileExists(CoverPath(entry.uri))) game.cover = CoverPath(entry.uri);
-        games.push_back(std::move(game));
-    }
+
+    // Metadata bridge work is finished. Home and Library start complete Nlib
+    // enrichment of every installed title in background, independently of user
+    // selection. A library enumeration itself must remain local/cache-only.
+    lock.unlock();
+    Eden::Report("library", ("EDEN_ROM_SCAN entries=" + std::to_string(entries.size()) +
+                             " candidates=" + std::to_string(rom_candidates) +
+                             " visible=" + std::to_string(games.size()) +
+                             " stat_failures=" + std::to_string(stat_failures) +
+                             " non_regular=" + std::to_string(non_regular)).c_str());
+
     std::sort(games.begin(), games.end(),
               [](const pe::ui::Game& a, const pe::ui::Game& b) { return a.name < b.name; });
     return games;
 }
 
-std::string EdenServices::game_path(const std::string& file) {
-    if (Eden::Network::IsPath(file))
-        return Eden::FilesystemAccess() && (setup_.empty() || Eden::IsHomebrewFile(file)) &&
-            Eden::Network::Known(file) ? file : std::string{};
-    if (!Eden::FilesystemAccess() || !Eden::ValidRomPath(file) ||
-        (!setup_.empty() && !Eden::IsHomebrewFile(file))) return {};
-    return Eden::GamesPath("roms/" + file);
+pe::ui::Game EdenServices::enrich_game_media(pe::ui::Game game) {
+    return enrich_game_media(std::move(game), nullptr);
 }
 
-bool EdenServices::take_update(pe::ui::UpdateOffer* offer) {
-    Eden::UpdateNotice::Offer found;
-    if (!Eden::UpdateNotice::Take(&found)) return false;
-    offer->version = found.version;
-    offer->size = found.size;
-    offer->installable = found.installable;
-    offer->notes = found.notes;
-    offer->notes_truncated = found.notes_truncated;
-    return true;
+pe::ui::Game EdenServices::enrich_game_media(pe::ui::Game game,
+                                             const std::atomic<bool>* cancel) {
+    if (game.title_id == 0 ||
+        (cancel && cancel->load(std::memory_order_acquire))) return game;
+    const int language_choice = Eden::LoadPreferences().language;
+    const std::string scanned_name = game.name;
+    // Prioritize the requested ORIGINAL retail scans before any optional
+    // metadata/banner/icon requests. Nlib may perform multiple slow calls;
+    // previously a complete retail front could remain invisible for minutes.
+    game.case_artwork_changed = EnsureRetailCase(game.title_id, scanned_name, CleanTitle(game.file),
+                     language_choice, cancel);
+    if (!(cancel && cancel->load(std::memory_order_acquire))) {
+        const auto cached_case = box_art(game.title_id);
+        game.box_front = cached_case.front;
+        game.box_back = cached_case.back;
+    }
+    if (cancel && cancel->load(std::memory_order_acquire)) return game;
+    NlibEnrichment enrichment = EnsureNlibEnrichment(game.title_id, language_choice, cancel);
+    game.artwork_changed = enrichment.artwork_changed;
+    if (!enrichment.icon.empty()) game.cover = std::move(enrichment.icon);
+    if (!enrichment.hero.empty()) game.hero = std::move(enrichment.hero);
+    if (!enrichment.screenshots.empty()) game.screenshots = std::move(enrichment.screenshots);
+    if (enrichment.max_players > 0) game.max_players = enrichment.max_players;
+    if (!enrichment.name.empty()) game.name = std::move(enrichment.name);
+    if (!enrichment.intro.empty()) game.intro = std::move(enrichment.intro);
+    if (!enrichment.description.empty()) game.description = std::move(enrichment.description);
+    if (!enrichment.publisher.empty()) game.publisher = std::move(enrichment.publisher);
+    if (!enrichment.developer.empty()) game.developer = std::move(enrichment.developer);
+    if (!enrichment.release_date.empty()) game.release_date = std::move(enrichment.release_date);
+    if (!enrichment.categories.empty()) game.categories = std::move(enrichment.categories);
+    // A newly fetched localized Nlib name may match a catalog title that the
+    // ROM header did not. Give it its own lookup, but never perform any HTTP
+    // from the launcher draw or game-start path.
+    if ((game.box_front.empty() || game.box_back.empty()) &&
+        scanned_name != game.name) {
+        game.case_artwork_changed |= EnsureRetailCase(game.title_id, game.name, scanned_name,
+                         language_choice, cancel);
+    }
+    if (!(cancel && cancel->load(std::memory_order_acquire))) {
+        const auto box = box_art(game.title_id);
+        if (!box.front.empty()) game.box_front = box.front;
+        if (!box.back.empty()) game.box_back = box.back;
+        AppendCaseScenes(game.screenshots, game.title_id);
+        if (game.case_artwork_changed & (8u | 16u | 32u))
+            game.artwork_changed = true; // refresh GPU copies after replacement
+    }
+    return game;
 }
 
-bool EdenServices::start_update() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    return !usb_active_ && Eden::UpdateNotice::Begin(); // never hold bridge across a job start/finish
-}
+pe::ui::BoxArt EdenServices::box_art(std::uint64_t title_id) {
+    pe::ui::BoxArt artwork;
+    if (title_id == 0) return artwork;
 
-pe::ui::UpdateStatus EdenServices::update_status() {
-    const Eden::UpdateNotice::Progress progress = Eden::UpdateNotice::Poll();
-    pe::ui::UpdateStatus status;
-    status.phase = static_cast<pe::ui::UpdatePhase>(progress.phase);  // the same order
-    status.done = progress.done;
-    status.total = progress.total;
-    status.error = progress.error;
-    return status;
-}
+    // Optional local media only. Remote services need independent credentials /
+    // redistribution terms; the native game-start path must never make requests.
+    char id[17]{};
+    std::snprintf(id, sizeof(id), "%016llX", static_cast<unsigned long long>(title_id));
+    const std::string root = Eden::CoversDir() + "/box-";
 
-void EdenServices::cancel_update() { Eden::UpdateNotice::Cancel(); }
-
-bool EdenServices::apply_update() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    return !usb_active_ && Eden::UpdateNotice::Apply();
-}
-
-void EdenServices::finish_update() { Eden::UpdateNotice::Finish(); }
-
-std::vector<pe::ui::Profile> EdenServices::profiles() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return {};
-    const std::lock_guard lock(bridge_); // Resolve may initialize or settle persisted profile choice
-    const auto who = Eden::Profiles::Resolve(user_);
-    std::vector<pe::ui::Profile> list;
-    for (std::size_t index = 0; index < who.profiles.size(); ++index)
-        list.push_back({who.profiles[index].name, static_cast<int>(index) == who.current});
-    return list;
-}
-
-std::string EdenServices::profile_key(int index) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return {};
-    const std::lock_guard lock(bridge_);
-    const auto who=Eden::Profiles::Resolve(user_);
-    return index>=0 && index<static_cast<int>(who.profiles.size()) ? who.profiles[index].Key() : std::string{};
-}
-
-bool EdenServices::choose_profile(int index) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
-    const std::lock_guard lock(bridge_);
-    if (rooms_.GetSnapshot().phase != Eden::Multiplayer::Phase::Idle) return false;
-    const auto who = Eden::Profiles::Resolve(user_);
-    if (index < 0 || index >= static_cast<int>(who.profiles.size())) return false;
-    const auto& profile = who.profiles[static_cast<std::size_t>(index)];
-    if (!Eden::Profiles::Choose(profile, user_)) return false;
-    Eden::Report("profile", ("Now playing: " + profile.name).c_str());
-    return true;
-}
-
-int EdenServices::add_profile() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return -1;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return -1;
-    const std::lock_guard lock(bridge_);
-    auto list = Eden::Profiles::Read();
-    if (list.empty() || list.size() >= Eden::Profiles::kMax) return -1;
-    // A signed-in PS5 user's name when no profile has it yet, else the next "Player" name.
-    std::string name = Eden::Profiles::FreeName(list);
-    for (const std::string& candidate : ProfileNames()) {
-        if (std::none_of(list.begin(), list.end(), [&](const auto& p) { return p.name == candidate; })) {
-            name = candidate;
-            break;
+    const auto find_face = [&](const char* side) -> std::string {
+        for (const char* ext : {"png", "jpg", "jpeg", "tga"}) {
+            const std::string path = root + side + "-" + id + "." + ext;
+            struct stat info{};
+            if (!IsFile(path) || stat(path.c_str(), &info) != 0 ||
+                info.st_size <= 0 || info.st_size > (16LL << 20))
+                continue;
+            int width = 0, height = 0, channels = 0;
+            bool valid = false;
+            if (std::strcmp(ext, "tga") == 0) {
+                // Generated scans use uncompressed BGRA TGA. Check the whole
+                // payload, then use the SAME header convention as load_tga().
+                // Format sniffing through stbi_info can reject a usable TGA.
+                if (ValidNlibTga(path)) {
+                    std::FILE* input = std::fopen(path.c_str(), "rb");
+                    if (input) {
+                        unsigned char header[18]{};
+                        if (std::fread(header, 1, sizeof(header), input) == sizeof(header)) {
+                            width = static_cast<int>(header[12]) |
+                                    (static_cast<int>(header[13]) << 8);
+                            height = static_cast<int>(header[14]) |
+                                     (static_cast<int>(header[15]) << 8);
+                            valid = true;
+                        }
+                        std::fclose(input);
+                    }
+                }
+            } else {
+                valid = stbi_info(path.c_str(), &width, &height, &channels) != 0;
+            }
+            if (!valid ||
+                width < (std::strcmp(side, "spine") == 0 ? 64 : 128) ||
+                height < (std::strcmp(side, "spine") == 0 ? 600 : 128) ||
+                width > 4096 || height > 4096 ||
+                static_cast<std::uint64_t>(width) * height > 3840u * 2160u) {
+                std::fprintf(stderr,
+                    "EDEN_CASE_RESOLVE title=%016llX side=%s status=rejected ext=%s bytes=%lld dimensions=%dx%d path=%s\n",
+                    static_cast<unsigned long long>(title_id), side, ext,
+                    static_cast<long long>(info.st_size), width, height, path.c_str());
+                continue;
+            }
+            std::fprintf(stderr,
+                "EDEN_CASE_RESOLVE title=%016llX side=%s status=ready ext=%s bytes=%lld dimensions=%dx%d path=%s\n",
+                static_cast<unsigned long long>(title_id), side, ext,
+                static_cast<long long>(info.st_size), width, height, path.c_str());
+            return path;
         }
-    }
-    list.push_back(Eden::Profiles::Make(name));
-    if (!Eden::Profiles::Write(list)) return -1;
-    // It starts with the settings of whoever made it; from then on they are its own.
-    (void)Eden::Profiles::Seed(list.back());
-    KeepSaveSyncFile(list);
-    Eden::Report("profile", ("Added: " + name).c_str());
-    return static_cast<int>(list.size()) - 1;
+        return {};
+    };
+    artwork.front = find_face("front");
+    artwork.back = find_face("back");
+    artwork.spine = find_face("spine");
+    std::fprintf(stderr,
+        "EDEN_CASE_RESULT title=%016llX front=%d back=%d spine=%d\n",
+        static_cast<unsigned long long>(title_id),
+        !artwork.front.empty(), !artwork.back.empty(), !artwork.spine.empty());
+    return artwork;
 }
 
-bool EdenServices::rename_profile(int index, int step) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
-    const std::lock_guard lock(bridge_);
-    auto list = Eden::Profiles::Read();
-    if (index < 0 || index >= static_cast<int>(list.size())) return false;
-    auto& profile = list[static_cast<std::size_t>(index)];
-    // The names nobody else has; this profile's own name keeps its place among them.
-    std::vector<std::string> names;
-    for (const std::string& name : ProfileNames()) {
-        const bool taken = std::any_of(list.begin(), list.end(), [&](const auto& other) {
-            return &other != &profile && other.name == name;
-        });
-        if (!taken) names.push_back(name);
-    }
-    if (names.empty()) return false;
-    const auto at = std::find(names.begin(), names.end(), profile.name);
-    const int count = static_cast<int>(names.size());
-    const int from = at == names.end() ? (step > 0 ? -1 : 0) : static_cast<int>(at - names.begin());
-    profile.name = names[static_cast<std::size_t>(((from + step) % count + count) % count)];
-    if (!Eden::Profiles::Write(list)) return false;
-    KeepSaveSyncFile(list);
-    return true;
-}
-
-bool EdenServices::remove_profile(int index) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_) return false;
-    const std::lock_guard lock(bridge_);
-    const auto who = Eden::Profiles::Resolve(user_);
-    auto list = who.profiles;
-    if (list.size() < 2 || index < 0 || index >= static_cast<int>(list.size()) || index == who.current) return false;
-    const std::string name = list[static_cast<std::size_t>(index)].name;
-    const auto gone = list[static_cast<std::size_t>(index)];
-    // Credentials must not survive removal of their profile. Save data still stays as before.
-    const std::atomic<bool> no_stop{false};
-    if (!Eden::Nextendo::Store(Eden::ConfigDir() + "/nextendo").Apply(
-            gone.Key(), Eden::Nextendo::Action::unlink, no_stop).error.empty()) return false;
-    list.erase(list.begin() + index);
-    if (!Eden::Profiles::Write(list)) return false;
-    (void)Eden::Profiles::Forget(gone);
-    KeepSaveSyncFile(list);
-    // Its save data stays where it is (nand/user/save/.../<ID>): removing a name destroys nothing.
-    Eden::Report("profile", ("Removed from the list: " + name + " (its save data stays on the console)").c_str());
-    return true;
-}
+std::string EdenServices::game_path(const std::string& file) { return Eden::GamePath(file); }
 
 bool EdenServices::game_exists(const std::string& file) {
-    if (Eden::Network::IsPath(file)) return Eden::Network::Known(file);
-    return Eden::ValidRomPath(file) && IsFile(Eden::GamesPath("roms/" + file));
+    if (!Eden::ValidRomFilename(file)) return false;
+    // A failed lstat can mean an I/O error on mounted external storage,
+    // not a deleted ROM. The background presence scanner must distinguish
+    // ENOENT/ENOTDIR from an indeterminate mount/EIO/permission failure,
+    // otherwise two transient polls remove a valid FC27/BOTW tile.
+    const std::string path = Eden::GamePath(file);
+    struct stat info{};
+    if (lstat(path.c_str(), &info) == 0)
+        return S_ISREG(info.st_mode);
+    if (errno == EPERM || errno == EACCES) {
+        if (stat(path.c_str(), &info) == 0)
+            return S_ISREG(info.st_mode);
+    }
+    // Unknown != removed: keep the previous library snapshot, and let
+    // subsequent polls or an explicit launch establish real file status.
+    return errno != ENOENT && errno != ENOTDIR;
 }
 
+bool EdenServices::game_storage_available() {
+    std::error_code error;
+    return std::filesystem::is_directory(Eden::GamesDir(), error) && !error;
+}
+
+void EdenServices::arm_safe_launch() {
+    // Same process: main.cpp consumes and unsets this before applying the game's settings.
+    setenv("EDEN_SAFE_LAUNCH", "1", 1);
+    Eden::Report("launch", "Safe launch armed for the next game only");
+}
+
+namespace {
+// Share the exact override precedence between live modal reads and the
+// batch catalog snapshot: only the source of the global profile changes.
+bool EffectiveDockedMode(std::uint64_t title_id, const Eden::GameSettings& game,
+                         int global_profile) {
+    if (game.console_mode >= 0) return game.console_mode == 1;
+    const int tier = game.performance_profile >= 0 &&
+                             game.performance_profile < Eden::EncoreOverrides::kAuthoredProfileCount ?
+                         game.performance_profile :
+                     global_profile >= 0 &&
+                             global_profile < Eden::EncoreOverrides::kAuthoredProfileCount ?
+                         global_profile : -1;
+    return tier >= 0 ? Eden::EncoreOverridesRuntime::ProfileForTitle(title_id, tier).docked : true;
+}
+} // namespace
+
 bool EdenServices::docked(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return true;
-    const std::lock_guard lock(bridge_);
-    return Eden::LoadGameDocked(title_id);
+    if (title_id == 0) return true;
+    const Eden::GameSettings game = Eden::LoadGameSettings(title_id);
+    // Keep the previous no-global-JSON fastpath for explicit per-title mode.
+    if (game.console_mode >= 0) return game.console_mode == 1;
+    return EffectiveDockedMode(title_id, game, Eden::LoadPreferences().performance_profile);
+}
+
+bool EdenServices::docked_for_scan(std::uint64_t title_id,
+                                   const pe::ui::Preferences& snapshot) {
+    if (title_id == 0) return true;
+    const Eden::GameSettings game = Eden::LoadGameSettings(title_id);
+    return EffectiveDockedMode(title_id, game, snapshot.performance_profile);
 }
 
 bool EdenServices::set_docked(std::uint64_t title_id, bool docked) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    return Eden::SaveGameDocked(title_id, docked);
+    Eden::GameSettings settings = Eden::LoadGameSettings(title_id);
+    settings.console_mode = docked ? 1 : 0;
+    return Eden::SaveGameSettings(title_id, settings);
 }
 
-static_assert(pe::ui::kGameButtons == Eden::kGameButtons && pe::ui::kPadButtons == Eden::kPadButtons &&
-              pe::ui::kDefaultMapping == Eden::kDefaultMapping, "the launcher's button mapping differs");
-static_assert(std::tuple_size_v<decltype(pe::ui::GameSettings::performance)> == Eden::kPerformanceSwitches);
-static_assert(std::size(pe::ui::kSpeedLimitPercents) == std::size(Eden::kSpeedLimitPercent) &&
-                  pe::ui::kSpeedLimitPercents[0] == Eden::kSpeedLimitPercent[0] &&
-                  pe::ui::kSpeedLimitPercents[1] == Eden::kSpeedLimitPercent[1] &&
-                  pe::ui::kSpeedLimitPercents[2] == Eden::kSpeedLimitPercent[2] &&
-                  pe::ui::kSpeedLimitPercents[3] == Eden::kSpeedLimitPercent[3] &&
-                  pe::ui::kSpeedLimitPercents[4] == Eden::kSpeedLimitPercent[4],
-              "the launcher's speed limits differ");
-
 pe::ui::GameSettings EdenServices::game_settings(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
     const Eden::GameSettings saved = Eden::LoadGameSettings(title_id);
     pe::ui::GameSettings result;
+    result.console_mode = saved.console_mode;
     result.renderer = saved.renderer;
+    result.output = saved.output;
     result.resolution = saved.resolution;
     result.filter = saved.upscaling_filter;
-    result.astc = saved.astc_textures;
+    result.fsr_sharpness = saved.fsr_sharpness;
+    result.anti_aliasing = saved.anti_aliasing;
     result.refresh = saved.refresh;
-    result.hud = saved.hud;
-    result.hud_size = saved.hud_size;
-    result.hud_corner = saved.hud_corner;
-    result.frame_gen = saved.frame_gen;
-    result.frame_gen_method = saved.frame_gen_method;
-    result.frame_gen_target = saved.frame_gen_target;
-    result.frame_gen_multiplier = saved.frame_gen_multiplier;
-    ReadPostPresets(title_id);
-    result.post_processing = saved.post_processing ? PostPresetIndex(*saved.post_processing) : -1;
-    result.volume = saved.volume;
-    result.mute = saved.mute;
-    result.vibration = saved.vibration;
-    result.language = saved.language;
-    result.controller = saved.controller;
+    result.performance_profile = saved.performance_profile;
+    result.controller_layout = saved.controller_layout;
     result.own_mapping = saved.own_mapping;
     result.mapping = saved.mapping;
-    result.performance = saved.performance;
-    result.rng_seed = saved.rng_seed;
-    result.speed_limit = saved.speed_limit;
     return result;
 }
 
 bool EdenServices::set_game_settings(std::uint64_t title_id, const pe::ui::GameSettings& settings) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     Eden::GameSettings value;
+    value.console_mode = settings.console_mode;
     value.renderer = settings.renderer;
+    value.output = settings.output;
     value.resolution = settings.resolution;
     value.upscaling_filter = settings.filter;
-    value.astc_textures = settings.astc;
+    value.fsr_sharpness = settings.fsr_sharpness;
+    value.anti_aliasing = settings.anti_aliasing;
     value.refresh = settings.refresh;
-    value.hud = settings.hud;
-    value.hud_size = settings.hud_size;
-    value.hud_corner = settings.hud_corner;
-    value.frame_gen = settings.frame_gen;
-    value.frame_gen_method = settings.frame_gen_method;
-    value.frame_gen_target = settings.frame_gen_target;
-    value.frame_gen_multiplier = settings.frame_gen_multiplier;
-    if (settings.post_processing >= 0) {
-        ReadPostPresets(title_id);
-        value.post_processing = PostPresetName(settings.post_processing);
-    }
-    value.volume = settings.volume;
-    value.mute = settings.mute;
-    value.vibration = settings.vibration;
-    value.language = settings.language;
-    value.controller = settings.controller;
+    value.performance_profile = settings.performance_profile;
+    value.controller_layout = settings.controller_layout;
     value.own_mapping = settings.own_mapping;
     value.mapping = settings.mapping;
-    value.performance = settings.performance;
-    value.rng_seed = settings.rng_seed;
-    value.speed_limit = settings.speed_limit;
     const bool saved = Eden::SaveGameSettings(title_id, value);
     if (!saved) Eden::Report("settings", "Could not write game settings");
     return saved;
 }
 
 pe::ui::Preferences EdenServices::preferences() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
     const Eden::Preferences saved = Eden::LoadPreferences();
     pe::ui::Preferences result;
     result.hud = saved.hud;
-    result.hud_size = saved.hud_size;
-    result.hud_corner = saved.hud_corner;
-    result.hud_colors = saved.hud_colors;
-    result.hud_fields = saved.hud_fields;
     result.volume = saved.volume;
     result.mute = saved.mute;
     result.detailed_logging = saved.detailed_logging;
-    result.immediate_logs = saved.immediate_logs;
     result.renderer = saved.backend == Eden::GraphicsBackend::OpenGL ? 0 : 1;
     result.resolution = saved.resolution;
     result.filter = saved.upscaling_filter;
-    result.astc = saved.astc_textures;
+    result.fsr_sharpness = saved.fsr_sharpness;
+    result.anti_aliasing = saved.anti_aliasing;
     result.refresh = saved.refresh;
     result.output = saved.output;
-    result.frame_gen = saved.frame_gen;
-    result.frame_gen_method = saved.frame_gen_method;
-    result.frame_gen_target = saved.frame_gen_target;
-    result.frame_gen_multiplier = saved.frame_gen_multiplier;
-    ReadPostPresets();
-    result.post_processing = PostPresetIndex(saved.post_processing);
+    result.performance_profile = saved.performance_profile;
+    result.controller_layout = saved.controller_layout;
+    result.mapping = saved.mapping;
     result.vibration = saved.vibration;
     result.vibration_strength = saved.vibration_strength;
+    result.stick_deadzone = saved.stick_deadzone;
     result.language = saved.language;
     result.menu_volume = saved.menu_volume;
     result.large_text = saved.large_text;
     result.high_contrast = saved.high_contrast;
     result.reduce_motion = saved.reduce_motion;
-    result.theme = saved.theme;
-    result.library_view = saved.library_view;
-    result.accent = saved.accent;
-    result.wallpaper = saved.wallpaper;
-    result.update_notices = saved.update_notices;
-    // Settings > Performance: the general values (settings_store.h).
-    const Eden::PerformanceSettings speed = Eden::LoadPerformance(0);
-    result.block_list = speed.block_list;
-    result.async_shaders = speed.async_shaders;
-    result.fast_gpu = speed.fast_gpu;
-    result.unsafe_cpu = speed.unsafe_cpu;
-    result.unsafe_dma = speed.unsafe_dma;
-    result.reactive_flushing = speed.reactive_flushing;
-    result.skip_invalidation = speed.skip_invalidation;
-    result.compact_memory = speed.compact_memory;
-    result.memory_layout = speed.memory_layout;
-    result.speed_limit = speed.speed_limit;
-    result.mapping = saved.mapping;
-    result.menu_bind = saved.menu_bind;
+    result.ui_theme = saved.ui_theme;
+    result.ui_palette = saved.ui_palette;
+    result.library_layout = saved.library_layout;
     return result;
 }
 
 bool EdenServices::set_preferences(const pe::ui::Preferences& preferences) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     Eden::Preferences value;
     value.hud = preferences.hud;
-    value.hud_size = preferences.hud_size;
-    value.hud_corner = preferences.hud_corner;
-    value.hud_colors = preferences.hud_colors;
-    value.hud_fields = preferences.hud_fields;
     value.volume = preferences.volume;
     value.mute = preferences.mute;
     value.detailed_logging = preferences.detailed_logging;
-    value.immediate_logs = preferences.immediate_logs;
     value.backend = preferences.renderer == 0 ? Eden::GraphicsBackend::OpenGL : Eden::GraphicsBackend::Vulkan;
     value.resolution = preferences.resolution;
     value.upscaling_filter = preferences.filter;
-    value.astc_textures = preferences.astc;
+    value.fsr_sharpness = preferences.fsr_sharpness;
+    value.anti_aliasing = preferences.anti_aliasing;
     value.refresh = preferences.refresh;
     value.output = preferences.output;
-    value.frame_gen = preferences.frame_gen;
-    value.frame_gen_method = preferences.frame_gen_method;
-    value.frame_gen_target = preferences.frame_gen_target;
-    value.frame_gen_multiplier = preferences.frame_gen_multiplier;
-    value.post_processing = PostPresetName(preferences.post_processing);
+    value.performance_profile = preferences.performance_profile;
+    value.controller_layout = preferences.controller_layout;
+    value.mapping = preferences.mapping;
     value.vibration = preferences.vibration;
     value.vibration_strength = preferences.vibration_strength;
+    value.stick_deadzone = preferences.stick_deadzone;
     value.language = preferences.language;
     value.menu_volume = preferences.menu_volume;
     value.large_text = preferences.large_text;
     value.high_contrast = preferences.high_contrast;
     value.reduce_motion = preferences.reduce_motion;
-    value.theme = preferences.theme;
-    value.library_view = preferences.library_view;
-    value.accent = preferences.accent;
-    value.wallpaper = preferences.wallpaper;
-    value.update_notices = preferences.update_notices;
-    value.mapping = preferences.mapping;
-    value.menu_bind = preferences.menu_bind;
-    Eden::PerformanceSettings speed = Eden::LoadPerformance(0);
-    speed.block_list = preferences.block_list;
-    speed.async_shaders = preferences.async_shaders;
-    speed.fast_gpu = preferences.fast_gpu;
-    speed.unsafe_cpu = preferences.unsafe_cpu;
-    speed.unsafe_dma = preferences.unsafe_dma;
-    speed.reactive_flushing = preferences.reactive_flushing;
-    speed.skip_invalidation = preferences.skip_invalidation;
-    speed.compact_memory = preferences.compact_memory;
-    // One of the layouts, whatever reached the launcher: a value outside them would make the whole
-    // save fail, and with it every other setting on the page (settings_store.h's SavePerformance).
-    speed.memory_layout = std::clamp(preferences.memory_layout, 0,
-                                     static_cast<int>(std::size(Eden::kMemoryLayoutKeys)) - 1);
-    speed.speed_limit = std::clamp(preferences.speed_limit, 0,
-                                   static_cast<int>(std::size(Eden::kSpeedLimitKeys)) - 1);
-    const bool saved = Eden::SavePreferences(value) && Eden::SavePerformance(0, speed);
+    value.ui_theme = preferences.ui_theme;
+    value.ui_palette = preferences.ui_palette;
+    value.library_layout = preferences.library_layout;
+    const bool saved = Eden::SavePreferences(value);
     if (!saved) Eden::Report("settings", "Could not write preferences");
-    if (saved) Eden::Multiplayer::SetDetailedLogging(value.detailed_logging);
+#ifdef PS5_NATIVE
+    if (saved) {
+        // Apply the toggle immediately in the launcher: no hidden running
+        // stderr/stdout writers and no growing emulator log when disabled.
+        Eden::NativeLogs::SetDetailed(value.detailed_logging);
+        // The deep GPU/JIT hot-path counters must follow the live toggle.
+        // Otherwise disabling logs leaves costly diagnostics in-game.
+        Eden::Performance::detailed_gpu_profile.store(value.detailed_logging,
+                                                       std::memory_order_relaxed);
+        eden_network_audit_enable(value.detailed_logging ? 1 : 0);
+        if (!value.detailed_logging) {
+            Eden::BootTrace::Quiet(Eden::LogsDir());
+            for (const char* name : {
+                    "eden_log.txt", "eden_log.txt.first.txt", "eden_log.txt.old.txt"})
+                (void)std::remove((Eden::UserDir() + "/log/" + name).c_str());
+        }
+    }
+#endif
     return saved;
 }
 
 const std::vector<std::string>& EdenServices::resolution_labels() {
-    static const std::vector<std::string> labels = Labels(Eden::kResolutionLabels);
-    return labels;
+    return resolution_labels_;
 }
 
 const std::vector<std::string>& EdenServices::resolution_keys() {
-    static const std::vector<std::string> labels = Labels(Eden::kResolutionKeys);
-    return labels;
-}
-
-// The library is the user's own copy from Lossless Scaling: <user folder>/lossless/Lossless.dll.
-int EdenServices::frame_gen_state() {
-#ifdef EDEN_PS5_FRAMEGEN
-    return Eden::FileExists(Eden::UserDir() + "/lossless/Lossless.dll") ? 2 : 1;
-#else
-    return 0;
-#endif
-}
-
-// MihawkGen weights: <user folder>/mihawkgen/network.fgw, or bundled in the app.
-int EdenServices::mihawkgen_state() {
-#ifdef EDEN_PS5_MIHAWKGEN
-    if (Eden::FileExists(Eden::UserDir() + "/mihawkgen/network.fgw")) return 2;
-    if (Eden::FileExists(Eden::AppDir() + "/mihawkgen/network.fgw")) return 2;
-    return 1;
-#else
-    return 0;
-#endif
+    return resolution_keys_;
 }
 
 const std::vector<std::string>& EdenServices::filter_labels() {
-    static const std::vector<std::string> labels = Labels(Eden::kUpscalingFilterLabels);
-    return labels;
+    return filter_labels_;
 }
 
-void EdenServices::ReadPostPresets(std::optional<std::uint64_t> title_id) {
-    // Eden writes its bundled presets into post_presets the first time, then lists that folder:
-    // "Off", then those. A game in its own folder adds the presets of that folder's reshade/
-    // (reshade_folder.h) after them. So an index means the same preset in the general settings and
-    // in a game's (the general settings read again while a game's are open keep the game's list),
-    // and the general settings offer the shared ones only (post_processing_shared).
-    if (title_id) post_title_ = *title_id;
-    const auto names = [](std::vector<std::string>& list) {
-        for (const auto& preset : VideoCore::GetFxPresetCatalog())
-            if (!preset.name.empty() && Eden::ValidPostProcessing(preset.name) &&
-                std::find(list.begin() + 1, list.end(), preset.name) == list.end())
-                list.push_back(preset.name);
-    };
-    (void)Eden::Reshade::SetGameFolder({});
-    VideoCore::ReloadFxPresetCatalog();
-    post_presets_ = {tr("Off")};
-    names(post_presets_);
-    post_shared_ = static_cast<int>(post_presets_.size());
-    const std::string folder = post_title_ ? ModPlaces(post_title_).game_folder : std::string{};
-    if (Eden::Reshade::SetGameFolder(folder)) {
-        VideoCore::ReloadFxPresetCatalog();
-        names(post_presets_);
-    }
+const std::vector<std::string>& EdenServices::anti_aliasing_labels() {
+    return anti_aliasing_labels_;
 }
 
-int EdenServices::post_processing_shared() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return post_shared_;
-    const std::lock_guard lock(bridge_);
-    if (post_presets_.empty()) ReadPostPresets();
-    return post_shared_;
-}
-
-// "" (off) is 0; a name the console has no preset of any more reads as off.
-int EdenServices::PostPresetIndex(const std::string& name) const {
-    for (std::size_t i = 1; i < post_presets_.size(); ++i)
-        if (post_presets_[i] == name) return static_cast<int>(i);
-    return 0;
-}
-
-std::string EdenServices::PostPresetName(int index) const {
-    return index > 0 && index < static_cast<int>(post_presets_.size()) ? post_presets_[index] : std::string{};
-}
-
-const std::vector<std::string>& EdenServices::post_processing_labels() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return post_presets_;
-    const std::lock_guard lock(bridge_);
-    if (post_presets_.empty()) ReadPostPresets();
-    return post_presets_;
-}
-
-const std::vector<std::string>& EdenServices::astc_labels() {
-    static const std::vector<std::string> labels = Labels(Eden::kAstcTextureLabels);
-    return labels;
+const std::vector<std::string>& EdenServices::performance_profile_labels() {
+    return performance_profile_labels_;
 }
 
 const std::vector<std::string>& EdenServices::language_labels() {
-    static const std::vector<std::string> labels = Labels(Eden::kLanguageLabels);
-    return labels;
+    return language_labels_;
 }
 
 std::string EdenServices::language_region(int language) {
@@ -1479,12 +2100,62 @@ std::string EdenServices::language_region(int language) {
     return tr(kRegions[Eden::kLanguageRegions[language]]);
 }
 
-std::string EdenServices::crash_reports_folder() { return Eden::LogsDir(); }
-
 std::string EdenServices::setup_details() {
     return setup_.empty() ?
         tr("Keys and firmware: startup checks passed. Game-specific compatibility is checked at launch.") :
         SetupMessage(setup_);
+}
+
+pe::ui::DiagnosticsInfo EdenServices::diagnostics() {
+    return diagnostics(nullptr);
+}
+
+pe::ui::DiagnosticsInfo EdenServices::diagnostics(const std::atomic<bool>* cancel) {
+    if (cancel && cancel->load(std::memory_order_acquire)) return {};
+    pe::ui::DiagnosticsInfo result;
+    result.filesystem = Eden::FilesystemAccess() ? tr("Full filesystem") : tr("Sandbox only");
+    result.data_path = Eden::FilesystemAccess() ? Eden::kDataDir : Eden::UserDir();
+
+    // RELEASE-SAFETY (FW 13.60): do not call libc statfs/statvfs, which
+    // previously raised SYSTEM_ILLEGAL_FUNCTION_CALL. This directory inventory
+    // now runs on a cancellable background worker; the console's filesystem
+    // view also does not establish physical SSD capacity.
+    result.storage_root = Eden::AssetsDir();
+
+    const std::filesystem::path cache = std::filesystem::path{Eden::UserDir()} / "cache";
+    const std::uintmax_t shader_bytes =
+        TreeBytes(cache / "shader", cancel) + TreeBytes(cache / "radv", cancel) +
+        TreeBytes(cache / "native-opengl", cancel) + TreeBytes(cache / "jit", cancel);
+    if (cancel && cancel->load(std::memory_order_acquire)) return {};
+    result.shader_cache_bytes = static_cast<std::uint64_t>(shader_bytes);
+    result.shader_caches = StorageSize(shader_bytes);
+    result.logs = StorageSize(TreeBytes(Eden::LogsDir(), cancel));
+    if (cancel && cancel->load(std::memory_order_acquire)) return {};
+    return result;
+}
+
+bool EdenServices::clear_shader_caches(std::string* message) {
+    const std::filesystem::path cache = std::filesystem::path{Eden::UserDir()} / "cache";
+    const std::uintmax_t before =
+        TreeBytes(cache / "shader") + TreeBytes(cache / "radv") +
+        TreeBytes(cache / "native-opengl") + TreeBytes(cache / "jit");
+    bool ok = true;
+    // Eden's per-title Vulkan/OpenGL pipeline cache lives under cache/shader. The other
+    // directories are backend/JIT auxiliaries. A maintenance clear must remove all of them,
+    // otherwise the launcher can report success while the active game's pipelines survive.
+    for (const char* name : {"shader", "radv", "native-opengl", "jit"}) {
+        std::error_code error;
+        std::filesystem::remove_all(cache / name, error);
+        ok = ok && !error;
+    }
+    if (message) {
+        if (ok)
+            *message = fill(tr("Cleared {0} of cache."), {StorageSize(before)});
+        else
+            *message = tr("Some cache files could not be removed.");
+    }
+    if (ok) Eden::Report("cache", "Shader/JIT caches cleared from Diagnostics");
+    return ok;
 }
 
 bool EdenServices::folders(const std::string& directory, std::vector<std::string>* names) {
@@ -1493,65 +2164,116 @@ bool EdenServices::folders(const std::string& directory, std::vector<std::string
     return ok;
 }
 
-std::vector<std::string> EdenServices::wallpapers() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_); // first wallpaper-path resolution can migrate settings
-    bool ok = false;
-    return ListEntries(Eden::LauncherWallpapersDir(), false, ok);
-}
-
-std::string EdenServices::wallpapers_folder() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
-    return Eden::LauncherWallpapersDir();
-}
-
 pe::ui::FolderInfo EdenServices::folder_info(const std::string& directory) {
     pe::ui::FolderInfo info;
     info.keys = Eden::FileExists(JoinPath(directory, "keys/prod.keys"));
     info.firmware = CountFiles(JoinPath(directory, "firmware"), {".nca"});
-    info.games = CountGames(JoinPath(directory, "roms"));
+    const std::string roms_path = JoinPath(directory, "roms");
+    const int regular = CountFiles(roms_path,
+                                  {".nsp", ".xci", ".nsz", ".xcz", ".nro", ".nso",
+                                   ".nca", ".nax", ".kip"});
+    const int extracted = CountExeFsFolders(roms_path);
+    info.games = regular < 0 || extracted < 0 ? -1 : regular + extracted;
     return info;
 }
 
 std::string EdenServices::files_folder() { return Eden::AssetsDir(); }
-std::string EdenServices::saved_files_folder() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
-    return Eden::LoadSavedAssetsDir();
-}
-std::string EdenServices::games_folder() { return Eden::GamesDir(); }
-std::string EdenServices::saved_games_folder() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
-    return Eden::LoadSavedGamesDir();
-}
-bool EdenServices::set_games_folder(const std::string& directory) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ || cheat_manager_.Status().busy) return false;
-    const std::lock_guard lock(bridge_);
-    const bool saved = Eden::SaveGamesDir(directory);
-    if (!saved) Eden::Report("settings", "Could not write the independent games folder");
-    return saved;
-}
+std::string EdenServices::saved_files_folder() { return Eden::LoadSavedAssetsDir(); }
 std::string EdenServices::default_files_folder() { return Eden::kDefaultAssetsDir; }
 
 bool EdenServices::set_files_folder(const std::string& directory) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || nextendo_busy_ || network_mutation_active_ || amiibo_sync_.Status().busy || cheat_manager_.Status().busy) return false;
-    const std::lock_guard lock(bridge_);
+    if (!Eden::FilesystemAccess() || !Eden::ValidAssetsDir(directory)) return false;
+
+    std::error_code error;
+    const auto status = std::filesystem::symlink_status(directory, error);
+    if (error || std::filesystem::is_symlink(status) || !std::filesystem::is_directory(status))
+        return false;
+
+    // Selecting external storage changes only the root. Every root has the exact same Encore
+    // layout; individual keys/firmware/roms/etc. paths are never configurable.
+    for (const char* name : {"keys", "firmware", "roms", "updates", "mods",
+                             "save-import", "save-export", "ryujinx"}) {
+        const std::filesystem::path child = std::filesystem::path{directory} / name;
+        error.clear();
+        const auto child_status = std::filesystem::symlink_status(child, error);
+        if (!error && std::filesystem::exists(child_status) &&
+            (std::filesystem::is_symlink(child_status) || !std::filesystem::is_directory(child_status))) {
+            Eden::Report("storage", (std::string{"Unsafe storage entry: "} + child.string()).c_str());
+            return false;
+        }
+        error.clear();
+        std::filesystem::create_directories(child, error);
+        if (error) {
+            Eden::Report("storage", (std::string{"Could not prepare "} + name + ": " + error.message()).c_str());
+            return false;
+        }
+    }
     const bool saved = Eden::SaveAssetsDir(directory);
-    if (!saved) Eden::Report("settings", "Could not write the game files folder");
+    if (!saved) Eden::Report("settings", "Could not write the storage root");
     return saved;
 }
 
 int EdenServices::filesystem_access() { return Eden::FilesystemAccessStatus(); }
+bool EdenServices::independent_storage_available() {
+    return Eden::FilesystemAccess() && Eden::UserContent::kIoAvailable;
+}
+bool EdenServices::content_entries(const std::string& directory, std::vector<std::string>* folders,
+                                   std::vector<std::string>* images, const std::atomic<bool>* cancel) {
+    if (folders) folders->clear();
+    if (images) images->clear();
+    return independent_storage_available() && Eden::UserContent::Entries(directory, folders, images, cancel);
+}
+
+std::string EdenServices::location_folder(pe::ui::StorageLocation kind) {
+    return kind == pe::ui::StorageLocation::files ? Eden::AssetsDir() :
+           kind == pe::ui::StorageLocation::games ? Eden::GamesDir() : Eden::WallpapersDir();
+}
+std::string EdenServices::saved_location_folder(pe::ui::StorageLocation kind) {
+    return kind == pe::ui::StorageLocation::files ? Eden::LoadSavedAssetsDir() :
+           Eden::LoadContentFolder(kind == pe::ui::StorageLocation::wallpapers);
+}
+std::string EdenServices::default_location_folder(pe::ui::StorageLocation kind) {
+    return kind == pe::ui::StorageLocation::files ? Eden::kDefaultAssetsDir :
+           Eden::AssetsPath(kind == pe::ui::StorageLocation::games ? "roms" : "wallpapers");
+}
+bool EdenServices::set_location_folder(pe::ui::StorageLocation kind, const std::string& directory) {
+    return set_location_folder(kind, directory, nullptr);
+}
+bool EdenServices::set_location_folder(pe::ui::StorageLocation kind, const std::string& directory,
+                                      const std::atomic<bool>* cancel) {
+    if (Eden::UserContent::Cancelled(cancel)) return false;
+    if (kind == pe::ui::StorageLocation::files) return set_files_folder(directory);
+    if (!independent_storage_available()) return false;
+    if (!directory.empty()) {
+        if (!Eden::ValidAssetsDir(directory)) return false;
+        Eden::UserContent::Descriptor check(Eden::UserContent::OpenDirectory(directory, cancel));
+        if (check.value < 0) return false;
+    }
+    return !Eden::UserContent::Cancelled(cancel) &&
+           Eden::SaveContentFolder(kind == pe::ui::StorageLocation::wallpapers, directory, Eden::SettingsFile(), cancel);
+}
+std::vector<std::string> EdenServices::wallpaper_files(const std::string& directory) {
+    return wallpaper_files(directory, nullptr);
+}
+std::vector<std::string> EdenServices::wallpaper_files(const std::string& directory, const std::atomic<bool>* cancel) {
+    return independent_storage_available() && Eden::ValidAssetsDir(directory) ?
+        Eden::UserContent::Images(directory, cancel) : std::vector<std::string>{};
+}
+bool EdenServices::set_wallpaper(const std::string& directory, const std::string& name) {
+    return set_wallpaper(directory, name, nullptr);
+}
+bool EdenServices::set_wallpaper(const std::string& directory, const std::string& name, const std::atomic<bool>* cancel) {
+    if (!independent_storage_available() || !Eden::ValidAssetsDir(directory)) return false;
+    // Decode validation remains on the existing texture worker after restart;
+    // bad artwork never changes setup readiness or prevents launching games.
+    std::vector<unsigned char> bytes;
+    return Eden::UserContent::ReadImage(directory, name, bytes, cancel) &&
+            !Eden::UserContent::Cancelled(cancel) && Eden::SaveWallpaper(directory, name, Eden::SettingsFile(), cancel);
+}
+std::string EdenServices::wallpaper_image() {
+    return Eden::WallpaperName().empty() ? std::string{} :
+        "wallpaper:" + Eden::WallpapersDir() + "/" + Eden::WallpaperName();
+}
 
 #ifdef EDEN_SAVE_IMPORT
 // Save transfer (ryujinx_saves.h): a save comes in from save-import/<title ID>/ or a Ryujinx data
@@ -1567,9 +2289,6 @@ pe::ui::SaveSource EdenServices::save_import_source(std::uint64_t title_id) {
 }
 
 bool EdenServices::save_import(std::uint64_t title_id, std::string* message) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     char backup[256]{};
     switch (eden_save_import(title_id, backup, sizeof(backup))) {
     case EDEN_SAVE_DONE:
@@ -1592,9 +2311,6 @@ bool EdenServices::save_import(std::uint64_t title_id, std::string* message) {
 }
 
 bool EdenServices::save_export(std::uint64_t title_id, std::string* message) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     char folder[256]{};
     switch (eden_save_export(title_id, folder, sizeof(folder))) {
     case EDEN_SAVE_DONE: {
@@ -1608,7 +2324,7 @@ bool EdenServices::save_export(std::uint64_t title_id, std::string* message) {
         *message = tr("This game has no save to export yet.");
         return false;
     default:
-        *message = tr("Export failed. Check that the game files folder can be written.");
+        *message = tr("Export failed. Check that the storage root can be written.");
         return false;
     }
 }
@@ -1619,25 +2335,12 @@ bool EdenServices::save_import(std::uint64_t, std::string*) { return false; }
 bool EdenServices::save_export(std::uint64_t, std::string*) { return false; }
 #endif
 
-// Where a game's mods are (headless/mods.h): the game files folder's mods/ and cheats/, and the
-// game's own folder in roms/ when the Library found it in one.
-Eden::Mods::Places EdenServices::ModPlaces(std::uint64_t title_id) {
-    Eden::Mods::Places places{Eden::AssetsPath("mods"), Eden::AssetsPath("cheats"), {}};
-    const std::lock_guard lock(game_folders_lock_);
-    if (const auto found = game_folders_.find(title_id); found != game_folders_.end()) places.game_folder = found->second;
-    return places;
-}
-
-// Mods (headless/mods.h): what a game has, which of them are switched off and which cheats are
-// chosen (settings_store.h).
+// Mods (headless/mods.h): what the selected storage root's mods/<title ID>/ holds for a game, and
+// which of them are switched off (settings_store.h).
 std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
     std::vector<pe::ui::Mod> result;
     const auto off = Eden::LoadDisabledMods(title_id);
-    const auto chosen = Eden::LoadChosenCheats(title_id);
-    for (const Eden::Mods::Mod& mod : Eden::Mods::List(ModPlaces(title_id), title_id)) {
+    for (const Eden::Mods::Mod& mod : Eden::Mods::List(Eden::AssetsPath("mods"), title_id)) {
         std::string kind;
         const auto add = [&kind](const char* text) {
             if (!kind.empty()) kind += ", ";
@@ -1646,698 +2349,90 @@ std::vector<pe::ui::Mod> EdenServices::mods(std::uint64_t title_id) {
         if (mod.kinds & Eden::Mods::kCode) add(TR("Patch"));
         if (mod.kinds & Eden::Mods::kFiles) add(TR("Files"));
         if (mod.kinds & Eden::Mods::kCheats) add(TR("Cheats"));
-        result.push_back({mod.name, kind, std::find(off.begin(), off.end(), mod.name) == off.end(), {},
-                          Eden::Mods::CheatsOnly(mod)});
-        for (const auto& cheat : mod.cheats)
-            result.back().cheats.push_back(
-                {cheat.name, std::find(chosen.begin(), chosen.end(), cheat.id) != chosen.end()});
+        result.push_back({mod.name, kind, std::find(off.begin(), off.end(), mod.name) == off.end()});
     }
     return result;
 }
-
-// Every cheat of a game (headless/mods.h), whichever of its mods holds it.
-std::vector<pe::ui::GameCheat> EdenServices::cheats(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
-    std::vector<pe::ui::GameCheat> result;
-    for (const auto& item : Eden::Mods::CheatItems(Eden::Mods::List(ModPlaces(title_id), title_id),
-                                                   Eden::LoadDisabledMods(title_id), Eden::LoadChosenCheats(title_id),
-                                                   Eden::LoadCheatsOff(title_id)))
-        result.push_back({item.mod, item.name, item.on});
-    return result;
-}
-
-// A cheat is switched where its kind keeps it: chosen among its mod's several, its mod's own
-// switch for a mod of one cheat alone, or on its own beside a mod's patches or files.
-bool EdenServices::set_cheat_enabled(std::uint64_t title_id, const std::string& name, const std::string& cheat,
-                                     bool enabled) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    using Switch = Eden::Mods::CheatItem::Switch;
-    bool saved = false;
-    const auto mods = Eden::Mods::List(ModPlaces(title_id), title_id);
-    for (const auto& item : Eden::Mods::CheatItems(mods, {}, {}, {})) {
-        if (item.mod != name || item.name != cheat) continue;
-        if (item.by == Switch::mod) {
-            saved = Eden::SaveModEnabled(title_id, name, enabled);
-        } else if (item.by == Switch::own) {
-            saved = Eden::SaveCheatOff(title_id, Eden::Cheats::Key(name, cheat), !enabled);
-        } else {
-            for (const Eden::Mods::Mod& mod : mods)
-                if (mod.name == name)
-                    saved = Eden::SaveChosenCheats(
-                        title_id, Eden::Mods::ChooseCheat(mod, cheat, enabled, Eden::LoadChosenCheats(title_id)));
-        }
-        break;
-    }
-    if (!saved) Eden::Report("settings", "Could not write the game's cheats");
-    return saved;
-}
-
-bool EdenServices::cheats_enabled(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return true;
-    const std::lock_guard lock(bridge_);
-    return Eden::LoadCheatsEnabled(title_id);
-}
-
-bool EdenServices::set_cheats_enabled(std::uint64_t title_id, bool enabled) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    const bool saved = Eden::SaveCheatsEnabled(title_id, enabled);
-    if (!saved) Eden::Report("settings", "Could not write the game's cheats switch");
-    return saved;
-}
-
-// A game in its own folder keeps its cheat files there; any other, in cheats/<title ID>/.
-std::string EdenServices::cheats_folder(std::uint64_t title_id) {
-    if (const std::string folder = ModPlaces(title_id).game_folder; !folder.empty())
-        return "roms/" + std::filesystem::path(folder).filename().string() + "/cheats/";
-    return "cheats/" + Eden::Mods::TitleName(title_id) + "/";
-}
-
-Eden::CheatManagerRequest EdenServices::CheatRequest(const pe::ui::Game& game) {
-    const auto config = Eden::Settings::Load(Eden::SettingsFile());
-    std::string source{Eden::kCheatCatalogSource};
-    if (config.contains("cheat_catalog_url")) {
-        if (!config.at("cheat_catalog_url").is_string()) source.clear();
-        else source = config.at("cheat_catalog_url").get<std::string>();
-    }
-    // Bind to this selected file's folder, not a title-ID map: two installed copies of a
-    // program can have different local updates/mods and must probe their own boot contents.
-    return {game.file, game_path(game.file), GameFolderOf(game.file), source,
-        Eden::AssetsPath(".cheat-cache"), Eden::AssetsPath("mods/" + Eden::Mods::TitleName(game.title_id)), game.title_id};
-}
-pe::ui::CheatDatabase EdenServices::cheat_database() { return cheat_manager_.Status(); }
-bool EdenServices::check_cheat_database(const pe::ui::Game& game, bool offline) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_) return false;
-    if (launch_committed_ || game.remote || game.network || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
-    return cheat_manager_.Start(CheatRequest(game), offline);
-}
-bool EdenServices::install_cheat_database(const pe::ui::Game& game) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_) return false;
-    if (launch_committed_ || game.remote || game.network || !Eden::FilesystemAccess() || !game_exists(game.file)) return false;
-    return cheat_manager_.Install(CheatRequest(game));
-}
-void EdenServices::cancel_cheat_database() { cheat_manager_.Cancel(); }
-
-Eden::AmiiboSyncStatus EdenServices::amiibo_sync() { return amiibo_sync_.Status(); }
-bool EdenServices::start_amiibo_sync(const std::vector<std::string>& ids, bool offline, bool confirmed) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_ || (!offline && !Eden::FilesystemAccess())) return false;
-    Eden::AmiiboSyncRequest request;
-    request.folder = Eden::AssetsPath("amiibo"); // snapshot on launcher thread, never on worker
-    request.ids = ids; request.offline = offline; request.confirmed = confirmed;
-    return amiibo_sync_.Start(std::move(request));
-}
-void EdenServices::cancel_amiibo_sync() { amiibo_sync_.Cancel(); }
 
 bool EdenServices::set_mod_enabled(std::uint64_t title_id, const std::string& name, bool enabled) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveModEnabled(title_id, name, enabled);
     if (!saved) Eden::Report("settings", "Could not write the game's mods");
     return saved;
 }
 
-bool EdenServices::mods_enabled(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return true;
-    const std::lock_guard lock(bridge_);
-    return Eden::LoadModsEnabled(title_id);
+bool EdenServices::enable_mod_and_mods(std::uint64_t title_id, const std::string& name) {
+    const bool saved = Eden::SaveModSelection(title_id, name, true, true);
+    if (!saved) Eden::Report("settings", "Could not write the game's mods");
+    return saved;
 }
 
+bool EdenServices::mods_enabled(std::uint64_t title_id) { return Eden::LoadModsEnabled(title_id); }
+
 bool EdenServices::set_mods_enabled(std::uint64_t title_id, bool enabled) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
     const bool saved = Eden::SaveModsEnabled(title_id, enabled);
     if (!saved) Eden::Report("settings", "Could not write the game's mods switch");
     return saved;
 }
 
-// A game in its own folder keeps its mods there; any other, in mods/<title ID>/.
 std::string EdenServices::mods_folder(std::uint64_t title_id) {
-    if (const std::string folder = ModPlaces(title_id).game_folder; !folder.empty())
-        return "roms/" + std::filesystem::path(folder).filename().string() + "/mods/";
     return "mods/" + Eden::Mods::TitleName(title_id) + "/";
 }
 
 bool EdenServices::make_mods_folder(std::uint64_t title_id) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    if (const std::string folder = ModPlaces(title_id).game_folder; !folder.empty())
-        return mkdir((folder + "/mods").c_str(), 0777) == 0 || errno == EEXIST;
     const std::string root = Eden::AssetsPath("mods");
     if (!Eden::Mods::TitleFolder(root, title_id).empty()) return true;
     (void)mkdir(root.c_str(), 0777);
     return mkdir(Eden::Mods::TitleFolderToCreate(root, title_id).c_str(), 0777) == 0;
 }
 
-pe::ui::Sources EdenServices::sources() {
-    pe::ui::Sources sources;
-    sources.setup_file = Eden::ConfigFile("remote/sources.json");
-    if (!Eden::FilesystemAccess()) {
-        sources.error = "Download sources need filesystem access";
-        return sources;
-    }
-    const Eden::Remote::Status status = Eden::Remote::Current();
-    sources.configured = status.configured;
-    sources.error = status.error;
-    sources.generation = status.generation + Eden::Network::Current().generation;
-    sources.ftp_port = status.ftp_port;
-    for (const Eden::Remote::SourceStatus& source : status.sources)
-        sources.list.push_back({source.name, source.address, source.refreshing, source.online, source.error,
-                                static_cast<int>(source.games)});
-    return sources;
-}
-
-void EdenServices::refresh_sources() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return;
-    if (usb_active_) return;
-    if (Eden::FilesystemAccess()) Eden::Remote::Refresh();
-}
-
-std::vector<Eden::Remote::Title> EdenServices::Titles() {
-    if (!Eden::FilesystemAccess()) return {};
-    const std::lock_guard lock(titles_lock_);
-    RefreshTitles();
-    return titles_;
-}
-
-void EdenServices::RefreshTitles() {
-    const std::uint64_t generation = Eden::Remote::Current().generation;
-    if (generation != titles_generation_) {
-        titles_ = Eden::Remote::Titles();
-        titles_generation_ = generation;
-    }
-}
-
-std::string EdenServices::TitleKeyOf(const std::string& source, const std::string& id) {
-    const std::lock_guard lock(titles_lock_);
-    RefreshTitles();
-    for (const Eden::Remote::Title& title : titles_)
-        for (const Eden::Remote::Game& game : title.games)
-            if (game.source == source && game.id == id) return title.key;
-    return {};
-}
-
-bool EdenServices::download(const pe::ui::Game& game, int source, bool first) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_) return false;
-    // The title on its sources, in the order of Game::sources.
-    for (const Eden::Remote::Title& title : Titles())
-        if (title.key == game.key && source >= 0 && source < static_cast<int>(title.games.size()))
-            return Eden::Remote::Enqueue(title.games[static_cast<std::size_t>(source)].source,
-                                         title.games[static_cast<std::size_t>(source)].id, first);
-    return false;
-}
-
-bool EdenServices::cancel_download(const std::string& key) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    if (!Eden::FilesystemAccess()) return false;
-    for (const Eden::Remote::Title& title : Titles())
-        if (title.key == key)
-            for (const Eden::Remote::Game& game : title.games)
-                if (Eden::Remote::Cancel(game.source, game.id)) return true;
-    return false;
-}
-
-std::vector<pe::ui::Download> EdenServices::downloads() {
-    std::vector<pe::ui::Download> list;
-    if (!Eden::FilesystemAccess()) return list;
-    // Asked four times a second: nothing more is read while the queue is empty.
-    const std::vector<Eden::Remote::Download> queue = Eden::Remote::Downloads();
-    if (queue.empty()) return list;
-    const std::map<std::string, std::string> names = SourceNames();
-    for (const Eden::Remote::Download& entry : queue) {
-        pe::ui::Download download;
-        static_assert(static_cast<int>(pe::ui::DownloadState::verifying) == static_cast<int>(Eden::Remote::State::verifying) &&
-                      static_cast<int>(pe::ui::DownloadState::failed) == static_cast<int>(Eden::Remote::State::failed));
-        download.state = static_cast<pe::ui::DownloadState>(entry.state); // the same order
-        download.done = entry.done;
-        download.total = entry.total;
-        download.rate = entry.rate;
-        download.error = entry.error;
-        download.source = names.contains(entry.source) ? names.at(entry.source) : entry.source;
-        Eden::Remote::Game game;
-        if (Eden::Remote::Find(entry.source, entry.id, &game)) {
-            download.name = game.name.empty() ? CleanTitle(game.file) : game.name;
-            download.file = game.file;
-            download.cover = game.cover;
-        } else {
-            download.name = entry.id;
-        }
-        // Its title: the game as the Library lists it.
-        download.key = TitleKeyOf(entry.source, entry.id);
-        list.push_back(std::move(download));
-    }
-    return list;
-}
-
-bool EdenServices::delete_game(const pe::ui::Game& game, std::string* message) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    if (!Eden::FilesystemAccess() || game.sources.empty() || game.remote || !Eden::ValidRomPath(game.file))
-        return false;
-    const std::lock_guard lock(bridge_);
-    const std::string rom = Eden::GamesPath("roms/" + game.file);
-    // The game, what came with it from its sources, and every update and DLC of it in updates/
-    // (also one put there by hand), found by the title IDs the files hold.
-    std::vector<std::string> files{rom};
-    for (const Eden::Remote::Title& title : Titles())
-        if (title.key == game.key)
-            for (const Eden::Remote::Game& entry : title.games)
-                for (std::string& path : Eden::Remote::Files(entry.source, entry.id)) files.push_back(std::move(path));
-    const std::uint64_t title_id = game.title_id ? game.title_id : eden_game_title_id(rom.c_str());
-    const std::string folder = GameFolderOf(game.file);
-    (void)eden_game_addon_files(title_id, Eden::GamesPath("updates").c_str(),
-                                folder.empty() ? nullptr : folder.c_str(), Eden::AssetsPath("keys").c_str(),
-                                [](void* user, const char* path) {
-                                    static_cast<std::vector<std::string>*>(user)->emplace_back(path);
-                                },
-                                &files);
-    std::sort(files.begin(), files.end());
-    files.erase(std::unique(files.begin(), files.end()), files.end());
-    int deleted = 0;
-    std::uint64_t bytes = 0;
-    std::string kept;
-    for (const std::string& path : files) {
-        struct stat info {};
-        if (stat(path.c_str(), &info) != 0) continue;
-        if (std::remove(path.c_str()) == 0) {
-            ++deleted;
-            bytes += static_cast<std::uint64_t>(info.st_size);
-        } else if (kept.empty()) {
-            kept = path;
-        }
-    }
-    // A game folder left empty goes too (one that still holds anything stays).
-    if (!folder.empty()) (void)rmdir(folder.c_str());
-    // The Library reads its list again: the game is on its sources only now.
-    Eden::Remote::Changed();
-    if (!kept.empty()) {
-        *message = fill(tr("Could not delete {0}."), {kept});
-        return false;
-    }
-    *message = fill(deleted == 1 ? tr("Deleted 1 file ({0}). Save data and settings are kept.") :
-                                   tr("Deleted {1} files ({0}). Save data and settings are kept."),
-                    {SizeLabel(static_cast<double>(bytes)), std::to_string(deleted)});
-    return true;
-}
-
 bool EdenServices::load_image(const std::string& path, pe::gfx::Image* image) {
+    if (path.starts_with("wallpaper:")) {
+        const std::string selected = path.substr(10);
+        const auto slash = selected.find_last_of('/');
+        if (slash == std::string::npos) return false;
+        const std::string folder = selected.substr(0, slash);
+        if (!Eden::ValidAssetsDir(folder)) return false;
+        std::vector<unsigned char> bytes;
+        if (!Eden::UserContent::ReadImage(folder, selected.substr(slash + 1), bytes)) return false;
+        int width = 0, height = 0, channels = 0;
+        if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels) ||
+            width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
+            std::uint64_t(width) * std::uint64_t(height) > 8388608u) return false;
+        stbi_uc* rgba = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels, 4);
+        if (!rgba) return false;
+        const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(rgba, &stbi_image_free);
+        image->width = width; image->height = height;
+        image->rgba.assign(rgba, rgba + std::size_t(width) * std::size_t(height) * 4u);
+        return true;
+    }
     // Covers have full paths; the launcher's own art is named from its ui folder.
-    return pe::gfx::load_tga(!path.empty() && path[0] == '/' ? path : Eden::AppFile("ui/" + path), image);
-}
+    const std::string resolved =
+        !path.empty() && path[0] == '/' ? path : Eden::AppFile("ui/" + path);
+    if (resolved.size() >= 4 && resolved.compare(resolved.size() - 4, 4, ".dds") == 0)
+        return pe::gfx::load_avatar_dds(resolved, image);
+    if (pe::gfx::load_tga(resolved, image))
+        return true;
 
-#include "usb_backup_services.inc"
-
-// ---- save sync ----
-
-bool EdenServices::save_sync_wanted(const std::string& file) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    return SaveSyncWanted(file);
-}
-
-bool EdenServices::SaveSyncWanted(const std::string& file) {
-    // Caller holds admission -> bridge; CurrentProfile may persist profile selection.
-    if (Eden::Network::IsPath(file)) return false; // the download-source save-sync identity is local-file based
-    SyncSetup setup;
-    return !file.empty() && SyncSetupOf(CurrentProfile(user_), &setup) && setup.automatic;
-}
-
-void EdenServices::start_save_sync(const std::string& file, bool before) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return;
-    if (usb_active_ || launch_committed_) return;
-    if (before) {
-        std::string profile;
-        { const std::lock_guard lock(bridge_); profile = CurrentProfile(user_); }
-        StartSync({{profile, file}}, true);
-        return;
-    }
-    std::vector<SyncJob> jobs;
-    for (const auto& [profile, pending] : ReadPending())
-        if (pending == file) jobs.push_back({profile, pending});
-    StartSync(std::move(jobs), false);
-}
-
-void EdenServices::StartSync(std::vector<SyncJob> jobs, bool before) {
-    // Requires admission from public start/USB resume, or the unpublished constructor. Workers
-    // never acquire admission; join here without bridge so the previous worker can finish.
-    if (usb_active_) return;
-    if (sync_thread_.joinable()) {
-        {
-            const std::lock_guard lock(sync_lock_);
-            if (sync_.stage == pe::ui::SaveSyncStage::working || sync_.stage == pe::ui::SaveSyncStage::conflict) return;
-        }
-        sync_thread_.join();
-    }
-    // What each needs, read here; its title ID on the thread: Eden's reader takes one caller at a
-    // time, and the menu's scan of the games can hold it a while.
-    struct Work {
-        SyncJob job;
-        Eden::Remote::SyncGame game;
-        SyncSetup setup;
-        bool syncs = false;
-        std::string profile_name;
-    };
-    std::vector<Work> work;
-    {
-        const std::lock_guard lock(bridge_);
-        for (SyncJob& job : jobs) {
-            Work item;
-            item.job = std::move(job);
-            item.game.file = item.job.file;
-            item.game.name = GameTitle(item.job.file);
-            // Turned off (save-sync.json's "auto"): neither before a game nor what waits from after one.
-            item.syncs = SyncSetupOf(item.job.profile, &item.setup) && item.setup.automatic;
-            item.profile_name = ProfileName(item.job.profile);
-            work.push_back(std::move(item));
-        }
-    }
-    if (work.empty()) return;
-    {
-        const std::lock_guard lock(sync_lock_);
-        sync_ = {};
-        sync_.stage = pe::ui::SaveSyncStage::working;
-        sync_.before = before;
-        sync_.game = work.front().game.name;
-        sync_.profile = work.front().profile_name;
-        sync_choice_.reset();
-    }
-    sync_stop_ = false;
-    sync_thread_ = std::thread([this, work = std::move(work), before] {
-        pe::ui::SaveSync last;
-        last.stage = pe::ui::SaveSyncStage::done;
-        last.before = before;
-        for (Work item : work) {
-            if (sync_stop_) break;
-            if (const std::string path = Eden::GamesPath("roms/" + item.job.file); item.syncs && Eden::FileExists(path)) {
-                const std::lock_guard lock(bridge_);
-                item.game.title_id = eden_game_title_id(path.c_str());
-            }
-            {
-                const std::lock_guard lock(sync_lock_);
-                sync_.game = item.game.name;
-                sync_.profile = item.profile_name;
-                sync_.stage = pe::ui::SaveSyncStage::working;
-            }
-            Eden::Remote::SyncResult result;
-            if (!item.syncs || item.game.title_id == 0) {
-                // The profile no longer syncs, or the game is gone: nothing left to do for it.
-                result.outcome = Eden::Remote::SyncOutcome::same;
-            } else {
-                const std::string& profile = item.job.profile;
-                const std::string title = Eden::Remote::TitleFolder(item.game.title_id);
-                Eden::Remote::SyncPlaces places;
-                places.save = Eden::UserDir() + "/nand/user/save/0000000000000000/" + profile + "/" + title;
-                places.store = SyncFolder() + "/" + profile;
-                places.work = places.store + "/work";
-                places.backups = std::string{Eden::kDataDir} + "/backup/save-sync/" + profile;
-                places.lister = ListSaveFolder;
-                result = Eden::Remote::SyncSaveData(
-                    item.setup.type, item.setup.settings, item.game, places,
-                    [this](const Eden::Remote::SavePlan& plan, const Eden::Remote::LocalSave& local) {
-                        std::unique_lock lock(sync_lock_);
-                        sync_.stage = pe::ui::SaveSyncStage::conflict;
-                        sync_.console_time = local.updated;
-                        sync_.server_time = plan.remote_updated;
-                        sync_.server_device = plan.remote_device;
-                        sync_choice_.reset();
-                        sync_changed_.wait(lock, [this] { return sync_choice_.has_value() || sync_stop_.load(); });
-                        sync_.stage = pe::ui::SaveSyncStage::working;
-                        const pe::ui::SaveChoice choice = sync_choice_.value_or(pe::ui::SaveChoice::neither);
-                        return choice == pe::ui::SaveChoice::console ? Eden::Remote::SyncChoice::console :
-                               choice == pe::ui::SaveChoice::server  ? Eden::Remote::SyncChoice::server :
-                                                                       Eden::Remote::SyncChoice::neither;
-                    },
-                    [this] { return sync_stop_.load(); });
-                const std::string url = TextOf(item.setup.settings, "url");
-                last.server = result.user.empty() ? url : result.user + " @ " + url;
-                Eden::Report("save sync", (item.game.name + " (" + item.profile_name + "): " +
-                                           (result.outcome == Eden::Remote::SyncOutcome::failed ? result.message :
-                                            result.outcome == Eden::Remote::SyncOutcome::uploaded ? "uploaded" :
-                                            result.outcome == Eden::Remote::SyncOutcome::downloaded ? "downloaded" :
-                                            result.outcome == Eden::Remote::SyncOutcome::kept ? "conflict left as it is" :
-                                            result.outcome == Eden::Remote::SyncOutcome::no_game ? "the server does not have the game" :
-                                                                                                    "already in step"))
-                                              .c_str());
-            }
-            // After a game: done with it unless it failed (then it is tried again on the next start),
-            // or the menu closed in the middle (a conflict not answered is not an answer).
-            if (!before && result.outcome != Eden::Remote::SyncOutcome::failed && !sync_stop_) {
-                auto pending = ReadPending();
-                std::erase(pending, std::pair{item.job.profile, item.job.file});
-                WritePending(pending);
-            }
-            last.game = item.game.name;
-            last.profile = item.profile_name;
-            if (result.outcome == Eden::Remote::SyncOutcome::failed) {
-                last.stage = pe::ui::SaveSyncStage::failed;
-                last.error = result.message;
-                last.too_old = result.too_old;
-                last.server_version = result.version;
-                last.needed_version = result.needed;
-            } else if (last.stage != pe::ui::SaveSyncStage::failed) {
-                last.outcome = result.outcome == Eden::Remote::SyncOutcome::uploaded   ? pe::ui::SaveSyncOutcome::uploaded :
-                               result.outcome == Eden::Remote::SyncOutcome::downloaded ? pe::ui::SaveSyncOutcome::downloaded :
-                               result.outcome == Eden::Remote::SyncOutcome::kept       ? pe::ui::SaveSyncOutcome::kept :
-                               result.outcome == Eden::Remote::SyncOutcome::no_game    ? pe::ui::SaveSyncOutcome::no_game :
-                                                                                         pe::ui::SaveSyncOutcome::same;
-            }
-        }
-        const std::lock_guard lock(sync_lock_);
-        sync_ = last;
-    });
-}
-
-pe::ui::SaveSync EdenServices::save_sync() {
-    const std::lock_guard lock(sync_lock_);
-    return sync_;
-}
-
-void EdenServices::choose_save_data(pe::ui::SaveChoice choice) {
-    {
-        const std::lock_guard lock(sync_lock_);
-        sync_choice_ = choice;
-    }
-    sync_changed_.notify_all();
-}
-
-void EdenServices::end_save_sync() {
-    const std::lock_guard lock(sync_lock_);
-    if (sync_.stage == pe::ui::SaveSyncStage::done || sync_.stage == pe::ui::SaveSyncStage::failed) sync_ = {};
-}
-
-void EdenServices::stop_save_sync() {
-    {
-        const std::lock_guard lock(sync_lock_);
-        sync_stop_ = true;
-    }
-    sync_changed_.notify_all();
-}
-
-void EdenServices::will_play(const std::string& file) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return;
-    if (usb_active_ || nextendo_busy_ || network_mutation_active_) return;
-    launch_committed_ = true;
-    amiibo_sync_.Stop();
-    cheat_manager_.Stop(); // defense in depth even if a caller skipped can_launch_game()
-    const std::lock_guard lock(bridge_);
-    if (!SaveSyncWanted(file)) return;
-    auto pending = ReadPending();
-    const std::pair<std::string, std::string> job{CurrentProfile(user_), file};
-    if (std::find(pending.begin(), pending.end(), job) == pending.end()) pending.push_back(job);
-    WritePending(pending);
-}
-
-// ---- Settings > Save sync ----
-
-pe::ui::SaveSyncSetup EdenServices::save_sync_setup() {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return {};
-    const std::lock_guard lock(bridge_);
-    pe::ui::SaveSyncSetup setup;
-    setup.file = Eden::SaveSync::File();
-    if (!Eden::FilesystemAccess()) return setup;
-    const auto who = Eden::Profiles::Resolve(user_);
-    const Eden::SaveSync::Config config = Eden::SaveSync::Read();
-    if (!config.readable) setup.error = config.error;
-    setup.automatic = config.automatic;
-    for (std::size_t index = 0; index < who.profiles.size(); ++index) {
-        const auto& profile = who.profiles[index];
-        pe::ui::SaveSyncProfile item;
-        item.name = profile.name;
-        item.current = static_cast<int>(index) == who.current;
-        const Eden::SaveSync::Entry* entry = config.readable ? Eden::SaveSync::Find(config, profile.Key()) : nullptr;
-        item.linked = entry != nullptr && !entry->type.empty();
-        if (item.linked) {
-            const std::string url = TextOf(entry->settings, "url");
-            const std::string user = TextOf(entry->settings, "__server_user");
-            item.server = user.empty() ? url : user + " @ " + url;
-            const Eden::Remote::Backend* backend = Eden::Remote::FindBackend(entry->type);
-            if (backend == nullptr || backend->saves == nullptr)
-                item.note = "Unknown type \"" + entry->type + "\" in save-sync.json";
-        }
-        setup.profiles.push_back(std::move(item));
-    }
-    return setup;
-}
-
-std::vector<pe::ui::PairServer> EdenServices::pair_servers() {
-    std::vector<pe::ui::PairServer> list;
-    for (const PairSource& source : PairSources()) list.push_back({source.name, source.address});
-    return list;
-}
-
-bool EdenServices::start_pairing(int profile_index, int server_index) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (theme_storage_->busy()) return false;
-    if (usb_active_ || launch_committed_) return false;
-    {
-        const std::lock_guard lock(pair_lock_);
-        if (pair_.stage == pe::ui::PairingStage::asking || pair_.stage == pe::ui::PairingStage::waiting) return false;
-    }
-    if (pair_thread_.joinable()) pair_thread_.join();
-    std::unique_lock lock(bridge_);
-    const auto profiles = Eden::Profiles::Read();
-    const std::vector<PairSource> sources = PairSources();
-    if (profile_index < 0 || profile_index >= static_cast<int>(profiles.size()) || server_index < 0 ||
-        server_index >= static_cast<int>(sources.size()))
+    // Remote enrichment (Nlib) is cached as JPEG. Decode it with the same stb_image
+    // implementation already linked for game metadata/icon extraction.
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    // Reject oversized sources before the codec allocates its full RGBA
+    // buffer: the same header preflight the case-scan and wallpaper branches
+    // already use. The post-decode check below stays, because the file can
+    // change between the two reads.
+    if (!stbi_info(resolved.c_str(), &width, &height, &channels) ||
+        width <= 0 || height <= 0 || width > 8192 || height > 8192)
         return false;
-    const auto profile = profiles[static_cast<std::size_t>(profile_index)];
-    const PairSource source = sources[static_cast<std::size_t>(server_index)];
-    {
-        const std::lock_guard lock(pair_lock_);
-        pair_ = {};
-        pair_.stage = pe::ui::PairingStage::asking;
-        pair_.profile = profile.name;
-        pair_.server = source.name;
+    stbi_uc* rgba = stbi_load(resolved.c_str(), &width, &height, &channels, 4);
+    const std::unique_ptr<stbi_uc, decltype(&stbi_image_free)> pixels(rgba, &stbi_image_free);
+    if (!rgba || width <= 0 || height <= 0 || width > 8192 || height > 8192) {
+        return false;
     }
-    pair_stop_ = false;
-    KeepSaveSyncFile(profiles); // the profile's entry is there to be filled in
-    lock.unlock(); // no HTTP or worker wait owns the metadata bridge
-    pair_thread_ = std::thread([this, key = profile.Key(), name = profile.name, source] {
-        const std::string folder = SyncFolder() + "/" + key;
-        const auto fail = [&](std::string error, bool denied = false, bool expired = false) {
-            const std::lock_guard lock(pair_lock_);
-            pair_.stage = pe::ui::PairingStage::failed;
-            pair_.error = std::move(error);
-            pair_.denied = denied;
-            pair_.expired = expired;
-            Eden::Report("save sync", ("pairing " + name + " with " + source.name + ": " +
-                                       (denied ? "denied" : expired ? "expired" : pair_.error)).c_str());
-        };
-        Eden::Remote::PairingStart start;
-        std::string error;
-        const auto stopped = [this] { return pair_stop_.load(); };
-        if (!source.pairing->start(source.settings, folder, &start, &error, stopped)) {
-            if (pair_stop_) {
-                const std::lock_guard lock(pair_lock_);
-                pair_ = {};
-                return;
-            }
-            return fail(error);
-        }
-        if (pair_stop_) {
-            const std::lock_guard lock(pair_lock_);
-            pair_ = {};
-            return;
-        }
-        {
-            const std::lock_guard lock(pair_lock_);
-            pair_.stage = pe::ui::PairingStage::waiting;
-            pair_.code = start.user_code;
-            pair_.address = start.address;
-            pair_until_ = std::chrono::steady_clock::now() + std::chrono::seconds(start.expires_in);
-        }
-        int interval = start.interval;
-        for (;;) {
-            // Waits the interval, looking now and then whether it is cancelled.
-            for (int tenth = 0; tenth < interval * 10; ++tenth) {
-                if (pair_stop_) {
-                    const std::lock_guard lock(pair_lock_);
-                    pair_ = {};
-                    return;
-                }
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-            if (std::chrono::steady_clock::now() > pair_until_) return fail({}, false, true);
-            start.interval = interval; // slow_down adds to the interval used so far
-            const Eden::Remote::PairingResult result = source.pairing->poll(source.settings, folder, start, stopped);
-            // Cancelled while it asked: not linked, whatever the answer.
-            if (pair_stop_) {
-                const std::lock_guard lock(pair_lock_);
-                pair_ = {};
-                return;
-            }
-            switch (result.state) {
-            case Eden::Remote::PairingState::pending:
-                interval = std::max(1, result.interval);
-                continue;
-            case Eden::Remote::PairingState::denied:
-                return fail({}, true);
-            case Eden::Remote::PairingState::expired:
-                return fail({}, false, true);
-            case Eden::Remote::PairingState::failed:
-                return fail(result.error);
-            case Eden::Remote::PairingState::approved: {
-                Eden::SaveSync::Json fields = Eden::SaveSync::Json::parse(result.entry.dump());
-                if (!result.user.empty()) fields["__server_user"] = result.user;
-                if (!Eden::SaveSync::SetEntry(key, fields)) return fail("save-sync.json cannot be written");
-                const std::lock_guard lock(pair_lock_);
-                pair_.stage = pe::ui::PairingStage::done;
-                pair_.user = result.user;
-                Eden::Report("save sync", ("paired " + name + " with " + source.name + " as " + result.user).c_str());
-                return;
-            }
-            }
-        }
-    });
+    image->width = width;
+    image->height = height;
+    image->rgba.assign(rgba, rgba + static_cast<std::size_t>(width) *
+                                      static_cast<std::size_t>(height) * 4u);
     return true;
-}
-
-pe::ui::PairingStatus EdenServices::pairing() {
-    const std::lock_guard lock(pair_lock_);
-    pe::ui::PairingStatus status = pair_;
-    if (status.stage == pe::ui::PairingStage::waiting)
-        status.seconds_left = static_cast<int>(std::max<std::int64_t>(
-            0, std::chrono::duration_cast<std::chrono::seconds>(pair_until_ - std::chrono::steady_clock::now()).count()));
-    return status;
-}
-
-void EdenServices::cancel_pairing() {
-    pair_stop_ = true;
-    const std::lock_guard lock(pair_lock_);
-    if (pair_.stage == pe::ui::PairingStage::done || pair_.stage == pe::ui::PairingStage::failed) pair_ = {};
-}
-
-bool EdenServices::unlink_profile(int profile_index) {
-    const std::lock_guard admission(job_admission_mutex_);
-    if (usb_active_) return false;
-    const std::lock_guard lock(bridge_);
-    const auto profiles = Eden::Profiles::Read();
-    if (profile_index < 0 || profile_index >= static_cast<int>(profiles.size())) return false;
-    const auto& profile = profiles[static_cast<std::size_t>(profile_index)];
-    const bool unlinked = Eden::SaveSync::SetEntry(profile.Key(), Eden::SaveSync::Json::object());
-    if (unlinked) Eden::Report("save sync", ("unlinked " + profile.name).c_str());
-    return unlinked;
 }

@@ -88,38 +88,44 @@ int sceUserServiceInitialize(void*) { return state.user_init_result; }
 int sceUserServiceGetInitialUser(int* user) { *user = 42; return 0; }
 int sceUserServiceGetForegroundUser(int* user) { *user = state.foreground_user; return state.user_result; }
 int sceUserServiceTerminate() { ++state.user_terminations; return 0; }
-// Only the foreground user is signed in on the host.
+// By default only the foreground user is signed in; recovery tests can add users.
 int sceUserServiceGetLoginUserIdList(std::int32_t* users) {
-    users[0] = state.foreground_user;
-    users[1] = users[2] = users[3] = -1;
+    std::fill_n(users, 4, -1);
+    if (state.login_users.empty()) users[0] = state.foreground_user;
+    else std::copy_n(state.login_users.begin(), std::min<std::size_t>(4, state.login_users.size()), users);
     return state.user_result;
 }
 int scePadInit() { return 0; }
 int scePadOpen(int user, int type, int index, const void*) {
     state.last_pad_user = user;
-    if (user != state.foreground_user || type != 0 || index != 0) return -1;
+    if ((user != state.foreground_user &&
+         std::find(state.login_users.begin(), state.login_users.end(), user) == state.login_users.end()) ||
+        type != 0 || index != 0) return -1;
     ++state.pad_opens;
+    state.pad_open_users.push_back(user);
+    if (const auto found = state.pad_open_results.find(user); found != state.pad_open_results.end())
+        return found->second;
     return state.pad_open_result;
 }
-int scePadGetHandle(int, int, int) { return -1; }
-int scePadGetControllerInformation(int, ps5::pad::ControllerInformation* info) {
-    *info = {}; info->touchpad.resolution_x = 1920; return 0;
+int scePadGetHandle(int user, int, int) {
+    state.pad_get_handle_users.push_back(user);
+    return state.pad_get_handle_result;
 }
-int scePadClose(int) { ++state.pad_closes; return 0; }
-int scePadSetVibrationMode(int handle, int mode) {
+int scePadClose(int handle) { ++state.pad_closes; state.pad_closed_handles.push_back(handle); return 0; }
+int scePadSetVibrationMode(int handle, int) { state.vibration_mode_handles.push_back(handle); return 0; }
+int scePadSetMotionSensorState(int handle, bool) { state.motion_handles.push_back(handle); return 0; }
+int scePadSetVibration(int handle, const ps5::pad::Vibration* vibration) {
     std::scoped_lock lock(state.mutex);
-    state.vibration_modes.emplace_back(handle, mode);
-    return mode == 1 ? state.vibration_mode_1_result : 0;
-}
-int scePadSetMotionSensorState(int, bool) { return 0; }
-int scePadSetVibration(int, const ps5::pad::Vibration* vibration) {
-    std::scoped_lock lock(state.mutex);
+    state.vibration_handles.push_back(handle);
     state.vibrations.push_back(*vibration);
     return 0;
 }
-int scePadRead(int, ps5::pad::Data* data, int capacity) {
+int scePadRead(int handle, ps5::pad::Data* data, int capacity) {
     std::scoped_lock lock(state.mutex);
-    if (state.read_result) return state.read_result;
+    ++state.pad_reads[handle];
+    if (const auto found = state.pad_read_results.find(handle); found != state.pad_read_results.end()) {
+        if (found->second) return found->second;
+    } else if (state.read_result) return state.read_result;
     if (state.guest_input && capacity > 0) {
         auto sample = ps5::pad::neutral_data(); sample.connected = 1;
         const auto phase = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -144,16 +150,6 @@ int sceAudioOutInit() { return 0; }
 int sceAudioOutOpen(int user, int type, int index, std::uint32_t grain,
                     std::uint32_t rate, std::uint32_t format) {
     std::scoped_lock lock(state.mutex);
-    if (type == 10) {
-        if (state.fail_haptic_open || user < 0 || index != 0 || grain != 256 || rate != 48000 ||
-            (format != 1 && format != 4) || static_cast<int>(format) == state.haptic_fail_format)
-            return -1;
-        const auto handle = 300 + ++state.haptic_opens;
-        state.haptic_audio[handle];
-        state.haptic_open_users.push_back(user);
-        state.haptic_open_formats.push_back(static_cast<int>(format));
-        return handle;
-    }
     if (state.fail_audio_open || user != 0xff || type != 0 || index != 0 ||
         grain != 256 || rate != 48000 || format != 1) return -1;
     const auto handle = 100 + ++state.audio_opens;
@@ -166,50 +162,18 @@ int sceAudioOutSetVolume(int, int flags, const int* volume) {
 int sceAudioOutOutput(int handle, const void* samples) {
     {
         std::scoped_lock lock(state.mutex);
-        if (const auto haptic = state.haptic_audio.find(handle); haptic != state.haptic_audio.end()) {
-            if (!samples) { ++state.haptic_drains; return 0; }
-            if (state.fail_haptic_output) return -1;
-            auto& blocks = haptic->second;
-            if (blocks.size() < 64) {
-                const std::size_t opened = static_cast<std::size_t>(handle - 300 - 1);
-                const std::size_t bytes = opened < state.haptic_open_formats.size() &&
-                                                  state.haptic_open_formats[opened] == 4
-                                              ? 256 * 2 * sizeof(float)
-                                              : 256 * 2 * sizeof(std::int16_t);
-                const auto* first = static_cast<const std::uint8_t*>(samples);
-                blocks.emplace_back(first, first + bytes);
-            }
-            state.wake.notify_all();
-        } else {
-            if (!samples) { ++state.audio_drains; return 0; }
-            if (state.fail_output) return -1;
-            // Bound capture memory during whole-core offline runs.
-            auto& blocks = state.audio[handle];
-            if (blocks.size() < 256) {
-                auto& block = blocks.emplace_back();
-                std::copy_n(static_cast<const std::int16_t*>(samples), block.size(), block.begin());
-            }
-            state.wake.notify_all();
+        if (!samples) { ++state.audio_drains; return 0; }
+        if (state.fail_output) return -1;
+        // Bound capture memory during whole-core offline runs.
+        auto& blocks = state.audio[handle];
+        if (blocks.size() < 256) {
+            auto& block = blocks.emplace_back();
+            std::copy_n(static_cast<const std::int16_t*>(samples), block.size(), block.begin());
         }
+        state.wake.notify_all();
     }
     std::this_thread::sleep_for(std::chrono::microseconds(5333));
     return 0;
 }
-int sceAudioOutClose(int handle) {
-    std::chrono::milliseconds delay{0};
-    {
-        std::scoped_lock lock(state.mutex);
-        if (state.haptic_audio.contains(handle)) delay = state.haptic_close_delay;
-    }
-    // Delay outside the lock so tests must wait for close completion.
-    std::this_thread::sleep_for(delay);
-    std::scoped_lock lock(state.mutex);
-    if (state.haptic_audio.contains(handle)) {
-        ++state.haptic_closes;
-        state.wake.notify_all();
-        return 0;
-    }
-    ++state.audio_closes;
-    return 0;
-}
+int sceAudioOutClose(int) { std::scoped_lock lock(state.mutex); ++state.audio_closes; return 0; }
 }

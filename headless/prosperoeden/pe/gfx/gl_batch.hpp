@@ -6,9 +6,11 @@
 
 #include "pe/gfx/draw_list.hpp"
 #include "pe/gfx/font.hpp"
+#include "pe/gfx/stream_ring_policy.hpp"
 
 #include <GL/glcorearb.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -16,7 +18,7 @@ namespace pe::gfx
 {
 
 // Draws a DrawList with one instanced program: all instances are uploaded
-// once per frame into an orphaned stream buffer, then each run is one
+// once per frame into a rotating reusable stream buffer, then each run is one
 // glDrawArraysInstancedBaseInstance call (triangle lists only).
 class GlBatch
 {
@@ -36,9 +38,6 @@ class GlBatch
     void sync_font_texture(std::uint32_t texture, const Font &font);
     // Uploads RGBA8 pixels as a single-level texture; returns its name.
     std::uint32_t create_texture(int width, int height, const std::uint8_t *rgba);
-    // Uploads BC7 blocks as a single-level texture; returns its name, or 0 when the graphics
-    // driver does not take them.
-    std::uint32_t create_bc7_texture(int width, int height, const std::uint8_t *blocks, std::size_t size);
     void delete_texture(std::uint32_t texture);
 
     // Draws into the currently bound framebuffer of the given size.
@@ -52,9 +51,10 @@ class GlBatch
 
   private:
     GLuint program_ = 0;
-    GLuint vao_ = 0;
-    GLuint buffer_ = 0;
-    std::size_t capacity_ = 0; // instances
+    std::array<GLuint, kStreamBufferSlots> vaos_{};
+    std::array<GLuint, kStreamBufferSlots> buffers_{};
+    std::array<std::size_t, kStreamBufferSlots> capacities_{}; // instances in each VBO
+    std::size_t next_slot_ = 0;
     std::size_t draw_calls_ = 0;
 };
 

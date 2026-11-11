@@ -5,8 +5,25 @@ import hashlib
 import sys
 
 root = Path(__file__).resolve().parents[1]
-source = root.parent/'mihawk-mesa-review/src/vulkan/wsi/wsi_common_videoout.c'
-target = root.parent/'mihawk-vulkan-review/.deps/work/radv-src/src/vulkan/wsi/wsi_common_videoout.c'
+# R343: a legacy, reproducible SOURCE EQUIVALENCE ORACLE, not used by build.
+# Compare the complete checked-in modified RADV files against this generator.
+if sys.argv[1:2] == ['--check']:
+    expected = hashlib.sha256((root/'vendor/encore-active/ps5-mesa/src/vulkan/wsi/wsi_common_videoout.c').read_bytes()).hexdigest()
+    marker = Path(sys.argv[2]) if len(sys.argv) == 3 else None
+    recorded = marker.read_text().split()[0] if marker and marker.is_file() else ''
+    sys.exit(0 if expected == recorded else 1)
+oracle = sys.argv[1:2] == ['--oracle']
+# The mutable sibling-tree fallback is legacy and must not run implicitly.
+# Shipping RADV uses tracked vendor/encore-active files via the installer;
+# only a requested, disposable --oracle destination may be rewritten here.
+if not oracle:
+    raise SystemExit('Legacy RADV source rewrite disabled; use --check or --oracle PINNED_ROOT OUTPUT_ROOT')
+if oracle and len(sys.argv) != 4:
+    raise SystemExit('usage: patch-radv-wsi.py --oracle PINNED_MESA_ROOT OUTPUT_ROOT')
+original_root = Path(sys.argv[2]) if oracle else root.parent/'mihawk-mesa-review'
+output_root = Path(sys.argv[3]) if oracle else root.parent/'mihawk-vulkan-review/.deps/work/radv-src'
+source = original_root/'src/vulkan/wsi/wsi_common_videoout.c'
+target = output_root/'src/vulkan/wsi/wsi_common_videoout.c'
 text = source.read_text()
 
 def replace(old, new):
@@ -14,16 +31,16 @@ def replace(old, new):
     assert text.count(old) == 1, f'Pinned WSI anchor changed: {old[:70]}'
     text = text.replace(old, new)
 
-replace('   bool opened;\n', '   unsigned owners;\n   bool closing, stop;\n   bool opened;\n')
-# A set of framebuffers per output size: each remembers the memory to give back.
-replace('      uint8_t *buffers;\n   } sets[VIDEOOUT_SIZES];',
-        '      uint8_t *buffers;\n      int64_t physical;\n      size_t bytes;\n   } sets[VIDEOOUT_SIZES];')
+replace('   bool opened;\n', '   unsigned owners;\n   bool closing, stop, registered;\n   int64_t physical;\n   bool opened;\n')
+replace('   .handle = -1,', '   .handle = -1,\n   .physical = -1,')
 replace('static int\nsceVideoOutSetFlipRate', 'static int\nsceVideoOutClose(int32_t handle)\n{\n   return 0;\n}\n\nstatic int\nsceVideoOutSetFlipRate')
-replace('   uint8_t *buffers = NULL;\n#if defined(__PROSPERO__)\n   int64_t physical = -1;',
-        '   uint8_t *buffers = NULL;\n   int64_t physical = -1;\n#if defined(__PROSPERO__)')
-replace('   out->sets[index] = (struct wsi_videoout_set){.size = size, .buffers = buffers};',
-        '   out->sets[index] = (struct wsi_videoout_set){.size = size, .buffers = buffers, .physical = physical,\n'
-        '                                                .bytes = bytes};')
+replace('   if (out->buffers)\n      return VK_SUCCESS;',
+        '   if (out->buffers)\n      return out->registered ? VK_SUCCESS : VK_ERROR_INITIALIZATION_FAILED;')
+replace('   buffers = address;', '   buffers = address;\n   out->physical = physical;')
+replace('   int result = sceVideoOutSetFlipRate',
+        '   /* Track partial registration too: final-owner cleanup must release it. */\n   out->buffers = buffers;\n   int result = sceVideoOutSetFlipRate')
+replace('   out->buffers = buffers;\n   return VK_SUCCESS;',
+        '   out->registered = true;\n   return VK_SUCCESS;')
 replace('      while (out->queue_count == 0)\n         cnd_wait(&out->changed, &out->lock);',
         '      while (out->queue_count == 0 && !out->stop)\n         cnd_wait(&out->changed, &out->lock);\n      if (out->queue_count == 0 && out->stop) {\n         mtx_unlock(&out->lock);\n         return 0;\n      }')
 replace('VkResult\nwsi_display_init_wsi',
@@ -31,18 +48,25 @@ replace('VkResult\nwsi_display_init_wsi',
 # 120 Hz: the app asks for it per game session (headless/display_refresh.h). The pinned source
 # decides from the package's param.json, which the app cannot read once it has left the sandbox,
 # and for the whole run; the package declares the capability (tools/package-headless-native.sh).
-declares = 'videoout_title_declares_high_frame_rate(void)\n{\n'
-assert text.count(declares) == 1, 'Pinned WSI anchor changed: the 120 Hz declaration'
-body_start = text.index(declares) + len(declares)
-body_end = text.index('\n}\n', body_start)
-assert 'param.json' in text[body_start:body_end], 'Pinned WSI anchor changed: the 120 Hz declaration reads param.json'
-text = (text[:body_start] + '   const char *const asked = getenv("EDEN_VIDEOOUT_120HZ");\n'
-        '   return asked != NULL && asked[0] == \'1\';' + text[body_end:])
-# The pinned source takes the 120 Hz output back unless a vblank then comes about every 8.3 ms.
-# On a display with a variable refresh rate that is wrong: before the first frame is shown it
-# idles at the bottom of its range (a vblank every 20.87 ms, 48 Hz, in two reports), the output
-# went back to 59.94 Hz, and a game could not have 120 Hz at all. Only a display that stayed at
-# 59.94 Hz (a vblank about every 16.7 ms) gives the mode back.
+replace('''   FILE *const file = fopen("/app0/sce_sys/param.json", "rb");
+   if (file == NULL)
+      return false;
+   char text[16384];
+   const size_t length = fread(text, 1, sizeof(text) - 1, file);
+   fclose(file);
+   text[length] = '\\0';
+   const char *at = strstr(text, "\\"attribute3\\"");
+   if (at == NULL || (at = strchr(at, ':')) == NULL)
+      return false;
+   const unsigned long value = strtoul(at + 1, NULL, 0);
+   return (value & VIDEOOUT_ATTRIBUTE3_HIGH_FRAME_RATE) == VIDEOOUT_ATTRIBUTE3_HIGH_FRAME_RATE;
+''', '''   const char *const asked = getenv("EDEN_VIDEOOUT_120HZ");
+   return asked != NULL && asked[0] == '1';
+''')
+# From upstream ProsperoEden 1f7fcf36 (#95): VRR screens can report a 48Hz
+# vblank during idle while their 120Hz output is valid. Only a measured
+# stable 59.94/60Hz fallback (15–18.5ms vblank) justifies reverting 120Hz.
+# This only runs when high refresh is requested and the TV supports it.
 replace('         if (period > VIDEOOUT_HIGH_REFRESH_LIMIT_NS) {',
         '         if (period > UINT64_C(15000000) && period < UINT64_C(18500000)) {')
 # Say so when the display follows, as the pinned source does when it does not.
@@ -53,28 +77,40 @@ replace('''                    (double)period / 1e6);
             fprintf(stderr, "wsi/videoout: 119.88 Hz output, a vblank every %.3f ms\\n", (double)period / 1e6);
          }
       } else {''')
+# Official PS5_Mesa 47e9eb61 (2026-10-10): 0 from IsOutputSupported
+# means unavailable, NOT a successful configure. Preserve Encore's VRR-aware
+# 48Hz vblank exemption; 0ns always means failed timing/wait.
+replace(": supported;\n      out->high_frame_rate = configured == 0;",
+        ": -1;\n      out->high_frame_rate = supported > 0 && configured == 0;")
+replace("if (period > UINT64_C(15000000) && period < UINT64_C(18500000)) {",
+        "if (period == 0 || (period > UINT64_C(15000000) && period < UINT64_C(18500000))) {")
+replace("            fprintf(stderr,\n                    \"wsi/videoout: 119.88 Hz accepted, but a vblank comes every %.3f ms; 59.94 Hz restored\\n\",\n                    (double)period / 1e6);",
+        "            if (period == 0)\n               fprintf(stderr, \"wsi/videoout: 119.88 Hz accepted, but a vblank wait failed; 59.94 Hz restored\\n\");\n            else\n               fprintf(stderr,\n                       \"wsi/videoout: 119.88 Hz accepted, but a vblank comes every %.3f ms; 59.94 Hz restored\\n\",\n                       (double)period / 1e6);")
+replace("      } else {\n         fprintf(stderr, \"wsi/videoout: 119.88 Hz %s (%d); presenting at 59.94 Hz\\n\",\n                 supported > 0 ? \"refused\" : \"not supported\", configured);\n      }",
+        "      } else if (supported > 0) {\n         fprintf(stderr, \"wsi/videoout: 119.88 Hz refused (%d); presenting at 59.94 Hz\\n\", configured);\n      } else {\n         fprintf(stderr,\n                 \"wsi/videoout: 119.88 Hz not offered on present output (%d); presenting at 59.94 Hz\\n\",\n                 supported);\n      }")
 replace('   wsi->base.get_support =', '   videoout_ref();\n\n   wsi->base.get_support =')
 replace('   if (wsi)\n      vk_free(alloc, wsi);',
         '   if (wsi) {\n      videoout_unref();\n      vk_free(alloc, wsi);\n      wsi_device->wsi[VK_ICD_WSI_PLATFORM_DISPLAY] = NULL;\n   }')
-# What a built driver is recorded by (EDEN_WSI_SHA256): the display source as adapted, and a name
-# for the state of the other files adapted below. Change the name with them, and the driver is
-# built again wherever it was built before (tools/prepare-build.sh).
-OTHER_ADAPTATIONS = 'winsys-submission-statistics-on-request'
-digest = hashlib.sha256((text + OTHER_ADAPTATIONS).encode()).hexdigest()
-if sys.argv[1:2] == ['--digest']:
-    print(digest)
-    sys.exit(0)
-if sys.argv[1:2] == ['--check']:
-    # Is the driver that was built this adaptation?
-    recorded = Path(sys.argv[2]).read_text().split()[0] if Path(sys.argv[2]).is_file() else ''
-    sys.exit(0 if recorded == digest else 1)
+# R440: mpereiraesaa/PS5_Mesa f2ee389 (author's host-model tested).
+# PS5 issue was observed, but this precise new WSI adaptation is not yet hardware-qualified.
+# Retire only a never-presented hidden/probe swapchain when replacing a surface.
+# Preserve Encore's multi-owner VideoOut and existing 120 Hz restore behavior.
+for old, new in [
+    ("   bool retired;\n   /* Presents queued and not yet flipped. */", "   bool retired;\n   /* Set after a successful queue_present: only unused contexts may yield display. */\n   bool presented;\n   /* Presents queued and not yet flipped. */"),
+    ("   out->queue_count++;\n   out->buffer[image_index].pending = true;\n   chain->in_flight++;\n   cnd_broadcast(&out->changed);", "   out->queue_count++;\n   out->buffer[image_index].pending = true;\n   chain->in_flight++;\n   chain->presented = true;\n   cnd_broadcast(&out->changed);"),
+    ("static VkResult\nvideoout_surface_create_swapchain(VkIcdSurfaceBase *icd_surface, VkDevice device, struct wsi_device *wsi_device,", "/* Pereira PS5_Mesa f2ee389: an unpresented hidden/probe swapchain must not\n * monopolize VideoOut. Caller holds out->lock for the whole check. */\nstatic bool\nvideoout_display_free_locked(const struct wsi_videoout_swapchain *old)\n{\n   const struct wsi_videoout_swapchain *current = videoout_output.current;\n   return !current || current == old || !current->presented;\n}\n\nstatic VkResult\nvideoout_surface_create_swapchain(VkIcdSurfaceBase *icd_surface, VkDevice device, struct wsi_device *wsi_device,"),
+    ("   mtx_lock(&out->lock);\n   VkResult result = videoout_register_locked();\n   if (result == VK_SUCCESS && out->current && out->current != (struct wsi_videoout_swapchain *)\n                                                 wsi_swapchain_from_handle(pCreateInfo->oldSwapchain))\n      result = VK_ERROR_NATIVE_WINDOW_IN_USE_KHR;", "   mtx_lock(&out->lock);\n   struct wsi_videoout_swapchain *old =\n      (struct wsi_videoout_swapchain *)wsi_swapchain_from_handle(pCreateInfo->oldSwapchain);\n   VkResult result = videoout_register_locked();\n   if (result == VK_SUCCESS && !videoout_display_free_locked(old))\n      result = VK_ERROR_NATIVE_WINDOW_IN_USE_KHR;"),
+    ("   /* The old swapchain is retired: its acquires and presents are out of date. */\n   mtx_lock(&out->lock);\n   if (out->current)\n      out->current->retired = true;\n   out->current = chain;\n   mtx_unlock(&out->lock);", "   /* Recheck after image allocation: another chain may have presented meanwhile.\n    * A losing candidate destroys only its own images, never the shared VideoOut. */\n   mtx_lock(&out->lock);\n   if (!videoout_display_free_locked(old)) {\n      mtx_unlock(&out->lock);\n      for (uint32_t i = 0; i < num_images; i++)\n         wsi_destroy_image(&chain->base, &chain->images[i]);\n      wsi_swapchain_finish(&chain->base);\n      vk_free(pAllocator, chain);\n      return VK_ERROR_NATIVE_WINDOW_IN_USE_KHR;\n   }\n   if (out->current) {\n      if (out->current != old)\n         fprintf(stderr, \"wsi/videoout: unpresented swapchain yielded display to new swapchain\\n\");\n      out->current->retired = true;\n   }\n   out->current = chain;\n   mtx_unlock(&out->lock);"),
+]:
+    replace(old, new)
 changed = not target.exists() or target.read_text() != text
 if changed:
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text)
     # Upstream caches the whole build by pin. Invalidate only that receipt;
     # Ninja retains all unchanged objects and rebuilds the patched WSI.
     provenance = root.parent/'mihawk-vulkan-review/.deps/native/radv-release/PROVENANCE.txt'
-    if provenance.exists():
+    if not oracle and provenance.exists():
         provenance.replace(provenance.with_suffix('.base.txt'))
 print(f'RADV WSI adaptation changed={changed} sha256={hashlib.sha256(text.encode()).hexdigest()}')
 
@@ -82,15 +118,52 @@ print(f'RADV WSI adaptation changed={changed} sha256={hashlib.sha256(text.encode
 # These startup-only diagnostics avoid repeated full game runs for each stage.
 for relative, replacements in {
     # Restore the pinned upload path: explicit CPU flush did not affect HUD corruption.
-    'src/amd/vulkan/radv_cmd_buffer.c': [],
-    # The winsys writes a line of submission statistics every ten seconds, on the thread that
-    # submits and with the submit lock held. On the console the submission that writes it takes
-    # about 85 ms where the others take a quarter of a millisecond: one frame of 115 ms every
-    # ten seconds, in every game. The line is written when RADV_PS5_SUBMIT_STATS is set.
-    'src/amd/vulkan/winsys/ps5/radv_ps5_cs.c': [
-        ('   if (now - radv_ps5_submit_window.window_start < 10ull * 1000 * 1000 * 1000)\n      return;\n',
-         '   static int statistics = -1;\n   if (statistics < 0)\n      statistics = getenv("RADV_PS5_SUBMIT_STATS") != NULL;\n'
-         '   if (!statistics || now - radv_ps5_submit_window.window_start < 10ull * 1000 * 1000 * 1000)\n      return;\n'),
+    'src/amd/vulkan/radv_cmd_buffer.c': [
+        # CodeQL #13-16: indexing byte offsets must widen before multiplication.
+        ("uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;", "uint64_t index_va = state->index_buffer.va + (uint64_t)draw->firstIndex * index_size;"),
+        # Mesa 26.2.4 (2026-10-01), upstream 1f4f4aeee9db552e2955db77ee5584aa729b0644:
+        # Use the actual height, not the already clamped width, for GFX10 bin size.
+        ('   extent.height = MAX2(extent.width, pdev->info.gfx_level >= GFX12 ? 128 : 64);',
+         '   extent.height = MAX2(extent.height, pdev->info.gfx_level >= GFX12 ? 128 : 64);'),
+        ("   poly_vertex_params_init(vp, gsc->vs_outputs, wg_size);\n   poly_geometry_params_init(gp, mode, wg_size);\n",
+         "   poly_vertex_params_init(vp, gsc->vs_outputs, wg_size);\n   poly_geometry_params_init(gp, mode, wg_size);\n   /* GPU-side setup can drop a draw. Never leave its output pointers at 0. */\n   const uint64_t null_sink = radv_gs_compute_upload(cmd_buffer, 256, NULL, NULL);\n   vp->output_buffer = null_sink;\n   vp->index_buffer = null_sink;\n   gp->count_buffer = null_sink;\n   gp->output_index_buffer = null_sink;\n"),
+    ],
+    # Cover rejected GPU-side geometry draws in the pinned-source oracle.
+    'src/amd/vulkan/cl/radv_gs_compute.cl': [
+        ("   if (!ok) {\n      vertex_count = 0;\n      instance_count = 0;\n",
+         "   if (!ok) {\n      vertex_count = 0;\n      instance_count = 0;\n      /* A dropped geometry draw still needs safe non-null scratch pointers. */\n      vp->output_buffer = (uintptr_t)block->ro_sink;\n      p->count_buffer = (global uint *)block->ro_sink;\n      p->output_index_buffer = (global uint *)block->ro_sink;\n"),
+    ],
+    'src/amd/vulkan/radv_descriptor_update_template.c': [],
+    'src/amd/vulkan/radv_descriptor_update_template.h': [],
+    'src/amd/vulkan/radv_pipeline.c': [
+        # Mesa 26.2.2 (2026-09-02), upstream 3261364cab95877988e0bcf767e5f68c03f35652
+        # The TRUNC_COORD sampler bit must not change array-layer rounding.
+        ('''               .lower_array_layer_round_even =
+                  !compiler_info->ac->conformant_trunc_coord && !compiler_info->key.disable_trunc_coord,''',
+         '''               .lower_array_layer_round_even = !compiler_info->ac->conformant_trunc_coord,'''),
+    ],
+    'src/amd/vulkan/meta/radv_meta_clear.c': [
+        # CodeQL #5-12: widen byte-count and metadata offsets before arithmetic.
+        ("cmask_offset += slice_size * range->baseArrayLayer;", "cmask_offset += (uint64_t)slice_size * range->baseArrayLayer;"),
+        ("size = slice_size * vk_image_subresource_layer_count(&image->vk, range);", "size = (uint64_t)slice_size * vk_image_subresource_layer_count(&image->vk, range);"),
+        ("fmask_offset += slice_size * range->baseArrayLayer;", "fmask_offset += (uint64_t)slice_size * range->baseArrayLayer;"),
+        ("dcc_offset += image->planes[0].surface.meta_slice_size * range->baseArrayLayer +", "dcc_offset += (uint64_t)image->planes[0].surface.meta_slice_size * range->baseArrayLayer +"),
+        ("size = image->planes[0].surface.u.gfx9.meta_levels[level].size * layer_count;", "size = (uint64_t)image->planes[0].surface.u.gfx9.meta_levels[level].size * layer_count;"),
+        ("dcc_offset += dcc_level->dcc_offset + dcc_level->dcc_slice_fast_clear_size * range->baseArrayLayer;", "dcc_offset += dcc_level->dcc_offset + (uint64_t)dcc_level->dcc_slice_fast_clear_size * range->baseArrayLayer;"),
+        ("size = dcc_level->dcc_slice_fast_clear_size * vk_image_subresource_layer_count(&image->vk, range);", "size = (uint64_t)dcc_level->dcc_slice_fast_clear_size * vk_image_subresource_layer_count(&image->vk, range);"),
+        ("uint64_t size = image->planes[0].surface.meta_slice_size * layer_count;", "uint64_t size = (uint64_t)image->planes[0].surface.meta_slice_size * layer_count;"),
+        ("image->planes[0].surface.meta_offset + image->planes[0].surface.meta_slice_size * range->baseArrayLayer;", "image->planes[0].surface.meta_offset + (uint64_t)image->planes[0].surface.meta_slice_size * range->baseArrayLayer;"),
+        # Official Mesa 26.2.4 upstream 2752b54feeed5bb6fc7d21982b4c8acab0d0e613
+        ("      if (ds_att->format == VK_FORMAT_UNDEFINED)\n         return;\n\n      VkClearDepthStencilValue clear_value", "      if (ds_att->format == VK_FORMAT_UNDEFINED)\n         return;\n\n      /* Vulkan dynamic rendering: ignore missing depth/stencil aspects. */\n      aspects &= render->ds_att_aspects;\n      if (!aspects)\n         return;\n\n      VkClearDepthStencilValue clear_value"),
+        ("radv_fast_clear_depth(cmd_buffer, ds_att->iview, clear_att->clearValue.depthStencil, clear_att->aspectMask,", "radv_fast_clear_depth(cmd_buffer, ds_att->iview, clear_att->clearValue.depthStencil, aspects,"),
+        ("emit_depthstencil_clear(cmd_buffer, clear_att->clearValue.depthStencil, clear_att->aspectMask, clear_rect,", "emit_depthstencil_clear(cmd_buffer, clear_att->clearValue.depthStencil, aspects, clear_rect,"),
+    ],
+    'src/amd/vulkan/meta/radv_meta_resolve.c': [
+        # Official Mesa 26.2.4 upstream 6e18409d5800f975538236c4152fa4eeca3b444e
+        ("      const struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;\n\n      const VkImageSubresourceLayers subresource", "      const struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;\n      VkImageAspectFlags ds_att_aspects;\n      if (d_iview && s_iview) {\n         ds_att_aspects = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;\n      } else if (d_iview) {\n         ds_att_aspects = VK_IMAGE_ASPECT_DEPTH_BIT;\n      } else {\n         ds_att_aspects = VK_IMAGE_ASPECT_STENCIL_BIT;\n      }\n\n\n      const VkImageSubresourceLayers subresource"),
+        ("      struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;\n      struct radv_image_view *dst_iview = d_res_iview ? d_res_iview : s_res_iview;", "      VkImageAspectFlags ds_att_aspects;\n      if (d_iview && s_iview) {\n         ds_att_aspects = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;\n      } else if (d_iview) {\n         ds_att_aspects = VK_IMAGE_ASPECT_DEPTH_BIT;\n      } else {\n         ds_att_aspects = VK_IMAGE_ASPECT_STENCIL_BIT;\n      }\n\n      struct radv_image_view *src_iview = d_iview ? d_iview : s_iview;\n      struct radv_image_view *dst_iview = d_res_iview ? d_res_iview : s_res_iview;"),
+        (".aspectMask = src_iview->vk.aspects,", ".aspectMask = ds_att_aspects,"),
+        (".aspectMask = dst_iview->vk.aspects,", ".aspectMask = ds_att_aspects,"),
     ],
     'src/amd/vulkan/radv_physical_device.c': [
         ('   if (result == VK_ERROR_INCOMPATIBLE_DRIVER || result == VK_ERROR_INITIALIZATION_FAILED)\n      return VK_SUCCESS;',
@@ -103,6 +176,13 @@ for relative, replacements in {
         ('      radv_ps5_memory_free(&queue->ring);', '      fprintf(stderr, "radv/ps5: queue marker allocation failed\\n");\n      radv_ps5_memory_free(&queue->ring);'),
     ],
     'src/amd/vulkan/winsys/ps5/radv_ps5_platform.c': [
+        ("   radv_ps5_submit_ns[0] += flushed - started;", "   p_atomic_add(&radv_ps5_submit_ns[0], flushed - started);"),
+        ("   radv_ps5_submit_ns[1] += submitted - flushed;", "   p_atomic_add(&radv_ps5_submit_ns[1], submitted - flushed);"),
+        ("#include <time.h>\n", "#include <time.h>\n#include <stdatomic.h>\n"),
+        ("static bool radv_ps5_kick_pending;", "static atomic_bool radv_ps5_kick_pending = ATOMIC_VAR_INIT(false);"),
+        ("while (!radv_ps5_kick_pending)", "while (!atomic_load_explicit(&radv_ps5_kick_pending, memory_order_acquire))"),
+        ("      radv_ps5_kick_pending = false;", "      atomic_store_explicit(&radv_ps5_kick_pending, false, memory_order_release);"),
+        ("   mtx_lock(&radv_ps5_kick_lock);\n   radv_ps5_kick_pending = true;\n   cnd_signal(&radv_ps5_kick_wanted);\n   mtx_unlock(&radv_ps5_kick_lock);", "   // A wake is already scheduled when pending was true. Do not take the\n   // producer mutex and signal the condition variable for every additional\n   // DCB in the same GPU kick batch: FC27 submits thousands per window.\n   // Only the thread changing false->true signals; the consumer clears\n   // pending before suspend, so later submissions always get another kick.\n   if (!atomic_exchange_explicit(&radv_ps5_kick_pending, true, memory_order_acq_rel)) {\n      mtx_lock(&radv_ps5_kick_lock);\n      cnd_signal(&radv_ps5_kick_wanted);\n      mtx_unlock(&radv_ps5_kick_lock);\n   }"),
         ('''bool
 radv_ps5_memory_grant_gpu(void *address, uint64_t bytes)
 {
@@ -115,15 +195,62 @@ radv_ps5_memory_grant_gpu(void *address, uint64_t bytes)
         ('   if (!placed) {', '   if (!placed) {\n      fprintf(stderr, "radv/ps5: mapping rejected result=%d address=%p bytes=%llu window32=%d\\n", result, address, (unsigned long long)bytes, window32);'),
     ],
 }.items():
-    original = root.parent/'mihawk-mesa-review'/relative
-    destination = root.parent/'mihawk-vulkan-review/.deps/work/radv-src'/relative
+    original = original_root/relative
+    destination = output_root/relative
     adapted = original.read_text()
     for old, new in replacements:
-        assert adapted.count(old) == 1, f'Pinned initialization anchor changed: {relative}'
+        # Mesa 26.2.4 resolves one depth/stencil image in both decompression
+        # and resolve paths. Both identical source masks must be corrected.
+        expected = (
+            4 if (relative == 'src/amd/vulkan/radv_cmd_buffer.c' and
+                  old == "uint64_t index_va = state->index_buffer.va + draw->firstIndex * index_size;") else
+            2 if (relative == 'src/amd/vulkan/meta/radv_meta_clear.c' and
+                  old == "size = slice_size * vk_image_subresource_layer_count(&image->vk, range);") else
+            2 if (relative == 'src/amd/vulkan/meta/radv_meta_resolve.c' and
+                  old == '.aspectMask = src_iview->vk.aspects,') else 1)
+        assert adapted.count(old) == expected, f'Pinned initialization anchor changed: {relative}'
         adapted = adapted.replace(old, new)
-    if destination.read_text() != adapted:
+    if relative == 'src/amd/vulkan/radv_descriptor_update_template.c':
+        from radv_official_immutable_sampler_fix import patch_c
+        adapted = patch_c(adapted)
+    if relative == 'src/amd/vulkan/radv_descriptor_update_template.h':
+        from radv_official_immutable_sampler_fix import patch_h
+        adapted = patch_h(adapted)
+    if relative == 'src/amd/vulkan/radv_cmd_buffer.c':
+        # Official Mesa 26.2.2 zero-draw firmware workaround, adapted to our
+        # PS5 GS-compute raster path without bypassing any real draw packet.
+        from radv_official_indirect_draw_fix import patch as patch_zero_indirect_draw
+        adapted = patch_zero_indirect_draw(adapted)
+    if not destination.exists() or destination.read_text() != adapted:
+        destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(adapted)
         provenance = root.parent/'mihawk-vulkan-review/.deps/native/radv-release/PROVENANCE.txt'
-        if provenance.exists():
+        if not oracle and provenance.exists():
             provenance.replace(provenance.with_suffix('.base.txt'))
     print(f'RADV initialization diagnostic {relative} sha256={hashlib.sha256(adapted.encode()).hexdigest()}')
+
+# R414: versioned, exact PS5 elevated-credentials shader cache fix.
+# This is an immutable pinned-source equivalence oracle, NOT a shipping patch.
+disk_relative = 'src/util/disk_cache_os.c'
+disk_input = (original_root / disk_relative).read_text()
+disk_old = '''   /* If running as a users other than the real user disable cache */
+   if (!__normal_user())
+      return false;'''
+disk_new = '''   /* A PS5 title can use launcher-assigned credentials (not setuid).
+    * A host-only effective/real-user mismatch disabled RADV shader cache
+    * silently on homebrew titles. Keep the safety guard on other OSes.
+    * Source: mpereiraesaa/PS5_Mesa 2026-10-09 (MIT). */
+#if !defined(__PROSPERO__)
+   if (!__normal_user())
+      return false;
+#endif'''
+assert disk_input.count(disk_old) == 1, 'Pinned Mesa cache guard changed'
+disk_output = disk_input.replace(disk_old, disk_new, 1)
+disk_target = output_root / disk_relative
+disk_target.parent.mkdir(parents=True, exist_ok=True)
+if not disk_target.exists() or disk_target.read_text() != disk_output:
+    disk_target.write_text(disk_output)
+    provenance = root.parent/'mihawk-vulkan-review/.deps/native/radv-release/PROVENANCE.txt'
+    if not oracle and provenance.exists():
+        provenance.replace(provenance.with_suffix('.base.txt'))
+print(f'RADV shader disk cache source sha256={hashlib.sha256(disk_output.encode()).hexdigest()}')

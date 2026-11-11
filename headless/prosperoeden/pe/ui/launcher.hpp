@@ -5,20 +5,19 @@
 #pragma once
 
 #include "pe/audio/sounds.hpp"
-#include "pe/ui/qr_code.hpp"
 #include "pe/ui/widgets.hpp"
-#include "pe/ui/cover_flow.hpp"
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <future>
 #include <string>
-#include <vector>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace pe::ui
 {
-
-inline constexpr int kSettingsCategories = 17;
 
 // Every screen of the launcher as one state machine. The frontend feeds it
 // pressed buttons and frame time, draws its list and plays its cues; it ends
@@ -32,10 +31,6 @@ class Launcher
     Launcher(const Launcher &) = delete;
     Launcher &operator=(const Launcher &) = delete;
 
-    // An offer a launcher pack took before this launcher replaced it; with Update notices off it
-    // is only named in About.
-    void accept_update_offer(const UpdateOffer& offer) { update_=offer; update_version_=offer.version; notes_laid_out_=false; update_waiting_=offer.installable && prefs_.update_notices; }
-    bool take_launcher_picker() { return std::exchange(launcher_picker_, false); }
     void press(Key key);
     void update(float dt);
     void draw(gfx::DrawList &list);
@@ -61,6 +56,12 @@ class Launcher
     {
         return done_;
     }
+    // A language change rebuilds the launcher in-process so its catalog, fonts and cached labels
+    // all change together without closing Encore.
+    bool restart_requested() const
+    {
+        return restart_requested_;
+    }
     // Empty until a game is chosen.
     const std::string &selected_game() const
     {
@@ -68,12 +69,10 @@ class Launcher
     }
 
   private:
-    bool launcher_picker_ = false;
     enum class Screen : std::uint8_t
     {
         home,
         library,
-        multiplayer, // rooms: the public directory, a private room, the room joined
         settings,
         files,
         language,
@@ -83,44 +82,25 @@ class Launcher
     {
         none,
         video,
-        performance,
         audio,
         controls,
         accessibility,
+        appearance,
+        storage,
         diagnostics,
         game,
-        mods,         // a game's mods, opened from its settings
-        game_options, // one category of a game's own settings, opened from its settings
-        mapping,      // the button mapping: Settings > Controls', or a game's own
-        menu_mapping, // the menu's own buttons: Settings > Controls > Menu keybinds
-        hud,          // the overlay's options: Settings > Video > Overlay options
-        profiles,     // who is playing: Settings > Profiles
-        update,       // a newer release of the app: install it or not (update.cpp)
-        download,     // a game from a download source, started once it is downloaded (remote.cpp)
-        source,       // which source a game is downloaded from, when several have it (remote.cpp)
-        sources,      // Settings > Downloads: the download sources and the queue (remote.cpp)
-        save_sync,    // a game's save data synced before it starts, or a conflict after (save_sync.cpp)
-        sync_setup,   // Settings > Save sync: the profiles and their servers (pairing.cpp)
-        pairing,      // a profile paired with a server by a QR code (pairing.cpp)
-        appearance,   // Settings > Appearance: theme and launcher settings
-        theme,        // Settings > Appearance > Theme: the launcher's look
-        wallpaper,    // Settings > Appearance > Wallpaper: the image behind the screens
-        accent,       // Settings > Colour: the accent preset
-        cheats,       // a game's cheats, opened from its settings
-        usb_backup,   // Settings > USB backup: protected backup/restore session
-        amiibo,       // opt-in public metadata/photos; never NFC data
-        network_shares,
+        mods, // a game's mods, opened from its settings
+        mapping, // global or per-game DualSense button mapping
     };
-    // The update dialog's steps: the offer, installing, stopping it, closing for the helper to
-    // finish, and a failure.
-    enum class UpdateStage : std::uint8_t
+    enum class Confirmation : std::uint8_t
     {
-        offer,
-        notes, // the release notes, opened from the offer
-        working,
-        cancelling,
-        closing,
-        failed,
+        none,
+        restore_defaults,
+        game_overrides,
+        mapping_reset,
+        shader_caches,
+        console_mode,
+        exit_app,
     };
 
     // ---- shell (launcher.cpp) ----
@@ -131,106 +111,72 @@ class Launcher
     void open(Screen screen, bool forward);
     void open_modal(Modal modal);
     void close_modal();
+    void clear_confirmation();
+    bool confirm_action(Confirmation action);
     void say(const std::string &text, bool warning = false);
-    // Starts a game: its save data is synced first when the profile syncs it (save_sync.cpp).
     void launch(const std::string &file, const std::string &title, const std::string &cover);
-    // Starts it now.
-    void start_game(const std::string &file, const std::string &title, const std::string &cover);
     void draw_screen(Canvas &c, Screen screen);
-    // A screen's title and the line beside it, at the top; its hints at the bottom, with what the
-    // menu last said (or `status`) at their right.
+    bool press_top_nav(Key key);
+    void draw_top_nav(Canvas &c, int active_tab, int focus_tab = -1, float focus_amount = 0.0f);
     void draw_frame(Canvas &c, const char *title, const char *copy);
-    void draw_footer(Canvas &c, const Hint *hints, int count, std::string_view status = {});
-    // The remappable menu buttons: a hint or button face that names Cross, Circle, Square or
-    // Triangle shows the face button the user has bound to that action instead (shell.cpp).
-    Pad translate_hint(Pad glyph) const;
-    float draw_menu_hints(Canvas &c, const Hint *hints, int count, float x, float cy, Color color,
-                          float max_width = 0.0f);
-
-    // ---- the shell around every screen: the section rail, the clock (shell.cpp) ----
-    static constexpr int kSections = 5; // home, library, multiplayer, settings, about
-    // The section the screen shown belongs to.
-    int section() const;
-    // Whether L1 and R1 change the section here: on a section's own screen, with no dialog open.
-    bool at_section() const;
-    void go_section(int section);
-    // The focus goes to the rail (Left from a screen's left edge), and comes back.
-    void focus_rail();
-    void press_rail(Key key);
-    void draw_scrims(Canvas &c);
-    void draw_rail(Canvas &c);
-    void draw_clock(Canvas &c);
-    // How far the item at `index` of the screen being drawn has arrived, 0..1: a screen's tiles and
-    // covers come one after the other when it opens (at once with reduced motion, and on the
-    // screen that is leaving).
-    float arrive(int index, float step = 0.025f) const;
-    // The size of the picture as every language writes it: "2160p".
-    static const char *output_name(int output);
-    // What a game runs with, on one line: "Docked  /  2x  /  AMD FSR  /  2160p  /  120 Hz".
-    std::string session_line(std::uint64_t title_id);
-    std::string session_line(const GameSettings &game, bool docked);
+    void draw_footer(Canvas &c, const Hint *hints, int count);
+    void draw_confirmation(Canvas &c);
     void draw_launch(Canvas &c);
-    void draw_opening(Canvas &c);
-    float opening_reveal() const;
-    float opening_handover() const;
-    // The notification of a newer release the app cannot install itself, at the top right for ten
-    // seconds.
-    void draw_update_notice(Canvas &c);
-    // A result the player must see over whatever the screen shows ("Could not save settings"): a
-    // card at the middle that any button closes.
-    void draw_message_popup(Canvas &c);
     // quiet: a change that shows at once needs no "Saved" line.
-    bool save_preferences(bool quiet = false);
+    bool save_preferences(bool quiet = false, bool game_defaults_changed = true);
     // The switches of a dialog as the preferences have them, in the order of its rows.
-    std::array<bool, 8> switch_states(Modal modal) const;
+    std::array<bool, 3> switch_states(Modal modal) const;
     // Shows the launcher as the preferences' accessibility switches say.
     void apply_look();
+    void apply_switch_palette();
+    void press_collection(Key key);
+    void draw_collection(Canvas &c);
 
     // ---- home (home.cpp) ----
     void press_home(Key key);
     void update_controllers(float dt);
     void draw_home(Canvas &c);
-    void draw_home_status(Canvas &c);
+    void draw_switch_home(Canvas &c);
+    void press_switch_home(Key key);
+    void draw_switch_library(Canvas &c);
+    void press_switch_library(Key key);
+    void draw_switch_settings(Canvas &c);
+    void draw_switch_files(Canvas &c);
+    void draw_switch_language(Canvas &c);
+    void draw_switch_about(Canvas &c);
+    void draw_switch_dialog(Canvas &c, Modal modal, float open);
+    void draw_switch_confirmation(Canvas &c);
+    void draw_switch_game(Canvas &c, float opened);
+    void draw_switch_mods(Canvas &c, float opened);
+    void draw_switch_mapping(Canvas &c, float opened);
+    void press_switch_settings(Key key);
+    void draw_switch_header(Canvas &c, const char *heading);
+    void draw_switch_footer(Canvas &c, const char *hint);
     void draw_controllers(Canvas &c);
-    // A game's settings from the home screen (the game to continue, or a recent one): its page
-    // opens over the Library at that game, and closing it comes back to the home screen.
-    void open_game_settings_from_home(const std::string &file);
+    void open_library_at_file(const std::string &file);
+    void refresh_home_hero();
 
     // ---- library and game settings (library.cpp) ----
     // The game list is read beside the menu: reading every game takes a moment.
     void start_scan();
-    void press_network_shares(Key key);
-    void draw_network_shares(Canvas& c, float open);
-    void open_network_shares();
-    void update_network_shares();
-    void network_result(Eden::Network::EditorResult result);
-    void start_network_job(std::function<Eden::Network::EditorResult(NetworkReservation)> operation,
-                           bool commit, bool connection = false);
-    enum class NetworkPage { locations, editor, discard, remove };
-    NetworkPage network_page_ = NetworkPage::locations;
-    Eden::Network::EditorView network_view_;
-    int network_row_ = 0;
-    std::string network_remove_id_;
-    bool network_commit_job_ = false;
-    bool network_connection_job_ = false;
-    bool network_warning_ = false;
-    std::atomic<bool> network_stop_{false};
-    std::future<Eden::Network::EditorResult> network_job_;
     void finish_scan(bool wait);
+    void start_home_media();
+    void finish_home_media();
+    void start_selected_media();
+    void finish_selected_media();
     void apply_games(std::vector<Game> games);
     void name_home_games();
+    void sync_home_game(const Game& game); // one Nlib update must not walk every installed title
     // The home screen's content, with its game's mods counted.
-    void read_home();
+    void read_home(); // queue native metadata refresh, never blocks the UI frame
+    void finish_home_scan(); // owner-thread application of one complete Home snapshot
+    void start_diagnostics(bool force = false);
+    void finish_diagnostics();
+    // Games removed/moved while the launcher is open disappear without a full rescan.
+    void check_games_present();
+    bool drop_missing_games(const std::vector<std::string>* known_missing = nullptr);
     // A game's mods as its list has them: how many, and how many are switched on.
     void count_mods(Game &game, const std::vector<Mod> &mods);
-    // A game's mods for the Mods list and its counts: those of cheats alone are in the Cheats list.
-    std::vector<Mod> game_mods(std::uint64_t title_id);
-    // Games whose file left the game files folder leave the home screen and the Library.
-    void check_games_present();
-    bool drop_missing_games();
-    // Reads a game's mods for its dialogs, and its cheats with the game's Cheats switch.
-    void read_mods(Game &game);
-    void read_cheats(const Game &game);
     // What a game comes with, on one line: "Update 1.2.0, 2 DLC, 2 mods"; "None" without any.
     // brief: for Game::addons_short, where the line would not fit ("v1.2.0, 2 DLC, 1/2 mods").
     static std::string addons_line(const std::string &addons, int mods, int mods_on,
@@ -238,202 +184,30 @@ class Launcher
     // A refresh rate setting as the player reads it: 0 is "60 Hz", 1 is "120 Hz".
     static std::string hertz(int refresh);
     void enter_library();
+    bool open_game_settings_at_file(const std::string &file);
     void press_library(Key key);
     void draw_library(Canvas &c);
-    void draw_cover_flow(Canvas &c, const Rect &stage);
     void refresh_selected_game();
     void press_game(Key key);
-    // A game's settings as a page of three parts: its kinds of setting at the left, the one chosen
-    // in the middle (`middle` draws it), what it means at the right.
-    void draw_game_page(Canvas &c, float open);
-    void draw_mode_pane(Canvas &c, const Rect &pane);
-    void draw_mods_pane(Canvas &c, const Rect &pane, bool active);
-    void draw_cheats_pane(Canvas &c, const Rect &pane, bool active);
-    void draw_save_pane(Canvas &c, const Rect &pane, bool removing);
-    void draw_explain_pane(Canvas &c, const Rect &pane, int kind);
-    // How many settings the game has of its own, over every kind.
-    int game_changes() const;
-    // What a row of the game settings dialog is (GameRow in library.cpp): Save data is there in
-    // builds that move saves, and the deleting of a game a download source has (it comes back from there).
-    int game_row(int row) const;
-    // The pitch of those rows: closer when all of them are there, so that they fit.
-    float game_kind_pitch() const;
+    void draw_game(Canvas &c, float open);
     void press_mods(Key key);
-    void press_cheats(Key key);
-
-    // ---- a game's own settings by category, and the button mapping (game_options.cpp) ----
-    // Categories, in the order of the game settings' rows: video, performance, audio, controls,
-    // system, language.
-    static constexpr int kGameOptionCategories = 6;
-    void open_game_options(int category);
-    void press_game_options(Key key);
-    // The RNG seed is typed on the system keyboard: opens it, and takes its answer when it closes.
-    void edit_seed();
-    void update_game_options();
-    // A category's rows in the game page's middle part; active: the focus is on them.
-    void draw_option_pane(Canvas &c, const Rect &pane, int category, bool active);
-    // What the focused setting of a category does, where there is something to say.
-    std::string option_about(int category, int row) const;
-    // What Cross does on the focused row of a game's settings: 0 nothing of its own, 1 it opens the
-    // game's button mapping, 2 it opens the keyboard.
-    int option_action() const;
-    // What a Performance switch does (English, marked for translation).
-    static const char *performance_about(int row);
-    // How many of a category's settings the game has of its own.
-    int game_overrides(int category) const;
-    // ---- profiles (profiles.cpp) ----
-    void read_profiles();
-    int profile_row_count() const;
-    void open_profiles();
-    void press_profiles(Key key);
-    void draw_profiles(Canvas &c, float open);
+    void draw_mods(Canvas &c, float open);
     void open_mapping(bool for_game);
     void press_mapping(Key key);
     void draw_mapping(Canvas &c, float open);
-    // The menu's own buttons, opened from Settings > Controls > Menu keybinds (game_options.cpp).
-    void open_menu_mapping();
-    void press_menu_mapping(Key key);
-    void draw_menu_mapping(Canvas &c, float open);
 
     // ---- settings and its dialogs (settings.cpp) ----
     void press_settings(Key key);
-    void open_amiibo();
-    void press_amiibo(Key key);
-    void draw_amiibo(Canvas& c, float open);
-    Eden::AmiiboSyncStatus amiibo_;
-    int amiibo_row_ = 0;
-    bool amiibo_confirm_ = false;
-    std::vector<std::string> amiibo_ids_;
     void draw_settings(Canvas &c);
     void press_dialog(Key key);
     void draw_dialog(Canvas &c, Modal modal, float open);
     int dialog_rows(Modal modal) const;
     float dialog_row_top(Modal modal, int row) const;
-    // The overlay's options, opened from Settings > Video > Overlay options (settings.cpp).
-    void open_hud();
-    void press_hud(Key key);
-    void draw_hud(Canvas &c, float open);
-    void open_usb_backup();
-    void press_usb_backup(Key key);
-    void poll_usb_backup();
-    void draw_usb_backup(Canvas &c, float open);
-    Eden::UsbBackup::Status usb_backup_;
-    std::string usb_page_;
-    bool usb_restore_ = false;
-    int usb_choice_ = 0;
-    ListView usb_rows_;
-
-    // ---- a newer release of the app (update.cpp) ----
-    // Takes the update check's answer when it comes, and opens the dialog once the menu is free.
-    void update_offer(float dt);
-    // Follows the install: progress, its speed, the ready and failed steps.
-    void update_install(float dt);
-    void begin_update();
-    void press_update(Key key);
-    void draw_update(Canvas &c, float open);
-    // The release notes view: opened from the offer, laid out once per text size, scrolled.
-    void open_notes();
-    void close_notes();
-    void layout_notes(Canvas &c);
-    void scroll_notes(float by);
-    float notes_window() const;
-    float notes_max_scroll() const;
-    void draw_notes(Canvas &c, float height);
-
-    // ---- games on download sources (remote.cpp) ----
-    // Looks at the queue and the sources a few times a second: the Library reads its list again
-    // when their games changed, and the game being played starts once it is there.
-    void poll_sources(float dt);
-    // The queue's entry of a game (Game::key); nullptr when it has none.
-    const Download *download_of(const std::string &key) const;
-    // What a game on its sources shows in the Library: its source (or how many), queued, its
-    // share, failed.
-    std::string remote_state(const Game &game, Color *color) const;
-    // The cover of a game on its sources: darker, with a cloud at its bottom right.
-    static void remote_cover(Canvas &c, const std::string &path, const Rect &r, float radius, float shadow = 0.0f);
-    // Cross on one: downloaded first and started (the download dialog). Square: into the queue,
-    // or out of it. With several sources, which one is asked first (the source dialog).
-    void play_remote(const Game &game);
-    void queue_remote(const Game &game);
-    void choose_source(const Game &game, bool play);
-    void download_from(const Game &game, int source, bool play);
-    void press_choice(Key key);
-    void draw_choice(Canvas &c, float open);
-    void press_download(Key key);
-    void draw_download(Canvas &c, float open);
-    int source_row_count() const;
-    void open_sources();
-    void press_sources(Key key);
-    void draw_sources(Canvas &c, float open);
-
-    // ---- save sync (save_sync.cpp) ----
-    // Looks at the sync a few times a second: the game starts once its save data is in step, a
-    // conflict opens the dialog, and the end of a sync after a game shows at the top right.
-    void poll_save_sync(float dt);
-    void press_save_sync(Key key);
-    void draw_save_sync(Canvas &c, float open);
-    void draw_save_sync_notice(Canvas &c);
-
-    // ---- Settings > Save sync and pairing (pairing.cpp) ----
-    void open_sync_setup();
-    void enter_multiplayer();
-    // Whether the multiplayer screen has the buttons (no dialog over it).
-    bool in_multiplayer() const;
-    void press_multiplayer(Key key);
-    void update_multiplayer();
-    void draw_multiplayer(Canvas& c);
-    void refresh_public_rooms();
-    void draw_public_rooms(Canvas& c, const Rect& pane);
-    void draw_room_panel(Canvas& c, const Rect& pane);
-    void press_nextendo(Key key);
-    void draw_nextendo(Canvas& c);
-    std::string nextendo_current_profile();
-    Eden::Nextendo::Status nextendo_status_;
-    std::atomic<bool> nextendo_stop_{false};
-    std::future<Eden::Nextendo::Status> nextendo_request_;
-    bool nextendo_unlink_confirm_ = false;
-    bool nextendo_import_confirm_ = false;
-    // Existing cancel/re-entry paths assign false: clear the entire pending consent, not
-    // just its visible flag. No confirmation survives a navigation/profile cancellation.
-    struct NextendoConsent {
-        bool pending = false;
-        bool shown = false;
-        std::string profile;
-        explicit operator bool() const { return pending; }
-        NextendoConsent& operator=(bool value) {
-            pending = value;
-            shown = false;
-            profile.clear();
-            return *this;
-        }
-    } nextendo_browser_confirm_;
-    bool nextendo_browser_active_ = false;
-    std::string nextendo_browser_url_;
-    enum class RoomPage { choice, private_room, public_rooms, nextendo };
-    RoomPage room_page_ = RoomPage::choice;
-    Eden::Multiplayer::RoomDirectory room_directory_;
-    std::atomic<bool> room_directory_stop_{false};
-    std::future<Eden::Multiplayer::RoomDirectory> room_directory_request_;
-    bool room_directory_loaded_ = false;
-    bool room_directory_refresh_ = false;
-    bool room_password_join_ = false;
-    Eden::Multiplayer::Connection room_connection_;
-    Eden::Multiplayer::Snapshot room_status_;
-    int room_row_ = 0;
-    int room_edit_field_ = 0;
-    std::atomic<bool> room_edit_stop_{false};
-    std::future<std::optional<std::string>> room_edit_;
-    // Reads the profiles' servers again (save-sync.json) while Settings shows them.
-    void refresh_sync_setup(float dt);
-    void press_sync_setup(Key key);
-    void draw_sync_setup(Canvas &c, float open);
-    void start_pairing(int profile, int server);
-    void poll_pairing(float dt);
-    void press_pairing(Key key);
-    void draw_pairing(Canvas &c, float open);
 
     // ---- game files, language, about (browse.cpp) ----
-    void enter_files(bool games_only = false);
+    void enter_files();
+    void finish_content_work();
+    void save_content_location(std::string directory, std::string image = {});
     bool browse_to(const std::string &directory);
     void press_files(Key key);
     void draw_files(Canvas &c);
@@ -449,51 +223,37 @@ class Launcher
     std::vector<audio::Cue> cues_;
     float time_ = 0.0f;
     float clock_wait_ = 0.0f;
-    float presence_wait_ = 0.0f; // time since the shown games' files were last looked at
-    std::string update_version_;       // the newer release being announced
-    float update_notice_left_ = 0.0f;  // seconds its notification still shows
-    tween::Spring update_notice_in_;   // 0 away .. 1 in place
-    // The update dialog.
-    UpdateOffer update_;
-    bool update_waiting_ = false;      // an offer waits for the menu to be free
-    UpdateStage update_stage_ = UpdateStage::offer;
-    float update_stage_time_ = 0.0f;   // seconds in this step
-    int update_choice_ = 0;            // 0: the first button, 1: the second
-    tween::Spring update_choice_x_;    // the highlight between the two buttons
-    tween::Spring update_height_;      // the panel's height: shorter while it works
-    UpdateStatus update_status_;
-    tween::Spring update_fraction_;    // the shown share done, 0..1
-    float update_spin_ = 0.0f;         // the waiting arc's turn
-    float update_rate_ = 0.0f;         // bytes per second, smoothed
-    std::uint64_t update_rate_done_ = 0;
-    float update_rate_wait_ = 0.0f;
-    // The release notes, laid out: one entry per drawn line, and the boxes behind callouts.
-    struct NoteLine
-    {
-        std::string text;
-        float y = 0.0f;      // from the top of the text
-        float height = 0.0f; // the line's pitch
-        float size = 0.0f;
-        Color color{};
-        float indent = 0.0f;
-        bool bullet = false; // the first line of a list item
-    };
-    struct NoteBox
-    {
-        float top = 0.0f;
-        float bottom = 0.0f;
-        bool warning = false;
-    };
-    std::vector<NoteLine> notes_lines_;
-    std::vector<NoteBox> notes_boxes_;
-    float notes_height_ = 0.0f;   // the whole text's height
-    bool notes_laid_out_ = false;
-    bool notes_large_ = false;    // laid out for Larger text
-    float notes_target_ = 0.0f;   // where the scroll is going
-    tween::Spring notes_scroll_;  // where it is
-    tween::Spring notes_bounce_;  // the give at either end
+    float presence_wait_ = 0.0f;
+    // Bounded PS5 update-stall diagnoses: never log in the normal 60 Hz path.
+    std::chrono::steady_clock::time_point last_ui_hotspot_report_{};
     std::string clock_;
+    StorageLocation browse_location_ = StorageLocation::files;
+    int browse_image_start_ = 0;
+    struct ContentDirectory {
+        std::string directory;
+        std::vector<std::string> folders, images;
+        StorageLocation kind = StorageLocation::files;
+        bool ok = false;
+    };
+    std::future<ContentDirectory> content_directory_;
+    std::atomic<bool> content_directory_cancel_{false};
+    StorageLocation content_directory_kind_ = StorageLocation::files;
+    bool content_directory_reenter_ = false; // one latest navigation intent, never a queued mutation
+    std::future<bool> content_write_;
+    std::atomic<bool> content_write_cancel_{false};
+    bool content_write_wallpaper_ = false;
     std::string version_;
+    struct ProfileAvatarProbe {
+        std::string path;
+        std::uint64_t device = 0, inode = 0, size = 0, mtime = 0, ctime = 0;
+        bool operator==(const ProfileAvatarProbe&) const = default;
+    };
+    static ProfileAvatarProbe probe_profile_avatar(Services &services);
+    // At most one worker; a missing profile is retried every five seconds.
+    std::future<ProfileAvatarProbe> profile_avatar_scan_;
+    ProfileAvatarProbe profile_avatar_active_{};
+    float profile_avatar_refresh_elapsed_ = 0.0f;
+    std::string profile_avatar_path_;
 
     // navigation
     Screen screen_ = Screen::home;
@@ -508,116 +268,126 @@ class Launcher
     std::string message_; // the last result ("Saved..."), shown where the screen has room
     bool message_warning_ = false;
     float message_age_ = 0.0f;
-    // A warning's result ("Could not save settings"), a card at the middle any button closes.
-    std::string popup_;
+    Confirmation confirmation_ = Confirmation::none;
+    Key confirmation_key_ = Key::cross;
+    Key pressed_key_ = Key::cross;
+    int top_nav_focus_ = -1; // -1 = content; 0..3 = Home/Library/Recents/Settings
+    int active_main_tab_ = 0; // the Recent rail is its own tab, sharing Home content
 
     // launching a game
     std::string selected_game_;
     std::string launch_title_;
     std::string launch_cover_;
+    std::string launch_hero_;
+    std::string launch_box_front_;
+    std::string launch_box_back_;
+    std::string launch_box_spine_;
+    std::uint64_t launch_title_id_ = 0; // single launch provenance in case draw logs
+    unsigned launch_case_placeholder_mask_ = 0; // one-time per-face diagnostic
+    unsigned launch_case_ready_mask_ = 0;
+    std::string launch_description_;
+    std::vector<std::string> launch_screenshots_;
+    // Snapshot the selected title once. These pages are rendered from the
+    // same code as the Library's replacement sleeves, never remote fetches.
+    Game launch_case_game_;
+    std::uint32_t launch_composed_front_ = 0;
+    std::uint32_t launch_composed_back_ = 0;
+    bool launch_composed_front_attempted_ = false;
+    bool launch_composed_back_attempted_ = false;
+    // A fallback printed before late async media becomes available can be
+    // overwritten once, on the SAME texture, without allocating another page.
+    bool launch_composed_front_provisional_ = false;
+    bool launch_composed_back_provisional_ = false;
+    // Retry only a bounded number of times after a transient GL/FBO failure.
+    // A failed first allocation must not permanently suppress the missing side.
+    unsigned launch_composed_front_failures_ = 0;
+    unsigned launch_composed_back_failures_ = 0;
+    float launch_composed_front_retry_after_ = 0.0f;
+    float launch_composed_back_retry_after_ = 0.0f;
     tween::Timer launch_;
-    Rect launch_from_{790.0f, 250.0f, 340.0f, 340.0f}; // where its cover was when it was started
     bool done_ = false;
+    bool restart_requested_ = false;
 
-    // home: 0 the main action, 1 game settings, 2-5 recent, 6 view all
+    // home: 0 hero, 1-3 header, 4 details, 5-11 recent, 12 quick card, 13-19 quick rows, 20 storage, 21 controllers, 22 full settings
     Home home_;
+    std::future<Home> home_scan_; // costly recent-game metadata is read off-thread
+    bool home_loaded_ = false; // no game launch or Home actions before snapshot
+    bool home_reload_pending_ = false; // don't apply an obsolete in-flight refresh
+    DiagnosticsInfo home_diagnostics_{};
+    std::future<DiagnosticsInfo> diagnostics_scan_; // asynchronous cache/log disk inventory
+    bool diagnostics_refresh_pending_ = false; // discard an outdated scan after maintenance
+    int home_recent_ = -1; // -1 = last played; otherwise the selected Recent card becomes the hero
+    GameSettings home_game_settings_{};
+    bool home_game_docked_ = true;
+    // Repeated recent-card navigation and quick-setting saves must not
+    // reread the same game JSON file on every controller input.
+    std::unordered_map<std::uint64_t, std::pair<GameSettings, bool>> home_settings_cache_;
     // The controllers connected now (bit 0 is player 1), and how lit each one's icon is.
     unsigned controllers_ = 0;
     bool controllers_known_ = false;
+    float controller_poll_elapsed_ = 0.0f; // presence only; input remains frame-driven
     std::array<tween::Spring, 4> controller_lit_{};
     std::array<float, 4> controller_pop_{}; // 1 when a controller appears, then decays
     int home_focus_ = 0;
-    bool home_on_grid_ = false;
-    std::array<tween::Spring, 12> home_springs_{};
+    int home_quick_edit_ = -1; // -1 browsing; 0-6 editing one quick-setting row
+    std::array<tween::Spring, 23> home_springs_{};
     float intro_ = 0.0f;
     bool first_start_ = true;
-    // The opening, when the app has just been started and the launch picture is there: that
-    // picture, the mark over it, then the menu as the picture leaves (draw_opening).
-    bool opening_on_ = false;
-    float opening_ = 0.0f; // seconds since it began
-    std::string home_session_;        // what the home screen's game runs with (session_line)
-    bool home_docked_ = true;         // ... and whether that is docked
-
-    // the rail
-    float screen_time_ = 10.0f;   // seconds since the screen shown was opened
-    bool drawing_shown_ = true;   // the screen being drawn is the one shown (not the one leaving)
-    bool rail_focus_ = false;
-    int rail_index_ = 0;
-    tween::Spring rail_open_;                           // 0 icons only .. 1 with their names
-    std::array<tween::Spring, kSections> rail_springs_{}; // the highlight on each section
-    std::array<tween::Spring, kSections> rail_active_{};  // which section is shown
 
     // library
     std::vector<Game> games_;
+    std::string pending_settings_file_; // Home game options requested before async scan completes
+    std::atomic<bool> home_cancel_{false}; // exit stops unfinished native Home metadata work
+    std::atomic<bool> scan_cancel_{false}; // game launch/teardown cancels remaining mod enumeration
+    std::atomic<bool> media_cancel_{false}; // stop launching new Nlib requests on game start
+    std::atomic<bool> diagnostics_cancel_{false}; // stop disk inventory between entries on game start
     std::future<std::vector<Game>> scan_; // the list being read
+    bool docked_refresh_after_scan_ = false; // global settings saved during an in-flight scan
+    std::future<std::vector<std::string>> presence_scan_; // nonblocking filesystem presence results
+    std::vector<std::string> previous_missing_; // sorted previous poll; two-scan absence confirmation
+    std::vector<std::string> home_missing_refresh_; // refresh once per confirmed missing-Home set
+    // Home enrichment is independent of the full library scan: the hero should get its
+    // banner/player metadata as soon as the network/cache can provide it.
+    std::future<Game> home_media_scan_;
+    std::uint64_t home_media_scan_title_id_ = 0;
+    std::unordered_map<std::uint64_t, std::chrono::steady_clock::time_point> home_media_next_retry_;
+    std::future<Game> media_scan_; // Nlib enrichment of every installed title
+    std::uint64_t media_scan_title_id_ = 0;
+    std::unordered_map<std::uint64_t, std::chrono::steady_clock::time_point> media_next_retry_;
+    float media_retry_timer_ = 0.0f; // only periodically poll for failed/late Nlib artwork
     bool games_loaded_ = false;
     ListView library_;
-    cover_flow::Motion cover_flow_;
+    bool library_back_focused_ = false; // Down selects rear jacket
+    bool library_back_zoom_ = false; // Cross opens, Circle alone closes the viewer
+    float library_back_scale_ = 1.0f; // L2 / R2; no artwork stretching
+    float library_back_pan_x_ = 0.0f; // D-pad or left stick in viewer
+    float library_back_pan_y_ = 0.0f;
     bool selected_docked_ = true;
     tween::Spring mode_;   // 0 docked .. 1 handheld
     tween::Spring mods_switch_; // the selected game's Mods switch: 0 off .. 1 on
     tween::Spring detail_; // the details fade in after the selection moves
-    // The Library's covers: four to a row, the rows scrolling; the highlight glides between them.
-    ListView grid_rows_;
-    tween::Spring grid_x_;
-    tween::Spring grid_y_;
-    void sync_grid(bool snap);
-    // What the selected game has of its own is read once the selection rests on it.
-    void read_selected_details();
-    bool selected_read_ = true;
-    int selected_changes_ = 0;       // how many settings the selected game has of its own
-    std::string selected_session_;   // what it runs with (session_line)
-    bool game_from_home_ = false;    // its settings were opened from the home screen: back goes there
-    tween::Spring pane_;             // the game page's focus: 0 on the kinds, 1 on the rows
 
     // settings and dialogs
     Preferences prefs_;
+    int switch_home_focus_ = 0;
+    int switch_home_last_tile_ = 0; // remember selected title when visiting system shortcuts
     ListView settings_;
-    std::array<tween::Spring, kSettingsCategories> settings_springs_{}; // the highlight on each tile
     tween::Spring section_;
     int option_ = 0;
     tween::Spring option_cursor_; // highlight position in pixels
-    std::array<tween::Spring, 8> switches_{};
+    std::array<tween::Spring, 4> switches_{};
     ListView video_rows_; // the Video dialog's rows (more than it shows)
-    ListView hud_rows_;   // the overlay's options (Modal::hud, more than it shows)
-    ListView performance_rows_; // the Performance dialog's rows (more than it shows)
-    ListView controls_rows_;    // the Controls dialog's rows (more than it shows)
-    ListView accent_rows_;      // the Colour dialog's rows (more than it shows)
-    ListView wallpaper_rows_;   // the Wallpaper dialog's rows (more than it shows)
-    // The images in the wallpapers folder, as the Wallpaper dialog lists them (settings.cpp).
-    std::vector<std::string> wallpaper_files_;
     GameSettings game_settings_;
     bool game_docked_ = true;
     SaveSource import_source_ = SaveSource::none; // what Save data could import for the game
     bool import_armed_ = false;                   // Cross was pressed once: the next one imports
-    bool delete_armed_ = false;                   // the same before a game is deleted
     ListView game_rows_;                          // the game dialog's rows (more than it shows)
     std::vector<Mod> mods_;                       // the game's mods, read when its dialog opens
     ListView mod_rows_;
-    // Explicit database actions, then the game's Cheats switch and installed optional entries.
-    std::vector<GameCheat> cheats_;
-    bool cheats_enabled_ = true;
-    ListView cheat_rows_;
-    CheatDatabase cheat_database_;
-    bool cheat_install_armed_ = false;
-    void update_cheat_database();
-    const std::vector<std::string>& cheat_catalog_rows() const;
-    int cheat_row_count() const;
-    int game_options_ = 0;          // the category a game's own settings dialog shows
-    ListView option_rows_;          // its rows
-    std::atomic<bool> seed_edit_stop_{false};
-    std::future<std::optional<std::int64_t>> seed_edit_;  // the keyboard, while it is open
-    bool mapping_for_game_ = false; // the mapping dialog edits the game's own mapping
+    bool mapping_for_game_ = false;
     ListView mapping_rows_;
-    ListView menu_mapping_rows_; // the menu keybinds dialog's rows
-    ListView room_rows_;         // Multiplayer > Public rooms: the rooms (room_row_ - 1 is the one chosen)
-    std::vector<Profile> profiles_; // the people who play on this console
-    std::string playing_;           // the one games start as
-    ListView profile_rows_;
-    int profile_remove_ = -1;       // the row Square was pressed on once (asked twice)
 
     // game files
-    bool browse_games_ = false;
     std::string browse_dir_;
     std::vector<std::string> browse_entries_; // ".." first unless at "/", then subfolders
     ListView files_;
@@ -625,52 +395,6 @@ class Launcher
 
     // language
     ListView language_;
-
-    // the download sources
-    Sources sources_;
-    std::vector<Download> downloads_;
-    std::uint64_t sources_generation_ = 0; // the sources' games as the Library's list has them
-    bool lists_asked_ = false;             // the player asked for the game lists: the menu says when they are in
-    float sources_wait_ = 0.0f;
-    bool rescan_ = false;                  // the list is read again once the current reading is in
-    Game download_game_;                   // the game the download dialog shows (and then starts)
-    std::string download_file_;            // its file once there (as its source names it)
-    bool download_open_ = false;
-    Game choice_game_;                     // the game the source dialog asks about
-    bool choice_play_ = false;             // it is then played (else queued)
-    ListView choice_rows_;
-    tween::Spring download_fraction_;
-    float download_time_ = 0.0f;
-    ListView source_rows_; // Settings > Downloads: the sources, then the downloads
-
-    // save sync
-    SaveSync save_sync_;            // as last looked at
-    float save_sync_wait_ = 0.0f;
-    std::string sync_file_;         // the game that starts once its save data is in step
-    std::string sync_title_;
-    std::string sync_cover_;
-    bool sync_launch_ = false;      // the dialog is for a game about to start
-    bool sync_started_ = false;     // its sync was asked for (after the one before it ended)
-    ListView sync_rows_;            // the answers to a conflict or a failure
-    float sync_time_ = 0.0f;
-    SaveSync sync_notice_;          // what the notice at the top right says
-    float sync_notice_left_ = 0.0f; // seconds it still shows
-    tween::Spring sync_notice_in_;
-
-    // Settings > Save sync and pairing
-    SaveSyncSetup sync_setup_;
-    std::vector<PairServer> pair_servers_;
-    float sync_setup_wait_ = 1000.0f; // read at once the first time Settings shows
-    ListView sync_setup_rows_;
-    bool sync_setup_choosing_ = false; // the rows are the servers to pair sync_setup_profile_ with
-    int sync_setup_profile_ = 0;
-    int pair_server_ = 0;
-    int unlink_armed_ = -1;            // Square once on this profile: once more unlinks it
-    PairingStatus pairing_;
-    float pairing_wait_ = 0.0f;
-    float pairing_time_ = 0.0f;
-    QrCode pairing_qr_;
-    std::string pairing_qr_text_;      // the address pairing_qr_ is of
 };
 
 } // namespace pe::ui

@@ -5,9 +5,9 @@
 # SDK, FFmpeg for the PS5, the native packaging tool, the runtime libc.prx, the libSceAgcDriver
 # link stub and the isolated RADV driver. Each step is skipped when its result already exists.
 set -euo pipefail
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-source "$root/tools/ci/native-evidence.sh"
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+source "$root/tools/host-env.sh"
+eden_host_env "$root"
 cd "$root"
 step() { echo "== $*"; }
 
@@ -20,44 +20,47 @@ if [[ ! -f .local/headless-cache ]] || [[ ! -d "$(cat .local/headless-cache)" ]]
     printf '%s\n' "$scratch" > .local/headless-cache
 fi
 scratch=$(cat .local/headless-cache)
-[[ "$(cat "$scratch/owner")" == "$root" ]] || { echo "Build cache $scratch belongs to another checkout" >&2; exit 1; }
-eden_native_capture --phase prepare-start --file "$root/tools/prepare-build.sh" --file "$root/tools/deps.json"
+[[ "$(cd -- "$(cat "$scratch/owner")" && pwd -P)" == "$root" ]] || { echo "Build cache $scratch belongs to another checkout" >&2; exit 1; }
 
 eden="$scratch/source"
-eden_archive=eden-67bada77.tar.gz
-# A tree unpacked from another archive is the source of another Eden revision: it is unpacked
-# again (Eden's package cache, downloads only, is kept). A tree left from before an update of
-# the pin was built as if it were the new one, and what Eden had changed went unseen.
-if [[ ! -f $eden/CMakeLists.txt || $(cat "$eden/.unpacked-from" 2>/dev/null) != "$eden_archive" ]]; then
+# R289: safely refresh the precise old C++20 atomic Eden source cache; retain
+# the pinned CPM downloads, SDK, RADV, ccache and native-object caches.
+python3 -B "$root/tools/refresh-eden-atomic-source-cache.py" "$scratch" \
+    "$root/.deps/eden-5f142c79.tar.gz" "$root"
+if [[ ! -f $eden/CMakeLists.txt ]]; then
     step "Eden source"
-    if [[ -d $eden/.cache ]]; then rm -rf "$scratch/source-cache" && mv "$eden/.cache" "$scratch/source-cache"; fi
-    rm -rf "$eden"
     mkdir -p "$eden"
-    tar -xzf ".deps/$eden_archive" --strip-components=1 -C "$eden"
-    if [[ -d $scratch/source-cache ]]; then mv "$scratch/source-cache" "$eden/.cache"; fi
-    printf '%s\n' "$eden_archive" > "$eden/.unpacked-from"
+    tar -xzf .deps/eden-5f142c79.tar.gz --strip-components=1 -C "$eden"
 fi
-printf '%s\n' '67bada77f8a43a90da2e94e89b8e7da73c256989' > "$eden/GIT-COMMIT"
+printf '%s\n' '5f142c7926d0c7fcbbd0ce30794d72f638a43b2a' > "$eden/GIT-COMMIT"
 printf '%s\n' 'ps5-headless' > "$eden/GIT-REFSPEC"
-# Fixes to Eden's own source (tools/eden-patches, in name order), each applied once: a patch that
-# reverses cleanly is already in the tree. One that neither reverses nor applies was changed after
-# an earlier version of it went in: the files it touches come back from the pinned archive first.
-command -v patch >/dev/null || { echo "patch is required (apt install patch)" >&2; exit 1; }
-for eden_patch in tools/eden-patches/*.diff; do
-    if patch -d "$eden" -p1 -R --dry-run -s -f < "$eden_patch" >/dev/null 2>&1; then continue; fi
-    step "Eden patch $(basename "$eden_patch")"
-    if ! patch -d "$eden" -p1 -N --dry-run -s -f < "$eden_patch" >/dev/null 2>&1; then
-        sed -n 's|^+++ b/||p' "$eden_patch" | sed 's|^|*/|' |
-            xargs tar -xzf ".deps/$eden_archive" --wildcards --strip-components=1 -C "$eden"
-    fi
-    patch -d "$eden" -p1 -N -s < "$eden_patch" || { echo "$eden_patch does not apply to Eden's source" >&2; exit 1; }
-done
+step "Versioned Encore Eden fork (43 audited shipping patches, 83 full sources)"
+python3 -B tools/install-vendored-eden-backports.py --repair-owned-cache "$eden"
+# Native build recipe is a fully versioned translation unit, not a string
+# replacement performed during CMake configure. Original Eden is immutable.
+python3 -B tools/install-vendored-eden-build-flags.py "$eden"
+# The tested I-cache and service-manager host-wait implementations are
+# always installed into the ACTIVE native core. This is source materialization,
+# not an environment-variable runtime opt-in or a debug-only wrapper.
+step "Always-on guest I-cache and host-service wait backports"
+python3 -B tools/install-active-core-backports.py "$eden"
+python3 -B tools/install-active-core-backports.py "$eden" --check
+step "R352 fence-safe NVNflinger layer/display cleanup (versioned complete source)"
+python3 -B tools/install-vendored-surface-lifecycle.py "$eden"
+python3 -B tools/check-nvnflinger-dequeue-wakeup.py "$eden"
+
 # Optional: seed Eden's package cache from another checkout's (CI reuses a development cache).
 if [[ -n ${EDEN_CPM_CACHE_SEED:-} && ! -d $eden/.cache/cpm ]]; then
     step "Eden package cache from $EDEN_CPM_CACHE_SEED"
     mkdir -p "$eden/.cache"
     cp -a "$EDEN_CPM_CACHE_SEED" "$eden/.cache/cpm"
 fi
+# R349: the actual 22 PS5 CPM source trees are checked into this Git repo
+# (full 1-GiB source plus pinned upstream cpmfile.json SHA and content locks).
+# Only missing package/version directories are copied into mutable build cache;
+# existing native CPM caches remain available for incremental builds.
+step "Pinned PS5 Eden CPM source cache (fully vendored)"
+python3 -B tools/vendor-eden-cpm.py --stage "$eden"
 # The FFmpeg source Eden pins, where Eden's package cache keeps it.
 ffmpeg_source="$eden/.cache/cpm/ffmpeg/c7b5f1537d"
 if [[ ! -f $ffmpeg_source/configure ]]; then
@@ -85,26 +88,37 @@ if [[ ! -f ../ps5-native-app-boilerplate/runtime/libc.prx ]]; then
 fi
 step "libSceAgcDriver link stub"
 bash tools/build-agc-driver-stub.sh
-bash tools/build-common-dialog-stub.sh
-# The driver's display code carries this repository's adaptation (tools/patch-radv-wsi.py): a
-# driver built with another version of it is built again (only the changed file compiles).
-# So is a driver built from another Mesa revision than tools/deps.json pins.
+step "PS5 OpenGL audited SDK (ad2807d)"
+bash tools/build-opengl-sdk.sh
+# Reuse RADV only when both its Mesa revision and this fork's display adaptation match.
+# A stale cached archive can link successfully while carrying different weak entrypoints/behaviour.
 radv_release=../mihawk-vulkan-review/.deps/native/radv-release
 mesa_pin=$(python3 -c 'import json; print(next(i["commit"] for i in json.load(open("tools/deps.json"))["items"] if i["name"] == "ps5-mesa"))')
 if [[ -f $radv_release/lib/libvulkan_radeon.ps5.a ]]; then
     built=$(sed -n 's/^revision: //p' "$radv_release/PROVENANCE.txt" 2>/dev/null || true)
     if [[ $built != "$mesa_pin" ]]; then
-        step "RADV: built from Mesa ${built:0:12}, pinned ${mesa_pin:0:12}"
+        step "RADV: cached Mesa ${built:0:12} differs from pin ${mesa_pin:0:12}"
         bash tools/build-radv-dependencies.sh
         rm -f build/radv-isolated/libvulkan_radeon.ps5.a
-    elif ! python3 -B tools/patch-radv-wsi.py --check "$radv_release/EDEN_WSI_SHA256" ||
-         ! python3 -B tools/patch-radv-gs-compute.py --check "$radv_release/EDEN_GS_SHA256" ||
-         ! python3 -B tools/patch-radv-disk-cache.py --check "$radv_release/EDEN_DISK_CACHE_SHA256" ||
-         ! python3 -B tools/patch-radv-transfer-split.py --check "$radv_release/EDEN_TRANSFER_SPLIT_SHA256"; then
-        step "RADV: this repository's adaptation of the driver changed"
+    elif ! python3 -B tools/patch-radv-wsi.py --check "$radv_release/EDEN_WSI_SHA256"; then
+        step "RADV: the display code's adaptation changed"
+        bash tools/build-radv-dependencies.sh
+        rm -f build/radv-isolated/libvulkan_radeon.ps5.a
+    elif ! python3 -B tools/radv-active-inputs.py --check "$radv_release/EDEN_ACTIVE_INPUTS_SHA256"; then
+        # Cache hits require ALL maintained compiled units, not just WSI.
+        # Otherwise cache-policy, descriptor and draw fixes may remain absent
+        # from a perfectly linkable archive despite passing source checks.
+        step "RADV: maintained compiled source set changed; rebuilding archive"
         bash tools/build-radv-dependencies.sh
         rm -f build/radv-isolated/libvulkan_radeon.ps5.a
     fi
+fi
+# A restored isolated archive is not trusted if its source build stamp is
+# missing, even when the original pre-isolation archive was not restored.
+if [[ -f build/radv-isolated/libvulkan_radeon.ps5.a ]] &&
+   ! python3 -B tools/radv-active-inputs.py --check "$radv_release/EDEN_ACTIVE_INPUTS_SHA256"; then
+    step "RADV: old isolated archive has no matching compiler input proof"
+    rm -f build/radv-isolated/libvulkan_radeon.ps5.a
 fi
 if [[ ! -f build/radv-isolated/libvulkan_radeon.ps5.a ]]; then
     if [[ ! -f $radv_release/lib/libvulkan_radeon.ps5.a ]]; then
@@ -114,15 +128,4 @@ if [[ ! -f build/radv-isolated/libvulkan_radeon.ps5.a ]]; then
     step "Isolating RADV beside the OpenGL Mesa"
     python3 -B tools/isolate-radv.py
 fi
-eden_native_capture --phase prepare-selected-outputs \
-    --file "$root/build/radv-isolated/libvulkan_radeon.ps5.a" \
-    --file "$root/build/radv-isolated/manifest.json" --file "$root/build/radv-isolated/symbols.map" \
-    --file "$root/build/host/ps5-native-tool" \
-    --file "$scratch/ffmpeg-native/config.h" --file "$scratch/ffmpeg-native/config_components.h" \
-    --file "$scratch/ffmpeg-native/ffbuild/config.mak" \
-    --file "$scratch/ffmpeg-native/install/lib/libavcodec.a" \
-    --file "$scratch/ffmpeg-native/install/lib/libavfilter.a" \
-    --file "$scratch/ffmpeg-native/install/lib/libavutil.a" \
-    --file "$scratch/ffmpeg-native/install/lib/libswscale.a" \
-    --pending sdk_runtime_and_reused_producer_match_pending
 step "Prepared: $scratch"

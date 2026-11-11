@@ -1,51 +1,50 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <mutex>
-#include <vector>
 #include <optional>
 #include "common/cpu_features.h"
-#include "kernel_spin_lock.h"
 
 namespace Eden::Performance {
 void RegisterWorker(const char* name);
+// One-shot read-only PS5 scheduler and cpuset evidence for Vulkan workers.
+void ProbeSchedulerOnce(const char* role) noexcept;
 // Development: keep other named threads off guest cores 0-2 and their SMT siblings.
 void SetSecondaryPlacement(bool enabled);
+// Which logical slots are already dedicated to guest CPU/GPU workers.
+// Zero means topology is unproven; shader scheduling must reserve
+// conservatively instead of assuming that an affinity mask is secondary.
+std::uint64_t PinnedWorkerMask() noexcept;
+// Actual kernel-verified logical-secondary affinity inherited by shader
+// compiler threads. This is NOT proof of distinct physical/SMT cores.
+std::uint64_t VerifiedSecondaryPlacementMask() noexcept;
+// Explicit PS5 diagnostic A/B: spread workers across distinct OS logical CPUs,
+// without claiming separate physical cores when firmware CPUID is unreliable.
+void EnableExperimentalLogicalPlacement();
 void PlatformChecks();
-// Main thread only, between GPU readiness and guest shutdown.
+// One kernel query at guest start, not in the per-frame performance path.
+bool QueryLargestDirectMemoryBlock(std::size_t* largest) noexcept;
+// A PS5 app hosts many titles in one process. After all renderer workers
+// have joined, invalidate kernel free-block observations from the old title.
+// This does NOT free direct memory or change its kernel-exposed extent.
+void ResetDirectMemoryProbeForTitle() noexcept;
+// Startup/shutdown-only snapshot: no direct-memory region scan in the frame loop.
+void ReportDirectMemoryState(const char* phase);
+// The 8192-call native kernel region walk is expensive and diagnostic-only.
+// Opt in with memory-region-scan.txt; always keep cheap owner/largest-free data.
+void SetDirectMemoryRegionScanEnabled(bool enabled) noexcept;
+// Lightweight per-stage actual Dynarmic RX/RW ownership; no kernel VA
+// enumeration or GPU frame-loop work.
+void ReportJitCodeState(const char* phase);
+// Serialized main-thread capture or five-second GPU diagnostic snapshot.
+// Costly PC processing must never hold the guest CPU worker publication mutex.
 void Snapshot();
-// How busy each of the four emulated cores' threads was over the last quarter of a second, as a
-// percentage of one CPU (~0u: not known). A game is limited by these four, each on a CPU of
-// its own, so the busiest of them says whether the CPU is what holds a game back; a share of
-// every CPU of the console (HostCpuPercent) stays low even then.
-void GuestCoreLoads(unsigned loads[4]);
-// Called by a core's own thread each time it leaves the guest's code: when GuestCoreLoads has
-// asked since its last reading, it writes that thread's CPU time; otherwise it only compares a
-// number. GuestCoreLoads asks while the overlay is on, so with it off nothing is read.
-void SampleCoreCpu(unsigned core);
 // GPU worker only: firmware rejects cross-thread CPU-time sampling.
 void SampleGpuFrame(unsigned frame);
-// What the overlay's line says about the machine (hud.h, HudMachine). The two percentages are
-// read every frame and worked out every quarter of a second, so the clock reads cost nothing and
-// one slow frame does not swing them; the pool is looked at once a second. A percentage the
-// platform cannot give is ~0u, a memory pool it cannot give a total of 0, and the overlay shows
-// those as "--".
-unsigned HostCpuPercent();
-unsigned GpuBusyPercent();
-// The GPU's own time, by timestamps the Vulkan scheduler writes at the start and the end of
-// each command buffer while the overlay asks for them (tools/prepare-vulkan-port.py): the
-// nanoseconds the GPU has spent between them, how many command buffers that is, and whether
-// the driver gave up on them.
-inline std::atomic<bool> gpu_time_wanted{false};
-inline std::atomic<unsigned long long> gpu_time_busy_ns{0}, gpu_time_results{0};
-inline std::atomic<bool> gpu_time_failed{false};
-void MemoryPool(unsigned long long* free_bytes, unsigned long long* total_bytes);
 #ifdef EDEN_DEV_PROFILE
 void BeginPcSampling();
 void PollGpuPc();
@@ -58,6 +57,11 @@ inline std::array<std::array<std::atomic<unsigned long long>, 4>, 4> jit_phase_n
 // jit_dups=on (a process-wide lock and map insert per compiled block).
 inline std::array<std::array<std::atomic<unsigned long long>, 8>, 4> jit_duplicates{};
 inline std::atomic<bool> jit_duplicate_tracking{false};
+// Only nonempty, applied standard-A64 invalidations in detailed DEV:
+// 0=whole code cache, 1=coalesced partial-range batch.
+inline std::array<std::array<std::atomic<unsigned long long>, 2>, 4> jit_cache_events{};
+// Called before the next title starts, after the previous guest workers joined.
+void ResetJitDuplicateTrackingForTitle() noexcept;
 // Guest core whose host PCs the development sampler collects (dev-settings pc_core=N, default 0).
 inline std::atomic<unsigned> pc_sample_core{0};
 // Development: sample that core at ~500 Hz from its registration (dev-settings pc_fast=on).
@@ -73,395 +77,403 @@ inline std::atomic<bool> firmware_applets{false};
 enum class CpuPhase : unsigned { Kernel, Guest, Idle };
 struct alignas(64) CpuState { std::atomic<CpuPhase> phase{}; };
 inline std::array<CpuState, 4> cpu_state{};
+// Caller checks the epoch before resolving the guest thread ID, avoiding a
+// kernel lookup on every diagnostic JIT transition. Worker-owned only.
+bool CpuSampleDue(unsigned core) noexcept;
 void SampleCpu(unsigned core, unsigned long long thread, unsigned long long pc, unsigned svc, unsigned fpcr);
 struct alignas(64) Totals {
     std::atomic<unsigned long long> calls{}, nanoseconds{}, requested_bytes{};
 };
+// Unmapped guest memory is an error, but an invalid guest pointer can produce
+// tens of thousands of reports within a single second. Those synchronous
+// format/write operations steal time from the three PS5 guest CPU workers.
+// Keep the first 64 reports and one power-of-two progress report thereafter.
+// This changes ONLY diagnostics, never memory access permission/result.
+inline std::atomic<std::uint64_t> unmapped_access_count{0};
+inline bool ShouldLogUnmappedAccess() noexcept {
+    const std::uint64_t n = unmapped_access_count.fetch_add(1, std::memory_order_relaxed) + 1;
+    return n <= 64 || (n & (n - 1)) == 0;
+}
+inline void ResetUnmappedAccessCount() noexcept {
+    unmapped_access_count.store(0, std::memory_order_relaxed);
+}
 inline std::array<Totals, 4> compilation;
 inline std::array<std::atomic<unsigned long long>, 4> evacuations{};
 inline Totals storage;
 inline Totals jit_protection;
 inline Totals rasterizer_draw;
-// The six phases of that draw path (RasterizerVulkan::PrepareDraw) in order: flushing the pending
-// work, taking the current pipeline, waiting for the two cache mutexes (and binding the pipeline
-// to the engine), configuring it, applying dynamic state, and recording. Calls count each phase's
-// early returns as well as its work - a draw with no pipeline stops at draw_pipeline, one
-// Configure rejects stops at draw_config - so subtracting their sum from rasterizer_draw gives
-// what went unmarked. Two clock reads per phase rather than a Timer apiece, a draw has six of them.
-inline Totals draw_flush, draw_pipeline, draw_lock_wait, draw_config, draw_state, draw_record;
-// The six phases inside draw_config - which is GraphicsPipeline::Configure, past SetEngine's two
-// pointer assignments - in the order ConfigureImpl runs them: syncing the sampler and image tables
-// and the uniform-buffer state, reading every texture handle out of guest memory and filling the
-// views, binding the buffers, queueing the descriptor pushes and the upload barrier, updating
-// render targets and checking feedback, and ConfigureDraw's compare-and-record. They nest inside
-// draw_config, so their sum cannot exceed it; calls count the early returns that leave a later
-// phase unmarked.
-inline Totals cfg_sync, cfg_read, cfg_bind, cfg_desc, cfg_rt, cfg_draw;
-// The three inside cfg_bind, on a clock of their own started where cfg_read ends so that they
-// chain against each other and still sum to cfg_bind: the texture-buffer loop over the enabled
-// stages, the buffer update pass, and the host geometry binds.
-inline Totals bind_tbo, bind_update, bind_geometry;
-// The four calls inside bind_geometry and the three inside bind_update. Both walk the memory
-// tracker's pages through SynchronizeBuffer once per buffer on every draw whether or not a byte
-// of it is dirty, so which call carries the time cannot be read off the source - the loop over
-// many stages looked expensive and measured at 2.8%.
-inline Totals geo_index, geo_vertex, geo_xf, geo_indirect;
-inline Totals upd_state, upd_stage, upd_indirect;
 inline Totals gpu_queue_wait, gpu_dispatch;
-// The three phases of the dispatch (Tegra::Control::Scheduler::Push), measured inside it: taking
-// the channel lock and binding it, queueing the submit list, and then executing the guest's
-// methods - the O(draws) part. gpu_dispatch is their sum plus the loop's own overhead, so these
-// say whether the time is the lock, the queueing, or the methods themselves.
-inline Totals gpu_sched_lock, gpu_dma_push, gpu_dma_dispatch;
+// Classify long-running GPU worker commands only with Detailed Logging ON.
+// GPU submit is already recorded in gpu_dispatch; the other commands must
+// not be misattributed to shader compilation or guest JIT.
+inline Totals gpu_command_tick, gpu_command_flush, gpu_command_invalidate;
+// R405: GPU-owner DmaPusher fence-wait intervals INSIDE Scheduler::Push.
+// Detailed logging only; not physical GPU utilization or a guest timing fix.
+inline Totals gpu_dma_sync_wait, gpu_puller_semaphore_wait;
+// GPU-owned live wait slots, independently readable from the compositor.
+// Zero means no outstanding profiled wait. Do not use these as watchdogs or
+// alter the guest command's lifetime/order based on diagnostic counters.
+inline std::atomic<long long> gpu_dma_sync_active_since_ns{0};
+inline std::atomic<long long> gpu_puller_semaphore_active_since_ns{0};
+// Counts actual 4-KiB command-chunk pre-dispatches (R382), not ordinary
+// DispatchWork calls. Written only on a successful preflight when profiling.
+inline std::atomic<unsigned long long> scheduler_preflight_dispatches{0};
 // Producer-side waits outside the dispatch timer: forced fence drains on the GPU
 // thread, free presentation-frame waits, and guest pushes into a full GPU queue.
 inline Totals gpu_fence_drain, gpu_present_wait, gpu_queue_full;
-// Texture-cache GC GPU drains (RunGarbageCollector). A dirty eviction copies the image back to
-// guest memory and waits for the GPU first (Scheduler::Finish). The batched path spends one drain
-// on up to sixteen images; the unbatched path is the per-image fallback in Cleanup, which the
-// prefetch cannot take (an image larger than its byte budget, or one that arrives after the
-// lookahead stopped). calls = drains, requested_bytes = images covered: one drain per image in the
-// unbatched case is the stall to drive out.
-inline Totals gc_batched_drain, gc_unbatched_drain;
-// Images and buffers the allocator's budget refused and that were asked for again outside it
-// (tools/prepare-vulkan-port.py, the Vulkan allocator).
-inline std::atomic<unsigned long long> outside_budget{0};
+// R424: isolate presenter FIFO starvation from recycled-frame GPU fence stalls.
+// Sampled only when Detailed Logging is ON, never during normal gameplay.
+inline Totals gpu_present_free_wait, gpu_present_fence_wait;
 // Guest threads entering the GPU caches: CPU writes to tracked pages and flush-area lookups.
 inline Totals guest_cpu_write, guest_cpu_read;
+// Upstream #187 write-ahead candidate: only mark subsequent registered buffer
+// pages after a successful OnCPUWrite under the buffer-cache mutex. This is
+// not deferred-write replay. Default OFF pending native title qualification.
+inline std::atomic<unsigned> cpu_write_ahead{0};
+// Bridge is source-only; no normal build or dev option enables this automatically.
+inline std::atomic<bool> cpu_write_defer{false};
 // Those entries take the buffer and texture cache locks, which the GPU thread holds for one draw at
-// a time. A guest core that sleeps in the kernel for each wait loses more than most holds last
-// (a large open-world game: 1.5-3.2 ms per frame at 8-12 us per write), so it first retries try_lock for a bounded
-// ~25 us (dev-settings cache_spin=N retries; 0 blocks at once, as upstream). Guest cores are
-// pinned alone, so the spin takes no CPU from the lock holder.
-inline std::atomic<unsigned> cache_lock_spins{256};
+// a time. Shipping builds block exactly as upstream: the earlier bounded spin reduced wake latency
+// but remains a development-only experiment until it is requalified against PS5 soft hangs.
+// dev-settings cache_spin=N can still opt into bounded try_lock retries for profiling.
+inline std::atomic<unsigned> cache_lock_spins{0};
+inline std::atomic<bool> detailed_gpu_profile{false};
 inline std::atomic<unsigned long long> cache_lock_contended{0}, cache_lock_blocked{0};
-// Guest threads that have gone to sleep on one of those locks. The GPU thread gives a lock up
-// after every draw and takes it again for the next within a microsecond, long before a thread
-// asleep on it has woken: a guest thread that did not get the lock while spinning stayed out
-// until the GPU thread ran out of draws, the rest of the frame (three guest cores each held
-// for 110 ms of a 150 ms frame, in a large open-world game). So the GPU thread looks here
-// before it takes the locks for a draw (YieldToGuests), and lets the sleepers in first.
-inline std::atomic<int> cache_lock_sleepers{0};
-// Development: guest writes to GPU-tracked pages in detail (dev-settings cpu_write_detail=on,
-// EDEN_DEV_CPUWRITE). Per guest core (3 = any other thread): writes that took the tracked path
-// (core/memory.cpp HandleRasterizerWrite) and their time, those the core's last GPU-modified page
-// let through without OnCPUWrite, OnCPUWrite calls by write size (<=8, <=64, <=4096 bytes, more),
-// calls on the same page as the core's previous call and on the page after it, buffer pages marked
-// ahead (cpu_write_ahead), calls after which the page was still
-// tracked (its next write calls again), and inside OnCPUWrite: buffer cache lock wait and work by
-// outcome (no buffer there, GPU-modified, marked CPU-modified), texture cache lock wait and work,
-// and the shader cache invalidation.
-inline std::atomic<bool> cpu_write_detail{false};
-struct alignas(64) CpuWriteDetail {
-    std::atomic<unsigned long long> tracked{}, tracked_ns{}, passed{}, same_page{}, still_tracked{},
-        unregistered{}, gpu_modified{}, cpu_modified{}, buffer_wait_ns{}, buffer_ns{}, texture_wait_ns{},
-        texture_ns{}, shader_ns{}, next_page{}, ahead_pages{};
-    std::array<std::atomic<unsigned long long>, 4> sizes{};
-    unsigned long long last_page{~0ULL};  // the owning core's (core 3: under Eden's sys-core guard)
+// Accumulated time actually blocked on the guest cache mutex, not just
+// number of failed try_lock attempts. Updated ONLY during detailed profiling.
+inline std::atomic<unsigned long long> cache_lock_wait_ns{0};
+// The old aggregate hides whether CPU writes block on the graphics buffer
+// cache or the texture cache. Only count when detailed diagnostics are active.
+struct GuestCacheDomainTotals {
+    std::atomic<unsigned long long> contended{}, blocked{}, wait_ns{};
+    // Exact completed waits above 1/10 ms, plus largest wait since snapshot.
+    // Never touched in quiet gameplay; high-threshold diagnostics only.
+    std::atomic<unsigned long long> waited_ge1ms{}, waited_ge10ms{}, max_wait_ns{};
 };
-inline std::array<CpuWriteDetail, 4> cpu_write_stats{};
-// A guest write that leaves a buffer page tracked by the GPU caches costs a trip through
-// OnCPUWrite, mostly waiting for the buffer cache lock the GPU thread holds while it prepares each
-// draw (a game writing ~3,300 buffer pages per frame spent a third of two guest cores there). With
-// N > 0 the same trip also marks up to N following buffer pages CPU-modified, as their own first
-// write would, stopping at a page no buffer covers or one the GPU modified; texture and shader
-// pages stay tracked by their caches. A page marked ahead and never written is uploaded again
-// unchanged. That game wrote its buffers in order: 48.6 fps with 0, 58.7 with 16, 60 (its cap)
-// with 64, the trips falling from 159,000 to 4,500 a second. dev-settings cpu_write_ahead=N
-// (0-256) overrides it.
-inline std::atomic<unsigned> cpu_write_ahead{64};
-// The guest core of the write OnCPUWrite serves, set by HandleRasterizerWrite.
-inline thread_local unsigned cpu_write_core = 3;
-// The GPU thread's buffer and texture cache hold per draw preparation, with cpu_write_detail.
-inline Totals draw_cache_hold;
-// The GPU command interpreter (DmaPusher::ProcessCommands) calls out once per data word. An
-// incrementing write whose registers only store their value (no engine work until a later method
-// executes) is handed to the engine's pending-write list in one pass instead; registers that start
-// work keep the per-word path. dev-settings dma_batch=off restores one call per word (upstream).
-inline std::atomic<bool> dma_batch{true};
-// Development (EDEN_DEV_GPU): incrementing runs taken in one pass, their words, and the data words
-// that went through the per-word path. Written by the GPU thread only.
-inline std::atomic<unsigned long long> dma_batch_runs{}, dma_batch_words{}, dma_single_words{};
+inline std::array<GuestCacheDomainTotals, 2> guest_cache_domain_totals{}; // buffer, texture
 template <typename Mutex>
-inline void GuestCacheLock(Mutex& mutex) {
+inline void GuestCacheLock(Mutex& mutex, bool texture_domain = false) {
+    // Source of thousands of contended-cache atomic writes in FC27. When
+    // diagnostics are OFF use the exact upstream blocking mutex path; do not
+    // try_lock first or hammer two shared accounting cache lines per miss.
+    // This changes instrumentation, NOT GPU/guest lock ownership or order.
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        mutex.lock();
+        return;
+    }
     if (mutex.try_lock()) return;
+    auto& domain = guest_cache_domain_totals[texture_domain ? 1u : 0u];
     cache_lock_contended.fetch_add(1, std::memory_order_relaxed);
+    domain.contended.fetch_add(1, std::memory_order_relaxed);
     for (unsigned tries = cache_lock_spins.load(std::memory_order_relaxed); tries != 0; --tries) {
-        for (int pause = 0; pause < 4; ++pause) ::Eden::CpuRelax();
+        for (int pause = 0; pause < 4; ++pause) __builtin_ia32_pause();
         if (mutex.try_lock()) return;
     }
     cache_lock_blocked.fetch_add(1, std::memory_order_relaxed);
-    cache_lock_sleepers.fetch_add(1, std::memory_order_acq_rel);
+    domain.blocked.fetch_add(1, std::memory_order_relaxed);
+    const auto blocked_start = Common::g_wall_clock.GetTimeNS();
     mutex.lock();
-    cache_lock_sleepers.fetch_sub(1, std::memory_order_acq_rel);
-}
-// The GPU thread, holding neither cache lock, before it takes them for a draw: while a guest
-// thread sleeps on one, wait for it to have the lock (it wakes within a fraction of a
-// millisecond, and what it does under the lock is short). Bounded at about 2 ms, for a
-// sleeper that is held up by something else. One load of a counter when nobody waits.
-inline void YieldToGuests() {
-    if (cache_lock_sleepers.load(std::memory_order_relaxed) == 0) return;
-    const auto now = [] { return Common::g_wall_clock.GetTimeNS().count(); };
-    const long long until = now() + 2'000'000;
-    while (cache_lock_sleepers.load(std::memory_order_acquire) != 0 && now() < until)
-        for (int pause = 0; pause < 16; ++pause) ::Eden::CpuRelax();
-}
-// A guest write to a GPU-tracked page whose cache lock the GPU thread holds (it holds both for each
-// draw's preparation, up to 40% of the time in heavy scenes, longer when a scene change creates and
-// uploads resources) no longer waits: OnCPUWrite queues it here and returns as for an untracked
-// write. Before its next draw, clear, dispatch or engine copy (MemoryManager::FlushCaching) the GPU
-// thread runs each queued write through OnCPUWrite as the guest would have, and a write to
-// GPU-modified data goes to that core's dirty ranges for the next fence, as upstream: so the caches
-// see the write no later than had the guest waited, and GPU-written data keeps upstream's handling.
-// dev-settings cpu_write_defer=off waits as before.
-inline std::atomic<bool> cpu_write_defer{true};
-// One queue per guest core (3: other threads). Writes to the page of the queue's last entry, made
-// before the GPU thread takes the queue, widen that entry instead of trying the locks again, so a
-// burst of writes to a page costs one replay.
-struct DeferredWrite {
-    unsigned long long address, end;
-};
-struct DeferredQueue {
-    std::mutex mutex;
-    std::vector<DeferredWrite> writes;
-    unsigned taken = 0;  // Takes so far, under mutex.
-};
-inline std::array<DeferredQueue, 4> deferred_queues;
-inline thread_local unsigned long long deferred_page = ~0ULL;
-inline thread_local unsigned deferred_take = ~0U;
-// Set after a write is queued; the GPU thread clears it and runs the queues.
-inline std::atomic<bool> gpu_dirty_pending{false};
-inline std::atomic<unsigned long long> cpu_write_deferred{}, gpu_dirty_replays{};
-inline bool ExtendDeferredWrite(unsigned long long address, unsigned long long size, unsigned core) {
-    if ((address >> 12) != deferred_page) return false;
-    auto& queue = deferred_queues[core & 3];
-    std::scoped_lock lock{queue.mutex};
-    if (queue.taken != deferred_take || queue.writes.empty() || (queue.writes.back().address >> 12) != deferred_page)
-        return false;
-    auto& last = queue.writes.back();
-    last.address = std::min(last.address, address);
-    last.end = std::max(last.end, address + size);
-    return true;
-}
-inline void DeferWrite(unsigned long long address, unsigned long long size, unsigned core) {
-    auto& queue = deferred_queues[core & 3];
-    {
-        std::scoped_lock lock{queue.mutex};
-        queue.writes.push_back({address, address + size});
-        deferred_page = address >> 12;
-        deferred_take = queue.taken;
+    const auto waited = (Common::g_wall_clock.GetTimeNS() - blocked_start).count();
+    if (waited > 0) {
+        cache_lock_wait_ns.fetch_add(static_cast<unsigned long long>(waited),
+                                     std::memory_order_relaxed);
+        domain.wait_ns.fetch_add(static_cast<unsigned long long>(waited),
+                                 std::memory_order_relaxed);
+        if (waited >= 1'000'000) {
+            domain.waited_ge1ms.fetch_add(1, std::memory_order_relaxed);
+            if (waited >= 10'000'000)
+                domain.waited_ge10ms.fetch_add(1, std::memory_order_relaxed);
+            const auto elapsed = static_cast<unsigned long long>(waited);
+            auto old_max = domain.max_wait_ns.load(std::memory_order_relaxed);
+            while (old_max < elapsed &&
+                   !domain.max_wait_ns.compare_exchange_weak(
+                       old_max, elapsed, std::memory_order_relaxed)) {}
+        }
     }
-    gpu_dirty_pending.store(true, std::memory_order_release);
 }
-inline std::vector<DeferredWrite> TakeDeferredWrites(unsigned core) {
-    std::vector<DeferredWrite> taken;
-    auto& queue = deferred_queues[core];
-    std::scoped_lock lock{queue.mutex};
-    taken.swap(queue.writes);
-    ++queue.taken;
-    return taken;
+// R310: sampled GPU-owner cache phases.  A successful FPS average does not
+// explain a late frame; measure how much of each 16th draw is waiting for the
+// cache pair, configuring images/buffers/descriptors, or recording commands.
+// Detailed Logging ONLY. The quiet path does not touch clocks or counters.
+// All phase measurements are nested inside the ORIGINAL cache locks; this
+// code changes neither memory ownership nor draw/fence ordering.
+enum class CachePhase : unsigned {
+    PairWait, PairHeld, PipelineConfigure, TextureDescriptorSync,
+    TextureFillImageViews, GraphicsBufferUpdate, DescriptorQueueAcquire,
+    DynamicStates, QueryAndDraw,
+    TextureCpuRefresh, TextureAliasScan, TextureAliasCopy,
+    StageTextureHandles, BindTextureBuffers, BindStageDescriptors,
+    StageHostBuffers, StageImageDescriptors,
+    RefreshRenderTargets, CheckFeedbackLoop, CommitGraphicsDraw, DescriptorRingFinish, DescriptorRingPreflight,
+    GuestWriteBufferWait, GuestWriteBufferWork, GuestWriteTextureWait,
+    GuestWriteTextureWork, GuestWriteShaderInvalidate,
+    GraphicsPipelineCreate, ComputePipelineCreate, GraphicsShaderEnvironment, ShaderPoolReset, ShaderCfg, ShaderIr,
+    ShaderSpirv, ShaderModule, GraphicsPipelineWait, ComputePipelineWait,
+    TextureUploadStaging, TextureUploadContents,
+    TextureUploadBarrier,
+    ComputePairWait, ComputePairHeld, ComputeConfigure,
+    FrameTextureWait, FrameTextureHeld, FrameBufferWait, FrameBufferHeld,
+    TextureBudgetQuery, TextureGcCollect, TextureAsyncTick, TextureRuntimeTick, Count
+};
+struct CachePhaseTotal {
+    std::atomic<unsigned long long> samples{}, total_ns{}, max_ns{};
+};
+inline std::array<CachePhaseTotal, static_cast<unsigned>(CachePhase::Count)> cache_phase_totals{};
+// Per-thread, first-use-only breakdown. Asynchronous Vulkan workers and
+// cache-hit draws never inherit another thread's shader-miss attribution.
+struct ShaderMissStageCosts {
+    unsigned long long env_ns{}, pool_ns{}, cfg_ns{}, ir_ns{}, spirv_ns{}, module_ns{};
+};
+inline thread_local ShaderMissStageCosts* shader_miss_stage_active{};
+
+inline thread_local bool cache_draw_sample_active = false;
+inline bool ShouldSampleCacheDraw() noexcept {
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return false;
+    static thread_local unsigned sequence = 0;
+    // Sampling avoids injecting high-frequency clock calls into the render path.
+    return (++sequence & 15u) == 0u;
 }
-// A guest read of a GPU-tracked page whose texture cache lock is held answers "no download" without
-// waiting, as an empty area the read does not remember, so the next read checks again. A first read
-// of a newly GPU-written image can then miss its download: off by default (dev-settings cpu_read_skip=on).
-inline std::atomic<bool> cpu_read_skip{false};
-inline std::atomic<unsigned long long> cpu_read_skipped{};
-template <typename Mutex>
-inline bool GuestCacheLockOrDefer(Mutex& mutex) {
-    if (!cpu_write_defer.load(std::memory_order_relaxed)) {
-        GuestCacheLock(mutex);
-        return true;
+inline bool ShouldSampleCacheFrame() noexcept {
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return false;
+    static thread_local unsigned sequence = 0;
+    // One cache-owner sample per 16 completed GPU frames, independent of
+    // sampled draws or guest writes. No wall-clock probes in quiet mode.
+    return (++sequence & 15u) == 0u;
+}
+inline bool ShouldSampleTextureHousekeeping() noexcept {
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return false;
+    static thread_local unsigned sequence = 0;
+    // Sample texture housekeeping independently of the outer lock owner.
+    return (++sequence & 15u) == 0u;
+}
+inline bool ShouldSampleGuestWrite() noexcept {
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return false;
+    static thread_local unsigned sequence = 0;
+    // One in 64 guest CPU-write callbacks, independent of the GPU-owner
+    // per-16 draw sequence. An entire callback shares the same sample flag.
+    return (++sequence & 63u) == 0u;
+}
+class CachePhaseTimer {
+public:
+    explicit CachePhaseTimer(CachePhase phase, bool enabled = cache_draw_sample_active)
+        : phase(phase), stats(enabled ? &cache_phase_totals[static_cast<unsigned>(phase)] : nullptr) {
+        if (stats) started = Common::g_wall_clock.GetTimeNS();
     }
-    if (mutex.try_lock()) return true;
-    cpu_write_deferred.fetch_add(1, std::memory_order_relaxed);
-    return false;
+    CachePhaseTimer(const CachePhaseTimer&) = delete;
+    CachePhaseTimer& operator=(const CachePhaseTimer&) = delete;
+    void Stop() noexcept {
+        if (!stats) return;
+        const auto elapsed = (Common::g_wall_clock.GetTimeNS() - started).count();
+        if (elapsed > 0) {
+            const auto ns = static_cast<unsigned long long>(elapsed);
+            // No global-counter subtraction: concurrent worker phases cannot
+            // inflate the phase costs of this cold shader cache key.
+            if (auto* const keyed = shader_miss_stage_active) {
+                switch (phase) {
+                case CachePhase::GraphicsShaderEnvironment: keyed->env_ns += ns; break;
+                case CachePhase::ShaderPoolReset: keyed->pool_ns += ns; break;
+                case CachePhase::ShaderCfg: keyed->cfg_ns += ns; break;
+                case CachePhase::ShaderIr: keyed->ir_ns += ns; break;
+                case CachePhase::ShaderSpirv: keyed->spirv_ns += ns; break;
+                case CachePhase::ShaderModule: keyed->module_ns += ns; break;
+                default: break;
+                }
+            }
+            stats->total_ns.fetch_add(ns, std::memory_order_relaxed);
+            auto previous = stats->max_ns.load(std::memory_order_relaxed);
+            while (previous < ns &&
+                   !stats->max_ns.compare_exchange_weak(
+                       previous, ns, std::memory_order_relaxed)) {}
+        }
+        stats->samples.fetch_add(1, std::memory_order_relaxed);
+        stats = nullptr;
+    }
+    ~CachePhaseTimer() { Stop(); }
+private:
+    CachePhase phase;
+    CachePhaseTotal* stats{};
+    std::chrono::nanoseconds started{};
+};
+// V01: one diagnostic-only sample per genuinely blocked Vulkan pipeline.
+// This is worker wall time (mutex acquisition + condition wait), NOT shader CPU
+// translation or a presentation-frame stall. No logging on hot draw callbacks.
+struct PipelineWaitTrace {
+    const bool enabled{detailed_gpu_profile.load(std::memory_order_relaxed)};
+    const std::chrono::steady_clock::time_point started{
+        enabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{}};
+    std::chrono::steady_clock::time_point lock_acquired{};
+    void MarkLockAcquired() noexcept {
+        if (enabled) lock_acquired = std::chrono::steady_clock::now();
+    }
+    // If publication won the race during mutex acquisition, the condition
+    // wait is unnecessary, but a real lock stall must not disappear from V01.
+    // Reuse the already captured timestamp; no new clock read on the hot path.
+    [[nodiscard]] bool WasBlockedOnMutex() const noexcept {
+        return enabled && (lock_acquired - started) >= std::chrono::milliseconds(1);
+    }
+    void Complete(const char* kind, std::uint64_t cache_key, bool usable) const {
+        if (!enabled) return;
+        const auto finished = std::chrono::steady_clock::now();
+        const auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            finished - started).count();
+        // Both components use the SAME finished snapshot, so the split
+        // sums back to wait_ns without double counting or overlapping CPU
+        // compilation. Post-mutex includes condition wake and callback work.
+        const auto mutex_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            lock_acquired - started).count();
+        // Compute the remainder in integer nanoseconds to guarantee
+        // mutex_ns + post_mutex_ns == wait_ns on every steady_clock period,
+        // including clocks with a tick coarser than one nanosecond.
+        const auto post_mutex_ns = elapsed - mutex_ns;
+        std::printf("EDEN_VULKAN_PIPELINE_WAIT kind=%s key=%016llx wait_ns=%llu usable=%u mutex_ns=%llu post_mutex_ns=%llu\n",
+                    kind, static_cast<unsigned long long>(cache_key),
+                    static_cast<unsigned long long>(elapsed), unsigned(usable),
+                    static_cast<unsigned long long>(mutex_ns),
+                    static_cast<unsigned long long>(post_mutex_ns));
+    }
+};
+// R361: Count draws rejected before recording, including hidden HUD/pitch
+// candidates. Only increment on an actual rejected draw with diagnostics on.
+// In particular no atomic writes are added to the normal successful draw path.
+enum class GraphicsDrawDrop : unsigned {
+    NoPipeline, ConfigureRejected, BuiltPipelineFailed, DescriptorBufferFull,
+    WorkerPipelineFailed, Count
+};
+inline std::array<std::atomic<unsigned long long>,
+                  static_cast<unsigned>(GraphicsDrawDrop::Count)> graphics_draw_drop_totals{};
+inline void RecordGraphicsDrawDrop(GraphicsDrawDrop reason) noexcept {
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return;
+    graphics_draw_drop_totals[static_cast<unsigned>(reason)].fetch_add(
+        1, std::memory_order_relaxed);
 }
-// Development, with cpu_write_detail: the longest draw-preparation hold since the last report, and
-// holds of 1 ms or more.
-inline std::atomic<unsigned long long> draw_cache_hold_max{}, draw_cache_hold_long{};
+inline void ResetCachePhases() noexcept {
+    for (auto& drop : graphics_draw_drop_totals)
+        drop.store(0, std::memory_order_relaxed);
+    for (auto& s : cache_phase_totals) {
+        s.samples.store(0, std::memory_order_relaxed);
+        s.total_ns.store(0, std::memory_order_relaxed);
+        s.max_ns.store(0, std::memory_order_relaxed);
+    }
+}
+
 // Guest waits: nvhost_ctrl syncpoint event registration -> signal, and
 // BufferQueueProducer::DequeueBuffer waiting for a free buffer slot.
 inline Totals guest_sync_wait, guest_dequeue_wait;
+// F05: a hung producer never returns from DequeueBuffer, so completed-call
+// timers stay flat. Count *currently* blocked host dequeuers separately.
+// Multi-producer safe; only an actual wait updates this count, and only
+// with detailed profiling enabled. No guest scheduling or queue semantics
+// change. One diagnostic count is not a per-thread/guest PC proof.
+inline std::atomic<unsigned> guest_dequeue_blocked{};
+class GuestDequeueBlockedScope {
+public:
+    GuestDequeueBlockedScope() noexcept
+        : enabled(detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        if (enabled) guest_dequeue_blocked.fetch_add(1, std::memory_order_acq_rel);
+    }
+    GuestDequeueBlockedScope(const GuestDequeueBlockedScope&) = delete;
+    GuestDequeueBlockedScope& operator=(const GuestDequeueBlockedScope&) = delete;
+    ~GuestDequeueBlockedScope() {
+        if (enabled) guest_dequeue_blocked.fetch_sub(1, std::memory_order_acq_rel);
+    }
+private:
+    bool enabled{};
+};
 // fsp-srv IFile/IStorage reads (guest asset streaming): time in the backend and bytes.
 inline Totals guest_fs_file, guest_fs_storage;
 inline std::atomic<unsigned long long> guest_fs_file_bytes{}, guest_fs_storage_bytes{};
 // Guest svcSendSyncRequest latency (queueing + HLE handling), and HLE handling time per
 // service command (RecordHle, reported as EDEN_DEV_HLE).
 inline Totals guest_ipc_wait;
-inline void AddNs(Totals& totals, long long ns) {
-    totals.nanoseconds.fetch_add(static_cast<unsigned long long>(ns), std::memory_order_relaxed);
-    totals.calls.fetch_add(1, std::memory_order_relaxed);
-}
-// Which guest thread that wait belongs to. The sum alone cannot say whether a frame is waiting or
-// whether background threads are: the same 13 ms spread over a dozen idle helpers costs nothing on
-// the frame, while one thread holding it does. A fixed table keyed by the guest thread id - the
-// first send from a thread claims a slot and takes its name once, every later one only adds. More
-// distinct threads than slots fall into ipc_thread_overflow rather than displacing a claim.
-inline constexpr unsigned ipc_thread_slots = 32;
-inline Totals ipc_thread_overflow;
-struct IpcThreadSlot {
-    std::atomic<unsigned long long> tid{}, calls{}, ns{};
-    char name[24]{};
+// R393: bounded attribution of synchronous guest IPC waits. Only invoked
+// when detailed GPU profiling is active; no allocation, string lookup,
+// blocking lock or per-request log on the hot path.
+// FC27 R394 observed >63k unattributed calls in 9m32s once 128 TIDs filled.
+// 1024 slots cost only ~32 KiB; fixed bounded probing avoids O(1024)
+// per-call scans after high thread churn. Diagnostics only.
+inline constexpr unsigned guest_ipc_thread_slots = 1024;
+inline constexpr unsigned guest_ipc_max_probes = 64;
+struct GuestIpcThread {
+    std::atomic<unsigned long long> tid{}, calls{}, ns{}, max_ns{};
+    // A completed-call profiler alone cannot see an IPC which never returns.
+    // Guest-thread ownership is unique; zero means no observed in-flight call.
+    std::atomic<long long> active_since_ns{};
 };
-inline std::array<IpcThreadSlot, ipc_thread_slots> ipc_threads{};
-// Shape of the wait across every send, so a report can tell one blocking wait a frame from many
-// short ones: below 50 us, below 500 us, below 5 ms, and 5 ms and over.
-inline std::array<std::atomic<unsigned long long>, 4> ipc_hist{};
-// Claims the slot for tid, probing past slots other threads hold. *fresh says this call claimed it,
-// which is the only place a thread id is published - the caller then fills in the name.
-inline unsigned IpcThreadSlotFor(unsigned long long tid, bool* fresh) {
-    unsigned slot = static_cast<unsigned>(tid) % ipc_thread_slots;
-    for (unsigned probe = 0; probe < ipc_thread_slots; ++probe) {
-        const unsigned long long held = ipc_threads[slot].tid.load(std::memory_order_relaxed);
-        if (held == tid) {
-            *fresh = false;
-            return slot;
-        }
-        if (held == 0) {
+inline std::array<GuestIpcThread, guest_ipc_thread_slots> guest_ipc_threads{};
+inline std::array<std::atomic<unsigned long long>, 4> guest_ipc_hist{};
+inline std::atomic<unsigned long long> guest_ipc_overflow_calls{};
+inline GuestIpcThread* FindGuestIpcThread(unsigned long long tid) noexcept {
+    if (tid == 0) return nullptr;
+    unsigned slot = static_cast<unsigned>(tid % guest_ipc_thread_slots);
+    for (unsigned n = 0; n < guest_ipc_max_probes; ++n) {
+        auto& row = guest_ipc_threads[slot];
+        auto found = row.tid.load(std::memory_order_relaxed);
+        if (found == 0) {
             unsigned long long expected = 0;
-            if (ipc_threads[slot].tid.compare_exchange_strong(expected, tid, std::memory_order_relaxed)) {
-                *fresh = true;
-                return slot;
-            }
+            found = row.tid.compare_exchange_strong(expected, tid, std::memory_order_relaxed)
+                        ? tid : expected;
         }
-        slot = (slot + 1) % ipc_thread_slots;
+        if (found == tid) return &row;
+        slot = (slot + 1u) % guest_ipc_thread_slots;
     }
-    *fresh = false;
-    return ipc_thread_slots;
+    return nullptr;
 }
-inline void SetIpcThreadName(unsigned slot, const char* name) {
-    if (slot >= ipc_thread_slots || name == nullptr) return;
-    unsigned i = 0;
-    while (name[i] != '\0' && i + 1 < sizeof ipc_threads[slot].name) {
-        ipc_threads[slot].name[i] = name[i];
-        ++i;
+// Diagnostic-only caller (gated by detailed_gpu_profile). Never allocates,
+// holds an emulator lock, or changes synchronous service IPC semantics.
+inline GuestIpcThread* BeginGuestIpc(unsigned long long tid, long long started_ns) noexcept {
+    auto* row = FindGuestIpcThread(tid);
+    if (row && started_ns > 0) {
+        long long empty = 0;
+        row->active_since_ns.compare_exchange_strong(
+            empty, started_ns, std::memory_order_release, std::memory_order_relaxed);
     }
-    ipc_threads[slot].name[i] = '\0';
+    return row;
 }
-inline void AddIpcThread(unsigned slot, long long ns) {
-    const unsigned long long n = static_cast<unsigned long long>(ns > 0 ? ns : 0);
-    ipc_hist[n < 50000 ? 0 : n < 500000 ? 1 : n < 5000000 ? 2 : 3].fetch_add(1, std::memory_order_relaxed);
-    if (slot >= ipc_thread_slots) {
-        AddNs(ipc_thread_overflow, static_cast<long long>(n));
-        return;
-    }
-    ipc_threads[slot].ns.fetch_add(n, std::memory_order_relaxed);
-    ipc_threads[slot].calls.fetch_add(1, std::memory_order_relaxed);
-}
-// Blocking time under ThreadWaitReasonForDebugging, stamped by KThread::BeginWait and closed by
-// KThread::SetState - the single place the reason is cleared, so the reason read there is the one
-// the wait ran under. A core with nothing to run and a thread asleep until a timeout are the same
-// reading without this, and only one of them is ours to fix.
-//
-// Its own table, deliberately not the IPC one: every guest thread waits while only some send, so
-// sharing let the threads parked since boot claim every slot and starve both at once - one run
-// recorded 92% of its waits and none of its 93,788 sends. 512 covers a session's thread churn;
-// wait_overflow_calls counts whatever still does not fit.
-inline constexpr unsigned wait_thread_slots = 512;
-inline std::atomic<unsigned long long> wait_overflow_calls{};
-// Indexed by ThreadWaitReasonForDebugging (k_thread.h), whose values run 0 through 6.
-inline constexpr unsigned wait_reason_slots = 8;
-struct WaitThreadSlot {
-    std::atomic<unsigned long long> tid{}, calls{}, ns{};
-    std::atomic<long long> start{};
-    // Who closed the wait. A thread woken by one fixed tid was waiting on an event, and one woken
-    // by many different tids was queued behind whoever held its lock - both read as ConditionVar
-    // in the reason, so this is what tells the two apart.
-    std::atomic<unsigned long long> waker{};
-    // The reason histogram below is every thread summed together, and condvar wins that on volume
-    // alone. The reason for the one thread core0 sits idle behind is what names a fix, so each
-    // slot keeps its own split rather than only adding to the shared total.
-    std::array<std::atomic<unsigned long long>, wait_reason_slots> reason_ns{};
-};
-inline std::array<WaitThreadSlot, wait_thread_slots> wait_threads{};
-inline std::array<std::atomic<unsigned long long>, wait_reason_slots> wait_reason_ns{};
-inline std::array<std::atomic<unsigned long long>, wait_reason_slots> wait_reason_calls{};
-inline unsigned WaitThreadSlotFor(unsigned long long tid) {
-    unsigned slot = static_cast<unsigned>(tid) % wait_thread_slots;
-    for (unsigned probe = 0; probe < wait_thread_slots; ++probe) {
-        const unsigned long long held = wait_threads[slot].tid.load(std::memory_order_relaxed);
-        if (held == tid) return slot;
-        if (held == 0) {
-            unsigned long long expected = 0;
-            if (wait_threads[slot].tid.compare_exchange_strong(expected, tid, std::memory_order_relaxed))
-                return slot;
-        }
-        slot = (slot + 1) % wait_thread_slots;
-    }
-    return wait_thread_slots;
-}
-// NowNs comes from the caller: both hooks sit under the scheduler lock, and a second clock lookup
-// per transition is the whole cost this diagnostic adds to the guest's own blocking.
-inline void WaitBegin(unsigned long long tid, long long now_ns) {
-    const unsigned slot = WaitThreadSlotFor(tid);
-    if (slot >= wait_thread_slots) return;
-    wait_threads[slot].start.store(now_ns, std::memory_order_relaxed);
-}
-inline void WaitEnd(unsigned long long tid, unsigned reason, long long now_ns,
-                    unsigned long long waker_tid) {
-    const unsigned slot = WaitThreadSlotFor(tid);
-    if (slot >= wait_thread_slots) {
-        // Counted here rather than in WaitBegin: a wait whose start did not fit ends without one,
-        // so this is the single place that sees both halves of a dropped wait.
-        wait_overflow_calls.fetch_add(1, std::memory_order_relaxed);
-        return;
-    }
-    const long long start = wait_threads[slot].start.exchange(0, std::memory_order_relaxed);
-    if (start == 0) return;
-    const unsigned long long n = static_cast<unsigned long long>(now_ns > start ? now_ns - start : 0);
-    wait_threads[slot].ns.fetch_add(n, std::memory_order_relaxed);
-    wait_threads[slot].calls.fetch_add(1, std::memory_order_relaxed);
-    wait_threads[slot].waker.store(waker_tid, std::memory_order_relaxed);
-    if (reason < wait_reason_slots) {
-        wait_threads[slot].reason_ns[reason].fetch_add(n, std::memory_order_relaxed);
-        wait_reason_ns[reason].fetch_add(n, std::memory_order_relaxed);
-        wait_reason_calls[reason].fetch_add(1, std::memory_order_relaxed);
+inline void CountGuestIpc(GuestIpcThread* row, long long elapsed_ns) noexcept {
+    const auto ns = static_cast<unsigned long long>(elapsed_ns > 0 ? elapsed_ns : 0);
+    guest_ipc_wait.nanoseconds.fetch_add(ns, std::memory_order_relaxed);
+    guest_ipc_wait.calls.fetch_add(1, std::memory_order_relaxed);
+    guest_ipc_hist[ns < 50'000 ? 0u : ns < 500'000 ? 1u : ns < 5'000'000 ? 2u : 3u]
+        .fetch_add(1, std::memory_order_relaxed);
+    if (row) {
+        row->calls.fetch_add(1, std::memory_order_relaxed);
+        row->ns.fetch_add(ns, std::memory_order_relaxed);
+        auto previous = row->max_ns.load(std::memory_order_relaxed);
+        while (previous < ns && !row->max_ns.compare_exchange_weak(
+                   previous, ns, std::memory_order_relaxed)) {}
+    } else {
+        guest_ipc_overflow_calls.fetch_add(1, std::memory_order_relaxed);
     }
 }
-inline long long NowNs() { return Common::g_wall_clock.GetTimeNS().count(); }
-// Dispatch latency: how long a thread sat runnable before a host core entered RunThread on it.
-// MainThread blocks ~419 us per handoff against a worker that is itself blocked, while cores 1
-// and 2 are idle for most of the frame, so that gap is either the worker's own work or the time
-// the scheduler takes to get it running - and only the second is ours to fix. SetState stamps
-// the transition into Runnable; RunThread consumes and clears it, so one stamp buys one reading
-// and the cost is one clock lookup per actual dispatch rather than per guest halt.
-inline constexpr unsigned dispatch_slots = 512;
-inline std::array<std::atomic<long long>, dispatch_slots> dispatch_since{};
-inline std::array<std::atomic<unsigned long long>, dispatch_slots> dispatch_ns{};
-inline std::array<std::atomic<unsigned long long>, dispatch_slots> dispatch_calls{};
-inline std::atomic<unsigned long long> dispatch_overflow_calls{};
-inline void NoteRunnable(unsigned long long tid, long long now_ns) {
-    if (tid >= dispatch_slots) {
-        dispatch_overflow_calls.fetch_add(1, std::memory_order_relaxed);
-        return;
+// Preserve the existing standalone completed-IPC contract used by host tests.
+inline void RecordGuestIpc(unsigned long long tid, long long elapsed_ns) noexcept {
+    CountGuestIpc(FindGuestIpcThread(tid), elapsed_ns);
+}
+inline void FinishGuestIpc(GuestIpcThread* row, unsigned long long tid,
+                           long long started_ns, long long elapsed_ns) noexcept {
+    CountGuestIpc(row ? row : FindGuestIpcThread(tid), elapsed_ns);
+    if (row && started_ns > 0) {
+        // Only clear this invocation's pending timestamp. A nested/older IPC
+        // cannot be mistaken for this completion.
+        long long expected = started_ns;
+        row->active_since_ns.compare_exchange_strong(
+            expected, 0, std::memory_order_release, std::memory_order_relaxed);
     }
-    dispatch_since[tid].store(now_ns, std::memory_order_relaxed);
 }
-inline void NoteRunning(unsigned long long tid, long long now_ns) {
-    if (tid >= dispatch_slots) return;
-    const long long since = dispatch_since[tid].exchange(0, std::memory_order_relaxed);
-    if (since == 0) return;
-    dispatch_ns[tid].fetch_add(
-        static_cast<unsigned long long>(now_ns > since ? now_ns - since : 0),
-        std::memory_order_relaxed);
-    dispatch_calls[tid].fetch_add(1, std::memory_order_relaxed);
-}
-// Guest kernel spin locks (the scheduler lock above all): PAUSE iterations spent retrying before
-// blocking in the host mutex. A 3D platformer's levels change thread priorities ~22,000 times a
-// second and yield ~25,000 times on the other cores; each contended std::mutex then slept and
-// woke through the console kernel (~35% of guest core 0). dev-settings kspin=N overrides it.
+void RecordHle(const char* service, unsigned command, long long ns);
+// kspin=N: bounded host mutex acquisition used for guest scheduler locks.
 inline std::atomic<unsigned> kernel_spin_iterations{4000};
-// Acquires a host mutex the guest cores contend for (the scheduler's spin lock) by retrying for kernel_spin_iterations before blocking in the console kernel.
 template <typename Mutex>
 inline void SpinAcquire(Mutex& mutex) {
     const unsigned spins = kernel_spin_iterations.load(std::memory_order_relaxed);
     for (unsigned i = 0; i < spins; ++i) {
         if (mutex.try_lock()) return;
-        ::Eden::CpuRelax();
+        __builtin_ia32_pause();
     }
     mutex.lock();
 }
-void RecordHle(const char* service, unsigned command, long long ns);
+
+inline long long NowNs() { return Common::g_wall_clock.GetTimeNS().count(); }
 // Texture cache garbage collection (tools/prepare-vulkan-port.py, vulkan_gc_downloads.inc).
 // Past its "expected" memory use Eden's collector also evicts images the GPU wrote, and each of
 // those is first copied back to guest memory behind a wait for the GPU. On the console a large
@@ -472,19 +484,16 @@ void RecordHle(const char* service, unsigned command, long long ns);
 // direct memory (what the next allocation needs) is under kShortMemory.
 // dev-settings gc_dirty=upstream restores Eden's rule.
 inline std::atomic<bool> gc_keep_dirty{true};
-// The collector's per-run budget counts evictions, not visits (tools/
-// prepare-vulkan-port.py): skipped images used to burn it and stop the scan,
-// so kept images shielded everything behind them. dev-settings gc_scan=upstream
-// restores Eden's visit counting.
+// R439: old visits budget can be restored with dev-settings gc_scan=upstream.
 inline std::atomic<bool> gc_count_visits{false};
 inline std::atomic<bool> graphics_memory_short{false};
-// 1 GiB: the pool is the CPU's too, and the largest thing a game asked of it at once was a
-// block of 486 MiB (a texture array of 121 layers, decoded before it is uploaded). With 384 MiB
-// here the collector let the pool run down to 620 MiB in one block at 2x, and that request
-// ended the session.
-inline constexpr std::size_t kShortMemory = std::size_t{1} << 30;
+inline constexpr std::size_t kShortMemory = std::size_t{384} << 20;
 // Development: the texture cache reports its memory use and marks every 300 frames.
 inline std::atomic<bool> texture_budget_log{false};
+// Native DEV: expensive GPU-thread/HLE/CPU-snapshot reporting is opt-in.
+// The lightweight frame-pacing counters still run in quiet gameplay.
+// Reset per title, rather than inheriting a prior game's diagnostic session.
+
 // "Is memory short?", installed by the PS5 build (performance.cpp, GraphicsMemoryShort). This
 // header is compiled into libraries with and without PS5_NATIVE, so the function below must read
 // the same in all of them: the platform part is behind this pointer, not behind an #ifdef.
@@ -500,10 +509,6 @@ inline std::atomic<bool (*)()> graphics_memory_probe{nullptr};
 // caches evict at half the use they were set to. dev-settings graphics_usage=driver restores
 // the driver's count.
 inline std::atomic<unsigned long long (*)()> graphics_memory_free{nullptr};
-// The memory the graphics allocator holds in its blocks now, installed by the Vulkan renderer
-// while it has an allocator (tools/prepare-vulkan-port.py): the part of the pool that grows as
-// scenery loads, and the one the FPS overlay shows beside the pool.
-inline std::atomic<unsigned long long (*)()> graphics_memory_held{nullptr};
 inline std::atomic<bool> graphics_usage_from_pool{true};
 // GPU thread only (the collector).
 inline bool KeepDirtyTextures() {
@@ -511,8 +516,7 @@ inline bool KeepDirtyTextures() {
     const auto probe = graphics_memory_probe.load(std::memory_order_relaxed);
     return !probe || !probe();
 }
-// Signal the guest vsync first and compose 1.5 ms later, so a frame the game queues in response
-// to the vsync is latched at that same vsync (dev-settings compose_delay_us=N overrides it).
+// 1.5ms compose delay after signaling guest VSync (compose_delay_us=0 restores upstream).
 inline std::atomic<int> compose_delay_us{1500};
 // Development boot trace (dev-settings boot_trace=START:END, milliseconds after the settings
 // are read): guest GPU submissions and GPU-thread dispatches inside it are logged one by one.
@@ -528,101 +532,40 @@ inline std::atomic<bool> trace_fs_callers{false};
 // compare, [17]/[18] hcr=cpu constant predicate draw/skip, [19] hcr=exact pending-query fallback.
 inline std::array<std::atomic<unsigned long long>, 20> render_conditions{};
 // Guest core idle waits (PhysicalCore::Idle): calls, nanoseconds until the
-// interrupt, calls that went to sleep because nothing arrived while spinning, and the
-// nanoseconds spent polling the interrupt flag. Polling is CPU time the core spends waiting:
-// the overlay's per-core load leaves it out (GuestCoreLoads), so a core that polls through
-// a game's short waits does not read as busy.
+// interrupt, and calls that went to sleep because nothing arrived while spinning.
 struct IdleCounters {
-    std::atomic<unsigned long long> calls{0}, nanoseconds{0}, sleeps{0}, spin_ns{0};
+    std::atomic<unsigned long long> calls{0}, nanoseconds{0}, sleeps{0};
 };
 inline std::array<IdleCounters, 4> guest_idle{};
-// The longest a guest core polls its interrupt flag before sleeping. Guest job systems hand work
-// between cores thousands of times a second, and sleeping on a handoff puts the host's thread
-// wake-up latency on the critical path: a 100 us poll took a racing game's heavy phase from ~55 to
-// ~59.6 FPS; 500 us cut a tested game's requests for 30 FPS from 23% to 15% of frames (sleeps per
-// core 800 -> 330 a second). 2 ms cut them to 12% but made some effects flicker.
-//
-// A fixed poll is spent in full on every wait that outlasts it: a core that waits for most of a
-// frame spins 500 us of every wait for nothing. So each core adapts its poll to its own waits, on
-// the lines of Linux's haltpoll governor for a KVM guest's idle vCPUs. A wait counts by when its
-// interrupt came (PhysicalCore::Interrupt stamps it), not by when the core was running again, so
-// the host's wake-up time does not make a short wait look long:
-//  - a sleep that polling up to the longest would have caught grows the poll at once: to twice
-//    that wait, at least double and a tenth of the longest, and back to what it was before it
-//    last shrank. A short wait caught while polling keeps it;
-//  - only after kIdleLongRun waits in a row outlasted the longest poll does each further one halve
-//    it, to nothing below a tenth. Most cores mix short handoffs with long waits (several of each
-//    a frame, and a dozen long ones between two handoffs is common); long waits between handoffs
-//    must not cost the next handoff its poll.
-// A core that only waits long stops polling after a few dozen waits (about a frame or two); the
-// first handoff after that sleeps, as every one did without polling, and the next ones are caught
-// again. dev-settings idle_spin_us=N polls a fixed N us instead.
-inline std::atomic<long long> idle_poll_most_ns{500'000};
-inline std::atomic<bool> idle_poll_adaptive{true};
-inline constexpr unsigned kIdleLongRun = 32;
-// Per guest core, read and written only by that core's host thread: its poll now, its poll before
-// it last shrank, and how many waits in a row have outlasted the longest poll.
-inline std::array<std::atomic<long long>, 4> idle_poll_ns{}, idle_poll_kept_ns{};
-inline std::array<std::atomic<unsigned>, 4> idle_long_run{};
-// When an interrupt last raised each core's flag (under the core's lock, PhysicalCore::Interrupt).
-inline std::array<std::atomic<long long>, 4> idle_raised_ns{};
-inline void NoteInterrupt(std::size_t core) {
-    if (core < idle_raised_ns.size()) idle_raised_ns[core].store(NowNs(), std::memory_order_relaxed);
-}
-inline long long RaisedNs(std::size_t core) {
-    return core < idle_raised_ns.size() ? idle_raised_ns[core].load(std::memory_order_relaxed) : 0;
-}
-inline long long IdlePollBudget(std::size_t core) {
-    const long long most = idle_poll_most_ns.load(std::memory_order_relaxed);
-    if (!idle_poll_adaptive.load(std::memory_order_relaxed) || core >= idle_poll_ns.size()) return most;
-    return std::min(idle_poll_ns[core].load(std::memory_order_relaxed), most);
-}
-// After a wait whose interrupt came `wanted_ns` after the core began to wait, which went to sleep
-// (`slept`) or was caught while polling.
-inline void AdaptIdlePoll(std::size_t core, long long wanted_ns, bool slept) {
-    if (!idle_poll_adaptive.load(std::memory_order_relaxed) || core >= idle_poll_ns.size()) return;
-    const long long most = idle_poll_most_ns.load(std::memory_order_relaxed);
-    const long long least = most / 10;
-    const long long poll = std::min(idle_poll_ns[core].load(std::memory_order_relaxed), most);
-    long long next = poll;
-    if (wanted_ns <= most) {
-        idle_long_run[core].store(0, std::memory_order_relaxed);
-        // Polling longer would have caught it.
-        if (slept && wanted_ns > poll) {
-            const long long kept = idle_poll_kept_ns[core].exchange(0, std::memory_order_relaxed);
-            next = std::min(std::max({poll * 2, least, wanted_ns * 2, kept}), most);
-        }
-    } else {
-        const unsigned run = idle_long_run[core].load(std::memory_order_relaxed);
-        if (run < kIdleLongRun) {
-            idle_long_run[core].store(run + 1, std::memory_order_relaxed);
-        } else {
-            if (poll > idle_poll_kept_ns[core].load(std::memory_order_relaxed))
-                idle_poll_kept_ns[core].store(poll, std::memory_order_relaxed);
-            next = poll / 2 < least ? 0 : poll / 2;
-        }
-    }
-    if (next != poll) idle_poll_ns[core].store(next, std::memory_order_relaxed);
-}
-// Draws between the Vulkan rasterizer's hand-offs to its worker, minus one (a power of two minus
-// one; tools/prepare-vulkan-port.py). Upstream hands off every 8 draws; dev-settings
-// dispatch_draws=N (8 to 512) overrides the 64 used here.
-inline std::atomic<unsigned> dispatch_mask{63};
-inline void CountIdle(std::size_t core, long long nanoseconds, bool slept, long long spun = 0) {
-    if (core >= guest_idle.size()) return;
+// PAUSE iterations a guest core spins on its interrupt flag before sleeping (~20 ns each on the
+// console). Guest job systems hand work between cores ~150 times a frame; sleeping on each
+// handoff put the host's thread wake-up latency on the critical path. 100 us (the default) took
+// a racing game's heavy phase from ~55 to ~59.6 FPS; dev-settings
+// idle_spin_us=N overrides it (0 sleeps at once).
+inline std::atomic<unsigned> idle_spin_iterations{25000};
+// R355: 16 draws between Vulkan worker hand-offs instead of 8. FC27 measured
+// ~1,000-2,000 dispatches per five-second window with an otherwise idle GPU
+// owner; halving dispatch submissions keeps the same hard 512-draw flush bound.
+// The guest-visible command order and all texture/buffer synchronization remain
+// unchanged. 8 is still available with dev-settings dispatch_draws=8.
+// This is a candidate optimization, not a measured PS5 FPS improvement.
+inline std::atomic<unsigned> dispatch_mask{15};
+inline void CountIdle(std::size_t core, long long nanoseconds, bool slept) {
+    // A quiet release must not bounce the guest-core counter cache lines on
+    // every HLE idle/wake cycle. These statistics are diagnostic only.
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed) ||
+        core >= guest_idle.size()) return;
     guest_idle[core].calls.fetch_add(1, std::memory_order_relaxed);
     guest_idle[core].nanoseconds.fetch_add(static_cast<unsigned long long>(nanoseconds), std::memory_order_relaxed);
     if (slept) guest_idle[core].sleeps.fetch_add(1, std::memory_order_relaxed);
-    if (spun > 0) guest_idle[core].spin_ns.fetch_add(static_cast<unsigned long long>(spun), std::memory_order_relaxed);
-}
-// The nanoseconds a guest core has spent polling while idle, for its load (GuestCoreLoads).
-inline unsigned long long IdleSpinNs(std::size_t core) {
-    return core < guest_idle.size() ? guest_idle[core].spin_ns.load(std::memory_order_relaxed) : 0;
 }
 // Development: reads 32-bit guest words for code dumps (installed by the frontend per session).
 inline bool (*guest_read32)(unsigned long long address, unsigned& value) = nullptr;
 inline void CountCondition(unsigned slot) {
-    if (slot < render_conditions.size()) render_conditions[slot].fetch_add(1, std::memory_order_relaxed);
+    // Conditional-rendering decision counts are never needed to draw a frame.
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed) ||
+        slot >= render_conditions.size()) return;
+    render_conditions[slot].fetch_add(1, std::memory_order_relaxed);
 }
 inline bool BootTrace() {
     const auto end = boot_trace_end.load(std::memory_order_relaxed);
@@ -634,15 +577,6 @@ inline void AddSince(Totals& totals, long long start) {
     totals.nanoseconds.fetch_add(static_cast<unsigned long long>(NowNs() - start), std::memory_order_relaxed);
     totals.calls.fetch_add(1, std::memory_order_relaxed);
 }
-inline void AddHold(long long start) {
-    const auto held = static_cast<unsigned long long>(NowNs() - start);
-    draw_cache_hold.nanoseconds.fetch_add(held, std::memory_order_relaxed);
-    draw_cache_hold.calls.fetch_add(1, std::memory_order_relaxed);
-    if (held >= 1000000) draw_cache_hold_long.fetch_add(1, std::memory_order_relaxed);
-    auto longest = draw_cache_hold_max.load(std::memory_order_relaxed);
-    while (held > longest && !draw_cache_hold_max.compare_exchange_weak(longest, held, std::memory_order_relaxed)) {
-    }
-}
 // A32/A64 memory accesses that left JIT code through the C++ callback (tracked,
 // unmapped or misaligned pages, exclusive stores). Written only by the owning core.
 struct alignas(64) JitCallbacks {
@@ -650,34 +584,26 @@ struct alignas(64) JitCallbacks {
 };
 inline std::array<JitCallbacks, 4> jit_callbacks{};
 inline void CountJit(std::atomic<unsigned long long>& counter) {
-    counter.fetch_add(1, std::memory_order_relaxed);
+    // A32 memory callbacks can run extremely often. Development counters
+    // must not bounce shared cache lines with Detailed Logging turned off.
+    if (detailed_gpu_profile.load(std::memory_order_relaxed))
+        counter.fetch_add(1, std::memory_order_relaxed);
 }
-// What a game session finds and what it leaves of the memory the CPU shares with the GPU, in
-// one line of the log. Called before a session's graphics start and after everything of the
-// session is gone, so two sessions of one run can be compared.
-void ReportSessionMemory(const char* phase, unsigned session);
 // GPU thread only (Vulkan frame report): cumulative GPU-thread idle/dispatch/wait
 // totals with the owner's CPU clock, then a guest-core CPU snapshot.
+// Once per title, after the previous GPU owner has joined. Do not report
+// the preceding title's last GPU frame as a freeze in this session.
+void ResetGpuReportForTitle() noexcept;
 void ReportGpuThread(unsigned frame);
 inline std::atomic<unsigned> capture_passes{};
 
-// A Timer counts only when timers are on: in a development build (set when a game starts) and
-// in a cost run. Only development reports read the totals, and timers sit on hot paths: one a
-// draw on the GPU thread, one for every guest read of memory the GPU caches follow (several
-// thousand of each a frame in a large game). Elsewhere a Timer is one look at this flag.
-// `always` is for the four producer-side GPU waits the overlay reads from every build: they sit
-// on waits that already block, and turning the whole flag on would put a clock read a draw too.
-inline std::atomic<bool> timers_on{false};
 class Timer {
 public:
-    explicit Timer(Totals& target, unsigned long long bytes = 0, bool always = false)
-        : totals(target), requested_bytes(bytes),
-          on(always || timers_on.load(std::memory_order_relaxed)),
-          start(on ? Common::g_wall_clock.GetTimeNS() : std::chrono::nanoseconds{}) {}
+    explicit Timer(Totals& target, unsigned long long bytes = 0)
+        : totals(target), requested_bytes(bytes), start(Common::g_wall_clock.GetTimeNS()) {}
     Timer(const Timer&) = delete;
     Timer& operator=(const Timer&) = delete;
     ~Timer() {
-        if (!on) return;
         const auto elapsed = (Common::g_wall_clock.GetTimeNS() - start).count();
         totals.nanoseconds.fetch_add(static_cast<unsigned long long>(elapsed), std::memory_order_relaxed);
         if (requested_bytes) totals.requested_bytes.fetch_add(requested_bytes, std::memory_order_relaxed);
@@ -686,44 +612,118 @@ public:
 private:
     Totals& totals;
     unsigned long long requested_bytes;
-    bool on;
     std::chrono::nanoseconds start;
 };
 
-// Accumulate one phase of a sequence under a single running clock instead of giving it a Timer:
-// one clock read and two relaxed adds. `since` is where the phase started and advances to now, so
-// consecutive marks measure the gap between them and together cover the whole sequence without
-// overlap. An early return out of the sequence leaves the tail unmarked - that is what the outer
-// Timer is still charging - and the phase that never ran simply does not call this.
-//
-// Only a development build counts them (dev_marks, set when a game starts there). A draw
-// passes about twenty marks, a clock read and two additions each, and only a development
-// run's report reads the totals: elsewhere a mark is one look at this flag, and the clock it
-// would measure from is not read either (MarkStart). A flag and not an #ifdef: this header
-// must read the same in every library that includes it. The waits of guest threads
-// (WaitBegin, WaitEnd, NoteRunnable) are counted under the same flag: their hooks sit under
-// the scheduler lock (headless/CMakeLists.txt, k_thread.cpp).
-inline std::atomic<bool> dev_marks{false};
-inline long long MarkStart() { return dev_marks.load(std::memory_order_relaxed) ? NowNs() : 0; }
-inline void Mark(Totals& totals, long long& since) {
-    if (!dev_marks.load(std::memory_order_relaxed)) return;
-    const auto now = NowNs();
-    const auto elapsed = now - since;
-    since = now;
-    totals.nanoseconds.fetch_add(static_cast<unsigned long long>(elapsed), std::memory_order_relaxed);
-    totals.calls.fetch_add(1, std::memory_order_relaxed);
+// GPU/guest waits can execute many thousands of times per second. A normal
+// game must never sample two wall clocks or update global Totals for each
+// dispatch/lock solely because the binary was compiled as EDEN_DEV_PROFILE.
+// Expensive per-command timing is only active with Detailed Logging.
+class DiagnosticTimer {
+public:
+    explicit DiagnosticTimer(Totals& target) noexcept
+        : totals(detailed_gpu_profile.load(std::memory_order_relaxed) ? &target : nullptr) {
+        if (totals) start = Common::g_wall_clock.GetTimeNS();
+    }
+    DiagnosticTimer(const DiagnosticTimer&) = delete;
+    DiagnosticTimer& operator=(const DiagnosticTimer&) = delete;
+    ~DiagnosticTimer() {
+        if (!totals) return;
+        const auto elapsed = (Common::g_wall_clock.GetTimeNS() - start).count();
+        totals->nanoseconds.fetch_add(static_cast<unsigned long long>(elapsed),
+                                      std::memory_order_relaxed);
+        totals->calls.fetch_add(1, std::memory_order_relaxed);
+    }
+private:
+    Totals* totals{};
+    std::chrono::nanoseconds start{};
+};
+
+// R406: a blocking DMA or puller semaphore may never return during a freeze.
+// DiagnosticTimer only counts completed calls. Publish an active timestamp
+// without a per-iteration probe, and clear it on every normal/scope exit.
+// GPU-owner single-writer; five-second presenter may read concurrently.
+class DiagnosticActiveTimer {
+public:
+    DiagnosticActiveTimer(Totals& target, std::atomic<long long>& active_slot,
+                          bool waiting = true) noexcept
+        : totals(waiting && detailed_gpu_profile.load(std::memory_order_relaxed) ? &target : nullptr),
+          active(totals ? &active_slot : nullptr) {
+        if (totals) {
+            start = Common::g_wall_clock.GetTimeNS();
+            active->store(start.count(), std::memory_order_release);
+        }
+    }
+    DiagnosticActiveTimer(const DiagnosticActiveTimer&) = delete;
+    DiagnosticActiveTimer& operator=(const DiagnosticActiveTimer&) = delete;
+    ~DiagnosticActiveTimer() {
+        if (!totals) return;
+        const auto end = Common::g_wall_clock.GetTimeNS();
+        const auto delta = end - start;
+        if (delta.count() > 0)
+            totals->nanoseconds.fetch_add(static_cast<unsigned long long>(delta.count()),
+                                         std::memory_order_relaxed);
+        totals->calls.fetch_add(1, std::memory_order_relaxed);
+        active->store(0, std::memory_order_release);
+    }
+private:
+    Totals* totals{};
+    std::atomic<long long>* active{};
+    std::chrono::nanoseconds start{};
+};
+inline unsigned long long ActiveDiagnosticWaitNs(
+        const std::atomic<long long>& active_slot) noexcept {
+    const auto since = active_slot.load(std::memory_order_acquire);
+    if (since <= 0) return 0;
+    const auto now = Common::g_wall_clock.GetTimeNS().count();
+    return now >= since ? static_cast<unsigned long long>(now - since) : 0ULL;
 }
+
+// Guest OnCPUWrite can run tens of millions of times per match. Counting
+// every one using shared atomics makes the DEVELOPMENT logger itself contend
+// across guest cores. Preserve exact per-callback wall-clock measurements,
+// but publish each thread's accumulated calls/elapsed only every 64 writes.
+// No guest cache mutex or buffer/texture resource lifetime is changed.
+class BatchedGuestWriteTimer {
+public:
+    BatchedGuestWriteTimer() noexcept
+        : enabled(detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        if (enabled) start = Common::g_wall_clock.GetTimeNS();
+    }
+    BatchedGuestWriteTimer(const BatchedGuestWriteTimer&) = delete;
+    BatchedGuestWriteTimer& operator=(const BatchedGuestWriteTimer&) = delete;
+    ~BatchedGuestWriteTimer() {
+        if (!enabled) return;
+        const auto elapsed = (Common::g_wall_clock.GetTimeNS() - start).count();
+        auto& batch = LocalBatch();
+        batch.nanoseconds += static_cast<unsigned long long>(elapsed > 0 ? elapsed : 0);
+        if (++batch.calls == 64) batch.Flush();
+    }
+
+private:
+    struct Batch {
+        unsigned calls{};
+        unsigned long long nanoseconds{};
+        ~Batch() { Flush(); }
+        void Flush() noexcept {
+            if (!calls) return;
+            guest_cpu_write.nanoseconds.fetch_add(nanoseconds, std::memory_order_relaxed);
+            guest_cpu_write.calls.fetch_add(calls, std::memory_order_relaxed);
+            calls = 0;
+            nanoseconds = 0;
+        }
+    };
+    static Batch& LocalBatch() noexcept {
+        static thread_local Batch batch{};
+        return batch;
+    }
+    bool enabled{};
+    std::chrono::nanoseconds start{};
+};
 
 // Opt-in API wall times: calls may overlap across threads, so do not sum them as frame time.
 inline std::atomic<bool> vulkan_cost_enabled{false};
 inline std::array<Totals, 24> vulkan_api;
-// Large textures upload only the block rows guest writes changed (texture_partial.h): dev-settings
-// tex_partial=off, tex_partial_kb=N (smallest image, default 1 MiB), tex_partial_check=on (compare
-// each partial upload with a whole unswizzle). Counted: partial uploads, their bytes, checks, mismatches.
-inline std::atomic<bool> tex_partial{true}, tex_partial_check{false};
-inline std::atomic<unsigned long long> tex_partial_min{1ULL << 20};
-inline std::atomic<unsigned long long> tex_partial_uploads{}, tex_partial_bytes{}, tex_partial_checks{},
-    tex_partial_mismatches{};
 inline std::optional<Timer> VulkanTimer(unsigned index) {
     if (vulkan_cost_enabled.load(std::memory_order_relaxed))
         return std::optional<Timer>{std::in_place, vulkan_api.at(index)};

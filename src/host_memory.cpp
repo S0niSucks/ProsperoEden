@@ -3,6 +3,7 @@
 #include "fastmem.h"
 #include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
@@ -58,12 +59,6 @@ eden_fastmem_probe_fallback:
 
 namespace Common {
 void* AllocateMemoryPages(size_t size) noexcept;
-void* AllocateGuestMemory(size_t size) noexcept;  // above the guest's address space (memory_pages.cpp)
-// The same block backed where the guest's kernel uses it, and what goes with it (memory_pages.cpp).
-void* AllocateGuestMemoryWhereUsed(size_t size) noexcept;
-void ClearGuestMemory(std::uint8_t* at, std::uint64_t offset, std::size_t bytes, int fill) noexcept;
-void CommitGuestMemory(std::uint64_t offset, size_t bytes) noexcept;
-void FreeGuestMemory(void* base, size_t size) noexcept;
 void FreeMemoryPages(void* base, size_t size) noexcept;
 #ifdef PS5_NATIVE
 std::int64_t DirectMemoryStart(const void* pointer) noexcept;
@@ -77,24 +72,17 @@ constexpr std::size_t Granule = 0x4000; // PS5 kernel page; host checks use the 
 constexpr std::size_t PagesPerGranule = Granule / GuestPage;
 constexpr std::size_t Chunks = GuestPages / PagesPerGranule;
 constexpr std::size_t WindowBytes = GuestPages * GuestPage;
-// Fully aliased 2 MiB blocks whose backing is contiguous and 2 MiB-aligned are mapped again
-// as one 2 MiB mapping so the kernel can use a large page (fewer TLB misses).
-constexpr std::size_t LargePage = 0x200000;
-constexpr std::size_t ChunksPerLarge = LargePage / Granule;
-constexpr std::size_t LargeBlocks = Chunks / ChunksPerLarge;
 // One byte per guest page below the window: the JIT reads it at [r13 + page - MapBytes]
-// (headless/checked-fastmem.cmake). The window starts on a 2 MiB boundary, so the
-// reservation has slack for the alignment; a guard granule after the window stays reserved.
+// (headless/checked-fastmem.cmake). A guard granule after the window stays reserved.
 constexpr std::size_t MapBytes = GuestPages;
-constexpr std::size_t ReserveBytes = 2 * LargePage + WindowBytes + Granule;
+constexpr std::size_t ReserveBytes = MapBytes + WindowBytes + Granule;
 constexpr std::uint8_t Readable = 1, Writable = 2; // Eden's requested page access
 constexpr std::uint8_t ReadBlocked = 1, WriteBlocked = 2, Blocked = 3; // map byte bits
 constexpr std::uint64_t ProbeMarker = 0x5a17ed5a17ed5a17ull;
 
 std::atomic<bool> window_requested{false};
-std::atomic<bool> large_requested{true};
 struct Counters {
-    std::atomic<std::uint64_t> window, mapped_pages, aliased_chunks, large_blocks;
+    std::atomic<std::uint64_t> window, mapped_pages, aliased_chunks;
     std::atomic<std::uint64_t> map_calls, unmap_calls, protect_calls, kernel_calls, kernel_ns, failures;
 } counters;
 std::atomic<const std::uint8_t*> current_map{nullptr};
@@ -157,17 +145,16 @@ public:
         counters.window = 0;
         counters.mapped_pages = 0;
         counters.aliased_chunks = 0;
-        counters.large_blocks = 0;
     }
 
-    bool Create(std::uint8_t* backing_base, std::size_t backing_size, Backing backing_handle) {
+    bool Create(std::uint8_t* backing_base, Backing backing_handle) {
         backing = backing_handle;
 #ifdef PS5_NATIVE
         // RADV's PS5 winsys owns [0x2_0000_0000, 0x3_0000_0000) (its 32-bit window) and places
         // device memory with fixed mappings in [0x40_0000_0000, 0x80_0000_0000); a window there
         // lost its access map to the first GPU allocations. Stay between the two.
         void* address = reinterpret_cast<void*>(0x1000000000ull);
-        const auto reserved = sceKernelReserveVirtualRange(&address, ReserveBytes, 0, LargePage);
+        const auto reserved = sceKernelReserveVirtualRange(&address, ReserveBytes, 0, Granule);
         const auto placed = reinterpret_cast<std::uintptr_t>(address);
         if (reserved != 0 || placed < 0x300000000ull || placed + ReserveBytes > 0x4000000000ull) {
             std::printf("EDEN_FASTMEM_WINDOW reserve=%08x address=%p\n", unsigned(reserved), address);
@@ -175,12 +162,11 @@ public:
             return false;
         }
         reservation = static_cast<std::uint8_t*>(address);
-        Place();
         (void)sceKernelEnableDmemAliasing(); // Reports zero regardless; the self-test checks.
-        void* map_at = map;
+        void* map_at = reservation;
         if (sceKernelAllocateDirectMemory(0, sceKernelGetDirectMemorySize(), MapBytes, Granule, 12, &map_physical) != 0 ||
             sceKernelMapDirectMemory(&map_at, MapBytes, PROT_READ | PROT_WRITE, MAP_FIXED, map_physical, Granule) != 0 ||
-            map_at != map) {
+            map_at != reservation) {
             std::printf("EDEN_FASTMEM_WINDOW map=failed\n");
             return Abandon();
         }
@@ -188,17 +174,18 @@ public:
         void* address = mmap(nullptr, ReserveBytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
         if (address == MAP_FAILED) return false;
         reservation = static_cast<std::uint8_t*>(address);
-        Place();
-        if (mmap(map, MapBytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) != map)
+        if (mmap(reservation, MapBytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) !=
+            reservation)
             return Abandon();
 #endif
+        map = reservation;
+        base = reservation + MapBytes;
         std::memset(map, Blocked, MapBytes);
         try {
             page_backing.assign(GuestPages, 0);
             page_access.assign(GuestPages, 0);
             chunk_aliased.assign(Chunks, 0);
             chunk_granule.assign(Chunks, 0);
-            block_large.assign(LargeBlocks, 0);
         } catch (const std::bad_alloc&) {
             std::printf("EDEN_FASTMEM_WINDOW state=allocation\n");
             return Abandon();
@@ -207,7 +194,6 @@ public:
             std::printf("EDEN_FASTMEM_CHECK ok=0 step=%s errno=%d\n", failure, errno);
             return Abandon();
         }
-        large = large_requested && LargeSelfTest(backing_base, backing_size);
         counters.window = reinterpret_cast<std::uintptr_t>(base);
         current_map = map;
         return true;
@@ -219,6 +205,75 @@ public:
         std::lock_guard lock{mutex};
         ++counters.map_calls;
         const std::size_t host = host_offset / GuestPage;
+        // A repeated one-page guest mapping need not refresh the JIT guard
+        // bytes when its existing direct alias is already live. Never skip
+        // a non-aliased chunk: a prior kernel map may have failed and the
+        // next unchanged Map must be allowed to retry its alias.
+        if (first == last && chunk_aliased[first / PagesPerGranule] &&
+            page_backing[first] == static_cast<std::uint32_t>(host + 1)) {
+            if (page_access[first] == access) return;
+            // A live identical physical alias needs only the modified JIT
+            // permission byte and its predecessor's crossing guard updated.
+            // Avoid the three Update scans of an otherwise unchanged chunk.
+            page_access[first] = access;
+            Refresh(first, first);
+            return;
+        }
+        // Small same-granule repeat mappings are common during guest page
+        // setup. The active kernel alias proves the original fixed mapping
+        // succeeded; compare at most four existing page records before
+        // skipping Update. Never bypass a missing alias or a cross-granule
+        // request (which may need distinct kernel operations).
+        if (first < last && last - first < PagesPerGranule &&
+            first / PagesPerGranule == last / PagesPerGranule &&
+            chunk_aliased[first / PagesPerGranule]) {
+            // A live fixed alias is independent of guest permissions.
+            // Preserve it for permission-only changes across up to four
+            // neighbouring pages, and refresh only their JIT guard bytes.
+            bool same_backing = true;
+            bool same_access = true;
+            for (std::size_t p = first; p <= last; ++p) {
+                if (page_backing[p] != static_cast<std::uint32_t>(host + (p - first) + 1)) {
+                    same_backing = false;
+                    break;
+                }
+                if (page_access[p] != access) same_access = false;
+            }
+            if (same_backing) {
+                if (same_access) return;
+                for (std::size_t p = first; p <= last; ++p) page_access[p] = access;
+                Refresh(first, last);
+                return;
+            }
+        }
+        // Short repeated mappings may cross up to four native 16 KiB
+        // granules. They are still inert ONLY when every affected chunk
+        // already has a successful fixed alias and all page records match.
+        // Keep a strict 16-page cap: no extra long-range scan on map misses,
+        // and never suppress a retry of an unaliased kernel chunk.
+        if (first < last && last - first < 16 &&
+            first / PagesPerGranule != last / PagesPerGranule) {
+            // All affected kernel chunks already expose the requested
+            // physical pages. A permission-only change cannot require
+            // remapping; refresh only the bounded JIT guard-byte span.
+            // Missing aliases and changed backing still retry Update.
+            bool live_aliases_match = true;
+            bool same_access = true;
+            for (std::size_t p = first; p <= last; ++p) {
+                if (!chunk_aliased[p / PagesPerGranule] ||
+                    page_backing[p] != static_cast<std::uint32_t>(host + (p - first) + 1)) {
+                    live_aliases_match = false;
+                    break;
+                }
+                if (page_access[p] != access) same_access = false;
+            }
+            if (live_aliases_match) {
+                if (same_access) return;
+                for (std::size_t p = first; p <= last; ++p) page_access[p] = access;
+                Refresh(first, last);
+                return;
+            }
+        }
         for (std::size_t p = first; p <= last; ++p) {
             if (!page_backing[p]) ++counters.mapped_pages;
             page_backing[p] = static_cast<std::uint32_t>(host + (p - first) + 1);
@@ -232,6 +287,28 @@ public:
         if (!Pages(offset, length, first, last)) return;
         std::lock_guard lock{mutex};
         ++counters.unmap_calls;
+        // Unmap already withdrew the alias under this mutex on its first
+        // call. An unchanged, unmapped guest page has nothing to withdraw
+        // or republish; retain the observable call counter.
+        if (first == last && !page_backing[first] && !page_access[first]) return;
+        // Short redundant Unmap: one bounded pass over both backing and
+        // access records, instead of two separate all_of scans of the same
+        // cache lines. A live page still goes through the original Update.
+        const bool short_single_granule = first < last &&
+            last - first < PagesPerGranule &&
+            first / PagesPerGranule == last / PagesPerGranule;
+        const bool short_cross_granule = first < last && last - first < 16 &&
+            first / PagesPerGranule != last / PagesPerGranule;
+        if (short_single_granule || short_cross_granule) {
+            bool all_clear = true;
+            for (std::size_t p = first; p <= last; ++p) {
+                if (page_backing[p] != 0 || page_access[p] != 0) {
+                    all_clear = false;
+                    break;
+                }
+            }
+            if (all_clear) return;
+        }
         for (std::size_t p = first; p <= last; ++p) {
             if (page_backing[p]) --counters.mapped_pages;
             page_backing[p] = 0;
@@ -245,6 +322,29 @@ public:
         if (!Pages(offset, length, first, last)) return;
         std::lock_guard lock{mutex};
         ++counters.protect_calls;
+        // Map/Unmap/Protect serialize all backing and permission-byte
+        // publications under this mutex. A repeated one-page permission
+        // cannot change either its own JIT map byte or its predecessor's
+        // cross-page guard; leave both bytes alone on this no-op path.
+        if (first == last && page_access[first] == access) return;
+        // The native fastmem permission granule spans four guest pages.
+        // A repeated update WITHIN one granule changes neither its map
+        // bytes nor any cross-page guard. Check at most four bytes; never
+        // scan long/changed mappings or suppress cross-granule updates.
+        if (first < last && last - first < PagesPerGranule &&
+            first / PagesPerGranule == last / PagesPerGranule &&
+            std::all_of(page_access.begin() + first, page_access.begin() + last + 1,
+                        [access](std::uint8_t current) { return current == access; }))
+            return;
+        // Short cross-granule permission requests can also be identical.
+        // Check at most 16 pages; a changed byte (or longer span) must
+        // republish every JIT guard, including the predecessor's crossing
+        // bits, via the original Refresh below.
+        if (first < last && last - first < 16 &&
+            first / PagesPerGranule != last / PagesPerGranule &&
+            std::all_of(page_access.begin() + first, page_access.begin() + last + 1,
+                        [access](std::uint8_t current) { return current == access; }))
+            return;
         std::fill(page_access.begin() + first, page_access.begin() + last + 1, access);
         Refresh(first, last);
     }
@@ -261,15 +361,6 @@ private:
     std::vector<std::uint8_t> page_access;   // Readable | Writable as Eden requested
     std::vector<std::uint8_t> chunk_aliased;
     std::vector<std::uint32_t> chunk_granule; // backing granule of an aliased chunk
-    std::vector<std::uint8_t> block_large;    // 2 MiB block mapped as one large mapping
-    bool large = false;                       // large mappings enabled and self-tested
-
-    // The window on the first 2 MiB boundary with room for the map below it.
-    void Place() {
-        const auto start = reinterpret_cast<std::uintptr_t>(reservation) + MapBytes;
-        base = reinterpret_cast<std::uint8_t*>((start + LargePage - 1) & ~std::uintptr_t(LargePage - 1));
-        map = base - MapBytes;
-    }
 
     bool Abandon() {
         munmap(reservation, ReserveBytes);
@@ -285,7 +376,9 @@ private:
     static bool Pages(std::size_t offset, std::size_t length, std::size_t& first, std::size_t& last) {
         if (offset >= WindowBytes || !length) return false;
         first = offset / GuestPage;
-        last = (std::min(offset + length, WindowBytes) - 1) / GuestPage;
+        // Clip before adding: Unmap/Protect may receive a length whose sum
+        // with offset wraps, producing an out-of-window page or iterator.
+        last = (offset + std::min(length, WindowBytes - offset) - 1) / GuestPage;
         return true;
     }
 
@@ -307,8 +400,13 @@ private:
     }
     // A page's byte also carries its successor's blocks: direct accesses may cross into it.
     void Refresh(std::size_t first, std::size_t last) {
-        for (std::size_t page = first ? first - 1 : 0; page <= last; ++page)
-            map[page] = Own(page) | Own(page + 1);
+        const std::size_t begin = first ? first - 1 : 0;
+        auto own = Own(begin);
+        for (std::size_t page = begin; page <= last; ++page) {
+            const auto next = Own(page + 1);
+            map[page] = own | next;
+            own = next;
+        }
     }
     void Block(std::size_t chunk, std::size_t count) {
         const std::size_t first = chunk * PagesPerGranule, last = (chunk + count) * PagesPerGranule - 1;
@@ -324,7 +422,7 @@ private:
         ++counters.kernel_calls;
         return ok;
     }
-    bool MapChunks(std::size_t chunk, std::size_t count, std::uint32_t granule, std::size_t alignment = Granule) {
+    bool MapChunks(std::size_t chunk, std::size_t count, std::uint32_t granule) {
         auto* at = base + chunk * Granule;
         const std::size_t bytes = count * Granule;
         return Kernel([&] {
@@ -332,7 +430,7 @@ private:
             void* address = at;
             return sceKernelMapDirectMemory(&address, bytes, PROT_READ | PROT_WRITE, MAP_FIXED,
                                             backing + std::int64_t(granule) * std::int64_t(Granule),
-                                            alignment) == 0 &&
+                                            Granule) == 0 &&
                    address == at;
 #else
             return mmap(at, bytes, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FIXED, backing,
@@ -355,47 +453,11 @@ private:
         });
     }
 
-    // A fully aliased block with contiguous, 2 MiB-aligned backing becomes one 2 MiB mapping
-    // over its 16 KiB ones. Its bytes are blocked meanwhile; the backing is the same, so a
-    // direct access racing the remap reads the same memory.
-    void Promote(std::size_t block) {
-        if (!large || block_large[block]) return;
-        const std::size_t chunk = block * ChunksPerLarge;
-        const std::uint32_t granule = chunk_granule[chunk];
-        if (granule % ChunksPerLarge) return;
-        for (std::size_t i = 0; i < ChunksPerLarge; ++i)
-            if (!chunk_aliased[chunk + i] || chunk_granule[chunk + i] != granule + i) return;
-        Block(chunk, ChunksPerLarge);
-        if (MapChunks(chunk, ChunksPerLarge, granule, LargePage)) {
-            block_large[block] = 1;
-            ++counters.large_blocks;
-        } else {
-            // Refused after the self-test passed: stay with 16 KiB mappings from now on.
-            std::printf("EDEN_FASTMEM_LARGE refused chunk=%zu errno=%d\n", chunk, errno);
-            ++counters.failures;
-            large = false;
-            if (!MapChunks(chunk, ChunksPerLarge, granule)) Fatal("restore", chunk, ChunksPerLarge);
-        }
-        Refresh(chunk * PagesPerGranule, (chunk + ChunksPerLarge) * PagesPerGranule - 1);
-    }
-    // Before a chunk of a large block is withdrawn, the block goes back to 16 KiB mappings,
-    // so the kernel never has to split a large mapping.
-    void Demote(std::size_t block) {
-        if (!block_large[block]) return;
-        const std::size_t chunk = block * ChunksPerLarge;
-        Block(chunk, ChunksPerLarge);
-        if (!MapChunks(chunk, ChunksPerLarge, chunk_granule[chunk])) Fatal("demote", chunk, ChunksPerLarge);
-        block_large[block] = 0;
-        --counters.large_blocks;
-        Refresh(chunk * PagesPerGranule, (chunk + ChunksPerLarge) * PagesPerGranule - 1);
-    }
-
     void Update(std::size_t first, std::size_t last) {
         // 1. Withdraw aliases that no longer match their pages; block their bytes first.
         std::size_t run = 0, count = 0;
         const auto withdraw = [&] {
             if (!count) return;
-            for (std::size_t b = run / ChunksPerLarge; b <= (run + count - 1) / ChunksPerLarge; ++b) Demote(b);
             Block(run, count);
             if (!UnmapChunks(run, count)) Fatal("unmap", run, count);
             for (std::size_t c = run; c < run + count; ++c) chunk_aliased[c] = 0;
@@ -445,38 +507,6 @@ private:
 
         // 3. Publish access for every page of the updated chunks (and the page before).
         Refresh(first * PagesPerGranule, (last + 1) * PagesPerGranule - 1);
-
-        // 4. Large mappings for the blocks that are now whole.
-        for (std::size_t b = first / ChunksPerLarge; b <= last / ChunksPerLarge; ++b) Promote(b);
-    }
-
-    // The large-mapping steps on the first backing block, after the window self-test: map 2 MiB
-    // over 16 KiB mappings, go back to 16 KiB, withdraw one chunk. A failure only turns large
-    // mappings off.
-    bool LargeSelfTest(std::uint8_t* backing_base, std::size_t backing_size) {
-        const char* failure = backing_size < LargePage ? "backing-size" : nullptr;
-        constexpr std::uint64_t pattern = 0x0fedcba987654321ull;
-        auto* word = reinterpret_cast<volatile std::uint64_t*>(backing_base + LargePage - 8);
-        const auto at = [&] { return *reinterpret_cast<volatile std::uint64_t*>(base + LargePage - 8); };
-#ifdef PS5_NATIVE
-        if (!failure && backing % std::int64_t(LargePage)) failure = "backing-alignment";
-#endif
-        if (!failure && !MapChunks(0, ChunksPerLarge, 0)) failure = "alias";
-        if (!failure) {
-            *word = pattern;
-            if (!MapChunks(0, ChunksPerLarge, 0, LargePage)) failure = "large";
-            else if (at() != pattern) failure = "large-read";
-            else if (!MapChunks(0, ChunksPerLarge, 0)) failure = "demote";
-            else if (!UnmapChunks(0, 1)) failure = "partial-unmap";
-            else if (at() != pattern) failure = "neighbour-read";
-            *word = 0;
-            if (!UnmapChunks(0, ChunksPerLarge)) Fatal("large-test", 0, ChunksPerLarge);
-        }
-        std::printf("EDEN_FASTMEM_LARGE ok=%d step=%s errno=%d\n", failure ? 0 : 1, failure ? failure : "none",
-                    failure ? errno : 0);
-        counters.kernel_calls = 0;
-        counters.kernel_ns = 0;
-        return !failure;
     }
 
     // Exercise the kernel operations the window relies on, with the fake call the JIT
@@ -535,18 +565,27 @@ private:
 namespace Eden::Fastmem {
 void Request(bool enabled) noexcept { window_requested = enabled; }
 bool Requested() noexcept { return window_requested; }
-void RequestLarge(bool enabled) noexcept { large_requested = enabled; }
 Stats WindowStats() noexcept {
     std::uint64_t direct_reads = 0, direct_writes = 0;
     if (const auto* map = current_map.load()) {
-        for (std::size_t page = 0; page < GuestPages; ++page) {
-            direct_reads += !(map[page] & ReadBlocked);
-            direct_writes += !(map[page] & WriteBlocked);
+        // Diagnostic-only full-window census (one MiB). The former byte
+        // loop ran over 1,048,576 guest pages on the reporting thread.
+        // Count the blocked bit of eight independent guest guards at once.
+        // memcpy handles the unaligned JIT guard-map address without
+        // aliasing/alignment UB; the two low bits preserve the exact result
+        // even when other marker bits are set in a guard byte.
+        constexpr std::uint64_t lane_bits = 0x0101010101010101ULL;
+        static_assert(GuestPages % sizeof(std::uint64_t) == 0);
+        for (std::size_t page = 0; page < GuestPages; page += sizeof(std::uint64_t)) {
+            std::uint64_t guards{};
+            std::memcpy(&guards, map + page, sizeof(guards));
+            direct_reads += 8u - std::popcount(guards & lane_bits);
+            direct_writes += 8u - std::popcount((guards >> 1) & lane_bits);
         }
     }
     return {counters.window, counters.mapped_pages, counters.aliased_chunks, direct_reads, direct_writes,
             counters.map_calls, counters.unmap_calls, counters.protect_calls,
-            counters.kernel_calls, counters.kernel_ns, counters.failures, counters.large_blocks};
+            counters.kernel_calls, counters.kernel_ns, counters.failures};
 }
 } // namespace Eden::Fastmem
 
@@ -571,9 +610,7 @@ public:
             base = static_cast<u8*>(mapped);
         }
 #endif
-        // The fastmem window aliases the block by its place in direct memory: it is then one block.
-        if (!base)
-            base = static_cast<u8*>(fastmem ? AllocateGuestMemory(requested) : AllocateGuestMemoryWhereUsed(requested));
+        if (!base) base = static_cast<u8*>(AllocateMemoryPages(requested));
         if (!base) throw std::system_error(errno, std::generic_category(), "Backing allocation");
         if (!fastmem) return;
         window = std::make_unique<Window>();
@@ -582,7 +619,7 @@ public:
 #else
         const Window::Backing handle = fd;
 #endif
-        if (!window->Create(base, requested, handle)) window.reset();
+        if (!window->Create(base, handle)) window.reset();
     }
     ~Impl() {
         window.reset();
@@ -592,7 +629,7 @@ public:
             return;
         }
 #endif
-        FreeGuestMemory(base, size);
+        FreeMemoryPages(base, size);
     }
 };
 
@@ -620,8 +657,7 @@ HostMemory& HostMemory::operator=(HostMemory&& other) noexcept {
 void HostMemory::ClearBackingRegion(size_t offset, size_t length, u32 fill) {
     if (offset > backing_size || length > backing_size - offset)
         throw std::out_of_range("Backing clear range");
-    // A fill with zeroes leaves a slot that shows the zero block alone (memory_pages.cpp).
-    if (length) ClearGuestMemory(backing_base + offset, offset, length, static_cast<int>(fill));
+    if (length) std::memset(backing_base + offset, fill, length);
 }
 // Eden calls these only while a page table uses VirtualBasePointer() as its fastmem
 // arena. Without a window they are rejected rather than presented as no-ops.

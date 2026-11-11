@@ -12,12 +12,9 @@ inline void Report(const char* stage, const char* message) {
     char line[1024];
     std::snprintf(line, sizeof(line), "[ProsperoEden] %s: %.900s\n", stage, message);
     std::fputs(line, stderr);
-#if defined(__PROSPERO__)
-    // Written out within a second, or at once when so set (log_flusher.h); flushing here would
-    // wait for the storage.
-    (void)sceKernelDebugOutText(0, line);
-#else
     std::fflush(stderr);
+#if defined(__PROSPERO__)
+    (void)sceKernelDebugOutText(0, line);
 #endif
 }
 // A shutdown step with the milliseconds since the previous one (some games take 14-16 s).

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "pinned_pc_documentation",
+  "virtual_bytes": {"guest": null, "gpu": null},
+  "memory": {
+    "backing_commit_bytes": 21474836480,
+    "commit_limit_bytes": null,
+    "resident_components_bytes": {
+      "guest_backing": null, "graphics": null, "jit": null, "runtime": null
+    },
+    "app_budget_bytes": null,
+    "safety_margin_bytes": null
+  },
+  "capabilities": {
+    "graphics_bridge": "unknown",
+    "shader_semantics": "unknown",
+    "task_mesh_or_validated_fallback": "unknown",
+    "cpu_jit_abi": "unknown",
+    "service_contracts": "unknown",
+    "mapping_lifetime_sync": "unknown",
+    "provenance": "unknown"
+  }
+}

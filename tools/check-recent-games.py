@@ -1,70 +1,58 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright 2026 Oliv3rmoon
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Check that a started game is remembered by its name in roms/ (headless/main.cpp, issue 264).
+"""Adapt PR #286 to Encore's strict ExeFS history contract; actual C++ + UBSan.
 
-The home page finds the last and the recent games at roms/<name>. A game in a game folder
-(roms/Game/Game.nsp) saved by its file name alone was not found there and was left out. This
-compiles the frontend's own lines that make the name and checks them on a game at the top of
-roms/, one in a game folder, one elsewhere and read-only network games, and that the history
-is saved by that name. Network paths use the production prefix predicate without a client.
+History may retain <folder>/main, but this does not admit arbitrary nested games,
+traversal or network paths. No native or console execution is claimed.
 """
 from pathlib import Path
-import os, subprocess, tempfile
+import os
+import subprocess
+import tempfile
 
 root = Path(__file__).resolve().parents[1]
 main = (root / 'headless/main.cpp').read_text()
-start = main.index('        const std::string roms_folder = Eden::GamesPath("roms/");')
-end = main.index(';', main.index('const std::string rom_name', start)) + 1
-naming = main[start:end]
-transport = (root / 'headless/network/transport.cpp').read_text()
-path_predicates = [line for line in transport.splitlines() if line.startswith('bool IsPath(')]
-assert len(path_predicates) == 1, path_predicates
-
-# The history is saved by that name, and nothing saves it by the file name alone.
-saves = [line.strip() for line in main.splitlines() if 'SaveLastGame(' in line or 'SaveRecentGame(' in line]
-assert saves == ['const bool saved_last = Eden::SaveLastGame(rom_name);',
-                 'const bool saved_recent = Eden::SaveRecentGame(rom_name);'], saves
-# The loading screen's cover goes by the same name.
-assert 'Eden::Loading::SetArtFromCover(Eden::CoverFile(rom_name));' in main
-
+assert 'Eden::RememberedRomName(guest, Eden::GamesDir())' in main
+for name in ('SaveLastGame', 'SaveRecentGame'):
+    assert f'Eden::{name}(filename)' in main
+settings = (root / 'headless/settings_store.h').read_text()
+start = settings.index('inline bool ValidRomFilename(std::string_view name) {')
+validator = settings[start:settings.index('\n}', start) + 2]
 code = r'''
 #include <cassert>
 #include <cstdio>
-#include <filesystem>
-#include <string>
-#include "network/shares.h"
-namespace Eden::Network {
-''' + path_predicates[0] + r'''
-}
+#include "game_files.h"
 namespace Eden {
-std::string GamesPath(const std::string& relative) { return "/mnt/usb0/eden/" + relative; }
-}
-static std::string Name(const std::string& selected_game) {
-''' + naming + r'''
-    return rom_name;
+VALIDATOR
 }
 int main() {
-    assert(Name("/mnt/usb0/eden/roms/Game [0100000000010000].nsp") == "Game [0100000000010000].nsp");
-    assert(Name("/mnt/usb0/eden/roms/Game/Game [0100000000010000].nsp") == "Game/Game [0100000000010000].nsp");
-    assert(Name("/mnt/usb0/eden/roms/Kart Carnival/Kart.xci") == "Kart Carnival/Kart.xci");
-    // A game outside roms/ (development builds start one from anywhere): its file name.
-    assert(Name("/data/assets/roms/Other.nsp") == "Other.nsp");
-    // Another folder whose path only begins like roms/ is not in it.
-    assert(Name("/mnt/usb0/eden/roms-old/Game.nsp") == "Game.nsp");
-    // The share identity and nested path must survive history/cover lookup.
-    for (const std::string uri : {"pe-net://smb-fixture/Game/Game.nsp",
-                                  "pe-net://nfs-fixture/Kart Carnival/Kart.xci",
-                                  "pe-net://nfs-fixture/Homebrew/demo.nro"})
-        assert(Name(uri) == uri);
-    assert(Name("pe-net://smb-fixture/Game.nsp") != Name("pe-net://nfs-fixture/Game.nsp"));
-    std::puts("recent games: PASS");
+    const auto name = [](const char* selected) {
+        return Eden::RememberedRomName(selected, "/data/eden/roms");
+    };
+    assert(name("/data/eden/roms/Game.nsp") == "Game.nsp");
+    assert(name("/data/eden/roms/My Game/main") == "My Game/main");
+    assert(name("/data/eden/roms/Other/main") == "Other/main");
+    assert(name("/data/eden/roms/My Game/main") != name("/data/eden/roms/Other/main"));
+    assert(Eden::ValidRomFilename(name("/data/eden/roms/My Game/main")));
+    assert(Eden::ValidRomFilename(name("/data/eden/roms/Game.NSZ")));
+    assert(name("/data/eden/roms-old/Other.nsp") == "Other.nsp");
+    assert(name("/elsewhere/Game.nsp") == "Game.nsp");
+    // Normalization must not smuggle a multi-component or traversal selection
+    // through the existing persisted-name validator.
+    assert(!Eden::ValidRomFilename(name("/data/eden/roms/A/B/main")));
+    assert(!Eden::ValidRomFilename(name("/data/eden/roms/A/../main")));
+    assert(!Eden::ValidRomFilename("../Game.nsp"));
+    assert(!Eden::ValidRomFilename("A/../main"));
+    assert(!Eden::ValidRomFilename("A\\main"));
+    assert(!Eden::ValidRomFilename("pe-net://share/Game.nsp"));
+    std::puts("RECENT_EXEFS_IDENTITY_PASS");
 }
-'''
-with tempfile.TemporaryDirectory() as tmp:
+'''.replace('VALIDATOR', validator)
+with tempfile.TemporaryDirectory(prefix='encore-history-') as tmp:
     exe = Path(tmp) / 'recent-games'
-    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
-                    '-I', str(root / 'headless'), '-x', 'c++', '-',
-                    '-o', str(exe)], input=code, text=True, check=True)
-    subprocess.run([str(exe)], check=True)
-print('Recent games: PASS local folder names and exact network identities preserved for history/covers')
+    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra',
+                    '-Werror', '-fsanitize=undefined', '-fno-sanitize-recover=all',
+                    '-I', str(root / 'headless'), '-x', 'c++', '-', '-o', str(exe)],
+                   input=code, text=True, check=True)
+    subprocess.run([str(exe)], check=True, timeout=30)

@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The app version, as the launcher and the crash report show it. Its one home is
-// sce_sys/param.json (contentVersion): the build writes app_version.h from that file
-// (headless/CMakeLists.txt), and the package carries the same file.
+// Encore has its own user-facing release line. The PS5 contentVersion remains numeric because
+// sce_sys/param.json requires that format.
 #pragma once
 
-#include "app_version.h"
-
 namespace Eden {
-inline constexpr const char* kAppVersion = EDEN_APP_VERSION;
+// Keep the separately versioned public package metadata stable.
+// The launcher footer uses the EXACT R-label supplied by CMake at build time.
+inline constexpr const char* kAppVersion = "R1";
+#ifdef EDEN_LAUNCHER_BUILD_LABEL
+inline constexpr const char* kBuildVersion = EDEN_LAUNCHER_BUILD_LABEL;
+#else
+inline constexpr const char* kBuildVersion = kAppVersion;
+#endif
+inline constexpr const char* kPackageVersion = "01.000.041";
 }

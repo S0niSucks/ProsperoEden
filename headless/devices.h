@@ -2,8 +2,8 @@
 #pragma once
 #include <array>
 #include <atomic>
-#include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <span>
@@ -13,21 +13,14 @@
 #include "input_common/drivers/virtual_gamepad.h"
 #include "input_common/input_engine.h"
 #include "button_mapping.h"
-#include "pad_haptics.h"
+#include "pad_diagnostics.h"
+#include "ps5_guest_system_button_route.h"
 #include "ps5_pad.hpp"
 
 namespace Eden {
-class FileAmiibo;
 // The PS5 controllers as the "virtual_gamepad" input engine that Eden binds every guest
 // controller to (buttons, sticks, motion), plus DualSense rumble: Eden's controllers send each
 // player's vibration here (hid_core output params, headless/CMakeLists.txt), one device per side.
-// Whether Eden's handheld controller is the one in use this session: chosen for the game
-// (Game settings > Controls > Controller type) or given to a game that takes nothing else
-// (controller_applet.h). Only then does player 1's DualSense play it as well (pad.cpp). Eden
-// connects its handheld controller by itself as soon as a button reaches it, so fed all the time
-// it appeared beside the player's own controller at the first press, in every game.
-inline std::atomic<bool> handheld_in_use{false};
-
 class PadEngine final : public InputCommon::InputEngine {
 public:
     using VirtualButton = InputCommon::VirtualGamepad::VirtualButton;
@@ -35,6 +28,17 @@ public:
     explicit PadEngine(std::string name);
     void SetButtonState(std::size_t player, int button, bool value);
     void SetButtonState(std::size_t player, VirtualButton button, bool value);
+    // Diagnostic-only count of actual rising edges published to the virtual
+    // Switch Plus button. Does not imply the guest HID service consumed it.
+    unsigned long long PublishedPlusEdges() const noexcept {
+        return published_plus_edges.load(std::memory_order_relaxed);
+    }
+    unsigned long long PublishedHomeEdges() const noexcept {
+        return published_home_edges.load(std::memory_order_relaxed);
+    }
+    unsigned long long PublishedCaptureEdges() const noexcept {
+        return published_capture_edges.load(std::memory_order_relaxed);
+    }
     void SetStickPosition(std::size_t player, int axis, float x, float y);
     // Gyro in turns per second, acceleration in G (Eden's convention), delta in microseconds.
     void SetMotionState(std::size_t player, u64 delta_us, float gyro_x, float gyro_y, float gyro_z,
@@ -43,27 +47,26 @@ public:
     void ResetControllers();
     Common::Input::DriverResult SetVibration(const PadIdentifier& identifier,
                                              const Common::Input::VibrationStatus& vibration) override;
-    bool IsVibrationEnabled(const PadIdentifier& identifier) override {
-        const auto player = identifier.port == 8 ? 0 : identifier.port;
-        return player < kPlayers && (vibration_players.load() & (1u << player)) != 0;
-    }
-    void SetVibrationAvailable(std::size_t player, bool available) {
-        if (player >= kPlayers) return;
-        if (available) vibration_players.fetch_or(1u << player);
-        else vibration_players.fetch_and(~(1u << player));
-    }
-    // Per-player DualSense levels when changed: motor bytes plus the perceptual amplitudes
-    // (same curve) and HD frequencies the audio-haptics path plays.
+    bool IsVibrationEnabled(const PadIdentifier&) override { return true; }
+    // The DualSense motor levels for a player when they changed since the last call: large (low
+    // frequency) and small (high frequency), 0-255.
     struct Rumble {
         u8 large = 0;
         u8 small = 0;
-        float large_amplitude = 0.0f;
-        float small_amplitude = 0.0f;
-        float large_hz = 55.0f;
-        float small_hz = 190.0f;
     };
     bool TakeRumble(std::size_t player, Rumble& rumble);
 private:
+    // The virtual input engine takes a mutex and emits a callback on every
+    // SetButton/SetAxis call, including identical values. Polling physical
+    // DualSense samples ~250 times/s should only publish actual changes.
+    // The game poll and teardown/reset paths are serialized by main.cpp.
+    static constexpr int kTrackedButtons = 22; // virtual buttons 0..21 (right Joy-Con SR)
+    std::array<std::array<std::uint8_t, kTrackedButtons>, kPlayers> button_cache{};
+    std::atomic<unsigned long long> published_plus_edges{0};
+    std::atomic<unsigned long long> published_home_edges{0};
+    std::atomic<unsigned long long> published_capture_edges{0};
+    std::array<std::array<float, 4>, kPlayers> axis_cache{};
+    std::array<std::array<bool, 4>, kPlayers> axis_known{};
     PadIdentifier Identifier(std::size_t player) const;
     struct Sides {
         Common::Input::VibrationStatus left{};
@@ -71,8 +74,10 @@ private:
         bool changed = false;
     };
     std::mutex rumble_mutex;
-    std::atomic<unsigned> vibration_players{(1u << kPlayers) - 1};
     std::array<Sides, kPlayers> rumble{};
+    // Most 4 ms DualSense polls have no new rumble command. A cheap atomic
+    // check avoids contending with guest HID's rumble producer in that case.
+    std::array<std::atomic<bool>, kPlayers> rumble_pending{};
 };
 
 // DualSense controllers as guest Pro Controllers. Player 1 is the controller of the user who
@@ -88,27 +93,14 @@ public:
     bool Poll();
     bool TakeReturnToMenu() { return return_to_menu.exchange(false); }
     bool TakeHudToggle() { return hud_toggle.exchange(false); }
-    bool TakeQuickMenuToggle() { return quick_menu_toggle.exchange(false); }
-    unsigned TakeQuickMenuButtons() { return quick_menu_buttons.exchange(0); }
-    void SetQuickMenuOpen(bool open) { quick_menu_open = open; }
-    FileAmiibo& Amiibo() { return *amiibo; }
     // Players with a controller (bit per player), and those whose controller came or went.
     unsigned ConnectedPlayers() const { return connected_players.load(); }
     unsigned TakeConnectionChanges() { return connection_changes.exchange(0); }
     void Close();
-    // Which DualSense button presses each of the game's buttons (button_mapping.h), for every
-    // controller. Set before the first poll of a session.
-    void SetMapping(const ButtonMapping& value) { mapping = ValidMapping(value) ? value : kDefaultMapping; }
-    // How a player's controller is used: as usual, or in place of a single left or right Joy-Con.
-    // A single Joy-Con has one stick and one cluster of four buttons, and its game reads nothing
-    // else. Held upright, Consume makes the whole DualSense that Joy-Con: the shapes are its four
-    // buttons, the arrows and either stick its stick, both pairs of shoulder buttons its two.
-    // Held sideways (the game says so), the
-    // DualSense is still held as usual, and Consume also turns what it sends by a quarter
-    // (stick, button places, motion).
-    enum class Grip : u8 { usual, sideways_left, sideways_right, upright_left, upright_right };
-    void SetGrip(std::size_t player, Grip grip) {
-        if (player < kMaxPlayers) grips[player].store(grip);
+    // Global PlayStation UI map is set before opening the guest HID device.
+    void SetMapping(const ButtonMapping& value) {
+        if (slots[0].handle >= 0 || slots[0].stale) return;
+        mapping = ValidMapping(value) ? value : kDefaultMapping;
     }
     void Consume(std::span<const ps5::pad::Data> samples) { Consume(0, samples); }
     void Consume(std::size_t player, std::span<const ps5::pad::Data> samples);
@@ -117,52 +109,40 @@ private:
     struct Slot {
         int user = -1;
         int handle = -1;
-        // Present whenever the handle is.
-        std::unique_ptr<HapticStream> haptics;
-        HapticStream::Stats last_haptic_stats;
         u32 last_buttons = 0;
         u64 last_motion_us = 0;
-        // The touchpad as a game button (the guest's Minus unless mapped otherwise), see Consume.
+        // The touchpad as a guest button (Minus by default), see Consume.
         bool touch_chord = false;  // this press was part of a shortcut
-        bool quick_release = false; // close/open never leaks held menu buttons to the guest
-        bool select_held = false;  // a long press: its button stays down until the release
+        GuestSystemButtonRoute guest_home; // Touchpad+Options fallback; Sony PS reserved
+        bool select_held = false;  // a long press: its mapped button stays down until release
         unsigned touch_polls = 0;  // polls the touchpad has been down
-        unsigned select_pulse = 0; // polls left of a tap's press
-        unsigned touch_width = 0; // no coordinates: retain the configured touchpad mapping
-        bool touch_right = false; // latched when clicked, until the release pulse ends
-        unsigned errors_in_a_row = 0; // reads that failed since the last one that worked
-        unsigned polls_to_reopen = 0; // failed polls left before the handle is opened again
-        unsigned reopens = 0;         // since the last read that worked
-        // Its handle was closed to be opened again and did not open yet: no handle, but the
-        // player keeps the slot (and its user) and the opening is tried again.
-        bool stale = false;
+        unsigned select_pulse = 0; // polls left of a tap's mapped-button press
+        unsigned errors_in_a_row = 0;
+        unsigned reopens = 0;
+        unsigned polls_to_reopen = 0;
+        bool stale = false; // released handle, but the user still owns this player slot
     };
     void Rescan();
     void OpenSlot(std::size_t player, int user);
     void ReopenSlot(std::size_t player);
     void CloseSlot(std::size_t player);
     std::shared_ptr<PadEngine> engine;
-    std::shared_ptr<FileAmiibo> amiibo;
     float deadzone;
     float trigger_threshold;
     ButtonMapping mapping = kDefaultMapping;
+    const ButtonMapping& ActiveMapping() const noexcept { return mapping; }
     std::array<Slot, kMaxPlayers> slots{};
-    std::array<std::atomic<Grip>, kMaxPlayers> grips{};
     bool owns_user_service = false;
-    bool pro_usb_enabled = false;
-    bool pro_usb_active = false;
     std::atomic<bool> return_to_menu = false;
     std::atomic<bool> hud_toggle = false;
-    std::atomic<bool> quick_menu_toggle = false;
-    std::atomic<unsigned> quick_menu_buttons = 0;
-    bool quick_menu_open = false;
     std::atomic<unsigned> connected_players = 0;
     std::atomic<unsigned> connection_changes = 0;
     unsigned polls_since_scan = 0;
-    std::chrono::steady_clock::time_point last_poll{};
     u64 polls = 0, samples_read = 0, usable_samples = 0, intercepted_samples = 0, circle_samples = 0, read_errors = 0;
+    u64 options_edges = 0, create_edges = 0; // physical Sony edges, Detailed only
     u64 rumble_updates = 0, rumble_errors = 0;
     int rumble_last_error = 0;
+    PadEdgeDiagnostics face_edges{};
     int last_result = 0;
 };
 

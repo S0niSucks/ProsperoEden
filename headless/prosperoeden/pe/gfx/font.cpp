@@ -285,19 +285,6 @@ bool Font::can_draw(std::string_view text) const
     return true;
 }
 
-std::string Font::drawable(std::string_view text) const
-{
-    std::string kept;
-    for (std::size_t index = 0; index < text.size();)
-    {
-        const std::size_t start = index;
-        const char32_t c = next_codepoint(text, &index);
-        if (c == '\n' || invisible(c) || find(c) != nullptr || (dynamic_ && dynamic_->fonts.face_for(c) >= 0))
-            kept.append(text.substr(start, index - start));
-    }
-    return kept;
-}
-
 const ff::Glyph *Font::find(std::uint32_t codepoint) const
 {
     const auto it =
@@ -654,6 +641,7 @@ std::vector<std::string> Font::wrap(std::string_view text, float size, float max
     const auto split_word = [&](std::string_view word)
     {
         std::string part;
+        part.reserve(std::min(word.size(), std::size_t{128}));
         for (std::size_t index = 0; index < word.size();)
         {
             const std::size_t start = index;
@@ -665,12 +653,21 @@ std::vector<std::string> Font::wrap(std::string_view text, float size, float max
                 index = next;
             }
             const std::string_view character = word.substr(start, index - start);
-            if (!part.empty() && measure(part + std::string(character), size) > max_width)
+            if (!part.empty())
             {
-                lines.push_back(part);
-                part.clear();
+                // Append in-place, then roll back only if this cluster crosses
+                // the line boundary. Avoid a copied candidate per UTF-8 glyph.
+                const std::size_t previous = part.size();
+                part.append(character);
+                if (measure(part, size) > max_width)
+                {
+                    part.resize(previous);
+                    lines.push_back(part);
+                    part.assign(character);
+                }
             }
-            part.append(character);
+            else
+                part.append(character);
         }
         line = part;
     };
@@ -723,14 +720,15 @@ std::vector<std::string> Font::wrap(std::string_view text, float size, float max
             {
                 const std::string_view piece = pieces[p];
                 // A space before the word's first piece; the others follow without one.
-                const std::string candidate =
-                    line.empty() ? std::string(piece) : line + (p == 0 ? " " : "") + std::string(piece);
-                if (measure(candidate, size) <= max_width)
+                // The old candidate construction copied the current line
+                // on every word. Measure a tentative in-place append instead.
+                const std::size_t previous = line.size();
+                if (previous != 0 && p == 0)
+                    line.push_back(' ');
+                line.append(piece);
+                if (measure(line, size) > max_width)
                 {
-                    line = candidate;
-                }
-                else
-                {
+                    line.resize(previous);
                     if (!line.empty())
                         lines.push_back(line);
                     if (measure(piece, size) > max_width)
@@ -778,10 +776,15 @@ std::string Font::fit(std::string_view text, float size, float max_width, float 
                 break;
             index = next;
         }
-        const std::string candidate = result + std::string(text.substr(start, index - start));
-        if (measure(candidate, size, tracking) > room)
+        // Preserve UTF-8 cluster boundaries while reusing one prefix buffer.
+        // The former temporary candidate allocated/copied at every glyph.
+        const std::size_t previous_size = result.size();
+        result.append(text.substr(start, index - start));
+        if (measure(result, size, tracking) > room)
+        {
+            result.resize(previous_size);
             break;
-        result = candidate;
+        }
     }
     while (!result.empty() && result.back() == ' ')
         result.pop_back();

@@ -5,33 +5,17 @@
 #pragma once
 
 #include "pe/gfx/image.hpp"
-#include <memory>
+#include "button_mapping.h"
 
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
-#include <atomic>
-#include <optional>
-#include "../../../multiplayer.h"
-#include "../../../multiplayer_directory.h"
-#include "../../../nextendo_status.h"
-#include "../../../game_files.h"
-#include "../../../cheat_manager_status.h"
-#include "../../../usb_backup.h"
-#include "../../../amiibo_sync.h"
-#include "../../../network/shares.h"
-#include "../../../network/editor.h"
-#include "../../../network/keyboard_prompt.h"
-#include <memory>
 
 namespace pe::ui
 {
-using CheatDatabase = Eden::CheatManagerStatus;
-// Move-only, credential-free admission handle. Acquire on the caller BEFORE std::async;
-// pass ownership to one network operation. Its backend destructor releases the reservation.
-struct NetworkJob { virtual ~NetworkJob() = default; };
-using NetworkReservation = std::unique_ptr<NetworkJob>;
 
 // One pressed button (a first press, or a repeat of a held direction or shoulder button).
 enum class Key : std::uint8_t
@@ -47,45 +31,58 @@ enum class Key : std::uint8_t
     down,
     left,
     right,
+    l2, // Library jacket: zoom out
+    r2, // Library jacket: zoom in
 };
 
-// A newer release of the app, listed on homebrew.page.
-struct UpdateOffer
+// Button mapping shared with the runtime: guest button -> physical DualSense button.
+using ButtonMapping = Eden::ButtonMapping;
+inline constexpr int kGameButtons = Eden::kGameButtons;
+inline constexpr int kPadButtons = Eden::kPadButtons;
+inline constexpr ButtonMapping kDefaultMapping = Eden::kDefaultMapping;
+inline constexpr ButtonMapping kPlayStationMapping = Eden::kPlayStationMapping;
+inline constexpr ButtonMapping kSwitchMapping = Eden::kSwitchMapping;
+inline const ButtonMapping& base_mapping_for_layout(int layout) { return Eden::BaseMappingForLayout(layout); }
+inline bool mapping_is_custom(const ButtonMapping& mapping, int layout) { return Eden::MappingIsCustom(mapping, layout); }
+inline ButtonMapping assign_button(ButtonMapping mapping, int game, int pad) {
+    return Eden::Assign(mapping, game, pad);
+}
+inline constexpr const char* kGameButtonNames[kGameButtons] = {
+    "A", "B", "X", "Y", "L", "R", "ZL", "ZR", "+", "-", "Left stick", "Right stick"};
+inline constexpr const char* kPadButtonNames[kPadButtons] = {
+    "Cross", "Circle", "Square", "Triangle", "L1", "R1", "L2", "R2", "L3", "R3",
+    "Options", "Create", "Touchpad"};
+
+// Cached retail-case artwork. Each face is independent: a real back is never inferred
+// from a front icon or promotional screenshot. Empty means not available locally.
+struct BoxArt
 {
-    std::string version;      // its name: "v1.000.060"
-    std::uint64_t size = 0;   // its download in bytes; 0 when not known
-    bool installable = false; // the app can install it itself (otherwise it is only announced)
-    std::string notes;        // what the developer wrote on the release (plain text); may be empty
-    bool notes_truncated = false; // the catalog cut the notes; the rest is on the app's page
-};
-// Where installing it is.
-enum class UpdatePhase : std::uint8_t
-{
-    idle,
-    starting,
-    downloading,
-    unpacking,
-    ready,
-    applying,
-    cancelled,
-    failed,
-};
-struct UpdateStatus
-{
-    UpdatePhase phase = UpdatePhase::idle;
-    std::uint64_t done = 0;
-    std::uint64_t total = 0; // 0 while not known
-    std::string error;       // why it failed (English, technical)
+    std::string front;
+    std::string back;
+    std::string spine; // optional FLAT printed spine scan; shell stays native 3D
 };
 
 // A game file in the games folder.
 struct Game
 {
     std::string name;
-    std::string format; // "NSP", "XCI", "NSZ", "XCZ" or "NRO"
+    std::string format; // "NSP" or "XCI"
     std::string size;   // "1.2 GB"
     std::string file;   // its name in the games folder
-    std::string cover;  // image path; empty without cover art
+    std::string cover;  // square icon path; empty without cover art
+    std::string box_front; // original flat front, from async cached retail scans
+    std::string box_back;  // original flat back, never a pre-rendered 3D case
+    std::string hero;   // cached 16:9 Nlib banner; empty => use first screenshot/cover
+    std::vector<std::string> screenshots; // up to three cached Nlib gameplay screenshots
+    int max_players = 0; // Nlib maximum local players; 0 when unknown/offline
+    bool artwork_changed = false; // async refresh replaced one or more files
+    unsigned case_artwork_changed = 0; // bit 0 front, bit 1 back, bit 2 spine; only successful replacements
+    std::string intro;
+    std::string description;
+    std::string publisher;
+    std::string developer;
+    std::string release_date;
+    std::string categories;
     std::uint64_t title_id = 0;
     std::string addons;        // "Update 1.2.0, 2 DLC"; empty without either
     std::string addons_short;  // the same where there is little room: "v1.2.0, 2 DLC"
@@ -97,150 +94,9 @@ struct Game
     int mods = 0;
     int mods_on = 0;
     bool mods_enabled = true;
-    // The download sources that have the game (their names, in the order they are set up in): it
-    // can be downloaded from any of them, again once deleted. Empty for a game only on the console.
-    std::vector<std::string> sources;
-    // Which game it is on the sources (the same on all of them; Download::key); empty without.
-    std::string key;
-    // Not on the console yet: on its sources only. Its file is the name it gets in roms/.
-    bool remote = false;
-    bool network = false; // read-only, on-demand share; NOT a download source
-};
-
-// A download source: a place on the network with Switch games (headless/remote/remote.h).
-struct SourceInfo
-{
-    std::string name;
-    std::string address;
-    bool refreshing = false; // its game list is being read
-    bool online = false;     // the last look at it worked
-    std::string error;       // why the last look failed, or what is wrong with its entry (English)
-    int games = 0;
-};
-struct Sources
-{
-    bool configured = false; // sources.json names at least one source
-    std::string setup_file;  // where sources.json goes
-    std::string error;       // what is wrong with sources.json itself (English)
-    std::vector<SourceInfo> list;
-    // Changes when a source's games, their covers or the downloaded files changed: the Library
-    // reads its list again.
-    std::uint64_t generation = 0;
-    int ftp_port = 2121; // the console's FTP server, which writes the downloads; it has to run
-};
-
-// The sync of a game's save data with the profile's save store (save-sync.json): before the game
-// starts, and once the menu is back after it ended.
-enum class SaveSyncStage : std::uint8_t
-{
-    idle,
-    working,
-    conflict, // both changed since they were last the same: the player chooses (choose_save_data)
-    done,
-    failed,
-};
-enum class SaveSyncOutcome : std::uint8_t
-{
-    same,       // nothing to do
-    uploaded,   // the console's save data went to the server
-    downloaded, // the server's replaced the console's (the console's is in the backups)
-    kept,       // a conflict left as it is
-    no_game,    // the server does not have the game, so it cannot keep its save data
-};
-struct SaveSync
-{
-    SaveSyncStage stage = SaveSyncStage::idle;
-    bool before = true;      // before the game starts; false: after it ended
-    std::string game;        // its name
-    std::string profile;     // the profile's name
-    std::string server;      // where it syncs to: "alex on http://nas:3000"
-    SaveSyncOutcome outcome = SaveSyncOutcome::same; // done: what happened
-    std::string error;       // failed: why (English, technical)
-    // Failed because the server is older than the save sync takes (shown until the player confirms
-    // it): its version and the oldest one taken.
-    bool too_old = false;
-    std::string server_version;
-    std::string needed_version;
-    // A conflict: when each was last changed (seconds since 1970, 0: not known), and the device
-    // that changed the server's.
-    std::int64_t console_time = 0;
-    std::int64_t server_time = 0;
-    std::string server_device;
-};
-// What the player chose in a conflict.
-enum class SaveChoice : std::uint8_t
-{
-    console, // the console's goes to the server
-    server,  // the server's replaces the console's
-    neither, // both stay as they are
-};
-
-// Settings > Save sync: each profile and where it keeps its save data (save-sync.json).
-struct SaveSyncProfile
-{
-    std::string name;
-    bool current = false; // the one playing
-    bool linked = false;  // its entry names a server
-    std::string server;   // where: "player @ http://nas:3000" (who, when known)
-    std::string note;     // what is wrong with its entry (English); empty when nothing
-};
-struct SaveSyncSetup
-{
-    std::vector<SaveSyncProfile> profiles;
-    std::string error; // save-sync.json cannot be read (English): nothing syncs
-    bool automatic = true;
-    std::string file;  // where save-sync.json is, for editing it over FTP
-};
-// A server a profile can be paired with: a download source whose kind of server can pair.
-struct PairServer
-{
-    std::string name;
-    std::string address;
-};
-// A pairing: the code shown, approved on the server signed in as the profile's user.
-enum class PairingStage : std::uint8_t
-{
-    idle,
-    asking,  // the server is asked for a code
-    waiting, // the code shows: approve it on the server
-    done,    // approved: the profile syncs with that user
-    failed,  // see error; denied and expired say so
-};
-struct PairingStatus
-{
-    PairingStage stage = PairingStage::idle;
-    std::string profile;  // its name
-    std::string server;   // the server's name
-    std::string code;     // to tell the request on the server's page
-    std::string address;  // the page that approves it, the code in it (the QR code)
-    int seconds_left = 0; // until the code expires
-    std::string user;     // done: who it signed in as
-    bool denied = false;  // failed: the player said no on the server
-    bool expired = false; // failed: nobody approved it in time
-    std::string error;    // failed otherwise (English)
-};
-
-// A game in the download queue.
-enum class DownloadState : std::uint8_t
-{
-    queued,
-    downloading,
-    verifying, // one that goes on from where it was: what its files have is read first, for the check
-               // of their contents (done goes up to where it goes on)
-    failed,
-};
-struct Download
-{
-    std::string key;     // which game it is (Game::key)
-    std::string file;    // its file in roms/ once downloaded (from this source)
-    std::string name;
-    std::string source;  // the name of the source it comes from
-    std::string cover;
-    DownloadState state = DownloadState::queued;
-    std::uint64_t done = 0;
-    std::uint64_t total = 0; // 0 when not known
-    std::uint64_t rate = 0;  // bytes a second while it downloads; 0 when not known yet
-    std::string error;       // why it failed (English, technical)
+    bool docked = true; // effective mode precomputed on library worker; no settings I/O on D-pad
+    // Nlib artwork is complete per title (icon, banner, all advertised screens).
+    // No title-specific source or performance override is attached to Game.
 };
 
 struct Recent
@@ -248,6 +104,14 @@ struct Recent
     std::string file;
     std::string title;
     std::string cover;
+    std::string hero; // cached Nlib banner; empty => screenshot/cover fallback
+    std::string screenshot; // first cached Nlib screenshot
+    int max_players = 0; // Nlib maximum local players; 0 when unknown/offline
+    std::string intro;
+    std::string description; // detailed, title-keyed Nlib text for the Hero
+    std::uint64_t title_id = 0;
+    std::string addons;
+    std::string language;
 };
 
 // The home screen's content.
@@ -262,6 +126,11 @@ struct Home
     std::string last_caption;
     bool last_caption_warning = false; // the caption says what is wrong with the game
     std::string last_cover;
+    std::string last_hero; // cached Nlib banner; empty => last_screenshot/last_cover
+    std::string last_screenshot;
+    int last_max_players = 0; // Nlib maximum local players; 0 when unknown/offline
+    std::string last_intro;
+    std::string last_description;
     // What the last game comes with, when it can be started: its title ID, its update and DLC
     // (as Game::addons) and the language it will use. Its mods are counted by the launcher.
     std::uint64_t last_title_id = 0;
@@ -269,201 +138,63 @@ struct Home
     std::string last_language;
     int last_mods = 0;
     int last_mods_on = 0;
-    std::vector<Recent> recents; // at most eight
+    std::vector<Recent> recents; // at most seven
     std::string system_status;
-    bool homebrew_ready = false; // storage is accessible; unencrypted NROs need no keys/firmware
 };
-
-inline bool ready_for_game(const Home& home, const std::string& file)
-{
-    return home.setup_ready || (home.homebrew_ready && Eden::IsHomebrewFile(file));
-}
-
-// Button mapping: which DualSense button presses each of the game's buttons, on every controller.
-// The game's buttons: A B X Y L R ZL ZR + - and the two stick presses; the DualSense buttons:
-// Cross Circle Square Triangle L1 R1 L2 R2 L3 R3 Options Create Touchpad. A mapping never names
-// a DualSense button twice (headless/button_mapping.h).
-constexpr int kGameButtons = 12;
-constexpr int kPadButtons = 13;
-using ButtonMapping = std::array<int, kGameButtons>;
-constexpr ButtonMapping kDefaultMapping = {1, 0, 3, 2, 4, 5, 6, 7, 10, 12, 8, 9};
-// The game button takes the DualSense button; the one that had it gets this one's old one.
-inline ButtonMapping assign_button(ButtonMapping mapping, int game, int pad)
-{
-    for (int other = 0; other < kGameButtons; ++other)
-        if (other != game && mapping[static_cast<std::size_t>(other)] == pad)
-            mapping[static_cast<std::size_t>(other)] = mapping[static_cast<std::size_t>(game)];
-    mapping[static_cast<std::size_t>(game)] = pad;
-    return mapping;
-}
-
-// The launcher's own menu buttons (Settings > Controls > Menu keybinds): which face button presses
-// each core menu action. Only the four face buttons take part, each once; the D-pad, the shoulders
-// and Options stay fixed (headless/button_mapping.h). The action order is select, back, secondary,
-// game settings, matching Key's first four (cross, circle, square, triangle).
-constexpr int kMenuActions = 4;
-using MenuBinding = std::array<int, kMenuActions>; // menu action -> face button (Cross 0 Triangle 3)
-constexpr MenuBinding kDefaultMenuBinding = {0, 1, 2, 3};
-// The menu action a pressed face button means under this binding; the buttons that are not part of
-// it pass through unchanged.
-inline Key menu_key_for(Key pressed, const MenuBinding &binding)
-{
-    const int physical = static_cast<int>(pressed);
-    if (physical < 0 || physical >= kMenuActions)
-        return pressed;
-    for (int action = 0; action < kMenuActions; ++action)
-        if (binding[static_cast<std::size_t>(action)] == physical)
-            return static_cast<Key>(action);
-    return pressed;
-}
-// An action takes the face button; the action that had it gets this one's old one.
-inline MenuBinding assign_menu(MenuBinding binding, int action, int pad)
-{
-    if (action < 0 || action >= kMenuActions || pad < 0 || pad >= kMenuActions) return binding;
-    for (int other = 0; other < kMenuActions; ++other)
-        if (other != action && binding[static_cast<std::size_t>(other)] == pad)
-            binding[static_cast<std::size_t>(other)] = binding[static_cast<std::size_t>(action)];
-    binding[static_cast<std::size_t>(action)] = pad;
-    return binding;
-}
-
-// One of the people who play on this console.
-struct Profile
-{
-    std::string name;
-    bool playing = false; // games start as this one
-};
-
-// The overlay's chip corners, in the order Preferences::hud_corner counts them (settings_store.h
-// persists the same four by key). Shared by Settings > Video and a game's own Video settings.
-inline constexpr const char *kHudCornerNames[] = {"Top left", "Top right", "Bottom left", "Bottom right"};
-// The overlay's chip sizes, in the order Preferences::hud_size counts them (settings_store.h
-// persists the same three by key): regular is 1x, medium one and a half, large twice over.
-inline constexpr const char *kHudSizeNames[] = {"Regular", "Medium", "Large"};
-
-// Settings > Performance > Speed limit, as percentages of the console a game was made for; 0 is no
-// limit. The same steps as settings_store.h's kSpeedLimitKeys (eden_services.cpp checks).
-inline constexpr int kSpeedLimitPercents[] = {100, 150, 200, 300, 0};
 
 struct Preferences
 {
-    bool hud = true;
+    bool hud = false;
     int volume = 100; // game volume, 0-100
     bool mute = false;
     bool detailed_logging = false;
-    bool immediate_logs = false; // every log line written as it comes; from the next start
     int renderer = 1; // 0 OpenGL, 1 Vulkan
-    int resolution = 2;
+    int resolution = 4; // Recommended: 1.25x
     int filter = 0;
-    int astc = 0; // ASTC textures: 0 kept compressed, 1 full quality (four times the memory)
+    int fsr_sharpness = 50;
+    int anti_aliasing = 1; // 0 none, 1 FXAA, 2 SMAA
     int refresh = 0; // the output while a game runs: 0 60 Hz, 1 120 Hz
-    int output = 0;  // the size of the picture, menu and games: 0 1080p, 1 1440p, 2 2160p
-    // Lossless Scaling frame generation (Vulkan only): between a game's own frames, show
-    // frames generated from them, up to the output's rate.
-    bool frame_gen = false;
-    int frame_gen_method = 0;      // 0 Lossless Scaling, 1 MihawkGen
-    int frame_gen_target = 0;      // index into kFrameGenTargetKeys: 0 auto, then 60/90/120/144/240
-    int frame_gen_multiplier = 0;  // index into kFrameGenMultiplierKeys: 2x, 3x, 4x
-    int post_processing = 0;       // index into Services::post_processing_labels: 0 off, then a preset
+    int output = 1;  // Recommended: 1440p
+    int performance_profile = 1; // 0 Minimum, 1 Recommended, 2 High, 3 Ultra, 4 Custom
+    int controller_layout = 0; // 0 PlayStation, 1 Switch; custom status derives from mapping
+    ButtonMapping mapping = kPlayStationMapping;
     bool vibration = true;
-    int vibration_strength = 100; // percent of what a game asks for: 25, 50, 75 or 100
+    int vibration_strength = 100;
+    int stick_deadzone = 8;
     int language = 0;
     int menu_volume = 70; // launcher sounds, 0-100
-    std::string theme = "canopy"; // the launcher's look (theme.hpp); one this build lacks reads as the first
-    std::string accent;           // Settings > Colour: one of the theme's accent presets ("": its own colours)
-    std::string library_view = "grid"; // builtin Library presentation; Lua packs may also read it
     // Accessibility: how the launcher itself is shown (theme.hpp, Look).
     bool large_text = false;
     bool high_contrast = false;
     bool reduce_motion = false;
-    // Performance: speed against accuracy, for every game.
-    bool block_list = false;    // compile the code of earlier sessions ahead
-    bool async_shaders = false; // draw before a new shader is ready
-    bool fast_gpu = false;      // the emulator's lowest GPU accuracy
-    bool unsafe_cpu = false;    // inexact floating-point shortcuts
-    bool unsafe_dma = false;    // unsafe DMA accuracy
-    bool reactive_flushing = true;  // off is faster; some effects break
-    bool skip_invalidation = false; // fewer invalidations of what the GPU caches hold
-    bool compact_memory = false;    // the game's memory given back 16 KiB at a time where it is empty
-    // How much memory a game's console is told it has (settings_store.h's kMemoryLayoutKeys): an
-    // index into them, and the memory a mod that keeps a heap of its own asks the kernel for.
-    int memory_layout = 0;
-    // How fast a game may run: an index into kSpeedLimitPercents (0 is 100%, the console's own pace).
-    int speed_limit = 0;
-    ButtonMapping mapping = kDefaultMapping; // Settings > Controls > Button mapping
-    // Settings > Video: the overlay's chip (the same values Eden::Preferences keeps).
-    int hud_size = 0;   // 0 regular, 1 medium, 2 large
-    int hud_corner = 0; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
-    bool hud_colors = true;  // the line in its inks rather than one
-    // What the overlay's line may say, bit by bit (hud.h's kHudField*): the pieces the user has
-    // chosen to show. All of them by default, the game's own resolution (bit 9) with the rest.
-    int hud_fields = 0x2ff;
-    // Which face button presses each core menu action (Settings > Controls > Menu keybinds).
-    MenuBinding menu_bind = kDefaultMenuBinding;
-    // Settings > Appearance > Wallpaper: the image file's name in the wallpapers folder ("" when
-    // the theme's own art shows).
-    std::string wallpaper;
-    // Settings > Diagnostics: the dialog (or notification) at the start when homebrew.page lists a
-    // newer release. Off, the check still runs and About names the newer version.
-    bool update_notices = true;
+    int ui_theme = 0; // 0 Encore (legacy default), 1 Switch, 2 Collection
+    int ui_palette = 0; // Original, Midnight, Canopy, Slate, Ember
+    int library_layout = 0; // Collection: 0 grid, 1 list
 };
 
-// What one game does differently from Settings (Library > Game settings). Each value is -1 while
-// the game follows Settings; switches are 0 off, 1 on.
+// One game's overrides; -1 uses Settings > Video.
 struct GameSettings
 {
-    int renderer = -1;   // 0 OpenGL, 1 Vulkan
-    int resolution = -1; // index into Services::resolution_labels
-    int filter = -1;     // index into Services::filter_labels
-    int astc = -1;       // index into Services::astc_labels
-    int refresh = -1;    // 0 60 Hz, 1 120 Hz
-    int hud = -1;        // FPS overlay
-    int hud_size = -1;   // the overlay's chip: 0 regular, 1 large
-    int hud_corner = -1; // 0 top left, 1 top right, 2 bottom left, 3 bottom right
-    int frame_gen = -1;  // Lossless Scaling frame generation (Vulkan only)
-    int frame_gen_method = -1;      // 0 Lossless Scaling, 1 MihawkGen
-    int frame_gen_target = -1;      // index into kFrameGenTargetKeys
-    int frame_gen_multiplier = -1;  // index into kFrameGenMultiplierKeys
-    int post_processing = -1;       // index into Services::post_processing_labels (0 off)
-    int volume = -1;     // game volume, 0-100
-    int mute = -1;
-    int vibration = -1;
-    int language = -1;   // index into Services::language_labels
-    int controller = -1; // 0 Pro Controller, 1 handheld, 2 two Joy-Cons, 3 left Joy-Con, 4 right Joy-Con
-    bool own_mapping = false; // the game has a button mapping of its own
-    ButtonMapping mapping = kDefaultMapping;
-    // The Performance switches, in the order of Preferences: block list, async shaders, fast GPU,
-    // unsafe CPU, unsafe DMA, reactive flushing, skip invalidation, compact memory.
-    std::array<int, 8> performance{-1, -1, -1, -1, -1, -1, -1, -1};
-    int64_t rng_seed = -1;
-    int speed_limit = -1; // index into kSpeedLimitPercents
+    int console_mode = -1; // -1 follows authored profile/default, 0 Handheld, 1 Docked
+    int renderer = -1;
+    int output = -1;
+    int resolution = -1;
+    int filter = -1;
+    int fsr_sharpness = -1;
+    int anti_aliasing = -1;
+    int refresh = -1;
+    int performance_profile = -1;
+    int controller_layout = -1; // -1 follows global, 0 PlayStation, 1 Switch
+    bool own_mapping = false;
+    ButtonMapping mapping = kPlayStationMapping;
 };
 
-// One cheat of a mod that lists several: each is chosen on its own.
-struct Cheat
-{
-    std::string name;     // as its file names it
-    bool enabled = false; // chosen: runs when its mod is on
-};
-
-// A mod of one game, from its mods folder.
+// A mod of one game, from the game files folder's mods/<title ID>/.
 struct Mod
 {
     std::string name;    // its folder's name
     std::string kind;    // what it is made of: "Patch", "Files", "Cheats"
     bool enabled = true; // used when the game starts
-    std::vector<Cheat> cheats; // its cheats when it lists several; empty for a single one
-    // Cheats and nothing else: the Cheats list has it (Services::cheats), not the Mods list.
-    bool cheats_only = false;
-};
-
-// One cheat of a game as the Cheats list has it, whichever file it came from: a mod's cheats
-// folder, a loose cheat file, or the game's cheats folder.
-struct GameCheat
-{
-    std::string mod;      // the mod it comes from, as Services::set_cheat_enabled names it
-    std::string name;     // shown
-    bool enabled = false; // runs when the game starts (with the game's Cheats switch on)
 };
 
 // Where a save to import was found, in the game files folder.
@@ -482,6 +213,24 @@ struct FolderInfo
     int games = -1;
 };
 
+enum class StorageLocation : std::uint8_t { files, games, wallpapers };
+
+struct DiagnosticsInfo
+{
+    std::string filesystem;
+    std::string free_space;
+    std::string used_space;
+    std::string total_space;
+    std::string shader_caches;
+    std::string logs;
+    std::string data_path;
+    std::string storage_root; // actual selected Encore root; not a claim about physical SSD capacity
+    std::uint64_t free_bytes = 0;
+    std::uint64_t total_bytes = 0;
+    std::uint64_t shader_cache_bytes = 0;
+    std::string host_firmware; // observed host state, never inferred from guest NCAs
+};
+
 class Services
 {
   public:
@@ -489,85 +238,60 @@ class Services
 
     // ---- home ----
     virtual Home home() = 0;
+    // A native recent-game metadata walk can be long; prevent teardown
+    // from waiting for entries that have not yet been inspected.
+    virtual Home home(const std::atomic<bool>* cancel) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return {};
+        return home();
+    }
     virtual std::string clock() = 0;   // "14:05"
+    // Optional read-only image for the console's foreground user.
+    // Never queries an online account and never creates/modifies profile data.
+    // Native provider may return an absolute path; host previews use the fallback.
+    virtual std::string profile_avatar() { return {}; }
     // The players (bit 0 is player 1) whose controller is connected right now.
     virtual unsigned controllers()
     {
         return 1u;
     }
-    // A short vibration of the controller at `percent` of full strength: what the strength
-    // being set in Settings > Controls feels like.
-    virtual void vibration_pulse(int percent)
-    {
-        (void)percent;
-    }
-    virtual std::string version() = 0; // "v1.000.040"
-    // A newer release than this one is listed (asked once per launch): handed over once, when the
-    // answer has come.
-    virtual bool take_update(UpdateOffer *)
-    {
-        return false;
-    }
-    // Installing it (the offer must be installable): begin downloading and unpacking it beside the
-    // app (false: it could not begin), where that is, stop it (nothing is changed before
-    // apply_update), and once it is ready the go-ahead (true: the app must close now; its files
-    // are replaced once it has). finish_update after a cancel or a failure.
-    virtual bool start_update()
-    {
-        return false;
-    }
-    virtual UpdateStatus update_status()
-    {
-        return {};
-    }
-    virtual void cancel_update()
-    {
-    }
-    virtual bool apply_update()
-    {
-        return false;
-    }
-    virtual void finish_update()
-    {
-    }
+    virtual std::string version() = 0; // compiler's RNNN (not package R1)
 
     // ---- library ----
-    virtual Eden::Network::Status network_shares() { return {}; }
-    virtual void reconnect_network_shares() {}
-    virtual void disconnect_network_shares() {}
-    virtual NetworkReservation reserve_network_job() { return {}; }
-    virtual bool network_job_busy() { return false; }
-    // Built-in native editor only. No runtime/Lua binding, raw configuration or keyboard text.
-    virtual Eden::Network::EditorResult network_editor_open() { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorView network_editor_view() { return {}; }
-    virtual Eden::Network::EditorResult network_editor_begin(const std::string&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_begin_named(const std::string&, std::string) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_change(Eden::Network::Field) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_password(Eden::Network::PasswordChoice) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_enter(Eden::Network::Field, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_save(bool, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_remove(const std::string&, const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_editor_connection(bool) { return Eden::Network::EditorResult::blocked; }
-    // Worker-only operations: consume the reservation acquired by the UI. No translator/callback
-    // into a mutable catalog, raw configuration or keyboard answer crosses this interface.
-    virtual Eden::Network::EditorResult network_enter_reserved(NetworkReservation, Eden::Network::Field,
-        const std::atomic<bool>&, Eden::Network::KeyboardPrompts) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_save_reserved(NetworkReservation, bool,
-        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_remove_reserved(NetworkReservation, const std::string&,
-        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual Eden::Network::EditorResult network_connection_reserved(NetworkReservation, bool,
-        const std::atomic<bool>&) { return Eden::Network::EditorResult::blocked; }
-    virtual void network_editor_cancel() {}
     virtual std::vector<Game> games() = 0; // reads every game file: slow
+    // Optional cooperative cancellation of native metadata enumeration when a
+    // game launches. Other providers keep the original API and behavior.
+    virtual std::vector<Game> games(const std::atomic<bool>* cancel) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return {};
+        return games();
+    }
+    // Enrich one already-scanned game lazily (Nlib on native builds). The default is a no-op so
+    // host/preview services stay deterministic and offline.
+    virtual Game enrich_game_media(Game game) { return game; }
+    // Cancel Nlib work that has not started by the time a title launches;
+    // in-flight HTTPS requests still complete naturally before teardown.
+    virtual Game enrich_game_media(Game game, const std::atomic<bool>* cancel) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return game;
+        return enrich_game_media(std::move(game));
+    }
+    // Resolve locally cached, user-supplied retail-case artwork by title ID.
+    // Never requests an API or blocks gameplay startup on a network call.
+    virtual BoxArt box_art(std::uint64_t) { return {}; }
     // The value the launcher hands back to start a game.
     virtual std::string game_path(const std::string &file) = 0;
-    // Whether a game's file is still in the game files folder (one look at the file, no reading).
-    virtual bool game_exists(const std::string &)
-    {
-        return true;
-    }
+    // Cheap presence check used while the launcher is open.
+    virtual bool game_exists(const std::string &) { return true; }
+    // Keep cached titles when the ROM storage root itself is unavailable.
+    virtual bool game_storage_available() { return true; }
+    // Arms a one-shot conservative launch profile. Native builds override this; host/preview
+    // services may safely leave it as a no-op.
+    virtual void arm_safe_launch() {}
     virtual bool docked(std::uint64_t title_id) = 0;
+    // Called only by the asynchronous catalog worker. Its preference snapshot
+    // is read ONCE for the library, not once per highlighted/installed game.
+    // Host previews that do not override this retain their existing behavior.
+    virtual bool docked_for_scan(std::uint64_t title_id, const Preferences&) {
+        return docked(title_id);
+    }
     virtual bool set_docked(std::uint64_t title_id, bool docked) = 0;
     virtual GameSettings game_settings(std::uint64_t title_id) = 0;
     virtual bool set_game_settings(std::uint64_t title_id, const GameSettings &settings) = 0;
@@ -578,46 +302,22 @@ class Services
     virtual const std::vector<std::string> &resolution_labels() = 0; // "1x (native)"
     virtual const std::vector<std::string> &resolution_keys() = 0;   // "1x"
     virtual const std::vector<std::string> &filter_labels() = 0;
-    virtual const std::vector<std::string> &astc_labels() = 0; // "Compressed", "Full quality"
-    // Post-processing: "Off", then the presets the console has (Eden's bundled ones and the .fxp
-    // files in post_presets), by name. Read again each time the settings are read.
-    virtual const std::vector<std::string> &post_processing_labels()
-    {
-        static const std::vector<std::string> off{"Off"};
-        return off;
-    }
-    // How many of those the general settings offer: "Off" and the shared presets. A game's own
-    // presets (its game folder's reshade/) come after them, in its settings only.
-    virtual int post_processing_shared()
-    {
-        return static_cast<int>(post_processing_labels().size());
-    }
-    // Frame generation: 0 this build has none (its settings are not shown), 1 the user's
-    // Lossless.dll is missing (they are shown greyed out), 2 ready.
-    virtual int frame_gen_state()
-    {
-        return 0;
-    }
-    // MihawkGen neural frame generation: 0 not compiled, 1 weights missing, 2 ready.
-    virtual int mihawkgen_state()
-    {
-        return 0;
-    }
+    virtual const std::vector<std::string> &anti_aliasing_labels() = 0;
+    virtual const std::vector<std::string> &performance_profile_labels() = 0;
     virtual const std::vector<std::string> &language_labels() = 0;
     virtual std::string language_region(int language) = 0;
     virtual std::string setup_details() = 0;
-    virtual std::string crash_reports_folder() { return {}; }
-
-    // ---- wallpaper: an image behind the launcher's screens (Settings > Appearance) ----
-    // The image file names in the wallpapers folder, sorted; and the folder itself (empty when
-    // this build has no folder to put wallpapers in).
-    virtual std::vector<std::string> wallpapers()
-    {
-        return {};
+    virtual DiagnosticsInfo diagnostics() { return {}; }
+    // Optional cooperative cancellation for lengthy native cache/log walks.
+    // Host/preview implementations retain their original behavior.
+    virtual DiagnosticsInfo diagnostics(const std::atomic<bool>* cancel) {
+        if (cancel && cancel->load(std::memory_order_acquire)) return {};
+        return diagnostics();
     }
-    virtual std::string wallpapers_folder()
+    virtual bool clear_shader_caches(std::string *message)
     {
-        return {};
+        if (message) *message = "Unavailable";
+        return false;
     }
 
     // ---- game files ----
@@ -628,57 +328,47 @@ class Services
     virtual std::string saved_files_folder() = 0; // used from the next start; empty when none
     virtual std::string default_files_folder() = 0;
     virtual bool set_files_folder(const std::string &directory) = 0;
-    // Where roms/ and updates/ are: the game files folder unless the settings file keeps the
-    // games apart ("games_folder").
-    virtual std::string games_folder() { return files_folder(); }
-    virtual std::string saved_games_folder() { return {}; }
-    // Empty restores following Game files, without moving or deleting any files.
-    virtual bool set_games_folder(const std::string&) { return false; }
     virtual int filesystem_access() = 0; // 0: the whole filesystem
-
-    // One protected Settings session. Beginning pauses and joins app storage jobs; closing
-    // resumes them unless a cold-start restore is pending. Slow work never runs on the UI thread.
-    virtual bool begin_usb_backup() { return false; }
-    virtual Eden::UsbBackup::Status usb_backup_status() { return {}; }
-    // inspect, list, inspect_restore, backup or restore; paths must come from the current offers.
-    virtual bool usb_backup_action(const std::string&, const std::string&) { return false; }
-    virtual void cancel_usb_backup() {}
-    virtual void end_usb_backup() {}
+    virtual bool independent_storage_available() { return false; }
+    // Independent browser: bounded cooperative discovery, never legacy folders().
+    virtual bool content_entries(const std::string&, std::vector<std::string>* folders,
+                                 std::vector<std::string>* images, const std::atomic<bool>*) {
+        if (folders) folders->clear();
+        if (images) images->clear();
+        return false;
+    }
+    virtual std::string location_folder(StorageLocation kind) {
+        return files_folder() + (kind == StorageLocation::games ? "/roms" :
+                                 kind == StorageLocation::wallpapers ? "/wallpapers" : "");
+    }
+    virtual std::string saved_location_folder(StorageLocation kind) {
+        return kind == StorageLocation::files ? saved_files_folder() : std::string{};
+    }
+    virtual std::string default_location_folder(StorageLocation kind) {
+        return kind == StorageLocation::files ? default_files_folder() :
+               files_folder() + (kind == StorageLocation::games ? "/roms" : "/wallpapers");
+    }
+    virtual bool set_location_folder(StorageLocation kind, const std::string& directory) {
+        return kind == StorageLocation::files && set_files_folder(directory);
+    }
+    virtual bool set_location_folder(StorageLocation kind, const std::string& directory,
+                                     const std::atomic<bool>* cancel) {
+        return !(cancel && cancel->load(std::memory_order_acquire)) && set_location_folder(kind, directory);
+    }
+    virtual std::vector<std::string> wallpaper_files(const std::string&) { return {}; }
+    virtual std::vector<std::string> wallpaper_files(const std::string& directory,
+                                                     const std::atomic<bool>* cancel) {
+        return cancel && cancel->load(std::memory_order_acquire) ? std::vector<std::string>{} : wallpaper_files(directory);
+    }
+    virtual bool set_wallpaper(const std::string&, const std::string&) { return false; }
+    virtual bool set_wallpaper(const std::string& directory, const std::string& name,
+                               const std::atomic<bool>* cancel) {
+        return !(cancel && cancel->load(std::memory_order_acquire)) && set_wallpaper(directory, name);
+    }
+    // A provider-owned cache request, not arbitrary filesystem authority.
+    virtual std::string wallpaper_image() { return {}; }
 
     // ---- save transfer: a game's save in from, or out to, a folder (not in every build) ----
-    // ---- profiles: who is playing ----
-    // Each profile keeps its own save data and its own recently played games. Empty: this build
-    // has none to choose from.
-    virtual std::vector<Profile> profiles()
-    {
-        return {};
-    }
-    // The profile games start with from now on.
-    virtual std::string profile_key(int index) {
-        const auto list=profiles();
-        return index>=0 && index<static_cast<int>(list.size()) ? std::to_string(index)+":"+list[index].name : std::string{};
-    }
-    virtual bool choose_profile(int)
-    {
-        return false;
-    }
-    // A new profile, named by itself; its place in the list, or -1 (eight is the most).
-    virtual int add_profile()
-    {
-        return -1;
-    }
-    // The next (step 1) or the one before (step -1) of the names a profile can take: the PS5
-    // users signed in, then "Player 1" to "Player 8".
-    virtual bool rename_profile(int, int)
-    {
-        return false;
-    }
-    // Takes a profile off the list; its save data stays on the console. Not the one playing.
-    virtual bool remove_profile(int)
-    {
-        return false;
-    }
-
     virtual bool save_transfer_available()
     {
         return false;
@@ -698,7 +388,7 @@ class Services
         return false;
     }
 
-    // ---- mods and cheats: patches, replacement files and cheats the player added for a game ----
+    // ---- mods: patches, replacement files and cheats the player added for a game ----
     virtual std::vector<Mod> mods(std::uint64_t)
     {
         return {};
@@ -707,46 +397,12 @@ class Services
     {
         return false;
     }
-    // One cheat of a mod (GameCheat::mod and GameCheat::name). Choosing one of a group (two frame
-    // rates) takes the other out: the list is read again afterwards. A mod of one cheat alone is
-    // switched as a whole.
-    virtual bool set_cheat_enabled(std::uint64_t, const std::string &, const std::string &, bool)
+    // Explicit composite intent: enable this mod and the master switch in one publication.
+    // Unsupported providers must refuse, never fall back to two independent writes.
+    virtual bool enable_mod_and_mods(std::uint64_t, const std::string &)
     {
         return false;
     }
-    // Every cheat of a game, for its Cheats list. By default: those of mods() that list several.
-    virtual std::vector<GameCheat> cheats(std::uint64_t title_id)
-    {
-        std::vector<GameCheat> result;
-        for (const Mod &mod : mods(title_id))
-            for (const Cheat &cheat : mod.cheats)
-                result.push_back({mod.name, cheat.name, cheat.enabled});
-        return result;
-    }
-    // One switch for all of a game's cheats, apart from the Mods switch, on unless turned off.
-    // The cheats keep their own switches behind it.
-    virtual bool cheats_enabled(std::uint64_t)
-    {
-        return true;
-    }
-    virtual bool set_cheats_enabled(std::uint64_t, bool)
-    {
-        return false;
-    }
-    // Where a game's cheat files go, as the player would write it.
-    virtual std::string cheats_folder(std::uint64_t)
-    {
-        return {};
-    }
-    // Explicit opt-in catalog checks and a separate default-OFF installation. Empty/false
-    // defaults keep older preview/services implementations safely inert.
-    virtual CheatDatabase cheat_database() { return {}; }
-    virtual bool check_cheat_database(const Game&, bool /*offline*/) { return false; }
-    virtual bool install_cheat_database(const Game&) { return false; }
-    virtual void cancel_cheat_database() {}
-    virtual Eden::AmiiboSyncStatus amiibo_sync() { return {}; }
-    virtual bool start_amiibo_sync(const std::vector<std::string>&, bool /*offline*/, bool /*confirmed*/) { return false; }
-    virtual void cancel_amiibo_sync() {}
     // One switch for all of a game's mods (the Library's Mods switch), on unless turned off. The
     // mods keep their own switches behind it.
     virtual bool mods_enabled(std::uint64_t)
@@ -757,7 +413,7 @@ class Services
     {
         return false;
     }
-    // Where a game's mods go, as the player would write it: "roms/<game>/mods/".
+    // Where a game's mods go, as the player would write it: "mods/0100.../".
     virtual std::string mods_folder(std::uint64_t)
     {
         return {};
@@ -767,141 +423,6 @@ class Services
     {
         return false;
     }
-
-    // ---- download sources: games on the network, downloaded to the games folder when wanted ----
-    virtual Sources sources()
-    {
-        return {};
-    }
-    // Reads every source's game list again.
-    virtual void refresh_sources()
-    {
-    }
-    // Puts a game in the download queue, from one of its sources (an index into Game::sources):
-    // first (to play it as soon as it is there) or last; a failed one is tried again. False when
-    // the source no longer has it.
-    virtual bool download(const Game &, int, bool)
-    {
-        return false;
-    }
-    // Takes a game (Game::key) out of the queue and deletes what it had downloaded.
-    virtual bool cancel_download(const std::string &)
-    {
-        return false;
-    }
-    // The queue, in order.
-    virtual std::vector<Download> downloads()
-    {
-        return {};
-    }
-    // Deletes a game that a source has from the console (Game::sources): its file and all of its
-    // updates and DLC in updates/. Its save data and settings stay. Says what was done in message.
-    virtual bool delete_game(const Game &, std::string *)
-    {
-        return false;
-    }
-
-    // ---- save sync: a game's save data in step with the profile's save store ----
-    // Whether the profile playing syncs the game's save data before it starts and after it ended.
-    virtual bool save_sync_wanted(const std::string &)
-    {
-        return false;
-    }
-    // Syncs a game's save data (its file in roms/), on a thread of its own; save_sync() tells how
-    // it goes. before: the game is about to start (else: it ended, the menu is back).
-    virtual void start_save_sync(const std::string &, bool)
-    {
-    }
-    virtual SaveSync save_sync()
-    {
-        return {};
-    }
-    // The player's choice in a conflict.
-    virtual void choose_save_data(SaveChoice)
-    {
-    }
-    // What the last sync came to was shown: save_sync() is idle again.
-    virtual void end_save_sync()
-    {
-    }
-    // The player does not wait for the sync before a game: it stops, changing nothing more.
-    virtual void stop_save_sync()
-    {
-    }
-    // A game starts: once the menu is back, its save data is synced after it (start_save_sync,
-    // not before), and on later starts until that worked.
-    virtual void will_play(const std::string &)
-    {
-    }
-
-    // ---- Settings > Save sync: profiles linked with a server ----
-    virtual SaveSyncSetup save_sync_setup()
-    {
-        return {};
-    }
-    // The servers a profile can be paired with, in the order of sources.json.
-    virtual std::vector<PairServer> pair_servers()
-    {
-        return {};
-    }
-    // Pairs a profile (an index into save_sync_setup().profiles) with a server (into
-    // pair_servers()), on a thread of its own; pairing() tells how it goes. False when it cannot
-    // start (one runs already).
-    virtual bool start_pairing(int, int)
-    {
-        return false;
-    }
-    virtual PairingStatus pairing()
-    {
-        return {};
-    }
-    // Stops a pairing that waits, or forgets the end of one: pairing() is idle again.
-    virtual void cancel_pairing()
-    {
-    }
-    // Takes a profile's server out of save-sync.json: its save data stays on the console and on
-    // the server.
-    virtual bool unlink_profile(int)
-    {
-        return false;
-    }
-
-    virtual Eden::Multiplayer::Snapshot room_status() { return {}; }
-    virtual Eden::Nextendo::Status nextendo_status() { return {}; }
-    // Host-owned theme install/cold-recovery credit. A missing implementation denies;
-    // callers must pass a nonempty callback and must not fall back after this denial.
-    virtual std::shared_ptr<void> reserve_theme_import_storage(const std::string&, std::uint64_t) { return {}; }
-    virtual std::string nextendo_link_url() { return {}; }
-    virtual Eden::Nextendo::Status nextendo_action(const std::string&, Eden::Nextendo::Action, const std::atomic<bool>&)
-    { return {false, false, false, 0, "Nextendo is unavailable in this frontend."}; }
-    // Native consent is per request, never inferred by legacy/Lua callers or cached preferences.
-    // A frontend must explicitly implement this entrypoint to opt in to game linking.
-    virtual Eden::Nextendo::Status nextendo_action_with_consent(const std::string& profile,
-        Eden::Nextendo::Action action, const std::atomic<bool>& stop, bool /*confirmed_game_permissions*/)
-    {
-        if (stop.load()) return {false, false, false, 0, "Nextendo action cancelled."};
-        if (action == Eden::Nextendo::Action::link_browser)
-            return {false, false, false, 0, Eden::Nextendo::GameLinkConsentRequired};
-        return nextendo_action(profile, action, stop);
-    }
-    virtual Eden::Multiplayer::RoomDirectory public_rooms(const std::atomic<bool>&)
-    { return {{}, "Public rooms are unavailable."}; }
-    virtual Eden::Multiplayer::Connection room_connection() { return {}; }
-    virtual bool connect_room(const Eden::Multiplayer::Connection&) { return false; }
-    // Joins a room from the public directory. The saved private room stays as it is; only the
-    // nickname is shared between the two.
-    virtual bool connect_public_room(const Eden::Multiplayer::Connection&) { return false; }
-    // Keeps what was typed across restarts: the whole private room form, or only the nickname.
-    virtual void remember_room(const Eden::Multiplayer::Connection&, bool /*private_room*/) {}
-    virtual void leave_room() {}
-    virtual std::optional<std::string> room_text(int, const std::string&, const std::atomic<bool>&)
-    { return std::nullopt; }
-    // Asks for a game's RNG seed on the system keyboard (digits only), starting from the seed it
-    // has (-1: none). The seed typed; -1 when what was typed is not a seed (0 to 4294967295);
-    // nothing when the keyboard was cancelled. Throws when the keyboard cannot be opened.
-    virtual std::optional<std::int64_t> ask_seed(std::int64_t /*current*/, const std::atomic<bool>& /*stop*/)
-    { return std::nullopt; }
-    virtual bool can_launch_game() { return true; }
 
     // ---- images ----
     virtual bool load_image(const std::string &path, gfx::Image *image) = 0;

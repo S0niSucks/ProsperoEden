@@ -1,0 +1,26 @@
+{
+  "scope": "research_arithmetic_only",
+  "switch2_supported": false,
+  "document": {
+    "url": "https://raw.githubusercontent.com/Djihads80/Eglantine/b40ad217ab829226841cb71f6e4c5cb05977a225/NX2_NOTES.md",
+    "commit": "b40ad217ab829226841cb71f6e4c5cb05977a225",
+    "git_blob": "8da5873a5cea4f96880aefe2150c80e6d4b0bfd3",
+    "sha256": "5cda9a49eb2a9798472597e0e1ecd0dc1c29f5289f19f13ec50aefa5b1bea67f",
+    "bytes": 59412,
+    "line": 186,
+    "quote": "Failed to allocate 20480 MiB of backing memory",
+    "interpretation": "One documented PC backing allocation failure, not a measured resident peak or PS5 requirement.",
+    "read_scope": "A12 relied on targeted lines 179-195, not a complete journal review.",
+    "test_input": "NX2_DOCUMENTARY_INPUT or inputs/G-NOTES.md; exact complete bytes required, never silently skipped"
+  },
+  "campaign": "20261107/A12 with independent A24 review and A36 QA; executed by A50",
+  "unchanged_tested_bytes": {
+    "nx2_gate.py": "4400b287c78a4a3d6282f34898d58eb9ffd73ff95871bcc540664ff311028389",
+    "fixtures/synthetic-exact-boundary.json": "c64df1dbf46a0efde7661eb2792fa8e3fa16989d4dfb9fcd907162dfd707d24b",
+    "fixtures/pinned-pc-commit.json": "9a6d6b55cc28055c81a3d214b120faba6c3534da242a2738ec975f9faea057d1"
+  },
+  "test_relocation": {
+    "test_nx2_gate.py": "Added os import and optional NX2_DOCUMENTARY_INPUT; SHA/blob/line/quote assertions unchanged.",
+    "test_a12_gate_additional.py": "Default input root is this directory rather than sibling A12; pins/assertions and explicit override retained."
+  }
+}

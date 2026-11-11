@@ -8,20 +8,24 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <filesystem>
-#include <limits>
-#include <string_view>
 #include <system_error>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 
 extern "C" int sceKernelGetdents(int, char*, int);
 
 namespace Eden {
-// Borrow a descriptor already opened/verified by the caller; reads advance its directory offset.
-inline std::vector<std::filesystem::directory_entry> ReadNativeDirectoryFd(
-        int fd, const std::filesystem::path& path, std::error_code& error,
-        std::size_t max_entries = std::numeric_limits<std::size_t>::max()) {
+inline std::vector<std::filesystem::directory_entry> ReadNativeDirectory(
+        const std::filesystem::path& path, std::error_code& error) {
     std::vector<std::filesystem::directory_entry> entries;
+    const int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY);
+    if (fd < 0) {
+        error = {errno, std::generic_category()};
+        std::fprintf(stderr, "EDEN_DIRECTORY open error=%d path=%s\n", error.value(), path.c_str());
+        return entries;
+    }
+    struct Close { int fd; ~Close() { close(fd); } } close_fd{fd};
     // Mounted PS5 filesystems can require directory reads larger than 8 KiB.
     // FS service threads have small stacks; keep the kernel read buffer on heap.
     std::vector<char> buffer(65536);
@@ -47,6 +51,8 @@ inline std::vector<std::filesystem::directory_entry> ReadNativeDirectoryFd(
                 std::fprintf(stderr, "EDEN_DIRECTORY record length=%u available=%zu name_offset=%zu path=%s\n", length, available, name_offset, path.c_str());
                 error = std::make_error_code(std::errc::io_error); return {};
             }
+            uint8_t type = DT_UNKNOWN;
+            std::memcpy(&type, buffer.data() + offset + offsetof(dirent, d_type), sizeof(type));
             const char* name = buffer.data() + offset + name_offset;
             const char* end = static_cast<const char*>(std::memchr(name, 0, length - name_offset));
             if (!end || end == name || std::memchr(name, '/', end - name)) {
@@ -54,10 +60,25 @@ inline std::vector<std::filesystem::directory_entry> ReadNativeDirectoryFd(
             }
             const std::string_view filename{name, static_cast<std::size_t>(end - name)};
             if (filename != "." && filename != "..") {
-                if (entries.size() >= max_entries) return entries;
-                entries.emplace_back(path / filename, error);
-                // Native lstat is denied even for readable app files. Eden's
-                // directory callbacks use followed status, which stat supports.
+                if (type == DT_LNK) {
+                    offset += length;
+                    continue;
+                }
+                const auto full = path / filename;
+                struct stat native {};
+                if (lstat(full.c_str(), &native) == 0) {
+                    if (S_ISLNK(native.st_mode)) {
+                        offset += length;
+                        continue;
+                    }
+                } else if (errno != EPERM && errno != EACCES) {
+                    error = {errno, std::generic_category()};
+                    return {};
+                }
+
+                entries.emplace_back(full, error);
+                // Some PS5 app mounts deny lstat; in that specific case the directory entry may
+                // still be readable through followed status.
                 if (error == std::errc::operation_not_permitted) {
                     const auto status = entries.back().status(error);
                     if (!error && !std::filesystem::exists(status))
@@ -72,16 +93,4 @@ inline std::vector<std::filesystem::directory_entry> ReadNativeDirectoryFd(
         }
     }
 }
-inline std::vector<std::filesystem::directory_entry> ReadNativeDirectory(
-        const std::filesystem::path& path, std::error_code& error,
-        std::size_t max_entries = std::numeric_limits<std::size_t>::max()) {
-    const int fd = open(path.c_str(), O_RDONLY | O_DIRECTORY);
-    if (fd < 0) {
-        error = {errno, std::generic_category()};
-        std::fprintf(stderr, "EDEN_DIRECTORY open error=%d path=%s\n", error.value(), path.c_str());
-        return {};
-    }
-    struct Close { int fd; ~Close() { close(fd); } } close_fd{fd};
-    return ReadNativeDirectoryFd(fd, path, error, max_entries);
 }
-} // namespace Eden

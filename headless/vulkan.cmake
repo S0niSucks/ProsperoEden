@@ -1,43 +1,35 @@
 if(NOT PS5_NATIVE)
     message(FATAL_ERROR "EDEN_PS5_VULKAN requires PS5_NATIVE")
 endif()
-# Eden's Lossless Scaling frame generation. Upstream gates it behind ENABLE_LSFG,
-# which cmake_dependent_option pins to the "ANDROID" condition (CMakeLists.txt:
-# "Only Android"), so -DENABLE_LSFG=ON alone is silently forced back OFF. Enable
-# it here rather than with -DANDROID=ON: that would also flip ENABLE_OPENGL and
-# other options OFF, and the console build needs the OpenGL renderer too.
-# On in every build: without the user's own Lossless.dll it does nothing, and the launcher shows
-# its settings greyed out (Services::frame_gen_state).
-option(EDEN_PS5_FRAMEGEN "Build Eden's Lossless Scaling frame generation (LSFG)" ON)
-execute_process(COMMAND python3 "${PORT_ROOT}/tools/prepare-vulkan-port.py"
-    "${PROJECT_SOURCE_DIR}" "${PORT_BUILD_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+# R342: compile our versioned patched Vulkan sources directly, not transient
+# string replacements applied at every CMake configure. Upstream originals
+# remain in vendor/sources/eden and their Git bundle; this tree is OUR fork.
+set(EDEN_ACTIVE_VULKAN "${PORT_ROOT}/vendor/encore-active/eden-vulkan")
+if(NOT EXISTS "${EDEN_ACTIVE_VULKAN}/vulkan_renderer.cpp")
+    message(FATAL_ERROR "Missing checked-in Encore Vulkan fork")
+endif()
+file(COPY "${EDEN_ACTIVE_VULKAN}/" DESTINATION "${PORT_BUILD_DIR}")
+file(GLOB_RECURSE EDEN_VULKAN_FORK_FILES CONFIGURE_DEPENDS "${EDEN_ACTIVE_VULKAN}/*")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${EDEN_VULKAN_FORK_FILES})
+# These shaders are build inputs; the five older .inc injections only
+# reconstruct the historical generator oracle and are NOT compiled here.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${PORT_ROOT}/tools/prepare-vulkan-port.py"
-    "${EDEN_PORT_DIR}/vulkan_hud.vert" "${EDEN_PORT_DIR}/vulkan_hud.frag"
-    "${EDEN_PORT_DIR}/vulkan_hud_prepare.inc" "${EDEN_PORT_DIR}/vulkan_hud_draw.inc"
-    "${EDEN_PORT_DIR}/vulkan_loading.inc" "${EDEN_PORT_DIR}/vulkan_mihawkgen.inc")
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${EDEN_PORT_DIR}/vulkan_download_batch.inc"
-    "${EDEN_PORT_DIR}/vulkan_gc_downloads.inc"
-    "${EDEN_PORT_DIR}/texture_rows.inc" "${EDEN_PORT_DIR}/texture_partial_refresh.inc")
-list(REMOVE_ITEM video_sources vulkan_common/vulkan_device.cpp renderer_vulkan/vk_scheduler.cpp texture_cache/util.cpp)
-list(APPEND video_sources "${PORT_BUILD_DIR}/vulkan_device.cpp" "${PORT_BUILD_DIR}/vulkan_scheduler.cpp"
-    "${PORT_BUILD_DIR}/texture_util.cpp")
-# An image or a buffer the allocator's budget refuses is asked for outside it (prepare-vulkan-port.py).
-list(REMOVE_ITEM video_sources vulkan_common/vulkan_memory_allocator.cpp)
-list(APPEND video_sources "${PORT_BUILD_DIR}/vulkan_memory_allocator.cpp")
-# Split the dispatch timer into its three phases (prepare-vulkan-port.py).
-list(REMOVE_ITEM video_sources control/scheduler.cpp)
-list(APPEND video_sources "${PORT_BUILD_DIR}/control_scheduler.cpp")
+    "${EDEN_PORT_DIR}/vulkan_hud.vert" "${EDEN_PORT_DIR}/vulkan_hud.frag")
+list(REMOVE_ITEM video_sources vulkan_common/vulkan_device.cpp
+    vulkan_common/vulkan_memory_allocator.cpp renderer_vulkan/vk_scheduler.cpp)
+list(APPEND video_sources "${PORT_BUILD_DIR}/vulkan_device.cpp"
+    "${PORT_BUILD_DIR}/vulkan_memory_allocator.cpp" "${PORT_BUILD_DIR}/vulkan_scheduler.cpp")
 list(REMOVE_ITEM video_sources vulkan_common/vulkan_instance.cpp vulkan_common/vulkan_wrapper.cpp
     vulkan_common/vulkan_library.cpp vulkan_common/vulkan_surface.cpp
     renderer_vulkan/vk_rasterizer.cpp renderer_vulkan/vk_blit_screen.cpp
-    renderer_vulkan/present/window_adapt_pass.cpp renderer_vulkan/renderer_vulkan.cpp
+    renderer_vulkan/present/window_adapt_pass.cpp renderer_vulkan/present/layer.cpp
+    renderer_vulkan/renderer_vulkan.cpp
     renderer_vulkan/vk_present_manager.cpp renderer_vulkan/vk_swapchain.cpp
     renderer_vulkan/vk_query_cache.cpp)
 list(APPEND video_sources "${PORT_BUILD_DIR}/vulkan_instance.cpp" "${PORT_BUILD_DIR}/vulkan_wrapper.cpp"
     "${PORT_BUILD_DIR}/vulkan_rasterizer.cpp" "${PORT_BUILD_DIR}/vulkan_blit_screen.cpp"
-    "${PORT_BUILD_DIR}/vulkan_window_adapt_pass.cpp" "${PORT_BUILD_DIR}/vulkan_renderer.cpp"
+    "${PORT_BUILD_DIR}/vulkan_window_adapt_pass.cpp" "${PORT_BUILD_DIR}/vulkan_present_layer.cpp"
+    "${PORT_BUILD_DIR}/vulkan_renderer.cpp"
     "${PORT_BUILD_DIR}/vulkan_library.cpp" "${EDEN_PORT_DIR}/vulkan_surface.cpp" "${EDEN_PORT_DIR}/vulkan_allocator.cpp"
     "${PORT_BUILD_DIR}/vulkan_present_manager.cpp" "${PORT_BUILD_DIR}/vulkan_swapchain.cpp"
     "${PORT_BUILD_DIR}/vulkan_query_cache.cpp")
@@ -46,6 +38,15 @@ foreach(name vk_fence_manager vk_buffer_cache vk_texture_cache vk_descriptor_buf
     list(APPEND video_sources "${PORT_BUILD_DIR}/${name}_cost.cpp")
 endforeach()
 
+# The cache's PS5-only failed-key recovery metadata changes its class layout.
+# Explicitly rebuild consumers when an earlier depfile still names the
+# untouched pinned upstream header instead of our checked-in override.
+set_property(SOURCE
+    "${PORT_BUILD_DIR}/vk_pipeline_cache_cost.cpp"
+    "${PORT_BUILD_DIR}/vulkan_rasterizer.cpp"
+    "${PORT_BUILD_DIR}/vulkan_renderer.cpp"
+    TARGET_DIRECTORY video_core APPEND PROPERTY OBJECT_DEPENDS
+    "${PORT_BUILD_DIR}/include/video_core/renderer_vulkan/vk_pipeline_cache.h")
 target_include_directories(video_core BEFORE PUBLIC "${PORT_BUILD_DIR}/include")
 target_include_directories(video_core BEFORE PUBLIC "${PORT_BUILD_DIR}/vulkan-cache")
 target_include_directories(video_core PRIVATE "${PORT_BUILD_DIR}" "${EDEN_PORT_DIR}")
@@ -65,17 +66,14 @@ set_property(SOURCE
     "${PORT_BUILD_DIR}/vulkan_renderer.cpp" "${PORT_BUILD_DIR}/vulkan_blit_screen.cpp"
     "${PORT_BUILD_DIR}/vulkan_rasterizer.cpp" "${PORT_BUILD_DIR}/vulkan_window_adapt_pass.cpp"
     TARGET_DIRECTORY video_core APPEND PROPERTY OBJECT_DEPENDS
-    "${PORT_BUILD_DIR}/include/video_core/renderer_vulkan/vk_present_manager.h"
-    # FrameGen is embedded by value in RendererVulkan too. The port's copy of its header adds the
-    # member that reports generation once per session (tools/prepare-vulkan-port.py).
-    "${PORT_BUILD_DIR}/include/video_core/renderer_vulkan/present/frame_gen.h")
+    "${PORT_BUILD_DIR}/include/video_core/renderer_vulkan/vk_present_manager.h")
 # Existing depfiles name the original header; rebuild all filter consumers once
 # when introducing the override so the shared struct layout stays consistent.
 set_property(SOURCE
     "${PROJECT_SOURCE_DIR}/src/video_core/renderer_opengl/present/layer.cpp"
-    "${PORT_BUILD_DIR}/renderer_opengl.cpp"
+    "${PROJECT_SOURCE_DIR}/src/video_core/renderer_opengl/renderer_opengl.cpp"
     "${PROJECT_SOURCE_DIR}/src/video_core/renderer_opengl/gl_blit_screen.cpp"
-    "${PROJECT_SOURCE_DIR}/src/video_core/renderer_vulkan/present/layer.cpp"
+    "${PORT_BUILD_DIR}/vulkan_present_layer.cpp"
     TARGET_DIRECTORY video_core APPEND PROPERTY OBJECT_DEPENDS
     "${PORT_BUILD_DIR}/include/video_core/present.h")
 # BlitScreen stores WindowAdaptPass by value through unique_ptr; all consumers
@@ -111,80 +109,4 @@ endforeach()
 target_link_libraries(video_core PRIVATE "${vk_isolated}/libps5vk.a" "${vk_isolated}/libpsbc.a"
     "${PORT_ROOT}/build/stubs/libSceAgcDriver.so"
     "${sdk}/target/lib/libSceSysmodule.so")
-endif()
-
-# Lossless Scaling frame generation (EDEN_PS5_FRAMEGEN above). These are the
-# sources upstream adds under "if (ENABLE_LSFG)" in src/video_core/CMakeLists.txt;
-# paths are relative to src/video_core, like everything else in video_sources.
-if(EDEN_PS5_FRAMEGEN)
-    list(APPEND video_sources
-        frame_gen/lossless_dll.cpp
-        frame_gen/lsfg_translate.cpp
-        # The port's copies: prepare-vulkan-port.py adds the frame generation diagnostics to
-        # these two (tools/prepare-vulkan-port.py), so the generated files replace the originals.
-        "${PORT_BUILD_DIR}/vulkan_frame_gen.cpp"
-        "${PORT_BUILD_DIR}/vulkan_lsfg_shaders.cpp"
-        renderer_vulkan/present/frame_gen_pacer.cpp
-        renderer_vulkan/present/lsfg_alpha.cpp
-        renderer_vulkan/present/lsfg_beta.cpp
-        renderer_vulkan/present/lsfg_chain.cpp
-        renderer_vulkan/present/lsfg_common.cpp
-        renderer_vulkan/present/lsfg_delta.cpp
-        renderer_vulkan/present/lsfg_gamma.cpp
-        renderer_vulkan/present/lsfg_generate.cpp
-        renderer_vulkan/present/lsfg_mipmaps.cpp)
-    # Eden's own gate for those sources. PUBLIC, exactly as upstream declares it
-    # (src/video_core/CMakeLists.txt): the flag changes members of RendererVulkan
-    # and PresentManager, so every consumer of their headers must see the same
-    # layout. The port's generated overrides of those headers carry the same
-    # #ifdef blocks, so the whole target stays consistent.
-    target_compile_definitions(video_core PUBLIC HAS_LSFG)
-    # The port's frontend gate, so headless/main.cpp can ask for frame generation
-    # (and say so in the log). eden-headless is created after this file is
-    # included, so a directory-level definition reaches it.
-    add_compile_definitions(EDEN_PS5_FRAMEGEN=1)
-endif()
-
-# Mihawk's neural frame generation (PS5_MihawkGen). The framegen module is compiled
-# as a static library with volk for Vulkan dispatch: its code calls raw vk*() which
-# volk routes through function pointers loaded from RADV at init time. The wrapper
-# (headless/mihawkgen.cpp) calls volkInitializeCustom + volkLoadDevice before making
-# the context, so the generator sees the same device as Eden's renderer.
-set(MIHAWKGEN_ROOT "${PORT_ROOT}/../mihawk-framegen-review")
-option(EDEN_PS5_MIHAWKGEN "Build MihawkGen neural frame generation" ON)
-if(EDEN_PS5_MIHAWKGEN AND EXISTS "${MIHAWKGEN_ROOT}/framegen/include/framegen.h")
-    set(MIHAWKGEN_VOLK_DIR "${MIHAWKGEN_ROOT}/ps5/third_party/volk")
-    set(MIHAWKGEN_VOLK_SOURCES
-        "${MIHAWKGEN_ROOT}/framegen/src/fg_common.cpp"
-        "${MIHAWKGEN_ROOT}/framegen/src/fg_neural.cpp"
-        "${MIHAWKGEN_ROOT}/framegen/src/fg_splat.cpp"
-        "${MIHAWKGEN_ROOT}/framegen/src/fg_vulkan.cpp"
-        "${MIHAWKGEN_VOLK_DIR}/volk.c"
-        "${EDEN_PORT_DIR}/mihawkgen.cpp")
-    add_library(mihawkgen STATIC
-        ${MIHAWKGEN_VOLK_SOURCES})
-    set_source_files_properties(${MIHAWKGEN_VOLK_SOURCES}
-        TARGET_DIRECTORY mihawkgen PROPERTIES COMPILE_FLAGS
-        "-include ${MIHAWKGEN_VOLK_DIR}/volk.h")
-    target_include_directories(mihawkgen PRIVATE
-        "${MIHAWKGEN_ROOT}/framegen/include"
-        "${MIHAWKGEN_ROOT}/framegen/src"
-        "${MIHAWKGEN_VOLK_DIR}"
-        "${EDEN_PORT_DIR}")
-    target_include_directories(mihawkgen PUBLIC
-        "${MIHAWKGEN_ROOT}/framegen/include"
-        "${MIHAWKGEN_VOLK_DIR}"
-        "${EDEN_PORT_DIR}")
-    set_target_properties(mihawkgen PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON C_STANDARD 11)
-    target_compile_options(mihawkgen PRIVATE
-        -O2 -g1 -ffunction-sections -fdata-sections)
-    target_compile_definitions(mihawkgen PRIVATE VK_NO_PROTOTYPES HAS_MIHAWKGEN
-        vkGetInstanceProcAddr=mihawkgen_volk_gipa)
-    target_link_libraries(mihawkgen PRIVATE Vulkan::Headers)
-    target_link_libraries(video_core PRIVATE mihawkgen)
-    target_compile_definitions(video_core PUBLIC HAS_MIHAWKGEN)
-    add_compile_definitions(EDEN_PS5_MIHAWKGEN=1)
-elseif(EDEN_PS5_MIHAWKGEN)
-    message(WARNING "MihawkGen requested but not found at ${MIHAWKGEN_ROOT}")
-    set(EDEN_PS5_MIHAWKGEN OFF)
 endif()

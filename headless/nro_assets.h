@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted from ProsperoEden 20ef10e6ec2ffb6556fcfd4b61b3ed899f1db26b.
 // Bounds for an NRO's optional ASET metadata, before allocating or parsing its contents.
 #pragma once
 #include <array>

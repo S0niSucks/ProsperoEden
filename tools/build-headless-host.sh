@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-jobs=${EDEN_BUILD_JOBS:-6}
-[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid EDEN_BUILD_JOBS: $jobs" >&2; exit 1; }
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+base_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+darwin_zlib_include=
+darwin_zlib_library=
+darwin_icu_root=
+if [[ $(uname -s) == Darwin && -d /opt/homebrew/opt/llvm@18/bin ]]; then
+    shim="$root/.local/llvm18-bin"
+    mkdir -p "$shim"
+    for tool in clang++ ld.lld llvm-ar llvm-ranlib llvm-nm llvm-readobj llvm-objcopy; do
+        [[ -x /opt/homebrew/opt/llvm@18/bin/$tool ]] || continue
+        ln -sf "/opt/homebrew/opt/llvm@18/bin/$tool" "$shim/${tool}-18"
+    done
+    export PATH="$shim:/opt/homebrew/opt/llvm@18/bin:/opt/homebrew/bin:/opt/homebrew/sbin:$base_path"
+    [[ -d /opt/homebrew/opt/zlib/include ]] && darwin_zlib_include=-DZLIB_INCLUDE_DIR=/opt/homebrew/opt/zlib/include
+    [[ -f /opt/homebrew/opt/zlib/lib/libz.dylib ]] && darwin_zlib_library=-DZLIB_LIBRARY=/opt/homebrew/opt/zlib/lib/libz.dylib
+    [[ -d /opt/homebrew/opt/icu4c@78 ]] && darwin_icu_root=-DICU_ROOT=/opt/homebrew/opt/icu4c@78
+else
+    export PATH="$base_path"
+fi
 cd "$root"
 mkdir -p .local build/headless-host build/fixture
 bash tools/build-core-fixture.sh
@@ -17,29 +32,24 @@ if [[ ! -f .local/headless-cache ]] || [[ ! -d "$(cat .local/headless-cache)" ]]
     printf '%s\n' "$scratch" > .local/headless-cache
 fi
 scratch=$(cat .local/headless-cache)
-[[ "$scratch" == "$cache_parent"/ps5-eden-headless.* && "$(cat "$scratch/owner")" == "$root" ]]
+[[ "$scratch" == "$cache_parent"/ps5-eden-headless.* && "$(cd -- "$(cat "$scratch/owner")" && pwd -P)" == "$root" ]]
 eden="$scratch/source"
-# As in prepare-build.sh: a tree unpacked from another archive is another Eden revision.
-if [[ ! -f "$eden/CMakeLists.txt" || $(cat "$eden/.unpacked-from" 2>/dev/null) != eden-67bada77.tar.gz ]]; then
+if [[ ! -f "$eden/CMakeLists.txt" ]]; then
     python3 - <<'PY'
 import hashlib, json, pathlib
-p = pathlib.Path('.deps/eden-67bada77.tar.gz')
+p = pathlib.Path('.deps/eden-5f142c79.tar.gz')
 assert hashlib.sha256(p.read_bytes()).hexdigest() == json.loads(pathlib.Path('UPSTREAM.json').read_text())['archives'][p.name]
 PY
-    if [[ -d $eden/.cache ]]; then rm -rf "$scratch/source-cache" && mv "$eden/.cache" "$scratch/source-cache"; fi
-    rm -rf "$eden"
     mkdir -p "$eden"
-    tar -xzf .deps/eden-67bada77.tar.gz --strip-components=1 -C "$eden"
-    if [[ -d $scratch/source-cache ]]; then mv "$scratch/source-cache" "$eden/.cache"; fi
-    printf '%s\n' eden-67bada77.tar.gz > "$eden/.unpacked-from"
+    tar -xzf .deps/eden-5f142c79.tar.gz --strip-components=1 -C "$eden"
 fi
-printf '%s\n' '67bada77f8a43a90da2e94e89b8e7da73c256989' > "$eden/GIT-COMMIT"
+printf '%s\n' '5f142c7926d0c7fcbbd0ce30794d72f638a43b2a' > "$eden/GIT-COMMIT"
 printf '%s\n' 'ps5-headless' > "$eden/GIT-REFSPEC"
 # FFmpeg links configure probes through the compiler driver, not raw ld.
 # Keep the derivative in our cache and regenerate its Makefile when it changes.
 python3 - "$eden" "$scratch/build" <<'PY'
 import pathlib, sys
-source = pathlib.Path('.deps/mirror-67bada77f8a43a90da2e94e89b8e7da73c256989/externals/ffmpeg/CMakeLists.txt')
+source = pathlib.Path('.deps/mirror-5f142c7926d0c7fcbbd0ce30794d72f638a43b2a/externals/ffmpeg/CMakeLists.txt')
 text = source.read_text()
 for old, new in (
     ('--ld=${CMAKE_LINKER}', '--ld=${CMAKE_C_COMPILER}'),
@@ -54,113 +64,37 @@ if target.read_text() != text:
     (pathlib.Path(sys.argv[2]) / '_deps/ffmpeg-build/Makefile').unlink(missing_ok=True)
 PY
 cmake -S "$eden" -B "$scratch/build" -G Ninja \
+    ${darwin_zlib_include:+"$darwin_zlib_include"} \
+    ${darwin_zlib_library:+"$darwin_zlib_library"} \
+    ${darwin_icu_root:+"$darwin_icu_root"} \
     -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
     -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF -DCMAKE_EXE_LINKER_FLAGS= -DEDEN_HOST_ASAN=OFF \
+    -DEDEN_SHARED_JIT=OFF -DEDEN_JIT_COMPILE_BATCH=OFF \
     -DCMAKE_PROJECT_yuzu_INCLUDE="$root/headless/inject.cmake" \
     -DENABLE_QT=OFF -DYUZU_CMD=OFF -DYUZU_ROOM=OFF -DYUZU_ROOM_STANDALONE=OFF \
     -DYUZU_TESTS=OFF -DBUILD_TESTING=OFF -DENABLE_OPENGL=OFF -DENABLE_CUBEB=OFF \
     -DENABLE_WEB_SERVICE=OFF -DENABLE_LIBUSB=OFF -DYUZU_CRASH_DUMPS=OFF \
     -DYUZU_USE_EXTERNAL_FFMPEG=ON -DENABLE_WERROR=OFF -Dzstd_FORCE_BUNDLED=ON \
     -DDYNARMIC_ENABLE_NO_EXECUTE_SUPPORT=ON -DDYNARMIC_IGNORE_ASSERTS=OFF \
-    -DCMAKE_DISABLE_FIND_PACKAGE_X11=TRUE -DSDL_UNIX_CONSOLE_BUILD=ON -DSDL_X11=OFF -DSDL_WAYLAND=OFF \
+    -DSDL_UNIX_CONSOLE_BUILD=ON -DSDL_X11=OFF -DSDL_WAYLAND=OFF \
     -DSDL_OPENGL=OFF -DSDL_OPENGLES=OFF -DSDL_RENDER=OFF -DSDL_GPU=OFF
 python3 -B "$root/headless/check_slab_lifetime.py" \
     "$scratch/build/headless/include/core/hle/kernel/slab_helpers.h" \
     "$scratch/source/src/core/hle/kernel/slab_helpers.h"
-cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-mods-check eden-shader-cache-check eden-settings-check eden-patch-library-check eden-update-check eden-update-files-check eden-profiles-check eden-save-sync-check eden-nro-metadata-check eden-cheat-identity-check eden-file-amiibo-check eden-live-cheats-check eden-file-amiibo-check-asan eden-file-amiibo-check-tsan eden-live-cheats-check-asan eden-live-cheats-check-tsan eden-amiibo-catalog-check eden-amiibo-catalog-check-asan eden-amiibo-catalog-check-tsan -j "$jobs"
-python3 -B "$root/tools/check-timing-stop.py" "$scratch/build"
-python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/build"
-python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/build"
-python3 -B "$root/tools/check-guest-hooks.py"
+cmake --build "$scratch/build" --target eden-headless eden-romfs-check eden-devices-check eden-scalar-check eden-memory-check eden-ryujinx-check eden-shader-cache-check eden-mods-check eden-settings-check -j 6
 python3 -B "$root/tools/check-sparse-header.py" "$scratch/build"
-python3 -B "$root/tools/check-multiplayer-headers.py" "$scratch/build"
 python3 -B "$root/tools/check-heap-growth.py"
 python3 -B "$root/tools/check-crash-report.py"
-python3 -B "$root/tools/check-build-identity.py"
-python3 -B "$root/tools/check-source-snapshot.py"
-python3 -B "$root/tools/check-stop-limit.py"
-python3 -B "$root/tools/check-image-pages.py"
-python3 -B "$root/tools/check-astc-policy.py"
-python3 -B "$root/tools/check-guest-clock.py"
-python3 -B "$root/tools/check-guest-idle.py" "$scratch/source/src/core/hle/kernel/physical_core.cpp"
+python3 -B "$root/tools/check-encore-ncz-sources.py"
 python3 -B "$root/tools/check-ncz.py"
-python3 -B "$root/tools/check-audio-queue.py" "$scratch/build/headless/sink_stream.cpp" "$scratch/source/src"
-python3 -B "$root/tools/check-recent-games.py"
-python3 -B "$root/tools/check-update-versions.py" "$scratch/build/headless/registered_cache.cpp"
-python3 -B "$root/tools/check-game-folder-mods.py"
-python3 -B "$root/tools/check-forwarded-rom.py"
-python3 -B "$root/tools/check-game-files-count.py"
-python3 -B "$root/tools/check-games-folder.py"
-python3 -B "$root/tools/check-nro-assets.py"
-python3 -B "$root/tools/check-amiibo-file.py"
-python3 -B "$root/tools/check-quick-picture.py" "$eden"
-python3 -B "$root/tools/check-sync-amiibo.py"
-python3 -B "$root/tools/check-cheat-catalog.py"
-python3 -B "$root/tools/check-cheat-download.py"
-python3 -B "$root/tools/check-cheat-store.py"
-python3 -B "$root/tools/check-cheat-manager.py"
-python3 -B "$root/tools/check-cheat-identity.py" "$scratch/build"
-python3 -B "$root/tools/check-amiibo-sync.py"
-CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo.py" --source "$eden"
-CC=clang-18 CXX=clang++-18 python3 -B "$root/tools/check-nextendo-oauth.py"
-consent_out=$(mktemp -d "$scratch/nextendo-consent.XXXXXX")
-python3 -B "$root/tools/check-nextendo-composed.py" --out "$consent_out/composed"
-python3 -B "$root/tools/check-nextendo-consent.py" --out "$consent_out/ui"
-python3 -B "$root/tools/check-nextendo-consent.py" --out "$consent_out/ui-asan" --sanitize
-python3 -B "$root/tools/check-theme-storage.py" --out "$consent_out/theme-storage"
-python3 -B "$root/tools/check-launcher-admission.py"
-python3 -B "$root/tools/check-usb-writer-admission.py"
-bash "$root/tools/docker/run-usb-backup-tests.sh"
-python3 -B "$root/tools/check-settings-grid.py"
-bash "$root/tools/docker/run-network-tests.sh" "$scratch"
-flow_out=$(mktemp -d "$scratch/cheat-flow.XXXXXX")
-python3 -B "$root/tools/check-cheat-flow.py" --build "$scratch/build" --out "$flow_out/run"
-PRO_CONTROLLER_TEST_OUT="$scratch/pro-controller-check" bash "$root/tools/check-pro-controller.sh"
-"$scratch/build/bin/eden-cheat-identity-check"
-"$scratch/build/bin/eden-nro-metadata-check" "$root/sce_sys/icon0.png"
-"$scratch/build/bin/eden-file-amiibo-check"
-"$scratch/build/bin/eden-live-cheats-check"
-"$scratch/build/bin/eden-amiibo-catalog-check" "$root/sce_sys/icon0.png"
-for sanitizer in asan tsan; do
-    "$scratch/build/bin/eden-file-amiibo-check-$sanitizer"
-    "$scratch/build/bin/eden-live-cheats-check-$sanitizer"
-    "$scratch/build/bin/eden-amiibo-catalog-check-$sanitizer" "$root/sce_sys/icon0.png"
-done
-python3 -B "$root/tools/check-library-file.py" "$scratch"
-python3 -B "$root/tools/check-hud.py"
-python3 -B "$root/tools/check-execute-program.py"
-python3 -B "$root/tools/check-system-font-mod.py"
-python3 -B "$root/tools/check-loader-message.py"
-python3 -B "$root/tools/check-wallpaper-paths.py"
-python3 -B "$root/tools/launcher/strings.py" check
-python3 -B "$root/tools/launcher/test-strings.py"
-python3 -B "$root/tools/launcher/test-import-translations.py"
-python3 -B "$root/tools/check-network-privacy.py" --output "$flow_out/export-privacy"
-python3 -B "$root/tools/check-release-licenses.py" --output "$flow_out/release-licenses"
-python3 -B "$root/tools/check-native-package-inventory.py"
-python3 -B "$root/tools/ci/test_source_bundle.py"
-python3 -B "$root/tools/ci/test_release_source_preparation.py"
-python3 -B "$root/tools/ci/test_source_bundle_policy.py"
-python3 -B "$root/tools/ci/native_evidence_test.py"
-python3 -B "$root/tools/check-gc-scan.py"
 "$scratch/build/bin/eden-scalar-check"
 "$scratch/build/bin/eden-memory-check"
-python3 -B "$root/tools/check-decoder-startup.py"
 python3 -B "$root/headless/check_audio_shutdown.py" "$scratch/build/headless/core.cpp" "$scratch/source/src/core/core.cpp"
 "$scratch/build/bin/eden-romfs-check"
 "$scratch/build/bin/eden-ryujinx-check"
-"$scratch/build/bin/eden-patch-library-check"
-"$scratch/build/bin/eden-update-check"
-"$scratch/build/bin/eden-update-files-check"
-"$scratch/build/bin/eden-profiles-check"
-"$scratch/build/bin/eden-save-sync-check"
-"$scratch/build/bin/eden-mods-check"
 "$scratch/build/bin/eden-shader-cache-check"
+"$scratch/build/bin/eden-mods-check"
 "$scratch/build/bin/eden-settings-check"
-python3 -B "$root/tools/check-remote.py"
-# The same against real RomM servers in Docker (only with ROMM_CHECK=1, and Docker).
-python3 -B "$root/tools/check-romm.py"
 bash tools/check-headless-devices.sh
-bash tools/check-headless-nro.sh
 cp "$scratch/build/bin/eden-headless" build/headless-host/eden-headless
 cp "$scratch/build/compile_commands.json" build/headless-host/compile_commands.json

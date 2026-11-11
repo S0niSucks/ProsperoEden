@@ -44,11 +44,6 @@ void DrawList::clear()
 {
     instances_.clear();
     runs_.clear();
-    reset_state();
-}
-
-void DrawList::reset_state()
-{
     clips_.clear();
     transforms_.clear();
     opacities_.clear();
@@ -187,19 +182,95 @@ void DrawList::rounded_image(std::uint32_t texture, const Rect &r, const Rect &u
     set4(i.extra, uv.x, uv.y, uv.x + uv.w, uv.y + uv.h);
 }
 
-void DrawList::perspective_image(std::uint32_t texture, const PerspectiveQuad &q, Color tint)
+void DrawList::case_face(std::uint32_t texture, const Rect &r, float angle,
+                         bool back, Color tint, const Rect &uv)
 {
-    if (q.left_w <= 0.0f || q.right_w <= 0.0f)
-        return;
     Instance &i = append(texture);
-    set4(i.rect, apply_x(q.left_x), apply_y(q.left_top), apply_x(q.right_x), apply_y(q.right_top));
-    // Projected shapes use the otherwise unused border field for their bottom corners.
-    set4(i.border_color, apply_x(q.left_x), apply_y(q.left_bottom), apply_x(q.right_x), apply_y(q.right_bottom));
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
     set_color(i.color_top, tint);
     set_color(i.color_bottom, tint);
-    set4(i.params, q.left_w, q.right_w, 0.0f,
-         static_cast<float>(texture ? Shape::perspective_image : Shape::perspective_fill));
+    // Scan pixels are presented verbatim, including the original logo.
+    set4(i.params, angle, back ? 1.0f : 0.0f, texture != 0 ? 1.0f : 0.0f,
+         static_cast<float>(Shape::case_face));
+    set4(i.extra, uv.x, uv.y, uv.x + uv.w, uv.y + uv.h);
+}
+
+void DrawList::case_spine(const Rect &r, float angle, float thickness,
+                          Color front_edge, Color rear_edge, float depth_offset,
+                          int side)
+{
+    Instance &i = append(0);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, front_edge);
+    set_color(i.color_bottom, rear_edge);
+    set4(i.params, angle, thickness * transform_.scale,
+         depth_offset * transform_.scale, static_cast<float>(Shape::case_spine));
+    // Same side-plane primitive supports an explicit right/back red seam,
+    // while the normal spine still selects the geometrically visible side.
+    set4(i.extra, static_cast<float>(side), 0.0f, 0.0f, 0.0f);
+}
+
+void DrawList::case_cap(const Rect &r, float angle, bool bottom, float depth,
+                        Color near, Color far)
+{
+    Instance &i = append(0);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, near);
+    set_color(i.color_bottom, far);
+    set4(i.params, angle, bottom ? 1.0f : 0.0f, depth * transform_.scale,
+         static_cast<float>(Shape::case_cap));
+}
+
+void DrawList::case_spine_image(std::uint32_t texture, const Rect &r,
+                                float angle, float depth, Color tint)
+{
+    Instance &i = append(texture);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, tint);
+    set_color(i.color_bottom, tint);
+    set4(i.params, angle, depth * transform_.scale, 0.0f,
+         static_cast<float>(Shape::case_spine_image));
     set4(i.extra, 0.0f, 0.0f, 1.0f, 1.0f);
+}
+
+void DrawList::case_spine_blank(const Rect &r, float angle, float depth,
+                                Color tint)
+{
+    Instance &i = append(0);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, tint);
+    set_color(i.color_bottom, tint);
+    set4(i.params, angle, depth * transform_.scale, 0.0f,
+         static_cast<float>(Shape::case_spine_blank));
+}
+
+void DrawList::case_corner(const Rect &r, float angle, float radius, float depth,
+                           int quadrant, int segment, Color near, Color far)
+{
+    Instance &i = append(0);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, near);
+    set_color(i.color_bottom, far);
+    set4(i.params, angle, radius * transform_.scale,
+         depth * transform_.scale, static_cast<float>(Shape::case_corner));
+    set4(i.extra, static_cast<float>(quadrant), static_cast<float>(segment), 8.0f, 0.0f);
+}
+
+void DrawList::case_plastic(const Rect &r, float angle, bool back, Color plastic)
+{
+    Instance &i = append(0);
+    const Rect t = apply(r);
+    set4(i.rect, t.x, t.y, t.w, t.h);
+    set_color(i.color_top, plastic);
+    set_color(i.color_bottom, plastic);
+    set4(i.params, angle, back ? 1.0f : 0.0f, 0.0f,
+         static_cast<float>(Shape::case_plastic));
 }
 
 float DrawList::text(const Font &font, std::uint32_t font_texture, std::string_view text, float x,

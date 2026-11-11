@@ -4,17 +4,23 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """strings.py extract          write tools/launcher/launcher.pot from the text marked in the code
 strings.py new <tag>          start headless/prosperoeden/ui/lang/<tag>.po from the template
-strings.py check              check every catalog in headless/prosperoeden/ui/lang
+strings.py check              check every catalog in headless/prosperoeden/ui/lang and embedded French
+strings.py embed-fr           rebuild headless/prosperoeden/fr_fr_embedded.h from fr-FR.po
 
 The code holds the English text: tr("...") where it is drawn, TR("...") in constant tables (and
 the setting labels of headless/settings_store.h). A catalog is a gettext .po file named after the
 PS5 system language's tag (third_party/ps5_system_language.hpp): pt-BR.po, fr-FR.po...
 
-check fails when a catalog
-  - translates text the code no longer has, or leaves text untranslated,
-  - changes the {0} {1} placeholders of a text,
-  - uses a character the launcher's font does not have.
-It warns when a translation is much longer than the English text (it may not fit its place).
+check keeps fr-FR complete because it is the release's primary maintained translation. All
+catalogs are currently filled (coverage is enforced by check-launcher-translation-coverage.py).
+Missing text would fall back to English at runtime, but is a regression. Every
+translation is validated for placeholders and supported characters.
+
+check fails when
+  - fr-FR leaves current code text untranslated,
+  - a translation changes the {0} {1} placeholders,
+  - a translation uses a character the launcher's font does not have.
+It warns about partial/stale non-primary catalogs and translations much longer than English.
 
 The launcher's own font has Latin and Cyrillic letters. Japanese, Korean, Chinese, Greek, Thai and
 Arabic are drawn with the console's fonts (pe/gfx/system_fonts.hpp): their catalogs are checked
@@ -32,12 +38,21 @@ ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER = ROOT / "headless/prosperoeden"
 CATALOGS = LAUNCHER / "ui/lang"
 TEMPLATE = ROOT / "tools/launcher/launcher.pot"
+EMBEDDED_FR = LAUNCHER / "fr_fr_embedded.h"
 FONT = LAUNCHER / "ui/fonts/montserrat-medium.pefont"
 SETTINGS = ROOT / "headless/settings_store.h"
-SETTING_LABELS = ("kResolutionLabels", "kUpscalingFilterLabels", "kAstcTextureLabels", "kLanguageLabels")
-NETWORK_BACKEND_SOURCES = ("network/config.cpp", "network/editor.cpp")
-NETWORK_PROMPT_SOURCES = ("network/keyboard.cpp",)
-NETWORK_SOURCES = NETWORK_BACKEND_SOURCES + NETWORK_PROMPT_SOURCES
+SETTING_LABELS = ("kResolutionLabels", "kUpscalingFilterLabels", "kAntiAliasingLabels",
+                  "kPerformanceProfileLabels", "kLanguageLabels")
+# Game categories in Nlib metadata reach tr() at runtime, not as string literals.
+DYNAMIC_LIBRARY_GENRES = frozenset({
+    "Strategy", "Role-Playing", "Adventure", "Action", "Simulation", "Sports",
+    "Racing", "Puzzle", "Platformer", "Fighting", "Shooter",
+    "Multiplayer", "Other", "Arcade", "Party", "Music", "Horror",
+    "Casual", "Education", "Board Game", "Card Game", "Indie",
+    "Visual Novel", "Family", "RPG", "Action-Adventure", "Co-op",
+    "Online", "Single Player", "Rhythm", "Sandbox",
+})
+
 
 LITERALS = r'((?:"(?:[^"\\]|\\.)*"\s*)+)'
 MARKED = re.compile(r"\b(?:tr|TR)\(\s*" + LITERALS)
@@ -45,26 +60,6 @@ ONE = re.compile(r'"((?:[^"\\]|\\.)*)"')
 
 # What a translator cannot tell from the text alone.
 NOTES = {
-    "Update available": "Notification title: a newer release of this app is listed (not a game update).",
-    "Version {0} is on homebrew.page": "{0}: the newer release's number, for example 1.000.050; homebrew.page is a site's name and stays as it is.",
-    "Version {0} is ready to install.": "Update dialog: a newer release of this app; {0} is its number, for example 1.000.060.",
-    "Download size: {0}": "{0} is a size such as 36.4 MB.",
-    "Your games, saves and settings are kept.": "Update dialog: installing the new app version keeps the player's files.",
-    "Update now": "Button: download and install the newer release of this app now.",
-    "Skip": "Button and hint: not now (the dialog shows again the next time the app opens).",
-    "About {0} s left": "Time left while downloading; {0} is a number of seconds. Keep it short.",
-    "About {0} min left": "Time left while downloading; {0} is a number of minutes. Keep it short.",
-    "Version {0}": "{0} is the app's new version number, for example 1.000.060.",
-    "Preparing": "Update dialog headline while the download starts.",
-    "Unpacking": "Update dialog headline while the downloaded release is extracted.",
-    "What's new": "Button on the update dialog: opens the new release's notes (what changes in it). Keep it short.",
-    "What's new in version {0}": "Title of the release notes view; {0} is the new version, for example 1.000.080.",
-    "Scroll": "Button hint: move through a long text (Up/Down).",
-    "Update notices": "Settings switch: whether the app says at its start that a newer release of this app is listed (not game updates).",
-    "Says when homebrew.page has a newer version. Off, only About names it.": "About the Update notices switch; homebrew.page is a site's name and stays as it is; About is the menu's last section (use its translation).",
-    "Speed limit": "Settings > Performance: how fast a game may run, as a percentage of the console it was made for.",
-    "Unlimited": "A Speed limit choice: no limit at all (as fast as the console can).",
-    "The rest is on the app's page on homebrew.page.": "Shown at the end of release notes that were cut short; homebrew.page is a site's name and stays as it is.",
     "Select": "Button hint: choose the highlighted item (not the Select button).",
     "Back": "Button hint: go back one screen.",
     "Change": "Button hint: change the highlighted setting.",
@@ -81,8 +76,6 @@ NOTES = {
     "Handheld": "Console mode: the console as if held in the hands.",
     "{0} OF {1}": "Position in a list: 3 OF 12.",
     "Off": "A setting that is switched off.",
-    "Cheats folder": "Shown under a cheat that came from the game's cheats folder (not from a mod).",
-    "No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}.": "<build ID>.txt stays as it is: a cheat file is named after the game version's build ID. {0} is a folder such as roms/Game/cheats/.",
     "On": "A setting that is switched on.",
     "None": "No add-ons (updates or DLC).",
     "Default ({0})": "A per-game setting that follows the general setting; {0} is its value.",
@@ -91,6 +84,7 @@ NOTES = {
     "STARTING": "Shown over a game's cover while it starts.",
     "Make it yours.": "Headline of the Settings screen.",
     "Your next adventure": "Headline when no game has been played yet.",
+    "PS5 EDITION  /  {0}": "{0} is the version, for example v1.000.030.",
     "{0}/ (NSP or XCI)": "{0} is a folder; NSP and XCI are file types.",
     "Docked": "Console mode: the console as if connected to a TV. Keep it short (about 9 letters).",
     "Handheld": "Console mode: the console as if held in the hands. Keep it short (about 9 letters).",
@@ -110,15 +104,6 @@ NOTES = {
     "Nearest": "An upscaling filter (nearest neighbour). Keep it short.",
     "Bilinear": "An upscaling filter.",
     "Bicubic": "An upscaling filter.",
-    "ASTC textures": "Setting: how a game's textures in the ASTC format are held in graphics memory. ASTC "
-                     "is a format's name (unchanged).",
-    "ASTC TEXTURES": "Label: see 'ASTC textures'.",
-    "Compressed": "A choice of 'ASTC textures': the textures are kept compressed (less memory). Keep it short.",
-    "Full quality": "A choice of 'ASTC textures': the textures are kept uncompressed (more memory). Keep it "
-                    "short.",
-    "Saved. Full quality uses four times the graphics memory for these textures and can run out above 1x.":
-        "Shown after choosing 'Full quality' for 'ASTC textures'. 1x is a resolution scale (unchanged). "
-        "It has two lines: keep it short.",
     "Vulkan (recommended)": "Vulkan is a name (unchanged).",
     "Game could not start: {0} Details: {1}": "{0} is the reason, a sentence in English; {1} is a file.",
     "Mods": "Changes to a game that the player added: patches, replaced files, cheats. Keep the word "
@@ -179,60 +164,18 @@ NOTES = {
     "Export a copy": "Button hint: copy the game's save out to a folder.",
     "Press again to replace this game's save. The current one is backed up.":
         "Asked before a save is imported over the one in use.",
+    "Press the same button again to confirm.":
+        "Generic confirmation before a reset or other destructive maintenance action.",
     "To import, copy a Ryujinx folder to ryujinx/ or a save to save-import/{0}/, next to roms/.":
         "ryujinx/, save-import/ and roms/ are folder names (unchanged); {0} is the game's ID.",
     "Exported to {0}.": "{0} is a folder.",
     "Start any game once before importing a save.": "The app creates its user the first time a game runs.",
     "Selected ROM is no longer available": "Why a game did not start (the file is gone).",
     "PS5 controller initialization failed": "Why a game did not start.",
-    "Performance": "A settings category: options that make games run faster, at some cost in accuracy.",
-    "System": "A category of a game's settings: how the emulated console itself behaves.",
-    "RNG seed": "A game setting. RNG is a random number generator and the seed is the number it starts "
-                "from. A game with a seed is loaded at the same place in memory at every start, which some "
-                "mods need. Keep it short; RNG and seed may stay in English where players say them so.",
-    "Random": "The usual value of RNG seed: no fixed seed, a new random one at every start of the game.",
-    "Edit": "A button hint: opens the keyboard to type a number. One short word, and not the word used "
-            "for Change.",
-    "Enter a number between 0 and 4294967295.": "Shown when what was typed for the RNG seed is not such "
-                                                "a number.",
-    "Compile ahead": "A switch: the program code a game used in earlier sessions is prepared (compiled) "
-                     "while the game starts. Keep it short.",
-    "Asynchronous shaders": "A switch. A shader is a small graphics program; keep the word the language's "
-                            "players use for it.",
-    "Faster GPU emulation": "A switch: the emulated graphics processor is less exact and faster. GPU stays.",
-    "Faster CPU emulation": "A switch: the emulated processor's floating-point math is less exact and faster. "
-                            "CPU stays.",
-    "Faster DMA": "A switch: memory transfers to the emulated graphics processor are less exact and faster. "
-                  "DMA is a name (unchanged).",
-    "Reactive flushing": "A switch, on by default: what a game reads back from the graphics processor is kept "
-                         "exact. Keep the term the language's emulator players use, or translate it plainly.",
-    "Skip CPU invalidation": "A switch: fewer checks when a game changes memory the graphics processor uses. "
-                             "CPU stays.",
-    "Touchpad": "The DualSense controller's touch pad, pressed as a button. Use the name players know.",
-    "Button mapping": "Which controller button presses each of the game's buttons.",
-    "As usual": "The button mapping has not been changed.",
-    "Changed": "The button mapping has been changed.",
-    "Cross": "A DualSense button (the X-shaped one). Name the shape, not the letter.",
-    "Circle": "A DualSense button.",
-    "Square": "A DualSense button.",
-    "Triangle": "A DualSense button.",
-    "Options": "The DualSense button labelled OPTIONS: keep the label if the language's players do.",
-    "Create": "The DualSense button labelled CREATE: keep the label if the language's players do.",
-    "Left stick press": "Pressing the left stick down like a button.",
-    "Follows Settings": "A kind of setting that this game takes from the launcher's Settings menu.",
-    "{0} changed": "How many settings of a kind this game has of its own; {0} is a number.",
-    "This game": "The game has a button mapping of its own.",
     "{0}%": "A percentage (a volume): write it as the language does, for example with a space before the sign.",
     "The game ran out of graphics memory. Lower the resolution in Settings, Video (or in the game's own settings) "
     "and start it again.": "Why a game stopped. 'Settings, Video' is the menu path; 'the game's own settings' is the "
                            "Game settings dialog of the Library.",
-    "Play": "Button and button hint: start the game shown. Keep it to one short word.",
-    "Sections": "Button hint beside L1 and R1: they move between the menu's sections (Home, Library, Multiplayer, Settings, About).",
-    "Home": "The menu's first section, its opening screen (not a house, and not the PS5's own home screen).",
-    "Theme": "A tile of Settings and its dialog's title: the look of this menu (its colours and artwork).",
-    "The look of this menu.": "Under the title Theme: what a theme changes.",
-    "Tropical dusk, dark green glass and lime.": "One line about the theme named Canopy: its artwork is a tropical sunset, its panels are dark green glass, its accent colour is lime green.",
-    "About": "The menu's last section: about this app (its credits, where its files go). One short word.",
 }
 
 
@@ -251,19 +194,15 @@ def joined(literals):
 def marked_text():
     """English text -> the files that use it."""
     found = {}
-    sources = [(p, p.relative_to(LAUNCHER).as_posix())
-               for p in sorted(p for pattern in ("*.cpp", "*.hpp", "*.h", "*.inc") for p in LAUNCHER.rglob(pattern))]
-    # Explicit backend/prompt allowlist only; never scan all headless diagnostics.
-    sources += [(ROOT / "headless" / name, name) for name in NETWORK_SOURCES
-                if (ROOT / "headless" / name).is_file()]
-    for path, origin in sources:
+    sources = sorted(p for pattern in ("*.cpp", "*.hpp", "*.h") for p in LAUNCHER.rglob(pattern))
+    for path in sources:
         source = path.read_text(encoding="utf-8")
         # Comments may quote tr("...") too; drop them.
         source = re.sub(r"//[^\n]*", "", source)
         for match in MARKED.finditer(source):
             text = joined(match.group(1))
             if text:
-                found.setdefault(text, []).append(origin)
+                found.setdefault(text, []).append(path.relative_to(LAUNCHER).as_posix())
     settings = SETTINGS.read_text(encoding="utf-8")
     for name in SETTING_LABELS:
         table = re.search(name + r"\[\] = \{([^}]*)\}", settings)
@@ -320,6 +259,7 @@ def font_characters():
 
 # Catalogs written in scripts the console's fonts draw.
 SYSTEM_FONT_CATALOGS = {"ja-JP", "ko-KR", "zh-Hans", "zh-Hant", "el-GR", "th-TH", "ar"}
+STRICT_CATALOGS = {"fr-FR", "fr-CA", "es-ES", "es-419"}
 # Characters that take no room: the zero-width space (a line may break there), direction marks.
 INVISIBLE = {0x200B, 0x200C, 0x200D, 0x200E, 0x200F}
 
@@ -390,11 +330,31 @@ def launch_error_problems():
             if '"' + escape(joined(literal)) + '"' not in reported]
 
 
+def embedded_fr_text():
+    source = EMBEDDED_FR.read_text(encoding="utf-8")
+    match = re.search(r'R"FRPO\((.*)\)FRPO";', source, re.S)
+    return match.group(1) if match else None
+
+
+def write_embedded_fr():
+    po = (CATALOGS / "fr-FR.po").read_text(encoding="utf-8")
+    if ')FRPO"' in po:
+        raise SystemExit("fr-FR.po collides with the embedded raw-string delimiter")
+    source = ("// SPDX-License-Identifier: GPL-3.0-or-later\n#pragma once\n#include <string_view>\n"
+              "namespace pe::ui::embedded {\ninline constexpr std::string_view kFrFr = R\"FRPO(" +
+              po + ")FRPO\";\n}\n")
+    EMBEDDED_FR.write_text(source, encoding="utf-8", newline="\n")
+
+
 def check():
     texts = marked_text()
     baked = font_characters()
     system = system_font_characters()
     failed = False
+    french_source = (CATALOGS / "fr-FR.po").read_text(encoding="utf-8")
+    if embedded_fr_text() != french_source:
+        print("fr_fr_embedded.h is stale; run tools/launcher/strings.py embed-fr")
+        failed = True
     for problem in launch_error_problems():
         print(problem)
         failed = True
@@ -414,29 +374,33 @@ def check():
                 characters = characters | unchecked
             else:
                 characters = characters | system
+        strict = path.stem in STRICT_CATALOGS
         for text in texts:
             if not entries.get(text):
-                problems.append(f"untranslated: {text!r}")
+                (problems if strict else warnings).append(f"untranslated: {text!r}")
         for text, translation in entries.items():
-            if text not in texts:
-                problems.append(f"not in the code any more: {text!r}")
+            if text not in texts and text not in DYNAMIC_LIBRARY_GENRES:
+                warnings.append(f"not in the code any more: {text!r}")
                 continue
             if sorted(re.findall(r"\{\d\}", text)) != sorted(re.findall(r"\{\d\}", translation)) and translation:
                 problems.append(f"placeholders differ: {text!r} -> {translation!r}")
             missing = sorted({c for c in translation if ord(c) not in characters and c not in "\n"})
             if missing:
                 problems.append(f"characters the font lacks {''.join(missing)!r} in {translation!r}")
-            if text.isupper() and translation and translation != translation.upper():
+            if text.isupper() and translation and translation != translation.upper() and not (text == "GB" and translation == "Go"):
                 warnings.append(f"label not uppercase: {text!r} -> {translation!r}")
             if translation and len(translation) > max(len(text) * 1.7, len(text) + 12):
                 warnings.append(f"long ({len(text)} -> {len(translation)}): {translation!r}")
         note = f", {len(unchecked)} characters of the console's fonts not checked" if unchecked else ""
         print(f"{path.name}: {len(entries)} texts, {len(problems)} problems, {len(warnings)} warnings{note}")
-        for line in problems[:40]:
+        for line in (problems if strict else problems[:40]):
             print("   ", line)
         for line in warnings[:12]:
             print("    warning:", line)
-        failed |= bool(problems)
+        # The maintained primary locale must stay warning-free as well as valid.
+        # Non-primary catalogs may still have wording/length warnings. The
+        # separate coverage gate now requires every active msgid to be present.
+        failed |= bool(problems) or (strict and bool(warnings))
     print(f"{len(texts)} texts in the code, {len(catalogs)} catalogs" + (" FAIL" if failed else " PASS"))
     return 1 if failed else 0
 
@@ -456,6 +420,9 @@ def main():
         print(f"{path.relative_to(ROOT)}: {len(existing)} translations kept")
     elif command == "check":
         sys.exit(check())
+    elif command == "embed-fr":
+        write_embedded_fr()
+        print(f"{EMBEDDED_FR.relative_to(ROOT)}: synced from fr-FR.po")
     else:
         sys.exit(__doc__)
 

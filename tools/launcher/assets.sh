@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ProsperoEden - Regenerate the launcher's baked assets (font atlas and art).
+# Prospero.Eden Encore - Regenerate the launcher's baked font and art.
 # Copyright (C) 2026 BlackBearReloaded
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
@@ -7,7 +7,7 @@
 # font, the glyph set or the source images. Needs a host C++ compiler and Python with Pillow.
 
 set -euo pipefail
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
 build=${PROSPEROEDEN_LAUNCHER_BUILD:-"$HOME/.cache/prosperoeden-launcher"}
 mkdir -p "$build" "$root/headless/prosperoeden/ui/fonts"
 

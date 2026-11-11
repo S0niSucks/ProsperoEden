@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Names the functions in a ProsperoEden crash report (headless/crash_report.h).
 
-  symbolize-crash.py REPORT ELF
+  symbolize-crash.py REPORT ELF [CRASH_PROVENANCE_JSON]
 
 REPORT is logs/crash-YYYYMMDD-HHMMSS.txt from a console. ELF is the unstripped executable of the
 build that wrote it: build/headless-native/llvm-pie.elf right after a build, and for a release
-the copy `make release` keeps (build/symbols/ProsperoEden-vX.Y.Z.elf). Every "eboot+0x..." in the
+the copy `make release` keeps (build/symbols/Prospero.Eden-Encore-R1.elf). Every "eboot+0x..." in the
 report is an offset into that file's code; the report is printed again with the function, file
 and line after each one.
 
@@ -16,12 +16,13 @@ it lists every value that points into the code with a "?". Those are checked her
 ELF, and the ones that do not follow a call instruction are left out. A function that returned
 earlier can still show up in the list.
 """
+import hashlib
+import json
 import re
 import shutil
 import struct
 import subprocess
 import sys
-from build_identity import identity
 
 
 def sections(data):
@@ -60,28 +61,43 @@ def tool(*names):
     sys.exit('not found: ' + ' or '.join(names))
 
 
+def verify_elf_receipt(data: bytes, section_size: int, receipt: dict) -> None:
+    """Reject a symbol file detached from the same-run CI symbol artifact.
+
+    The signed PS5 SELF remains separately fingerprinted; the receipt alone
+    does not prove that an old console crash belongs to this binary.
+    """
+    if not isinstance(receipt, dict):
+        raise ValueError("malformed crash-provenance receipt")
+    files = receipt.get("files")
+    record = files.get("unstripped_elf") if isinstance(files, dict) else None
+    if (not isinstance(record, dict) or receipt.get("schema") != 1 or
+            receipt.get("elf_text_size_hex") != f"0x{section_size:x}" or
+            record.get("sha256") != hashlib.sha256(data).hexdigest()):
+        raise ValueError("ELF hash or .text size does not match crash-provenance receipt")
+
+
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     report = open(sys.argv[1], encoding='utf-8', errors='replace').read()
     elf = sys.argv[2]
     with open(elf, 'rb') as file:
         data = file.read()
-    claimed = re.search(r'^build identity: ([0-9a-f]{64})$', report, re.M)
-    if not claimed:
-        sys.exit('Refusing symbolization: report has no verifiable build identity. Keep offsets raw; obtain the exact legacy binary and matching symbols.')
-    try:
-        expected, _at = identity(data)
-    except (ValueError, struct.error) as error:
-        sys.exit('Refusing symbolization: ' + str(error))
-    if claimed.group(1) != expected:
-        sys.exit('Refusing symbolization: report and ELF have different build identities.')
     start, at, size = sections(data)['.text']
+    if len(sys.argv) == 4:
+        try:
+            with open(sys.argv[3], encoding='utf-8') as file:
+                verify_elf_receipt(data, size, json.load(file))
+        except (ValueError, KeyError, OSError, TypeError) as error:
+            sys.exit(f'REFUSED symbolization: {error}')
     said = re.search(r'\(code size 0x([0-9a-f]+)\)', report)
     if not said:
         sys.exit('not a ProsperoEden crash report: ' + sys.argv[1])
     if int(said.group(1), 16) != size:
-        sys.exit(f'Refusing symbolization: code size mismatch (report 0x{said.group(1)}, ELF 0x{size:x}).')
+        sys.exit(f'REFUSED symbolization: crash code size 0x{said.group(1)} != '
+                 f'ELF .text size 0x{size:x}. Supply the exact ELF from the same build; '
+                 'stack candidates from a different build are misleading.')
     lines = report.splitlines()
     in_calls = False
     dropped = 0

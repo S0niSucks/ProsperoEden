@@ -1,349 +1,389 @@
-# Building ProsperoEden
+# Building Prospero.Eden Encore
 
-ProsperoEden builds on Linux (Ubuntu 26.04; WSL works). One command builds the release:
+The authoritative release build runs on **Ubuntu 24.04**. WSL/Linux hosts with the same tools are suitable.
+Encore also supports local native-build iteration on Apple Silicon macOS through `tools/host-env.sh` and Homebrew LLVM 18; CI remains the release authority.
 
 ```bash
-make
+make release
 ```
 
-The first run fetches every dependency at its pinned revision, builds the RADV driver and
-Eden for the PS5, and writes the release files to `dist/`:
+The first build fetches pinned dependencies, prepares RADV and builds Eden for PS5. Later builds reuse
+the dependency cache, the checkout-specific native build cache and ccache.
 
-- `ProsperoEden-vX.Y.Z.zip`: the `PPSA99008` folder to copy to `/data/homebrew/PPSA99008`;
-- `SHA256SUMS` (ZIP and build-manifest checksums), `build-identity.json` and `release-notes.md`.
+## Release outputs
 
-The app package includes an exact-title one-shot helper built from the pinned upstream
-[PS5-Lapy-JB-Daemon](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon) source. Its generated
-manifest, ELF hash, protocol hash, title and required retry feature are checked before packaging.
-At runtime a resident Lapy service gets the first bounded opportunity; otherwise ProsperoEden
-sends the packaged helper to the local ELF loader on TCP port 9021. Without that loader or a
-resident service, ProsperoEden has no access to its data and says so; it keeps no second copy of it in its sandbox.
+A successful `make release` writes:
 
-The pinned commit includes the donor-release and firmware 13.60 corrections merged in
-[PS5-Lapy-JB-Daemon PR #48](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/48) and
-[PR #49](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/49), plus the guarded
-target-lifetime and fail-closed accounting changes from
-[PR #50](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon/pull/50).
-The previous `54a095c` pin passed five automated launch/elevate/close cycles on both firmware 6.02
-and 12.70 with root `/data` access and balanced donors. The pinned `57fcc19` helper completed the
-target-exit stress and a full one-shot elevation on firmware 12.70; it still requires an attended
-ProsperoEden qualification run on firmware 6.02.
+- `dist/Prospero.Eden-Encore-R1.zip` — standard installation bundle;
+- `dist/Prospero.Eden-Encore-R1.ffpfsc` — optional ShadowMountPlus PFS image;
+- `dist/SHA256SUMS` — SHA-256 digests for both distributable binaries;
+- `dist/release-notes.md` — extracted from the matching README `Changes in Encore R1` section.
 
-The first build takes a while (RADV and Eden are large). Later builds reuse everything that
-already exists: the dependencies, this checkout's build cache in
-`~/.cache/ps5-eden-headless.<hash>`, and ccache.
+The ZIP includes the `PPSA99008` application folder plus README, INSTALL, SECURITY, LICENSE and
+third-party notices.
+
+Unstripped symbols are kept separately under:
+
+```text
+build/symbols/Prospero.Eden-Encore-R1.elf
+```
+
+They are uploaded as a CI artifact for crash diagnosis but are not attached to the public Release.
 
 ## Make targets
 
 | Target | What it does |
-|---|---|
-| `make` / `make release` | Release files in `dist/` |
-| `make package` | Only the app folder, `build/release/PPSA99008` |
-| `make install PS5_HOST=<address>` | Copy `build/release/PPSA99008` to a console over FTP (close ProsperoEden first) |
-| `make dev DEV_TITLE=<title ID>` | Development build, `build/dev/PPSA99008` (or `EDEN_DEV_PACKAGE_DIR`): profiling counters, `dev-settings.txt` switches, boots the given title |
-| `make test` | Host (Linux) build of the emulator and its test suites |
-| `make deps` | Fetch missing dependencies at their pinned revisions |
-| `make deps-status` | List the dependencies, where they live and whether they match their pins |
-| `make prepare` | Everything besides Eden itself: build cache, FFmpeg, packaging tool, driver stub, RADV |
-| `make toolchain` | Check the host tools |
+| --- | --- |
+| `make` / `make release` | Full release bundle |
+| `make package` | App folder only: `build/release/PPSA99008` |
+| `make image` | FFPFSC image only |
+| `make install PS5_HOST=<address>` | Copy the built app folder over FTP |
+| `make dev DEV_TITLE=<title ID>` | Development build with profiling/dev switches |
+| `make test` | Host emulator/tests |
+| `make deps` | Fetch missing pinned dependencies |
+| `make deps-status` | Show dependency locations and pin state |
+| `make prepare` | Prepare dependencies/tooling/driver inputs without the final Eden build |
+| `make toolchain` | Validate required host tools |
 | `make clean` | Remove `build/` and `dist/` |
-| `make distclean` | Also remove the fetched `.deps` and this checkout's build cache |
+| `make distclean` | Also remove fetched local dependencies/build cache |
 
-`JOBS=<n>` sets the number of parallel compile jobs (default: all cores).
-
-The download sources and the save sync can be checked against real RomM servers and
-ftpsrv, the console's FTP server, in Docker (`ROMM_CHECK=1 tools/check-romm.py`, or `ROMM_CHECK=1 make
-test`; it is not part of a plain `make test`, since it pulls several server images and, while it
-runs, an FTP server without a sign-in listens on the computer's network): for each version (default: the oldest the save sync takes, `kMinimumVersion` in
-`headless/remote/romm/romm_saves.h`, the newest it was checked with, and one older than the oldest,
-which has to be refused) it starts a RomM with fake games (`tools/romm-test/`), scans them,
-downloads them as a download source (a game of 400 MB stopped part way and gone on with, compared
-byte for byte; updates and DLC, a cancel, two sources, the queue kept), plays a second console and
-a phone against its save sync, and takes it down again. It needs Docker with Compose (without it,
-it is skipped); the first run of a version downloads its image (about 1.2 GB on disk, MariaDB's
-0.5 GB once; ftpsrv's is built once). ftpsrv runs on the host's network while the check runs (its
-passive mode needs it). `tools/check-remote.py` has what needs no server, and against stand-ins
-(`tools/romm-mock-server.py`, `tools/ftp-mock-server.py`) only what a real RomM and ftpsrv do not
-show on demand: a server that caps its pages or cannot resume, games told apart by metadata ids
-and title IDs, another file name on a second source, and a full drive. Raise
-`kMinimumVersion` only to a version this check passes with.
+`JOBS=<n>` controls native compile parallelism.
 
 ## Dependencies
 
-### Docker host tests (including Windows)
+Primary source/build inputs are pinned in `tools/deps.json`. Archives are hash-checked and Git
+repositories are fetched at explicit commits. The dependency cache defaults to:
 
-No compiler or WSL packages need to be installed on the host. From PowerShell at the repository
-root, build the Linux test image and run it with a read-only checkout and a Linux cache volume:
-
-```powershell
-docker build -t prosperoeden-host -f tools/docker/host.Dockerfile tools/docker
-docker run --rm --cap-drop=ALL --security-opt seccomp=unconfined --entrypoint setarch --tmpfs /mnt/usb0:rw,size=256m --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-host-work,target=/work prosperoeden-host x86_64 -R bash /usr/local/bin/prosperoeden-host-tests
+```text
+~/.cache/prosperoeden-deps
 ```
 
-The runner copies source into the volume, fetches the hash-pinned Eden/fmt/compiler-rt and SMB/NFS
-client inputs needed by the host suite, then runs the elevation-client checks and
-`tools/build-headless-host.sh`, followed by the complete focused USB backend/lifecycle runner.
-The host script includes actual Amiibo/Nextendo/OAuth service admission, shared HTTP/TLS,
-real-container cheat-flow and Pro Controller host checks, plus translation/import regressions.
-The USB runner resolves sources from its own script location, so it tests the copied snapshot,
-not the changing checkout. Its synthetic fixture clears `/mnt/usb0`; both Docker runners refuse
-before building unless that path is an independent tmpfs mount. Never bind-mount a physical USB,
-host directory or real app data there. The volume at `/work` must be private test/build scratch.
-These new suite invocations are wired; shell-syntax/unsafe-fixture refusal and copied-snapshot
-USB runner checks pass. The uninterrupted all-feature host build/run remains pending the
-outstanding integrations.
-Dependency downloads, generated
-fixtures and build outputs stay in Docker, not in the Windows checkout. The image provides CMake
-3.31.10, Clang 18, GCC and host development libraries. Rebuild the image when its Dockerfile changes.
+Important inputs include:
 
-The extra sandbox options are for ThreadSanitizer: Docker's default seccomp profile blocks
-`personality`, and high-entropy ASLR can keep TSan from starting (`unexpected memory mapping`).
-`setarch -R` disables ASLR only for this test process tree; it does not change Windows/WSL sysctls.
-The disposable container drops all capabilities and exposes no ports or Docker socket, but
-`seccomp=unconfined` relaxes syscall filtering: use it only for a trusted checkout. A plain
-`docker run` can build without these options, but may fail at the sanitizer's startup; that is
-not a passing concurrency check.
+- **Eden** at the revision pinned by Encore;
+- Eden's pinned FFmpeg source;
+- PS5 OpenGL source snapshot `ad2807d` (the SDK is rebuilt and manifest-verified by `tools/build-opengl-sdk.sh`);
+- PacBrew OpenSSL/zlib inputs;
+- LLVM compiler-rt and fmt inputs;
+- **ps5-native-app-boilerplate** / PS5 Payload SDK;
+- Mihawk PS5 Vulkan/Mesa/Payload SDK sources used for RADV.
 
-This is **not** a PS5 release image and does not run the opt-in real-server RomM suite.
-Host tests do not validate PS5 firmware, GPU drivers,
-commercial games, controllers or frame rates. Native packaging still requires the release
-toolchain described below. Use a fresh named volume if switching to an unrelated source tree;
-the runner deliberately does not delete files from an existing volume.
+RADV is isolated and validated before use. Encore's WSI adaptation is checked by
+`tools/patch-radv-wsi.py`.
 
-For optional offscreen OpenGL/Vulkan HUD-photo checks, extend that image with Linux
-Mesa lavapipe and validation layers. Only the evidence folder is writable:
+The OpenGL build deliberately does **not** consume a moving upstream HEAD or an unverified local
+archive. `tools/deps.json` pins `blackbearreloaded/ps5-opengl` to `ad2807d`; `make prepare` builds
+`.local/ps5-opengl-sdk-ad2807d`, verifies every entry in its `manifest.sha256`, and writes the exact
+source commit beside it. Release validation records the resulting manifest and all SDK files in the
+candidate receipt.
 
-```powershell
-docker build -t prosperoeden-graphics -f tools/docker/graphics.Dockerfile tools/docker
-New-Item -ItemType Directory -Force .local/graphics-evidence | Out-Null
-docker run --rm --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount "type=bind,source=$($PWD.Path)/.local/graphics-evidence,target=/evidence" prosperoeden-graphics bash /checkout/tools/docker/run-graphics-tests.sh
-```
+The optional FFPFSC step fetches **PSBrew/MkPFS** at the immutable commit recorded in
+`tools/ci/package-image.sh` and caches it under `~/.cache/prosperoeden-mkpfs`.
 
-These tests execute the OpenGL HUD method and the Vulkan draw include/compiled shaders,
-using generated colored-pixel fixtures at 720p/1080p. They check orientation, transparency,
-selection changes and missing-picture fallback, and fail on Vulkan validation errors.
-They are not a substitute for PS5 driver, GPU-object lifetime or gameplay qualification.
-The PNG decoder's byte/pixel/allocation and concurrency checks run in the main host suite.
+## Fast preflight vs native compile
 
-### Docker native PS5 build (including Windows)
+The release build intentionally runs source/harness checks **before** the expensive native compile
+whenever those checks only need the configured/generated source tree. This catches stale extraction
+harnesses and source-shape regressions early.
 
-The release image extends the host image with the CI release tools: LLVM 21,
-Meson 1.10.1 and the pinned SPIR-V LLVM translator. No WSL toolchain installation is needed.
-Build both images, then use a **separate** Linux volume for the PS5 dependencies and outputs:
+After CMake configuration, preflight includes checks for:
 
-```powershell
-docker build -t prosperoeden-host -f tools/docker/host.Dockerfile tools/docker
-docker build -t prosperoeden-release -f tools/docker/release.Dockerfile tools
-docker run --rm --name prosperoeden-release-build --mount "type=bind,source=$($PWD.Path),target=/checkout,readonly" --mount type=volume,source=prosperoeden-release-work,target=/work -e EDEN_BUILD_JOBS=4 -e RADV_BUILD_JOBS=4 prosperoeden-release
-```
+- slab lifetime and audio shutdown;
+- load-failure recovery;
+- ProsperoEden legacy migration;
+- NSO memory / ZBIC behavior;
+- performance/startup/worker/TSC contracts;
+- JIT protection/allocation/patch/assert paths;
+- crash reporting;
+- native GPU queue/thread/producer/sync behavior;
+- NVDRV process lifetime;
+- integer buffer clear;
+- game-capture shutdown;
+- HUD/frame summary behavior.
 
-This runs `make release`, including `make prepare`, `make package`, the native source checks,
-and package checks. Dependencies, FFmpeg, the clean-room runtime and RADV are built inside
-Docker. Native compilation can take considerably longer than the host tests. Leave the
-checkout unchanged during the copy at startup; rerun after source changes. Rebuild the image
-when its Dockerfile, CI setup script or runner changes. A nonzero exit is not a usable release.
-
-The build log remains at `/work/release-build.log`, including when `make` fails; the runner
-preserves the failure exit code. The output remains at `/work/ProsperoEden/dist`. To copy it to the repository's
-ignored `.local/docker-release/` without another build:
-
-```powershell
-New-Item -ItemType Directory -Force .local/docker-release/symbols | Out-Null
-docker create --name prosperoeden-release-export --mount type=volume,source=prosperoeden-release-work,target=/work prosperoeden-release
-docker cp prosperoeden-release-export:/work/ProsperoEden/dist/. .local/docker-release/
-docker cp prosperoeden-release-export:/work/ProsperoEden/build/symbols/. .local/docker-release/symbols/
-docker cp prosperoeden-release-export:/work/release-build.log .local/docker-release/release-build.log
-docker rm prosperoeden-release-export
-```
-
-Keep the matching symbols and build log with the ZIP; symbols are required to interpret crash
-reports from that build. A local integration keeps the base version unless explicitly changed,
-so the ZIP filename and generated upstream changelog alone do not identify its integrated commits.
-
-The container exposes no ports or Docker socket, deploys nothing, and does not need the
-host suite's relaxed seccomp/ASLR options. A successful native build and intact ZIP still
-do **not** validate console boot, firmware compatibility, gameplay, performance or suspend/resume.
-
-Every input is pinned in `tools/deps.json` and fetched by `make deps` (`tools/deps.py`) only when
-it is missing: archives are checked against their SHA-256/SHA-512 before use and git
-repositories are fetched at their pinned commit. Nothing that already exists is modified, so a
-checkout you work in stays at whatever revision it has (`make deps-status` shows it).
-Downloads are cached in `~/.cache/prosperoeden-deps` (`PROSPEROEDEN_DEPS_CACHE`).
-
-Inside this repository, in `.deps/`:
-
-- **Eden** at commit `67bada77f8a43a90da2e94e89b8e7da73c256989` (GitHub mirror archive), with
-  Eden's own hash-pinned packages, which its configure step downloads. The PS5 frontend in
-  `headless/` replaces and derives sources at configure time (`headless/inject.cmake`). This
-  fork also patches a few of Eden's files when `make prepare` extracts them
-  (`tools/eden-patches/*.diff`, in name order, each applied once): faster reads of game files,
-  per-game cache storage, bounds-checked shader local memory, and CPU reads of GPU-cached
-  pages without reactive flushing.
-- **FFmpeg** at the commit Eden pins, built with only the decoders games use.
-- **PS5 OpenGL 4.6 SDK 1.0.2** (release archive), for the launcher and the OpenGL renderer.
-- **OpenSSL, zlib, libcurl and libpsl** from pacbrew v0.40.2.
-- **LLVM 18.1.8 compiler-rt** emulated-TLS sources and **fmt 12.1.0** headers.
-- **PS5-Lapy-JB-Daemon** at its pinned compatibility-fork commit, its pinned **ps5log** build input,
-  and the official **PS5 Payload SDK v0.42** used only to build the exact-title one-shot helper.
-  Eden itself continues to use the boilerplate's Payload SDK v0.42.
-
-Next to this repository (`../`), as git checkouts:
-
-- **ps5-native-app-boilerplate**: the PS5 Payload SDK v0.42, the runtime `libc.prx` and the
-  native packaging tool;
-- **Mihawk's PS5_Vulkan, PS5_Mesa and PS5_PayloadSDK** (`../mihawk-*-review`): RADV and its
-  build recipe. `make prepare` builds RADV once and isolates it beside the OpenGL Mesa
-  (`tools/isolate-radv.py`). RADV's display code carries this repository's adaptation
-  (`tools/patch-radv-wsi.py`: the output's lifetime, and the 120 Hz output a game session can ask
-  for); when the adaptation changes, `make prepare` builds RADV again, which compiles only that
-  file. The three checkouts have to be at the commits `tools/deps.json` pins; when the Mesa pin
-  changes, `make prepare` builds RADV again from the new revision.
-
-The `libSceAgcDriver` import facade both drivers link against is built from
-`tools/stubs/libSceAgcDriver.c`. Small contracts from our research repositories are in
-`third_party/`.
+Only checks that need compiled dependency records or machine code remain after the native build,
+notably the sparse-header dependency check and native exclusive-monitor assembly validation.
 
 ## Launcher
 
-The launcher (`headless/prosperoeden`) draws with OpenGL through the PS5 OpenGL SDK and plays its
-sounds through the console's audio output; it needs no other library. Its font atlas, artwork
-and sounds are committed in `headless/prosperoeden/ui`, so a build does not regenerate them.
-The tools that made them are in `tools/launcher`:
+The launcher lives under `headless/prosperoeden`. Catalog/font/sound assets are copied from the committed UI tree; release packaging generates `brand.tga` from the canonical Encore logo and `backdrop.tga` from the canonical Encore background.
 
-- `assets.sh` bakes the font (`third_party/fonts/Montserrat-Medium.ttf`) and renders the art from
-  the source pictures in `sce_sys/`; it needs a host C++ compiler and Python with Pillow.
-- `process-sfx.py` trims and levels the raw sound effects (needs `ffmpeg` and `numpy`).
-- `bake-loading-text.py` writes the lettering of the loading screen
-  (`headless/loading_text.glsl`).
-- `loading-preview.sh` draws the loading screen on a PC at a few moments of a game's start, with
-  the shader both renderers use (`headless/loading_scene.glsl`) and a cover of your choice.
-- `preview.sh` draws every launcher screen on a PC (Mesa's software renderer, sample games) to
-  PNG files or a video, with the same code, shaders and font as on the console.
-- `python3 -B tools/check-quick-overlay.py OUTPUT_DIR` compiles the actual OpenGL HUD method
-  with the baked font on Mesa and writes the Amiibo/cheat/empty-state strips at 720p and 1080p.
-  It checks shader errors, visible glyphs and the chip's bounds. Run it inside the host Docker
-  image, which supplies EGL/OpenGL development files; it is renderer-fixture evidence, not gameplay.
-- The host suite also builds the file NFC driver/factories and live-cheat parser/VM tests.
-  NFC driver/factories and the live mailbox have dedicated ASan/UBSan and TSan runs. Cheat
-  toggles are handed to the timing owner; the tests do not rely on the pinned racy direct reload.
-- `strings.py` keeps the translations: `extract` writes the template (`launcher.pot`) from the
-  text in the code, `new <tag>` starts a catalog in `headless/prosperoeden/ui/lang`, and `check`
-  fails on missing or stale text, changed placeholders and characters the font does not have.
-- `text-check.sh` compares the launcher's right-to-left text code with ICU on generated lines
-  and on every translation (needs `libicu-dev`).
+Useful tooling under `tools/launcher` includes:
 
-What the PS5's home screen shows for the app is in `sce_sys/`, as it goes into the package:
-`param.json` (title, ID, version, and the 120 Hz output declaration), `icon0.png`, `pic0.dds`,
-`pic1.dds` and `snd0.at9`. The pictures' sources are beside them.
+- `assets.sh` — font/art generation;
+- `process-sfx.py` — sound preparation;
+- `bake-wordmark.py` — loading wordmark;
+- `preview.sh` — host UI previews;
+- `strings.py` — extraction/catalog validation;
+- `text-check.sh` — text/RTL validation.
 
-## Host tools
+The release workflow runs `python3 -B tools/launcher/strings.py check` before native compilation.
 
-`make toolchain` checks them: `clang-18`, `lld-18` and the LLVM 18 tools, `cmake`, `ninja`,
-`ccache`, `make`, `nasm`, `meson`, `rsync`, `git`, `glslangValidator`, `spirv-val`, `bison`,
-`flex`, `curl`, `wget`, `unzip`, and Python 3.11 or later with `venv`, `mako` and `yaml`.
+## Host toolchain
 
-**Nix shell.** With the [Nix](https://nixos.org/download/) package manager, `shell.nix` provides all of these tools (LLVM 18 and 21, Meson, CMake, Ninja and the rest): `nix-shell shell.nix --run "make"`.
+`make toolchain` checks the required toolset. CI installs, among others:
 
-RADV's host tools (`mesa_clc`, `vtn_bindgen2`) are built against the host's LLVM 21: its
-development files, Clang 21 libraries, libclc and the SPIR-V LLVM translator. The Payload SDK's
-`prospero-*` wrappers (the RADV build and the final link) use `$LLVM_CONFIG`, else the newest of
-LLVM 21 to 15 that is installed: the releases are linked with LLD 21. On Ubuntu 26.04 every
-package the release build needs is listed in `tools/ci/ubuntu-packages.txt`:
+- clang/lld/LLVM 18;
+- CMake, Ninja, ccache, make, nasm and Meson;
+- glslang/spirv tools;
+- bison/flex and autoconf;
+- binutils/coreutils/util-linux (including `ar`, GNU `realpath` and `flock`);
+- git, curl, wget, unzip and rsync;
+- Python **3.12+** with venv/pip/mako/yaml;
+- librsvg and ImageMagick.
+
+CI pins Meson to the version validated by the release workflow.
+
+For Apple Silicon local iteration, install the host tools with Homebrew (LLVM 18, CMake, Ninja, ccache, NASM, Meson, glslang/SPIR-V Tools, bison/flex, pkgconf, autoconf, coreutils, flock and Python). `tools/host-env.sh` creates checkout-local `*-18` shims instead of modifying system tool names, and the Python helper environment lives under `.local/`.
+
+The first Apple Silicon RADV preparation also builds the pinned LLVM 18 SPIR-V translator under
+`.local/` through `tools/prepare-macos-llvm-spirv.sh`. It is a host build helper only; it does not
+replace the PS5 cross compiler or become part of the installed Encore application.
+
+## Source-only audit before an expensive native build
+
+Before merging or triggering CI, review the full working-tree diff, then use the preflight
+contracts and the configured compiler database to run **`-fsyntax-only -Werror` on modified native
+sources with the actual `x86_64-sie-ps5` SDK flags**. A host-only macOS syntax check is insufficient:
+PS5 `getnameinfo` declares `size_t` for buffer lengths, while the macOS header declares
+`socklen_t`. The 2026-10-08 audit caught that difference before a native build.
+
+Additional candidate preflight checks (these tests do not produce Encore application binaries):
 
 ```bash
-sudo apt install --no-install-recommends $(grep -v '^#' tools/ci/ubuntu-packages.txt)
+python3 -B tools/check-network-runtime.py
+python3 -B tools/check-fc27-trace.py
+python3 -B tools/check-credit-attribution.py
+# With the native CMake cache configured (no application build):
+python3 -B tools/check-native-source-syntax.py "$(cat .local/headless-cache)/native-local"
+python3 -B tools/check-ps5-net-unit.py
+python3 -B tools/check-log-pipe-unit.py
+python3 -B tools/check-bounded-logs.py
+python3 -B tools/check-log-budget.py
+python3 -B tools/check-home-media.py
+python3 -B tools/check-ps5-backport-policy.py
+python3 -B tools/check-release-hotpath.py
+python3 -B tools/check-encore-ux.py
+git diff --check
 ```
+
+The shipping `tools/build-headless-native.sh --graphics` now runs the eight-unit native
+syntax gate automatically **after CMake configuration and before Ninja**; its current-tree
+compile database is mandatory. For a **local-only old cache** whose absolute paths still point
+at an earlier checkout, use `--allow-stale` deliberately and treat that as a weaker audit, not
+a release gate. No object or application binary is generated by the syntax pass.
+
+These are not replacements for LLVM 18 Linux preflight, native linking, a successful package,
+PS5 firmware 13.60 boot, or real application/gameplay validation. The separate HLE/JIT candidate
+patches are intentionally disabled by default (`EDEN_EXPERIMENTAL_DUMMY_THREAD_WAITS`,
+`EDEN_EXPERIMENTAL_ICACHE_COHERENCE`, `EDEN_EXPERIMENTAL_SM_HOST_WAIT`). Toggle only one per
+isolated hardware A/B test and never silently package all three.
+
+## Resuming a successfully compiled, failed-packaging PS5 application
+
+CI run [#37710086280](https://github.com/niakw/Prospero.Eden-Encore/actions/runs/37710086280)
+passed native compilation, native package inventory, alignment and imports,
+and uploaded the staged app. It failed solely on the outdated
+`tools/ci/check-staged-app.py` assertion for `kHomeCache`, removed from the
+actual four-action Home utility navigation. The current identifiers are
+`kHomeQuickPanel`, `kHomeQuickFirst`, `kHomeStorage`,
+`kHomeControllers`, and `kHomeFullSettings`.
+
+The staged artifact was downloaded locally and validated in full against the
+corrected checker (**162 files PASS**). `tools/check-encore-ux.py` now rejects
+staged-Home-checker references to missing UI identifiers in early preflight.
+
+The workflow supports `workflow_dispatch` with
+`resume_run_id=37710086280`, `publish=false`: download that already-built
+staged title, revalidate it, assemble the distribution ZIP, FTP ZIP and FFPFSC
+image, and upload the release artifact **without compiling PS5 code again**.
+The commit message marker `[publish-existing]` suppresses a redundant native
+build on the accompanying mainline push; it does not publish a GitHub Release.
+
+## Preserving a prepared Eden source when a verified patch evolves
+
+GitHub Actions restores the complete pinned Eden source and CMake/FFmpeg caches.
+For the old Encore HTTP identification patch (SHA-256
+`7117c1c3f353157b7fa46a86c6f77226b1183d9b374462cefe8b8dc5f32bf613`),
+the updated patch only adds the missing `httplib::Result` error message.
+`tools/apply-eden-backports.sh` now accepts *only* that exact old receipt,
+verifies the old markers, upgrades the one `src/common/net/net.cpp` block,
+revalidates and records the new patch digest. No source or dependency cache is
+reset. Unexpected content or other changed patch hashes remain hard failures.
+`tools/check-net-cache-migration.py` exercises successful upgrade,
+idempotent resume and two rejection cases.
+
+This addresses CI run [#37709504223](https://github.com/niakw/Prospero.Eden-Encore/actions/runs/37709504223),
+which stopped in `make prepare` because a restored source cache contained the
+older HTTP backport receipt; native compilation had not started.
+
+## Two-stage experimental-backport validation in CI
+
+The early `Validate startup, elevation and storage contracts` CI job step runs
+*before* `make prepare`, so the runner does **not** have
+`.local/headless-cache` yet. `tools/check-dummy-thread-waits.py` and
+`tools/check-dynarmic-icache.py` validate patch syntax/required invariants at
+that point and defer applying those **disabled-by-default** experimental patches.
+
+After the pinned Eden source has been materialized, the native build preflight
+re-runs both with `--require-pinned-source`, which rejects a missing fixture
+and checks that the patch actually applies to the exact pinned files. Neither
+check opts the experiment into a shipping build.
+
+This corrects CI run [#37709145188](https://github.com/niakw/Prospero.Eden-Encore/actions/runs/37709145188),
+which stopped before native compilation solely because the early static check
+tried to read a not-yet-created local cache-path file.
+
+## FC27 trace triage (no app build)
+
+Use `python3 -B tools/analyze-fc27-trace.py path/to/session-log.txt --json` on an already
+captured PS5 diagnostics log, and `python3 -B tools/check-fc27-trace.py` to validate the
+analyzer's synthetic cases. An unchanged sampled guest PC only creates a **hypothesis**;
+UI presentation FPS is not guest-frame progress. For the two independent FPS research paths
+see [PERFORMANCE_ROADMAP.md](PERFORMANCE_ROADMAP.md).
 
 ## Crash reports
 
-When the app crashes it writes `crash-YYYYMMDD-HHMMSS.txt` to its logs folder
-(`/data/prosperoeden/logs`), starts again and says on the home screen where the report is
-(`headless/crash_report.h`). At the next start that run's logs are moved beside the report
-(`-stderr.log`, `-heap.log`, `-eden_log.txt`); the five newest reports are kept.
+Encore writes crash reports under:
 
-The report lists addresses as `eboot+0x...`. To get function names, files and lines:
-
-```bash
-python3 tools/symbolize-crash.py crash-20261001-121314.txt build/symbols/ProsperoEden-v1.000.040.elf
+```text
+/data/prosperoeden/logs
 ```
 
-The second argument is the unstripped executable of the build that wrote the report:
-`build/headless-native/llvm-pie.elf` right after a build. `make release` copies it to
-`build/symbols/ProsperoEden-vX.Y.Z.elf`; keep that file with the release, it is not published.
-New packages stamp a build identity into that ELF before conversion to eboot. The boot trace
-and crash report record it, and the symbolizer refuses missing/mismatched identities or code
-sizes rather than printing misleading names. Preserve `dist/build-identity.json` and its
-checksums with the symbols; it also records the packaged eboot hash. Legacy reports without
-an identity stay as raw offsets. See [Crash validation](CRASH_VALIDATION.md).
+To symbolize one, use the exact unstripped ELF from the matching build:
 
-`make test` checks the report on the host (`tools/check-crash-report.py`). A development build
-crashes on request, to try it on a console: write `segv`, `thread`, `abort` or `throw` to
-`crash-app.txt` in the app folder.
+```bash
+python3 tools/symbolize-crash.py crash-YYYYMMDD-HHMMSS.txt \
+  build/symbols/Prospero.Eden-Encore-R1.elf
+```
 
-## Release workflow
+## GitHub release workflow
 
-`.github/workflows/release.yml` runs `tools/ci/build-release.sh` (`make release`) on a
-GitHub-hosted runner (`ubuntu-24.04`), without a container. Ubuntu 24.04 lacks part of what the
-build needs, so `tools/ci/setup-ubuntu-24.04.sh` installs the packages in
-`tools/ci/ubuntu-24.04-packages.txt` with LLVM 21 from apt.llvm.org (the same LLVM versions as a
-build on your own machine), Meson from PyPI, and builds the SPIR-V LLVM translator for LLVM 21
-from source (kept in a cache); CMake is the runner's own. The workflow first deletes SDKs the
-runner image carries (.NET, Android, GHC, parts of the tool cache) for
-disk space, and builds with as many jobs as the runner has cores (`JOBS`, and `RADV_BUILD_JOBS`
-for RADV, whose build otherwise runs 24).
+The authoritative workflow is:
 
-Between runs it caches the downloads (`PROSPEROEDEN_DEPS_CACHE`, keyed on `tools/deps.json`),
-ccache, and the built RADV driver with the SDK it is linked with (keyed on its pins and build
-scripts), so a later run compiles mostly what changed and takes about ten minutes. A run without
-these caches builds everything on four cores and takes about an hour. Should a build ever reach
-the build step's limit (315 minutes), ccache is still saved, and running the workflow again
-continues from there. A pull request starts from `main`'s caches and, when it builds, saves no
-ccache of its own.
+```text
+.github/workflows/build-040-zbic.yml
+```
 
-GitHub drops a cache that nobody used for a week, and the build of a tag or of a pull request can
-use only the caches of `main`. So `main` is built by itself every night: a release's build then
-compiles only what was merged since the night before. For a run that finds no ccache at
-all there is a second source: `ccache-u24.tar`, a file of the `build-cache` release, which it
-downloads. To replace it, start the workflow on `main` by hand with "snapshot" ticked;
-`.github/workflows/build-cache.yml` then publishes that run's ccache.
+It runs on pushes to `fix/0.40-zbic-13.60` and can also be dispatched manually. WIP branches do not trigger the shipping build.
 
-`tools/ci/build-release.sh` still accepts `EDEN_DEV_CHECKOUT` (a development checkout whose
-dependencies are reused instead of fetched) for a build on your own machine.
+The build job:
 
-- **Pull request** (by itself, at every push to it) and **manual run** (Actions > Release build >
-  Run workflow): builds the release files, checks the ZIP (intact, `eboot.bin` present, every
-  entry stored as 0777) and keeps `dist/` (the ZIP, `SHA256SUMS` and `release-notes.md`) as a
-  7-day artifact. Nothing is published. A push to
-  `main` builds nothing; `main` is built the same way every night, to keep the caches a
-  release's build starts from. The artifact is `ProsperoEden`; for
-  a pull request it is `ProsperoEden-PR<number>-<commit>`, with the first seven characters of
-  the pull request's own head commit. A newer push to a pull request, or a newer manual or
-  nightly run on the same branch, cancels the run in progress.
-- **Tag `vX.Y.Z`** (by itself, when the tag is pushed): builds and checks them the same way, checks that the tag matches the package
-  version, and publishes a pre-release with the ZIP and `SHA256SUMS` (a second job). The release notes come from the "vX.Y.Z" section of [the changelog](CHANGELOG.md).
-- Every run also keeps `build/symbols/` as an artifact with `-symbols` after the name: 90 days
-  for a tag, 7 days otherwise.
-- A tag's or a manual run's ZIP is attested (signed build provenance): a release ZIP built by
-  the workflow can be checked with
-  `gh attestation verify ProsperoEden-vX.Y.Z.zip -R blackbearreloaded/ProsperoEden` (GitHub
-  CLI). This covers releases built by GitHub Actions from now on (after v1.000.090), not
-  earlier ones.
+1. checks out without persisting credentials;
+2. installs the Ubuntu 24.04 toolchain and pins Meson;
+3. runs the source gates before the expensive native build: translations, release metadata,
+   startup/elevation/storage contracts, video-profile contracts, Encore UX/media contracts and
+   shipping-JIT stability;
+4. restores dependency/native/ccache state;
+5. prepares native dependencies;
+6. builds and stages only the shipping app into `build/release/PPSA99008`;
+7. saves caches immediately after successful staging;
+8. uploads the staged app as a seven-day resumable artifact;
+9. validates the staged app;
+10. assembles `dist/` from that validated app and uploads `dist/` plus symbols.
 
-A release is made by pushing the tag: the workflow builds, attests and publishes the ZIP and
-`SHA256SUMS`. Do not attach files to a release by hand. With no release for the tag, the workflow
-creates it. A release that already exists without a ZIP (notes written in advance, or a draft)
-gets the workflow's ZIP and `SHA256SUMS`, and keeps its title and notes. A release that already
-has a ZIP keeps its files (the catalog at homebrew.page records each release ZIP's checksum, so
-a published ZIP is never replaced): the run ends successfully with a warning that those files
-were not published by it and may have no attestation.
+A manual dispatch may set `resume_run_id` to a failed run whose staged-app artifact is already
+green. In that mode CI downloads that exact staged app, skips toolchain/dependency/native compilation,
+revalidates it and only reassembles the release files. This is the preferred recovery path for a
+late packaging/upload failure and avoids paying for another full native compile.
 
-To cut a release:
+The publish job receives `contents: write` only after the build succeeds. Publication occurs when:
 
-1. Bump `contentVersion` in `sce_sys/param.json` (the launcher is built with it, and the package
-   carries the file).
-2. Add the version's section at the top of [the changelog](CHANGELOG.md), and name the version as the
-   current release in the README.
-3. Test the build on a console.
-4. Push a `vX.Y.Z` tag.
-5. Keep `build/symbols/ProsperoEden-vX.Y.Z.elf` from the build that was published (crash reports
-   are read with it): download the tag run's `ProsperoEden-symbols` artifact before it expires.
+- a push commit message contains `[release]`; or
+- a manual workflow dispatch sets `publish=true`.
+
+Before publishing it checks `SHA256SUMS` against the ZIP and FFPFSC image. It then creates an
+immutable tag of the form:
+
+```text
+encore-R1-<shortsha>
+```
+
+and publishes the ZIP, FFPFSC image and `SHA256SUMS` as the latest GitHub Release.
+
+## Cutting an Encore release
+
+Before the final `[release]` commit:
+
+1. confirm the package/content version;
+2. update the matching README `Changes in Encore R1` section;
+3. keep `INSTALL.md`, `SECURITY.md`, `THIRD_PARTY_NOTICES.md` and technical notes current;
+4. require a green CodeQL run;
+5. require a green shipping build/package run;
+6. verify the generated checksums and Release assets;
+7. keep the matching symbols artifact for crash reports.
+
+## Visual validation without rebuilding the PS5 emulator
+
+The **authoritative visual reference** for the Encore dashboard is the user-supplied
+1920 × 1080 `maquetteunique.png` (one approved screenshot only).
+The lightweight GitHub workflow
+[`launcher-production-preview.yml`](../.github/workflows/launcher-production-preview.yml)
+compiles the **actual launcher** C++ UI, draw lists, shaders and fonts using
+Mesa surfaceless EGL. No Switch emulator, native PS5 runtime, firmware or
+game binaries are compiled.
+
+On the feature branch it intentionally runs only for a commit containing
+`[preview-ready]`, or for a manual workflow dispatch. It exports
+`Encore-launcher-native-render-1080p`: five 1920 × 1080 PNGs covering the
+actual Home screen and focus transitions, plus the renderer log.
+
+The host-render capture is diagnostic and carries no PS5 installable package.
+Brand and selection colors MUST remain Eden Encore's own palette (neon violet,
+pink and lilac), using `assets/icon0.png` -> `ui/art/brand.tga` as the
+transparent header graphic. A cyan flower/wordmark is not an approved logo.
+Verified Nlib local-player capacity appears next to Play and the game metadata,
+never stranded at the far right of the artwork.
+The native render check additionally confirms the app logo texture is visibly
+composited in the header and that optional player capacity leaves no empty gap.
+
+
+The reference audit now verifies all seven recent slots and icon-bearing cyan
+navigation on the real host renderer, not just marker presence in C++ source.
+Its gameplay artwork uses an explicitly **synthetic preview fixture** generated
+only by the host runner. This checks layout, clipping, focus and image layering.
+It is not a substitute for a real Nlib/banner screenshot on the console and
+must never be packaged or presented as actual game media. The 1080p reference review additionally gates full-size utility icons, all
+seven cover slots, real Nlib media limits and universal HLE settings.
+The preview host also installs the public nlohmann JSON development headers used
+by the shared settings pipeline.
+The preview toolchain now includes the shared headless controller mapping header,
+and its GitHub runner propagates launcher compilation failures through pipefail.
+After examining
+the PNGs against the single screenshot, run the full PS5 build only when
+code quality checks and host visual review are complete.
+
+
+### Focus and full-screen background reference (2026-10-08)
+
+The approved Home background is **object-fit cover** (aspect-preserving centred
+crop), with separate translucent left and bottom fades to keep UI legible; no
+solid letterbox/rectangle behind the game. Interactions share the actual
+Eden Encore violet/pink double-edge, soft bloom, dark-plum gradient and restrained
+picture-dimming focus so recent cover art remains recognisable. Navigation,
+primary actions, game covers, dialogs and quick-action cards all use native
+DrawList, **never an image-generator mock-up**. Icon-only art uses contain.
+
+French user text says **Joueurs max.** and **Cache**. The low-level diagnostics
+and emulator paths may retain technical `shader/JIT` identifiers internally.
+The GitHub native launcher preview exports its true 1920×1080 PNGs; no full
+PS5 build is part of this visual check.
+
+Focus review: the selected game cover keeps its native colour and recognisable
+art. Reduce translucent colour wash over cover plates; reserve the stronger
+plum fill for primary actions and use pink/violet glow mainly on the edges.
+
+### Reuse a compiled PS5 stage without rebuilding (October 2026)
+
+GitHub Actions run `37728435816` completed its native compile and uploaded
+`Prospero.Eden-Encore-staged-app` (artifact `11529017450`). The subsequent
+validator expected the **removed debug literal** `Nlib hero cached for `;
+the live all-game Nlib flow now reports `EDEN_NLIB_RESULT` and queues banner,
+icon and screenshots concurrently. The validator was updated to check the
+current compiled markers and source contracts instead of obsolete logs.
+
+A one-shot feature-branch push message `[resume-stage:37728435816]` selects
+that exact successful stage. It deliberately skips compiler/toolchain/cache
+preparation and the full native build, then downloads the artifact, validates
+it against this checkout, repacks the FTP/ZIP/FFPFSC and checks the checksums.
+No GitHub Release is published and the default branch is unchanged.

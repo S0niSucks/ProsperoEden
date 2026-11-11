@@ -1,68 +1,17 @@
-// ProsperoEden - RGBA images for textures: image files, TGA files and box downsampling.
+// ProsperoEden - RGBA images for textures: TGA files and box downsampling.
 // Copyright (C) 2026 BlackBearReloaded
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "pe/gfx/image.hpp"
 
-#include <algorithm>
-#include <cctype>
 #include <cstdio>
-#include <cstring>
-
-// The wallpaper's image files (docs/WALLPAPERS.md). The loader's implementation stays local to
-// this translation unit: the shared library also ships stb_image, and its symbols stay global.
-// The third-party code is quiet under the build's -Werror.
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-#define STB_IMAGE_STATIC
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_MAX_DIMENSIONS 16384
-#include "stb/stb_image.h"
-#define BCDEC_IMPLEMENTATION
-#include "bcdec/bcdec.h"
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
 namespace pe::gfx
 {
-
-bool load_dds_bc7(const std::string &path, Blocks *blocks)
-{
-    *blocks = Blocks{};
-    std::FILE *file = std::fopen(path.c_str(), "rb");
-    if (file == nullptr)
-        return false;
-    // "DDS ", a header of 124 bytes, then the newer header of 20 that names the format.
-    unsigned char header[148]{};
-    const auto word = [&header](int at)
-    {
-        return static_cast<std::uint32_t>(header[at]) | static_cast<std::uint32_t>(header[at + 1]) << 8 |
-               static_cast<std::uint32_t>(header[at + 2]) << 16 | static_cast<std::uint32_t>(header[at + 3]) << 24;
-    };
-    bool ok = std::fread(header, 1, sizeof(header), file) == sizeof(header) &&
-              std::memcmp(header, "DDS ", 4) == 0 && std::memcmp(header + 84, "DX10", 4) == 0;
-    const std::uint32_t height = word(12);
-    const std::uint32_t width = word(16);
-    const std::uint32_t format = word(128); // 98: BC7, 99: BC7 with the sRGB curve named
-    ok = ok && (format == 98 || format == 99) && width > 0 && height > 0 && width <= 8192 && height <= 8192;
-    if (ok)
-    {
-        blocks->bc7.resize(static_cast<std::size_t>((width + 3) / 4) * static_cast<std::size_t>((height + 3) / 4) * 16);
-        ok = std::fread(blocks->bc7.data(), 1, blocks->bc7.size(), file) == blocks->bc7.size();
-    }
-    std::fclose(file);
-    if (!ok)
-    {
-        *blocks = Blocks{};
-        return false;
-    }
-    blocks->width = static_cast<int>(width);
-    blocks->height = static_cast<int>(height);
-    return true;
-}
 
 bool load_tga(const std::string &path, Image *image)
 {
@@ -113,83 +62,6 @@ bool load_tga(const std::string &path, Image *image)
     return true;
 }
 
-namespace
-{
-
-// The file's extension in lower case (".png"), or none.
-std::string Extension(const std::string &path)
-{
-    const std::size_t dot = path.find_last_of('.');
-    if (dot == std::string::npos || dot + 1 == path.size())
-        return {};
-    std::string extension = path.substr(dot);
-    for (char &c : extension)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return extension;
-}
-
-// A BC7 DDS through bcdec: the blocks the header reader took, one tile at a time.
-bool LoadDdsImage(const std::string &path, Image *image)
-{
-    Blocks blocks;
-    if (!load_dds_bc7(path, &blocks))
-        return false;
-    const int width = blocks.width;
-    const int height = blocks.height;
-    const int columns = (width + 3) / 4;
-    image->width = width;
-    image->height = height;
-    image->rgba.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
-    std::uint8_t tile[64];
-    for (int y = 0; y < height; y += 4)
-    {
-        for (int x = 0; x < width; x += 4)
-        {
-            const std::size_t block = (static_cast<std::size_t>(y / 4) * static_cast<std::size_t>(columns) +
-                                       static_cast<std::size_t>(x / 4)) *
-                                      16;
-            bcdec_bc7(blocks.bc7.data() + block, tile, 16);
-            for (int in_y = 0; in_y < 4 && y + in_y < height; ++in_y)
-                for (int in_x = 0; in_x < 4 && x + in_x < width; ++in_x)
-                {
-                    std::uint8_t *out =
-                        image->rgba.data() +
-                        (static_cast<std::size_t>(y + in_y) * static_cast<std::size_t>(width) +
-                         static_cast<std::size_t>(x + in_x)) *
-                            4;
-                    std::memcpy(out, tile + (in_y * 4 + in_x) * 4, 4);
-                }
-        }
-    }
-    return true;
-}
-
-} // namespace
-
-bool load_image(const std::string &path, Image *image)
-{
-    *image = Image{};
-    if (path.empty())
-        return false;
-    if (Extension(path) == ".dds")
-        return LoadDdsImage(path, image);
-    int width = 0;
-    int height = 0;
-    stbi_uc *pixels = stbi_load(path.c_str(), &width, &height, nullptr, 4);
-    if (pixels == nullptr || width <= 0 || height <= 0)
-    {
-        stbi_image_free(pixels);
-        return false;
-    }
-    image->width = width;
-    image->height = height;
-    image->rgba.assign(pixels, pixels + static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
-    stbi_image_free(pixels);
-    while (image->width > 8192 || image->height > 8192)
-        *image = halve(*image);
-    return !image->empty();
-}
-
 Image halve(const Image &image)
 {
     Image result;
@@ -228,62 +100,169 @@ Image halve(const Image &image)
     return result;
 }
 
-// Horizontal box blur: for each pixel, average the clamped [x-radius, x+radius] window. The
-// window's sum slides along the row, so a big radius costs no more than a small one.
-static void blur_row(const std::uint8_t *in, std::uint8_t *out, int width, int radius)
-{
-    if (width <= 0)
-        return;
-    int lo = 0;
-    int hi = std::min(width - 1, radius);
-    unsigned sum[3] = {0, 0, 0};
-    for (int k = lo; k <= hi; ++k)
-        for (int ch = 0; ch < 3; ++ch)
-            sum[ch] += in[k * 4 + ch];
-    for (int x = 0; x < width; ++x)
-    {
-        const int count = hi - lo + 1;
-        for (int ch = 0; ch < 3; ++ch)
-            out[x * 4 + ch] = static_cast<std::uint8_t>(sum[ch] / static_cast<unsigned>(count));
-        out[x * 4 + 3] = in[x * 4 + 3];
-        const int next_lo = std::max(0, x + 1 - radius);
-        const int next_hi = std::min(width - 1, x + 1 + radius);
-        for (; lo < next_lo; ++lo)
-            for (int ch = 0; ch < 3; ++ch)
-                sum[ch] -= in[lo * 4 + ch];
-        for (int k = hi + 1; k <= next_hi; ++k)
-            for (int ch = 0; ch < 3; ++ch)
-                sum[ch] += in[k * 4 + ch];
-        hi = next_hi;
+
+namespace avatar_detail {
+inline std::uint16_t U16(const std::uint8_t* p) noexcept {
+    return std::uint16_t(p[0]) | (std::uint16_t(p[1]) << 8);
+}
+inline std::uint32_t U32(const std::uint8_t* p) noexcept {
+    return std::uint32_t(p[0]) | (std::uint32_t(p[1]) << 8) |
+           (std::uint32_t(p[2]) << 16) | (std::uint32_t(p[3]) << 24);
+}
+inline std::uint8_t Channel(std::uint32_t pixel, std::uint32_t mask,
+                            std::uint8_t absent = 0) noexcept {
+    if (!mask) return absent;
+    unsigned shift = 0;
+    while (!(mask & 1u)) { mask >>= 1; ++shift; }
+    const std::uint32_t bits = (pixel >> shift) & mask;
+    return static_cast<std::uint8_t>((std::uint64_t(bits) * 255u + mask / 2u) / mask);
+}
+using Pixel = std::array<std::uint8_t, 4>;
+inline Pixel Rgb565(std::uint16_t bits) noexcept {
+    return {static_cast<std::uint8_t>(((bits >> 11) & 31u) * 255u / 31u),
+            static_cast<std::uint8_t>(((bits >> 5) & 63u) * 255u / 63u),
+            static_cast<std::uint8_t>((bits & 31u) * 255u / 31u), 255u};
+}
+inline void Colors(const std::uint8_t* p, bool opaque, Pixel (&table)[4]) noexcept {
+    const auto a = U16(p), b = U16(p + 2);
+    table[0] = Rgb565(a);
+    table[1] = Rgb565(b);
+    if (a > b || opaque) {
+        for (int channel = 0; channel < 3; ++channel) {
+            table[2][channel] = static_cast<std::uint8_t>(
+                (2u * table[0][channel] + table[1][channel]) / 3u);
+            table[3][channel] = static_cast<std::uint8_t>(
+                (table[0][channel] + 2u * table[1][channel]) / 3u);
+        }
+        table[2][3] = table[3][3] = 255;
+    } else {
+        for (int channel = 0; channel < 3; ++channel)
+            table[2][channel] = static_cast<std::uint8_t>(
+                (table[0][channel] + table[1][channel]) / 2u);
+        table[2][3] = 255;
+        table[3] = {0, 0, 0, 0};
     }
 }
+} // namespace avatar_detail
 
-void blur(Image &image, int radius)
-{
-    if (image.empty() || radius <= 0)
-        return;
-    radius = std::min(radius, std::min(image.width, image.height) / 2);
-    if (radius <= 0)
-        return;
-    const int w = image.width;
-    const int h = image.height;
-    std::vector<std::uint8_t> tmp(image.rgba.size());
-    std::vector<std::uint8_t> col(static_cast<std::size_t>(h) * 4);
-    std::vector<std::uint8_t> col_out(col.size());
-    auto row_ptr = [&](auto &buf, int y) { return buf.data() + static_cast<std::size_t>(y) * w * 4; };
-    for (int pass = 0; pass < 3; ++pass)
-    {
-        for (int y = 0; y < h; ++y)
-            blur_row(row_ptr(image.rgba, y), row_ptr(tmp, y), w, radius);
-        for (int x = 0; x < w; ++x)
-        {
-            for (int y = 0; y < h; ++y)
-                std::memcpy(col.data() + y * 4, row_ptr(tmp, y) + x * 4, 4);
-            blur_row(col.data(), col_out.data(), h, radius);
-            for (int y = 0; y < h; ++y)
-                std::memcpy(row_ptr(image.rgba, y) + x * 4, col_out.data() + y * 4, 4);
+bool load_avatar_dds(const std::string& path, Image* image) {
+    if (!image) return false;
+    *image = {};
+    std::FILE* f = std::fopen(path.c_str(), "rb");
+    if (!f) return false;
+    if (std::fseek(f, 0, SEEK_END) != 0) { std::fclose(f); return false; }
+    const long length = std::ftell(f);
+    // An avatar cannot legitimately need megabytes of compressed payload.
+    if (length < 128 || length > (4L << 20) || std::fseek(f, 0, SEEK_SET) != 0) {
+        std::fclose(f);
+        return false;
+    }
+    std::vector<std::uint8_t> data(static_cast<std::size_t>(length));
+    const bool read = std::fread(data.data(), 1, data.size(), f) == data.size();
+    std::fclose(f);
+    if (!read) return false;
+    using namespace avatar_detail;
+    const auto* b = data.data();
+    if (U32(b) != 0x20534444u || U32(b + 4) != 124 ||
+        U32(b + 76) != 32) return false;
+    const auto height = U32(b + 12), width = U32(b + 16);
+    if (!width || !height || width > 512 || height > 512) return false;
+
+    constexpr std::uint32_t dxt1 = 0x31545844u, dxt3 = 0x33545844u,
+                            dxt5 = 0x35545844u, dx10 = 0x30315844u;
+    auto format = U32(b + 84);
+    std::size_t offset = 128;
+    if (format == dx10) {
+        if (data.size() < 148) return false;
+        const auto dxgi = U32(b + 128);
+        offset = 148;
+        format = (dxgi == 71 || dxgi == 72) ? dxt1 :
+                 (dxgi == 74 || dxgi == 75) ? dxt3 :
+                 (dxgi == 77 || dxgi == 78) ? dxt5 :
+                 (dxgi == 28 || dxgi == 29 || dxgi == 87 || dxgi == 91) ? 0u : 0xffffffffu;
+    }
+    const bool compressed = format == dxt1 || format == dxt3 || format == dxt5;
+    if (!compressed && format != 0) return false;
+    const std::size_t blocks_w = (width + 3u) / 4u, blocks_h = (height + 3u) / 4u;
+    const std::size_t bytes_per_block = format == dxt1 ? 8u : 16u;
+    std::size_t pitch = static_cast<std::size_t>(width) * 4u;
+    if (!compressed && (U32(b + 8) & 8u) && U32(b + 20) >= pitch)
+        pitch = U32(b + 20);
+    if (pitch > 8192u) return false;
+    const std::size_t required = compressed ? blocks_w * blocks_h * bytes_per_block :
+                                                pitch * height;
+    if (offset > data.size() || required > data.size() - offset) return false;
+    std::uint32_t red = U32(b + 92), green = U32(b + 96),
+                  blue = U32(b + 100), alpha = U32(b + 104);
+    if (!compressed && !red && !green && !blue) {
+        // Explicit DX10 RGBA and BGRA formats; legacy unmasked RGB is rejected.
+        if (U32(b + 84) != dx10) return false;
+        const auto dxgi = U32(b + 128);
+        if (dxgi == 28 || dxgi == 29) {
+            red = 0x000000ffu; green = 0x0000ff00u;
+            blue = 0x00ff0000u; alpha = 0xff000000u;
+        } else {
+            red = 0x00ff0000u; green = 0x0000ff00u;
+            blue = 0x000000ffu; alpha = 0xff000000u;
         }
     }
+    if (!compressed && U32(b + 88) != 32 && U32(b + 84) != dx10) return false;
+    image->width = static_cast<int>(width);
+    image->height = static_cast<int>(height);
+    image->rgba.resize(static_cast<std::size_t>(width) * height * 4u);
+    if (!compressed) {
+        for (std::size_t y = 0; y < height; ++y)
+            for (std::size_t x = 0; x < width; ++x) {
+                const auto pixel = U32(b + offset + y * pitch + x * 4u);
+                const auto out = (y * width + x) * 4u;
+                image->rgba[out] = Channel(pixel, red);
+                image->rgba[out + 1] = Channel(pixel, green);
+                image->rgba[out + 2] = Channel(pixel, blue);
+                image->rgba[out + 3] = Channel(pixel, alpha, 255);
+            }
+        return true;
+    }
+    for (std::size_t by = 0; by < blocks_h; ++by)
+        for (std::size_t bx = 0; bx < blocks_w; ++bx) {
+            const auto* block = b + offset + (by * blocks_w + bx) * bytes_per_block;
+            const auto* color = block + (format == dxt1 ? 0 : 8);
+            Pixel palette[4]{};
+            Colors(color, format != dxt1, palette);
+            const auto indices = U32(color + 4);
+            std::uint64_t alpha_bits = 0;
+            if (format == dxt5)
+                for (unsigned j = 0; j < 6; ++j)
+                    alpha_bits |= std::uint64_t(block[j + 2]) << (j * 8);
+            std::uint8_t alpha_palette[8]{};
+            if (format == dxt5) {
+                alpha_palette[0] = block[0]; alpha_palette[1] = block[1];
+                if (block[0] > block[1]) {
+                    for (unsigned k = 2; k < 8; ++k)
+                        alpha_palette[k] = static_cast<std::uint8_t>(
+                            ((8u - k) * block[0] + (k - 1u) * block[1]) / 7u);
+                } else {
+                    for (unsigned k = 2; k < 6; ++k)
+                        alpha_palette[k] = static_cast<std::uint8_t>(
+                            ((6u - k) * block[0] + (k - 1u) * block[1]) / 5u);
+                    alpha_palette[6] = 0; alpha_palette[7] = 255;
+                }
+            }
+            for (unsigned py = 0; py < 4; ++py)
+                for (unsigned px = 0; px < 4; ++px) {
+                    const auto x = bx * 4u + px, y = by * 4u + py;
+                    if (x >= width || y >= height) continue;
+                    const unsigned i = py * 4u + px;
+                    Pixel rgba = palette[(indices >> (2u * i)) & 3u];
+                    if (format == dxt3)
+                        rgba[3] = static_cast<std::uint8_t>(
+                            ((block[i / 2u] >> ((i & 1u) * 4u)) & 15u) * 17u);
+                    else if (format == dxt5)
+                        rgba[3] = alpha_palette[(alpha_bits >> (3u * i)) & 7u];
+                    const auto out = (static_cast<std::size_t>(y) * width + x) * 4u;
+                    for (unsigned channel = 0; channel < 4; ++channel)
+                        image->rgba[out + channel] = rgba[channel];
+                }
+        }
+    return true;
 }
-
 } // namespace pe::gfx

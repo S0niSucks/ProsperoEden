@@ -2,6 +2,7 @@
 #pragma once
 #include <EGL/egl.h>
 #include <atomic>
+#include <array>
 #include <future>
 #include <functional>
 #include "core/frontend/emu_window.h"
@@ -27,9 +28,22 @@ public:
 private:
     bool vulkan{};
     bool splash_hidden{};
+    bool splash_hide_attempted{}; // PS5 system service must never be called per frame
     bool first_frame_reported{};
     double frame_sample_start{-1}, frame_sample_last{}, frame_sample_worst{};
     unsigned frame_sample_count{}, frame_total{};
+    // Constant-cost five-second present-jitter counts. 30 FPS is ~33.33 ms:
+    // 38 ms catches a visible 4–6 FPS dip, without per-frame file writes.
+    unsigned frame_late_38{}, frame_late_50{}, frame_late_100{};
+    unsigned frame_late_200{}, frame_late_500{};
+    unsigned frame_slow_streak{}, frame_max_slow_streak{};
+    std::array<unsigned, 6> experimental_pacing_bins{};
+    // Five-second delta baselines belong to this GraphicsWindow, NOT a static
+    // shared across titles. R404 also attributes JIT activity to its four
+    // guest cores from the same five-second counter snapshot (no frame hot path).
+    std::array<unsigned long long, 24> frame_pressure_previous{};
+    bool frame_pressure_was_detailed{}; // a disabled log sink has no valid five-second baseline
+    unsigned frame_pressure_logging_generation{}; // detect OFF->ON between report boundaries
     EGLDisplay display{EGL_NO_DISPLAY};
     EGLConfig config{};
     EGLContext root{EGL_NO_CONTEXT};

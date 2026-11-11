@@ -1,93 +1,76 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright 2026 Oliv3rmoon
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Check library.json, the Library's games for other homebrew to read (headless/library_file.h).
-
-Usage: check-library-file.py [FOLDER]
-
-nlohmann/json comes from JSON_INCLUDE, the system, or a copy found under FOLDER (the release
-build passes its scratch folder, where Eden's build fetched one). This compiles the header, writes
-a list and reads it back as a forwarder maker would, and checks that the launcher writes the file
-from the console's own games only, with filesystem access, and that docs/FORWARDER.md describes it.
-"""
+"""Actual library.json serializer/writer; synthetic files, ASan/UBSan, no vendor reads."""
 from pathlib import Path
-import json, os, subprocess, sys, tempfile
+import os
+import subprocess
+import tempfile
 
 root = Path(__file__).resolve().parents[1]
 services = (root / 'headless/prosperoeden/eden_services.cpp').read_text()
-games = services[services.index('std::vector<pe::ui::Game> EdenServices::games() {'):]
-games = games[:games.index('\n}\n')]
-write = games.index('Eden::LibraryFile::Write(std::string{Eden::kDataDir} + "/library.json",')
-assert 'Eden::LibraryFile::Text(Eden::GamesDir(), listed)' in games
-assert 'Eden::GamesPath("roms/" + game.file)' in games
-assert games.rfind('if (Eden::FilesystemAccess()) {', 0, write) > games.index('games.push_back(std::move(game));'), \
-    'the file is written after the console games are read, with filesystem access'
-assert write < games.index('game.remote = true;'), 'only the console games are listed, not the download sources\''
-assert '`/data/prosperoeden/library.json`' in (root / 'docs/FORWARDER.md').read_text()
-
-
-def json_include():
-    if os.environ.get('JSON_INCLUDE'):
-        return os.environ['JSON_INCLUDE']
-    for folder in ('/usr/include', '/usr/local/include', '/opt/homebrew/include'):
-        if (Path(folder) / 'nlohmann/json.hpp').exists():
-            return folder
-    if len(sys.argv) > 1:
-        for header in sorted(Path(sys.argv[1]).glob('**/nlohmann/json.hpp')):
-            return str(header.parent.parent)
-    sys.exit('check-library-file: no nlohmann/json.hpp (set JSON_INCLUDE or pass a folder holding one)')
-
-
+scan = services[services.index('std::vector<pe::ui::Game> EdenServices::games(const'):]
+scan = scan[:scan.index('\n}\n')]
+assert scan.index('Eden::LibraryFile::Write(') > scan.index('games.push_back(std::move(game));')
+assert scan.index('Eden::LibraryFile::Write(') < scan.index('lock.unlock();')
+assert 'Eden::FilesystemAccess() && !(cancel && cancel->load(std::memory_order_acquire))' in scan
+assert 'Eden::GamePath(game.file)' in scan
+assert 'Eden::LibraryFile::Text(Eden::AssetsDir(), listed, Eden::GamesDir())' in scan
 code = r'''
 #include "library_file.h"
 #include <cassert>
-#include <cstdio>
-#include <sys/stat.h>
+#include <filesystem>
+#include <fstream>
 using namespace Eden::LibraryFile;
-int main(int, char** argv) {
-    const std::string folder = argv[1];
-    const std::vector<Game> games = {
-        {"Mario Kart 8 Deluxe/Mario Kart 8 Deluxe.nsp", "/mnt/usb0/eden/roms/Mario Kart 8 Deluxe/Mario Kart 8 Deluxe.nsp",
-         "Mario Kart 8 Deluxe", 0x0100152000022000, "/data/prosperoeden/covers/1a2b3c4d.tga"},
-        {"Zelda.xci", "/mnt/usb0/eden/roms/Zelda.xci", "ゼルダの伝説 \"Tears\"", 0x0100F2C0115B6000, ""},
-        {"Broken.nsp", "/mnt/usb0/eden/roms/Broken.nsp", std::string("Bad \xff name"), 0, ""},
-    };
-    const std::string text = Text("/mnt/usb0/eden", games);
-    const std::string path = folder + "/library.json";
-    assert(Write(path, text));
-    struct stat first {};
-    assert(stat(path.c_str(), &first) == 0);
-    // The same list again: the file is left as it is.
-    assert(Write(path, text));
-    struct stat again {};
-    assert(stat(path.c_str(), &again) == 0 && again.st_ino == first.st_ino);
-    // A changed list replaces it in one step, leaving no temporary file behind.
-    assert(Write(path, Text("/mnt/usb0/eden", {games[0]})));
-    assert(Write(path, text));
-    struct stat temporary {};
-    assert(stat((path + ".tmp").c_str(), &temporary) != 0);
-    // A folder that cannot be written: false, nothing thrown.
-    assert(!Write(folder + "/missing/library.json", text));
-    std::puts(path.c_str());
+int main() {
+    namespace fs = std::filesystem;
+    const std::vector<Game> games{{"Title/main", "/mnt/usb0/eden/roms/Title/main",
+                                  "日本語 \"Title\"", 0x0100000000000001, "cover.tga"},
+                                 {"Demo.NRO", "/mnt/usb0/eden/roms/Demo.NRO", "Demo", 0, ""},
+                                 {"Unknown.nsp", "/roms/Unknown.nsp", std::string("Bad \xff title"), 0, ""}};
+    const auto text = Text("/mnt/usb0/eden", games);
+    const auto json = nlohmann::json::parse(text);
+    assert(json["version"] == 1 && json["app"] == "PPSA99008");
+    assert(!json.contains("games_folder")); // original API/schema remains compatible
+    const auto independent = nlohmann::json::parse(Text("/mnt/usb0/eden", games, "/mnt/usb1/games"));
+    assert(independent["game_files"] == json["game_files"] && independent["games"] == json["games"]);
+    assert(independent["games_folder"] == "/mnt/usb1/games");
+    assert(json["games"][0]["title_id"] == "0100000000000001");
+    assert(json["games"][0]["file"] == "Title/main");
+    assert(json["games"][0]["title"] == games[0].title);
+    assert(json["games"][1]["title_id"].is_null() && json["games"][1]["cover"].is_null());
+    assert(json["games"][2]["title"] == "Bad \xef\xbf\xbd title");
+    assert(Write("library.json", text));
+    struct stat before{}, after{};
+    assert(stat("library.json", &before) == 0 && Write("library.json", text));
+    assert(stat("library.json", &after) == 0 && before.st_ino == after.st_ino);
+    assert(Write("library.json", Text("/new-root", {})));
+    assert(stat("library.json", &after) == 0 && before.st_ino != after.st_ino);
+    // Neither old-file reads nor new writes follow symlinks or special files.
+    std::ofstream("victim") << "preserve";
+    fs::create_symlink("victim", "linked.json");
+    assert(!Write("linked.json", text) && fs::is_symlink("linked.json"));
+    fs::create_hard_link("victim", "hardlinked.json");
+    assert(!Write("hardlinked.json", text));
+    assert(mkfifo("pipe.json", 0600) == 0 && !Write("pipe.json", text));
+    fs::create_directory("directory.json");
+    assert(!Write("directory.json", text));
+    assert(!Write("absent/library.json", text));
+    std::ifstream victim("victim"); std::string contents; victim >> contents;
+    assert(contents == "preserve");
+    // A pre-existing predictable legacy .tmp symlink is never opened.
+    fs::create_symlink("victim", "library.json.tmp");
+    assert(Write("library.json", text) && fs::is_symlink("library.json.tmp"));
+    for (const auto& entry : fs::directory_iterator("."))
+        assert(!entry.path().filename().string().starts_with("library.json.tmp."));
+    assert(!Write("huge.json", std::string((16u << 20) + 1, 'x')));
+    std::puts("LIBRARY_JSON_INTERCHANGE_PASS");
 }
 '''
-with tempfile.TemporaryDirectory() as tmp:
+with tempfile.TemporaryDirectory(prefix='encore-library-file-') as tmp:
     exe = Path(tmp) / 'library-file'
-    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra', '-Werror',
-                    # Preserve libstdc++'s include_next order when JSON lives in /usr/include.
-                    '-I' + str(root / 'headless'), '-idirafter', json_include(), '-x', 'c++', '-', '-o', str(exe)],
+    subprocess.run([os.environ.get('CXX', 'c++'), '-std=c++20', '-Wall', '-Wextra',
+                    '-Werror', '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
+                    '-I', str(root / 'headless'), '-x', 'c++', '-', '-o', str(exe)],
                    input=code, text=True, check=True)
-    path = subprocess.run([str(exe), tmp], check=True, capture_output=True, text=True).stdout.strip()
-    # Read back as a forwarder maker would.
-    document = json.loads(Path(path).read_text(encoding='utf-8'))
-    assert document['version'] == 1 and document['app'] == 'PPSA99008'
-    assert document['game_files'] == '/mnt/usb0/eden'
-    kart, zelda, broken = document['games']
-    assert kart == {'file': 'Mario Kart 8 Deluxe/Mario Kart 8 Deluxe.nsp',
-                    'path': '/mnt/usb0/eden/roms/Mario Kart 8 Deluxe/Mario Kart 8 Deluxe.nsp',
-                    'title': 'Mario Kart 8 Deluxe', 'title_id': '0100152000022000',
-                    'cover': '/data/prosperoeden/covers/1a2b3c4d.tga'}
-    assert zelda['title'] == 'ゼルダの伝説 "Tears"' and zelda['title_id'] == '0100F2C0115B6000'
-    assert zelda['cover'] is None
-    assert broken['title_id'] is None and broken['title'] == 'Bad � name'
-print('Library file: PASS library.json lists the console\'s games (path in roms/, title, title ID, cover) for other homebrew')
+    subprocess.run([str(exe)], cwd=tmp, check=True, timeout=30)

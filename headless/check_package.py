@@ -11,27 +11,19 @@ import sys
 from check import fixture
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
 APP = Path(os.environ.get('EDEN_PACKAGE_DIR', ROOT / 'dist/headless/PPSA99008')).resolve()
 if 'EDEN_PACKAGE_DIR' in os.environ:
     assert APP.is_relative_to(ROOT/'build') and APP.name == 'PPSA99008'
 OUT = ROOT / 'build/headless-native'
-BASE_REQUIRED = {'launcher-runtime.json', 'eboot.bin', 'core-homebrew.nro', 'sce_module/libc.prx',
-            'sce_sys/param.json', 'sce_sys/icon0.png', 'sce_sys/pic0.dds', 'sce_sys/pic1.dds',
-            'sce_sys/snd0.at9', 'lapy.elf', 'lapy-manifest.json', 'licenses/Lapy-MIT.txt',
-            'self-updater.elf'}
+BASE_REQUIRED = {'network-hosts.txt', 'eboot.bin', 'core-homebrew.nro', 'sce_module/libc.prx',
+            'sce_sys/param.json', 'sce_sys/icon0.png', 'sce_sys/icon0.dds', 'sce_sys/pic0.dds', 'sce_sys/pic1.dds',
+            'sce_sys/snd0.at9', 'sandbox-elevator.elf'}
 REQUIRED = set(BASE_REQUIRED)
 REQUIRED.update(p.relative_to(APP).as_posix() for p in (APP / 'ui').rglob('*') if p.is_file())
-# The runner's switches (headless/main.cpp): only a development package carries them, so they
-# are required exactly when the build put them there (tools/package-headless-native.sh).
-if (APP / 'dev-settings.txt').is_file():
-    REQUIRED.add('dev-settings.txt')
-if (APP / 'mihawkgen/network.fgw').is_file():
-    REQUIRED.add('mihawkgen/network.fgw')
+REQUIRED.update({'legal/LICENSE', 'legal/THIRD_PARTY_NOTICES.md'})
+REQUIRED.update('legal/LICENSES/' + p.name for p in (ROOT / 'LICENSES').iterdir() if p.is_file())
 RECEIPT = ROOT / 'HEADLESS_CANDIDATE.json'
-# The pinned OpenGL SDK release (tools/deps.json): digest of its manifest.sha256.
-GL_SDK_MANIFEST_SHA256 = '0d432edc9d648d6e0cccb4d5eb3db8484f10ba4b075b5ccf23edda3251b66360'
-LAPY_PROTOCOL_SHA256 = 'bb02c4aa814eaba7a7a423a31b29ff41f786212c2953678cf29434e85fa0f869'
+GL_SDK_SOURCE_COMMIT = 'ad2807d41cef2681882a9ee0d20808779f74b7cd'
 
 
 def digest(path):
@@ -39,18 +31,27 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def check_inventory():
-    # Notice staging was added to the native package, not just the outer ZIP. Verify its exact
-    # bytes/no-follow inventory with the same maintained verifier before admitting those files.
-    notices = runpy.run_path(str(ROOT / 'tools/package-license-notices.py'))['stage'](APP, check=True)
-    required = REQUIRED | notices['files'].keys()
-    assert {p.relative_to(APP).as_posix() for p in APP.rglob('*') if p.is_file()} == required
-    assert all(not (APP / p).is_symlink() and (APP / p).stat().st_size for p in required)
-    return required
 
+
+def verified_opengl_sdk_files():
+    sdk = ROOT / '.local/ps5-opengl-sdk-ad2807d'
+    assert (sdk / 'ENCORE_SOURCE_COMMIT').read_text().strip() == GL_SDK_SOURCE_COMMIT
+    subprocess.run(['sha256sum', '--check', '--strict', 'manifest.sha256'], cwd=sdk, check=True,
+                   stdout=subprocess.DEVNULL)
+    manifest = sdk / 'manifest.sha256'
+    files = [manifest, sdk / 'ENCORE_SOURCE_COMMIT', sdk / 'ENCORE_AUDIT_FIXES']
+    for line in manifest.read_text().splitlines():
+        expected, name = line.split('  ', 1)
+        path = sdk / name
+        assert digest(path) == expected, name
+        files.append(path)
+    return files
 
 def check():
-    global REQUIRED
+    # A previously staged or partial package must not silently retain an old
+    # hosts list. Verify the actual installed file, not just its filename.
+    assert digest(APP / 'network-hosts.txt') == digest(ROOT / 'headless/network-hosts.txt'), (
+        'PS5 app contains missing/stale network hosts policy')
     frontend = json.loads((OUT / 'frontend.json').read_text())
     assert frontend.get('gpu_probe', False) == (b'EDEN_GPU_PROBE_PASS cases=36' in (OUT / 'llvm-pie.elf').read_bytes()), 'GPU probe receipt/binary mismatch'
     if frontend['guest_fixture'] == 'retail-game':
@@ -62,33 +63,27 @@ def check():
             assert digest(APP / name) == expected, name
         REQUIRED.update(assets)
         REQUIRED.add('game-assets.json')
-    REQUIRED = check_inventory()
+    assert {p.relative_to(APP).as_posix() for p in APP.rglob('*') if p.is_file()} == REQUIRED
+    assert all(not (APP / p).is_symlink() and (APP / p).stat().st_size for p in REQUIRED)
     param = json.loads((APP / 'sce_sys/param.json').read_text())
     assert param['titleId'] == 'PPSA99008' and param['contentId'].endswith('PROSPEROEDEN0001')
-    assert param['localizedParameters']['en-US']['titleName'] == 'ProsperoEden'
+    assert param['localizedParameters']['en-US']['titleName'] == 'Prospero.Eden Encore'
     assert param['pubtools']['loudnessSnd0'] == '-28.00'
-    lapy = json.loads((APP / 'lapy-manifest.json').read_text())
-    assert lapy['schema'] == 'lapy-owned-build/1'
-    assert lapy['target_title'] == 'PPSA99008' and lapy['mode'] == 'elf-helper'
-    assert lapy['max_requests'] == 1 and not lapy['service']
-    assert lapy['features'] == ['root_layout_probe_retry']
-    assert lapy['protocol_sha256'] == LAPY_PROTOCOL_SHA256
-    assert lapy['elf_sha256'] == digest(APP / 'lapy.elf')
-    assert (APP / 'lapy.elf').read_bytes()[:6] == b'\x7fELF\x02\x01'
     sound = (APP / 'sce_sys/snd0.at9').read_bytes()
     assert len(sound) <= 2 * 1024 * 1024 and sound[:4] == b'RIFF' and sound[8:12] == b'WAVE'
     fixture((APP / 'core-homebrew.nro').read_bytes())
     runpy.run_path(str(ROOT / 'tools/load_alignment.py'))['check_load_alignment']((APP / 'eboot.bin').read_bytes())
     imports = (OUT / 'imports.txt').read_text()
     needed = sorted(imports.split('NeededLibraries [', 1)[1].split(']', 1)[0].split())
-    # libSceCommonDialog, libSceImeDialog and libSceSysmodule: the PS5 keyboard for a game's text
-    # entry (headless/system_keyboard.cpp); RADV loads system modules as well.
-    expected = ['libSceAudioOut.sprx', 'libSceCommonDialog.sprx', 'libSceImeDialog.sprx', 'libSceLibcInternal.sprx', 'libSceNet.sprx',
-                'libScePad.sprx', 'libSceSysmodule.sprx', 'libSceUserService.sprx', 'libkernel.sprx']
+    expected = ['libSceAudioOut.sprx', 'libSceLibcInternal.sprx', 'libSceNet.sprx',
+                'libScePad.sprx', 'libSceUserService.sprx', 'libkernel.sprx']
     if json.loads((OUT / 'frontend.json').read_text())['renderer'] == 'opengl-4.6-compatibility':
+        verified_opengl_sdk_files()
         assert b'[ps5-batch-summary] config gpu-present=1 multidraw=1 deferred=1 ' in (OUT / 'llvm-pie.elf').read_bytes(), 'SDK batching disabled or missing compiled receipt'
         expected += ['libSceAgc.prx', 'libSceAgcDriver.prx', 'libSceSystemService.sprx',
                      'libSceVideoOut.sprx']
+    if frontend.get('vulkan'):
+        expected.append('libSceSysmodule.sprx')
     if frontend.get('gpu_probe'):
         expected.remove('libSceNet.sprx')  # Guest networking is dead-stripped from this entry.
     assert needed == sorted(expected), needed
@@ -109,21 +104,14 @@ if __name__ == '__main__':
                         for p in (ROOT / folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts)
         paths += [ROOT / p for p in ('tools/load_alignment.py', 'third_party/ps5_pad.hpp',
             'third_party/native_audio.hpp', 'third_party/app_heap.c',
-            '../ps5-opengl/tools/Assert-Ps5ForegroundIdle.ps1',
+            '../ps5-opengl-review/tools/Assert-Ps5ForegroundIdle.ps1',
             '../../docs/ps5-homebrew-dev-protocol/scripts/send-controller.sh',
             '../../docs/ps5-homebrew-dev-protocol/scripts/controllers/launch.c',
             '../../docs/ps5-homebrew-dev-protocol/scripts/controllers/close.c')
             if not p.startswith('../') or (ROOT / p).exists()]  # console tooling of a development layout
         frontend = json.loads((OUT / 'frontend.json').read_text())
         if frontend['renderer'] == 'opengl-4.6-compatibility':
-            sdk = ROOT / '.deps/ps5-opengl-sdk-1.0.2/sdk'
-            manifest = sdk / 'manifest.sha256'
-            assert digest(manifest) == GL_SDK_MANIFEST_SHA256
-            paths.append(manifest)
-            for line in manifest.read_text().splitlines():
-                expected, name = line.split('  ', 1)
-                assert digest(sdk / name) == expected, name
-                paths.append(sdk / name)
+            paths += verified_opengl_sdk_files()
         if frontend.get('vulkan'):
             if frontend.get('vulkan_driver', 'CUSTOM') == 'RADV':
                 paths += [ROOT / 'build/radv-isolated' / name for name in
@@ -135,8 +123,7 @@ if __name__ == '__main__':
                 paths += [ROOT / 'build/vulkan-isolated' / name for name in
                           ('libps5vk.a', 'libpsbc.a', 'manifest.json')]
             paths.append(ROOT / 'build/stubs/libSceAgcDriver.so')
-        legacy_receipt = ROOT / 'CANDIDATE.json'
-        old = json.loads(legacy_receipt.read_text()) if legacy_receipt.exists() else {'files': {}}
+        old = json.loads((ROOT / 'CANDIDATE.json').read_text())
         previous = {p: old['files']['dist/PPSA99121/' + p]
                     for p in BASE_REQUIRED - {'core-homebrew.nro'}
                     if 'dist/PPSA99121/' + p in old['files']}
@@ -145,7 +132,7 @@ if __name__ == '__main__':
             previous = ({p: prior['files']['dist/headless/PPSA99008/' + p] for p in prior['package_sizes']}
                         if prior['hardware_run'] else prior['previous_package'])
         retail_launch = frontend['guest_fixture'] == 'retail-game' or bool(frontend.get('development_rom_id'))
-        value = dict(gate='G7', title_id='PPSA99008', firmware='6.02', hardware_run=False,
+        value = dict(gate='G7', title_id='PPSA99008', firmware='13.60', hardware_run=False,
                      classification='offline-validated', needed_libraries=needed,
                      data_heap_bytes=3072 * 1024**2, guest_backing_bytes=4 * 1024**3,
                      observation_seconds=120 if retail_launch else 60,

@@ -11,6 +11,7 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -28,10 +29,22 @@ struct CodeRange {
 // One entry per JIT code cache with fastmem (a few per emulated core). Lock-free so the
 // handler never waits on a thread that registers or retires a JIT.
 std::array<CodeRange, 64> ranges;
+// Only the highest ever published slot bounds the signal-time scan.
+// Do not shrink on retirement: concurrent handlers may still see the old
+// bound, while reuse of a low slot requires no changes to that bound.
+std::atomic<std::size_t> published_range_prefix{0};
 std::atomic<std::uint64_t> fault_count{0};
 struct sigaction previous_segv{}, previous_bus{};
 std::once_flag install_once;
 bool installed = false;
+
+// The all-ones begin value is reserved while a slot is being published.
+// Registration happens outside the signal handler; reject invalid or
+// wrapping JIT ranges before exposing them to asynchronous fault handling.
+constexpr bool ValidCodeRange(std::uint64_t begin, std::uint64_t size) noexcept {
+    return begin != 0 && begin != ~std::uint64_t{0} &&
+           size != 0 && size <= ~std::uint64_t{0} - begin;
+}
 
 void Forward(int signal, siginfo_t* info, void* context) {
     const struct sigaction& previous = signal == SIGSEGV ? previous_segv : previous_bus;
@@ -45,12 +58,10 @@ void Forward(int signal, siginfo_t* info, void* context) {
 }
 
 void Handle(int signal, siginfo_t* info, void* context) {
-    // A write to the guest's memory where it is shared (the service, src/guest_memory_service.inc).
-    if (const auto guest = Eden::Fastmem::guest_write_fault.load(std::memory_order_acquire);
-        guest != nullptr && guest(info ? info->si_addr : nullptr))
-        return;
     const std::uint64_t pc = Eden::Fastmem::ContextRip(context);
-    for (auto& range : ranges) {
+    const std::size_t prefix = published_range_prefix.load(std::memory_order_acquire);
+    for (std::size_t i = 0; i < prefix; ++i) {
+        auto& range = ranges[i];
         const auto begin = range.begin.load(std::memory_order_acquire);
         if (!begin || pc < begin || pc >= range.end.load(std::memory_order_relaxed)) continue;
         const auto* callback = range.callback.load(std::memory_order_acquire);
@@ -72,8 +83,16 @@ bool Install() {
         action.sa_sigaction = Handle;
         action.sa_flags = SA_SIGINFO | SA_RESTART;
         sigemptyset(&action.sa_mask);
-        installed = sigaction(SIGSEGV, &action, &previous_segv) == 0 &&
-                    sigaction(SIGBUS, &action, &previous_bus) == 0;
+        // Both signals must be ours, or neither may be ours. The original
+        // short-circuit installation left SIGSEGV intercepted if SIGBUS failed.
+        if (sigaction(SIGSEGV, &action, &previous_segv) == 0) {
+            if (sigaction(SIGBUS, &action, &previous_bus) == 0) {
+                installed = true;
+            } else if (sigaction(SIGSEGV, &previous_segv, nullptr) != 0) {
+                // Do not continue with a partially installed trap handler.
+                std::abort();
+            }
+        }
         std::printf("EDEN_FASTMEM_HANDLER installed=%d\n", installed ? 1 : 0);
     });
     return installed;
@@ -105,7 +124,7 @@ bool ExceptionHandler::SupportsFastmem() const noexcept {
 }
 
 void ExceptionHandler::SetFastmemCallback(std::function<FakeCall(u64)> cb) {
-    if (!impl || impl->range || !Install()) return;
+    if (!impl || impl->range || !ValidCodeRange(impl->begin, impl->size) || !Install()) return;
     impl->callback = std::move(cb);
     for (auto& range : ranges) {
         std::uint64_t expected = 0;
@@ -115,6 +134,16 @@ void ExceptionHandler::SetFastmemCallback(std::function<FakeCall(u64)> cb) {
             range.end.store(impl->begin + impl->size, std::memory_order_relaxed);
             range.callback.store(&impl->callback, std::memory_order_release);
             range.begin.store(impl->begin, std::memory_order_release);
+            // Publish after callback/end/begin, before registration returns.
+            // Registration is cold; Handle must never scan 64 empty slots.
+            const std::size_t required_prefix =
+                static_cast<std::size_t>(&range - ranges.data()) + 1;
+            std::size_t previous_prefix =
+                published_range_prefix.load(std::memory_order_relaxed);
+            while (previous_prefix < required_prefix &&
+                   !published_range_prefix.compare_exchange_weak(
+                       previous_prefix, required_prefix,
+                       std::memory_order_release, std::memory_order_relaxed)) {}
             impl->range = &range;
             return;
         }
@@ -124,33 +153,8 @@ void ExceptionHandler::SetFastmemCallback(std::function<FakeCall(u64)> cb) {
 
 } // namespace Dynarmic::Backend
 
-namespace Dynarmic::Backend::X64 {
-namespace {
-std::atomic<std::uint64_t> demotion_count{0};
-std::atomic<bool> sites_enabled{true};
-}
-// Whether A32 loads/stores may use the window (headless/checked-fastmem.cmake).
-bool CheckedFastmemSites() noexcept {
-    return sites_enabled.load(std::memory_order_relaxed);
-}
-// A checked fastmem site recompiled onto the page-table path after its blocked budget
-// (headless/checked-fastmem.cmake).
-void CheckedFastmemDemoted() noexcept {
-    demotion_count.fetch_add(1, std::memory_order_relaxed);
-}
-} // namespace Dynarmic::Backend::X64
-
 namespace Eden::Fastmem {
 std::uint64_t Faults() noexcept {
     return Dynarmic::Backend::fault_count.load(std::memory_order_relaxed);
-}
-std::uint64_t Demotions() noexcept {
-    return Dynarmic::Backend::X64::demotion_count.load(std::memory_order_relaxed);
-}
-void RequestSites(bool enabled) noexcept {
-    Dynarmic::Backend::X64::sites_enabled.store(enabled, std::memory_order_relaxed);
-}
-bool SitesRequested() noexcept {
-    return Dynarmic::Backend::X64::CheckedFastmemSites();
 }
 } // namespace Eden::Fastmem

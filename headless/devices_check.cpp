@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "devices.h"
 #include "controller_applet.h"
-#include "keyboard_applet.h"
-#include <condition_variable>
-#include <mutex>
 #include "mock_devices.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <numbers>
 #include <stdexcept>
 #include "common/fs/path_util.h"
@@ -76,150 +72,30 @@ template<class F> void Reject(F&& f) {
     CHECK(rejected);
 }
 
-// A game's "connect controllers" screen: every request gets an answer for player 1, so no game
-// waits on that screen for a controller that never comes.
+// A game's "connect controllers" screen: every combination it may allow gets a controller, except
+// the two with no answer (nothing allowed, or only the handheld while docked).
 void CheckControllerStyle() {
     using Core::HID::NpadStyleIndex;
     Core::Frontend::ControllerParameters allowed{};
-    // A game's own Controller type goes first when the game takes it, the handheld for player 1
-    // only; one the game does not take is left aside.
-    {
-        Core::Frontend::ControllerParameters taken{};
-        taken.allow_pro_controller = taken.allow_handheld = taken.allow_left_joycon = true;
-        CHECK(Eden::ControllerStyle(taken, 0, -1) == NpadStyleIndex::Fullkey);
-        CHECK(Eden::ControllerStyle(taken, 1, 3) == NpadStyleIndex::JoyconLeft);
-        CHECK(Eden::ControllerStyle(taken, 0, 1) == NpadStyleIndex::Handheld);
-        CHECK(!Eden::ControllerStyle(taken, 1, 1));
-        CHECK(Eden::ControllerStyle(taken, 0, 4) == NpadStyleIndex::Fullkey);  // right Joy-Con: not taken
-        CHECK(Eden::ControllerStyle(taken, 0, 2) == NpadStyleIndex::Fullkey);  // pair: not taken
-        CHECK(Eden::ControllerSetting(-1) == Settings::ControllerType::ProController &&
-              Eden::ControllerSetting(1) == Settings::ControllerType::Handheld &&
-              Eden::ControllerSetting(4) == Settings::ControllerType::RightJoycon);
-    }
-    // A game that names none of the styles: a Pro Controller for every player.
-    CHECK(Eden::ControllerStyle(allowed, 0) == NpadStyleIndex::Fullkey);
-    CHECK(Eden::ControllerStyle(allowed, 3) == NpadStyleIndex::Fullkey);
-    // A handheld-only game: the handheld for player 1 (in either console mode), nobody else.
+    CHECK(!Eden::ControllerStyle(allowed, 0, true) && !Eden::ControllerStyle(allowed, 0, false));
     allowed.allow_handheld = true;
-    CHECK(Eden::ControllerStyle(allowed, 0) == NpadStyleIndex::Handheld);
-    CHECK(!Eden::ControllerStyle(allowed, 1));
+    CHECK(!Eden::ControllerStyle(allowed, 0, true));
+    CHECK(Eden::ControllerStyle(allowed, 0, false) == NpadStyleIndex::Handheld);
+    CHECK(!Eden::ControllerStyle(allowed, 1, false));
     allowed.allow_right_joycon = true;
-    CHECK(Eden::ControllerStyle(allowed, 0) == NpadStyleIndex::JoyconRight);
+    CHECK(Eden::ControllerStyle(allowed, 0, true) == NpadStyleIndex::JoyconRight);
+    CHECK(Eden::ControllerStyle(allowed, 0, false) == NpadStyleIndex::JoyconRight);
     allowed.allow_right_joycon = false; allowed.allow_left_joycon = true;
-    CHECK(Eden::ControllerStyle(allowed, 1) == NpadStyleIndex::JoyconLeft);
+    CHECK(Eden::ControllerStyle(allowed, 1, true) == NpadStyleIndex::JoyconLeft);
     allowed.allow_right_joycon = true;
-    CHECK(Eden::ControllerStyle(allowed, 0) == NpadStyleIndex::JoyconLeft);
-    CHECK(Eden::ControllerStyle(allowed, 1) == NpadStyleIndex::JoyconRight);
-    CHECK(Eden::ControllerStyle(allowed, 2) == NpadStyleIndex::JoyconLeft);
+    CHECK(Eden::ControllerStyle(allowed, 0, true) == NpadStyleIndex::JoyconLeft);
+    CHECK(Eden::ControllerStyle(allowed, 1, true) == NpadStyleIndex::JoyconRight);
+    CHECK(Eden::ControllerStyle(allowed, 2, true) == NpadStyleIndex::JoyconLeft);
     allowed.allow_dual_joycons = true;
-    CHECK(Eden::ControllerStyle(allowed, 1) == NpadStyleIndex::JoyconDual);
+    CHECK(Eden::ControllerStyle(allowed, 1, true) == NpadStyleIndex::JoyconDual);
     allowed.allow_pro_controller = true;
-    CHECK(Eden::ControllerStyle(allowed, 3) == NpadStyleIndex::Fullkey);
-    std::puts("Controller applet styles: pro, pair, single Joy-Cons, handheld in either mode, and a Pro Controller when none is named PASS");
-}
-
-// A game's text entry (keyboard_applet.h) with a keyboard that answers as told.
-void CheckKeyboard() {
-    using Eden::TextOutcome;
-    using Result = Service::AM::Frontend::SwkbdResult;
-    using Reply = Service::AM::Frontend::SwkbdReplyType;
-    std::mutex mutex;
-    std::condition_variable changed;
-    int answers_given = 0;
-    Result result{};
-    std::u16string text;
-    bool confirmed = false;
-    std::vector<Reply> replies;
-    const auto wait = [&](int count) {
-        std::unique_lock lock(mutex);
-        CHECK(changed.wait_for(lock, 5s, [&] { return answers_given >= count; }));
-    };
-    const auto normal = [&](Result result_, std::u16string text_, bool confirmed_) {
-        const std::lock_guard lock(mutex);
-        result = result_; text = std::move(text_); confirmed = confirmed_;
-        ++answers_given;
-        changed.notify_all();
-    };
-    std::vector<Eden::TextAnswer> script;
-    std::atomic<int> asked{0};
-    std::atomic<bool> hold{false};
-    Eden::TextRequest last;
-    Eden::SystemKeyboardApplet applet([&](const Eden::TextRequest& request, const std::atomic<bool>& stop) {
-        last = request;
-        while (hold && !stop) std::this_thread::sleep_for(5ms);
-        if (hold) return Eden::TextAnswer{TextOutcome::cancelled, {}};
-        return script[std::min<std::size_t>(asked++, script.size() - 1)];
-    });
-    Core::Frontend::KeyboardInitializeParameters wanted{};
-    wanted.header_text = u"Name"; wanted.initial_text = u"Alex"; wanted.max_text_length = 8; wanted.min_text_length = 2;
-    const auto ask = [&](std::vector<Eden::TextAnswer> answers) {
-        script = std::move(answers); asked = 0;
-        applet.InitializeKeyboard(false, wanted, normal, {});
-        applet.ShowNormalKeyboard();
-    };
-    // What the player enters is the game's to check.
-    ask({{TextOutcome::accepted, u"Robin"}}); wait(1);
-    CHECK(result == Result::Ok && text == u"Robin" && !confirmed);
-    CHECK(last.title == u"Name" && last.initial == u"Alex" && last.max_length == 8 && !last.numbers && !last.password);
-    // A text shorter than the game asks for is asked for again, from what was entered.
-    ask({{TextOutcome::accepted, u"R"}, {TextOutcome::accepted, u"Ro"}}); wait(2);
-    CHECK(result == Result::Ok && text == u"Ro" && asked == 2 && last.initial == u"R");
-    // Closing the keyboard cancels the entry.
-    ask({{TextOutcome::cancelled, {}}}); wait(3);
-    CHECK(result == Result::Cancel && asked == 1);
-    // A game without a cancel button is asked again, then gets the text it started from.
-    wanted.disable_cancel_button = true;
-    ask({{TextOutcome::cancelled, {}}}); wait(4);
-    CHECK(result == Result::Ok && text == u"Alex" && confirmed && asked == Eden::SystemKeyboardApplet::kAttempts);
-    wanted.disable_cancel_button = false;
-    // No keyboard: the starting text, or "Eden" in the lengths the game asks for.
-    ask({{TextOutcome::unavailable, {}}}); wait(5);
-    CHECK(result == Result::Ok && text == u"Alex" && confirmed);
-    wanted.initial_text.clear(); wanted.max_text_length = 3;
-    ask({{TextOutcome::unavailable, {}}}); wait(6);
-    CHECK(result == Result::Ok && text == u"Ede" && confirmed);
-    wanted.max_text_length = 8; wanted.min_text_length = 6;
-    ask({{TextOutcome::unavailable, {}}}); wait(7);
-    CHECK(text == u"Eden00");
-    wanted.min_text_length = 2;
-    // The game refuses a text: asked again; and again: the entry is cancelled.
-    ask({{TextOutcome::accepted, u"Robin"}}); wait(8);
-    applet.ShowTextCheckDialog(Service::AM::Frontend::SwkbdTextCheckResult::Failure, u"Not this one"); wait(9);
-    CHECK(result == Result::Ok && last.initial == u"Robin");
-    applet.ShowTextCheckDialog(Service::AM::Frontend::SwkbdTextCheckResult::Failure, u"Not this one"); wait(10);
-    applet.ShowTextCheckDialog(Service::AM::Frontend::SwkbdTextCheckResult::Failure, u"Not this one"); wait(11);
-    CHECK(result == Result::Cancel && confirmed);
-    // A text the game wants confirmed is confirmed.
-    ask({{TextOutcome::accepted, u"Robin"}}); wait(12);
-    applet.ShowTextCheckDialog(Service::AM::Frontend::SwkbdTextCheckResult::Confirm, u"Sure?"); wait(13);
-    CHECK(result == Result::Ok && text == u"Robin" && confirmed);
-    // A request closed while its keyboard is open: the keyboard is told to close, no answer comes.
-    hold = true;
-    applet.InitializeKeyboard(false, wanted, normal, {});
-    applet.ShowNormalKeyboard();
-    std::this_thread::sleep_for(50ms);
-    applet.ExitKeyboard();
-    std::this_thread::sleep_for(200ms);
-    hold = false;
-    { const std::lock_guard lock(mutex); CHECK(answers_given == 13); }
-    // A keyboard inside the game's own screen: the text, then the decision.
-    std::u16string inline_text;
-    const auto inline_reply = [&](Reply reply, std::u16string text_, s32) {
-        const std::lock_guard lock(mutex);
-        replies.push_back(reply); inline_text = std::move(text_);
-        ++answers_given;
-        changed.notify_all();
-    };
-    script = {{TextOutcome::accepted, u"Hi"}}; asked = 0;
-    applet.InitializeKeyboard(true, wanted, {}, inline_reply);
-    applet.ShowInlineKeyboard({});
-    wait(15);
-    CHECK(replies.size() == 2 && replies[0] == Reply::ChangedString && replies[1] == Reply::DecidedEnter && inline_text == u"Hi");
-    script = {{TextOutcome::cancelled, {}}}; asked = 0;
-    applet.ShowInlineKeyboard({});
-    wait(16);
-    CHECK(replies.back() == Reply::DecidedCancel && inline_text == u"Hi");
-    std::puts("Text entry: entered, too short, cancelled, no cancel button, no keyboard, refused, confirmed, closed while open, inline PASS");
+    CHECK(Eden::ControllerStyle(allowed, 3, false) == NpadStyleIndex::Fullkey);
+    std::puts("Controller applet styles: pro, pair, single Joy-Cons, handheld, and the two unanswerable requests PASS");
 }
 
 void CheckPad() {
@@ -229,17 +105,12 @@ void CheckPad() {
         Eden::Pad pad;
         CHECK(pad.Open()); CHECK(pad.Open()); CHECK(state.pad_opens == 1);
         CHECK(state.last_pad_user == 84); // Foreground user differs from initial login (42).
-        CHECK(state.haptic_opens == 1);
-        CHECK(state.haptic_open_users == std::vector<int>{84});
-        CHECK(state.haptic_open_formats == std::vector<int>{1});
-        CHECK(state.vibration_modes.size() == 1);
-        CHECK((state.vibration_modes[0] == std::pair<int, int>{7, 1}));
         auto sample = neutral_data(); sample.connected = 1;
         const auto consume = [&] { pad.Consume({&sample, 1}); };
         const std::pair<ButtonMask, int> mapping[] = {
             {kButtonCircle, 0}, {kButtonCross, 1}, {kButtonTriangle, 2}, {kButtonSquare, 3},
             {kButtonL3, 4}, {kButtonR3, 5}, {kButtonL1, 6}, {kButtonR1, 7},
-            {kButtonL2, 8}, {kButtonR2, 9}, {kButtonOptions, 10}, {kButtonCreate, 11},
+            {kButtonL2, 8}, {kButtonR2, 9}, {kButtonOptions, 10},
             {kButtonLeft, 12}, {kButtonUp, 13}, {kButtonRight, 14}, {kButtonDown, 15},
         };
         for (auto [mask, button] : mapping) {
@@ -249,20 +120,8 @@ void CheckPad() {
             for (int i = 0; i < 22; ++i)
                 CHECK(pad.Engine().GetButton({}, i) == (i == button || (sl_sr >= 0 && (i == sl_sr || i == sl_sr + 4))));
         }
-        // Player 1's DualSense plays Eden's handheld controller (port 8) only while that is the
-        // controller in use: a button that reached it at any other time would connect it.
-        sample.buttons = kButtonCircle; sample.left_stick = {0, 255}; consume();
-        CHECK(pad.Engine().GetButton({}, 0)); CHECK(!pad.Engine().GetButton({.port = 8}, 0));
-        CHECK(pad.Engine().GetAxis({.port = 8}, 0) == 0);
-        sample.buttons = 0; sample.left_stick = {128, 128}; consume();
-        Eden::handheld_in_use = true;
-        sample.buttons = kButtonCircle; consume();
-        CHECK(pad.Engine().GetButton({.port = 8}, 0)); CHECK(!pad.Engine().GetButton({.port = 8}, 1));
         sample.buttons = 0;
         sample.left_stick = {0, 255}; sample.right_stick = {255, 0}; consume();
-        CHECK(!pad.Engine().GetButton({.port = 8}, 0));
-        CHECK(pad.Engine().GetAxis({.port = 8}, 0) == -1); CHECK(pad.Engine().GetAxis({.port = 8}, 3) == 1);
-        Eden::handheld_in_use = false;
         CHECK(pad.Engine().GetAxis({}, 0) == -1); CHECK(pad.Engine().GetAxis({}, 1) == -1);
         CHECK(pad.Engine().GetAxis({}, 2) == 1); CHECK(pad.Engine().GetAxis({}, 3) == 1);
         sample.left_stick = {128, 132}; sample.triggers = {127, 128}; consume();
@@ -286,27 +145,7 @@ void CheckPad() {
         // A shortcut is never a press of Minus, however long its keys take to come up.
         for (int i = 0; i < 80; ++i) { consume(); CHECK(none_pressed()); }
 
-        sample.buttons = kButtonTouchPad | kButtonSquare; consume();
-        CHECK(pad.TakeQuickMenuToggle()); CHECK(!pad.TakeQuickMenuToggle()); CHECK(none_pressed());
-        pad.SetQuickMenuOpen(true);
-        consume(); CHECK(!pad.TakeQuickMenuToggle()); CHECK(pad.TakeQuickMenuButtons() == 0);
-        sample.buttons = 0; consume();
-        sample.buttons = kButtonCross | kButtonRight; sample.left_stick = {255, 0};
-        sample.triggers = {255, 255}; consume();
-        CHECK(pad.TakeQuickMenuButtons() == (kButtonCross | kButtonRight));
-        CHECK(none_pressed()); CHECK(pad.Engine().GetAxis({}, 0) == 0);
-        consume(); CHECK(pad.TakeQuickMenuButtons() == 0);
-        // Other players cannot drive the menu and their controls are neutral too.
-        pad.Consume(1, {&sample, 1}); CHECK(pad.TakeQuickMenuButtons() == 0);
-        CHECK(!pad.Engine().GetButton({.port = 1}, 1));
-        sample.buttons = kButtonCircle; consume(); CHECK(pad.TakeQuickMenuButtons() == kButtonCircle);
-        pad.SetQuickMenuOpen(false);
-        consume(); CHECK(none_pressed()); // do not send the close press to the game
-        sample.buttons = 0; sample.triggers = {}; sample.left_stick = {128, 128}; consume();
-        sample.buttons = kButtonCircle; consume(); CHECK(pad.Engine().GetButton({}, 0));
-        sample.buttons = 0; consume(); CHECK(none_pressed());
-
-        // The touchpad as Minus (the usual mapping): a tap presses it (11) on release, for about 100 ms...
+        // The touchpad as Select: a tap presses Minus (11) on release, for about 100 ms...
         sample.buttons = kButtonTouchPad; consume(); CHECK(none_pressed());
         for (int i = 0; i < 20; ++i) { consume(); CHECK(none_pressed()); }
         sample.buttons = 0; consume();
@@ -327,40 +166,24 @@ void CheckPad() {
         sample.buttons = kButtonTouchPad; consume();
         sample.connected = 0; consume(); CHECK(none_pressed());
         sample.connected = 1; sample.buttons = 0; consume(); CHECK(none_pressed());
-        // Create is Minus directly, also while the touchpad is down.
-        sample.buttons = kButtonCreate | kButtonTouchPad; consume(); CHECK(pad.Engine().GetButton({}, 11));
+        // The real PS5 Create button now becomes virtual Switch Capture,
+        // not an unexpected Minus. No Nintendo OS screenshot is emitted.
+        sample.buttons = kButtonCreate; consume();
+        CHECK(pad.Engine().GetButton({}, 19)); CHECK(!pad.Engine().GetButton({}, 11));
+        sample.buttons = 0; consume(); CHECK(none_pressed());
+        // Sony PS/Home itself is not exposed by scePadRead; Touchpad+Options
+        // provides guest HOME. Neither physical component may leak Plus/Minus.
+        sample.buttons = kButtonTouchPad | kButtonOptions; consume();
+        CHECK(pad.Engine().GetButton({}, 18));
+        CHECK(!pad.Engine().GetButton({}, 10) && !pad.Engine().GetButton({}, 11));
+        for (int i = 0; i < 80; ++i) {
+            consume(); CHECK(pad.Engine().GetButton({}, 18));
+            CHECK(!pad.Engine().GetButton({}, 10) && !pad.Engine().GetButton({}, 11));
+        }
         sample.buttons = kButtonTouchPad; consume(); CHECK(none_pressed());
+        sample.buttons = 0; consume(); CHECK(none_pressed());
         sample.buttons = kButtonTouchPad | kButtonL1; consume(); CHECK(pad.TakeReturnToMenu());
         sample.buttons = 0; consume(); CHECK(none_pressed());
-
-        // A button mapping (button_mapping.h): A on Cross and B on Circle, ZL on the touchpad
-        // (tap and hold as for Minus) and Minus on L2 with its analog trigger; Create, which has
-        // no game button of its own, presses the touchpad's.
-        auto custom = Eden::Assign(Eden::kDefaultMapping, Eden::game_a, Eden::pad_cross);
-        custom = Eden::Assign(custom, Eden::game_zl, Eden::pad_touchpad);
-        CHECK(custom[Eden::game_minus] == Eden::pad_l2 && custom[Eden::game_b] == Eden::pad_circle);
-        pad.SetMapping(custom);
-        sample.buttons = kButtonCross; consume();
-        CHECK(pad.Engine().GetButton({}, 0)); CHECK(!pad.Engine().GetButton({}, 1));
-        sample.buttons = kButtonCircle; consume();
-        CHECK(pad.Engine().GetButton({}, 1)); CHECK(!pad.Engine().GetButton({}, 0));
-        sample.buttons = 0; sample.triggers = {200, 0}; consume();
-        CHECK(pad.Engine().GetButton({}, 11)); CHECK(!pad.Engine().GetButton({}, 8));
-        sample.triggers = {};
-        sample.buttons = kButtonTouchPad; consume(); CHECK(none_pressed());
-        sample.buttons = 0; consume(); CHECK(pad.Engine().GetButton({}, 8)); CHECK(!pad.Engine().GetButton({}, 11));
-        for (int i = 0; i < 30; ++i) consume();
-        CHECK(none_pressed());
-        sample.buttons = kButtonCreate; consume(); CHECK(pad.Engine().GetButton({}, 8));
-        sample.buttons = kButtonTouchPad | kButtonL1; consume(); CHECK(pad.TakeReturnToMenu());
-        sample.buttons = 0; consume(); CHECK(none_pressed());
-        // A mapping that names a button twice is not taken: the usual one stays.
-        auto twice = Eden::kDefaultMapping;
-        twice[Eden::game_x] = twice[Eden::game_y];
-        pad.SetMapping(twice);
-        sample.buttons = kButtonTriangle; consume(); CHECK(pad.Engine().GetButton({}, 2));
-        sample.buttons = 0; consume();
-        pad.SetMapping(Eden::kDefaultMapping);
 
         // Motion: Eden's SDL mapping of a DualSense (G, turns per second, microsecond deltas).
         constexpr float pi = std::numbers::pi_v<float>;
@@ -384,137 +207,7 @@ void CheckPad() {
         CHECK(motion.gyro_x == 0.0f); CHECK(motion.gyro_y == 0.0f); CHECK(motion.accel_z == -1.0f);
         sample.connected = 1; sample.acceleration = {}; sample.angular_velocity = {}; sample.timestamp_us = 0;
 
-        // A single Joy-Con held sideways, on a DualSense held as usual: the places of the arrows
-        // and shapes, either stick and the motion are turned by a quarter (left Joy-Con: top to
-        // the left; right Joy-Con: top to the right).
-        {
-            using Grip = Eden::Pad::Grip;
-            const auto pressed = [&](ButtonMask mask, std::initializer_list<int> buttons) {
-                sample.buttons = mask; consume();
-                for (const int button : {0, 1, 2, 3, 12, 13, 14, 15})
-                    if (pad.Engine().GetButton({}, button) !=
-                        (std::find(buttons.begin(), buttons.end(), button) != buttons.end())) return false;
-                return true;
-            };
-            pad.SetGrip(0, Grip::sideways_left);
-            // Top is the Joy-Con's Right (14), right its Down (15), bottom its Left (12), left its
-            // Up (13); the shapes still press the game's own buttons, which a left Joy-Con has not.
-            CHECK(pressed(kButtonUp, {14})); CHECK(pressed(kButtonRight, {15}));
-            CHECK(pressed(kButtonDown, {12})); CHECK(pressed(kButtonLeft, {13}));
-            CHECK(pressed(kButtonTriangle, {14, 2})); CHECK(pressed(kButtonCircle, {15, 0}));
-            CHECK(pressed(kButtonCross, {12, 1})); CHECK(pressed(kButtonSquare, {13, 3}));
-            sample.buttons = 0;
-            sample.left_stick = {128, 0}; sample.right_stick = {128, 128}; consume(); // up
-            CHECK(pad.Engine().GetAxis({}, 0) == 1); CHECK(pad.Engine().GetAxis({}, 1) == 0);
-            sample.left_stick = {128, 128}; sample.right_stick = {255, 128}; consume(); // right, other stick
-            CHECK(pad.Engine().GetAxis({}, 0) == 0); CHECK(pad.Engine().GetAxis({}, 1) == -1);
-            sample.right_stick = {128, 128};
-            sample.acceleration = {0.25f, 1.0f, -0.5f};
-            sample.angular_velocity = {pi, 0.0f, -2.0f * pi};
-            sample.timestamp_us = 1000; consume(); sample.timestamp_us = 5000; consume();
-            motion = pad.Engine().GetMotion({}, 0);
-            CHECK(motion.accel_x == -0.5f); CHECK(motion.accel_y == 0.25f); CHECK(motion.accel_z == -1.0f);
-            CHECK(motion.gyro_x == 1.0f); CHECK(motion.gyro_y == -0.5f); CHECK(motion.gyro_z == 0.0f);
-
-            pad.SetGrip(0, Grip::sideways_right);
-            // Top is Y (3), right X (2), bottom A (0), left B (1); the arrows also stay the arrows,
-            // which a right Joy-Con has not.
-            CHECK(pressed(kButtonTriangle, {3})); CHECK(pressed(kButtonCircle, {2}));
-            CHECK(pressed(kButtonCross, {0})); CHECK(pressed(kButtonSquare, {1}));
-            CHECK(pressed(kButtonUp, {3, 13})); CHECK(pressed(kButtonRight, {2, 14}));
-            CHECK(pressed(kButtonDown, {0, 15})); CHECK(pressed(kButtonLeft, {1, 12}));
-            sample.buttons = 0;
-            sample.left_stick = {128, 0}; consume(); // up
-            CHECK(pad.Engine().GetAxis({}, 2) == -1); CHECK(pad.Engine().GetAxis({}, 3) == 0);
-            sample.left_stick = {255, 128}; consume(); // right
-            CHECK(pad.Engine().GetAxis({}, 2) == 0); CHECK(pad.Engine().GetAxis({}, 3) == 1);
-            sample.left_stick = {128, 128};
-            sample.timestamp_us = 9000; consume();
-            motion = pad.Engine().GetMotion({}, 0);
-            CHECK(motion.accel_x == 0.5f); CHECK(motion.accel_y == -0.25f); CHECK(motion.accel_z == -1.0f);
-            CHECK(motion.gyro_x == -1.0f); CHECK(motion.gyro_y == 0.5f); CHECK(motion.gyro_z == 0.0f);
-
-            pad.SetGrip(0, Grip::usual);
-            sample.acceleration = {}; sample.angular_velocity = {}; sample.timestamp_us = 0;
-            sample.buttons = 0; sample.connected = 0; consume(); sample.connected = 1; consume();
-            std::puts("Single Joy-Con held sideways: button places, either stick and motion turned for both sides PASS");
-
-            // A single Joy-Con held upright: nothing is turned, and the whole DualSense is that
-            // Joy-Con. A left one's four buttons are its arrows (13 Up, 14 Right, 15 Down,
-            // 12 Left), pressed by the shapes at the same places; the shapes still press A, B,
-            // X and Y, which a left Joy-Con has not. The DualSense's arrows press none of them:
-            // they move the stick.
-            const auto near = [](float value, float wanted) { return std::abs(value - wanted) < 0.001f; };
-            const auto tilted = [&](ButtonMask mask, int axis_x, float x, float y) {
-                sample.buttons = mask; consume();
-                return near(pad.Engine().GetAxis({}, axis_x), x) && near(pad.Engine().GetAxis({}, axis_x + 1), y);
-            };
-            const auto others = [&](ButtonMask mask, int button) {
-                sample.buttons = mask; consume();
-                return pad.Engine().GetButton({}, button);
-            };
-            pad.SetGrip(0, Grip::upright_left);
-            {
-                sample.buttons = 0; consume();
-                auto up = Common::Input::CreateInputDeviceFromString("engine:virtual_gamepad,port:0,button:13");
-                std::vector<bool> edges;
-                up->SetCallback({[&](const auto& status) { edges.push_back(status.button_status.value); }});
-                sample.buttons = kButtonUp; consume(); consume();
-                sample.buttons = 0; consume();
-                CHECK(std::none_of(edges.begin(), edges.end(), [](bool down) { return down; }));
-                sample.buttons = kButtonTriangle; consume();
-                CHECK(!edges.empty() && edges.back());
-                sample.buttons = 0; consume();
-            }
-
-            CHECK(pressed(kButtonUp, {})); CHECK(pressed(kButtonRight, {}));
-            CHECK(pressed(kButtonDown, {})); CHECK(pressed(kButtonLeft, {}));
-            CHECK(pressed(kButtonTriangle, {13, 2})); CHECK(pressed(kButtonCircle, {14, 0}));
-            CHECK(pressed(kButtonCross, {15, 1})); CHECK(pressed(kButtonSquare, {12, 3}));
-            CHECK(tilted(kButtonUp, 0, 0, 1)); CHECK(tilted(kButtonRight, 0, 1, 0));
-            CHECK(tilted(kButtonDown, 0, 0, -1)); CHECK(tilted(kButtonLeft, 0, -1, 0));
-            CHECK(tilted(kButtonUp | kButtonRight, 0, 0.7071f, 0.7071f)); CHECK(tilted(0, 0, 0, 0));
-            // Its L (6), ZL (8), Minus (11) and stick click (4) from either side of the DualSense.
-            CHECK(others(kButtonR1, 6)); CHECK(others(kButtonL1, 6)); CHECK(others(kButtonOptions, 11));
-            CHECK(others(kButtonR3, 4)); CHECK(others(kButtonL3, 4)); CHECK(!others(0, 6)); CHECK(!others(0, 11));
-            sample.buttons = 0; sample.triggers.r2 = 255; consume();
-            CHECK(pad.Engine().GetButton({}, 8));
-            sample.triggers.r2 = 0; consume();
-            CHECK(!pad.Engine().GetButton({}, 8));
-            sample.left_stick = {128, 128}; sample.right_stick = {255, 128}; consume(); // right, other stick
-            CHECK(pad.Engine().GetAxis({}, 0) == 1); CHECK(pad.Engine().GetAxis({}, 1) == 0);
-            sample.left_stick = {128, 0}; sample.right_stick = {128, 128}; consume(); // up
-            CHECK(pad.Engine().GetAxis({}, 0) == 0); CHECK(pad.Engine().GetAxis({}, 1) == 1);
-            sample.left_stick = {128, 128};
-
-            // A right one's four buttons are A (0), B (1), X (2) and Y (3), pressed by the
-            // shapes and by the arrows at the same places; its stick is the right one.
-            pad.SetGrip(0, Grip::upright_right);
-            CHECK(pressed(kButtonTriangle, {2})); CHECK(pressed(kButtonCircle, {0}));
-            CHECK(pressed(kButtonCross, {1})); CHECK(pressed(kButtonSquare, {3}));
-            // The arrows stay the arrows, which a right Joy-Con has not, and move its stick.
-            CHECK(pressed(kButtonUp, {13})); CHECK(pressed(kButtonRight, {14}));
-            CHECK(pressed(kButtonDown, {15})); CHECK(pressed(kButtonLeft, {12}));
-            CHECK(tilted(kButtonUp, 2, 0, 1)); CHECK(tilted(kButtonLeft, 2, -1, 0));
-            CHECK(tilted(kButtonDown | kButtonLeft, 2, -0.7071f, -0.7071f)); CHECK(tilted(0, 2, 0, 0));
-            // Its R (7), ZR (9), Plus (10) and stick click (5).
-            CHECK(others(kButtonL1, 7)); CHECK(others(kButtonR1, 7)); CHECK(others(kButtonCreate, 10));
-            CHECK(others(kButtonOptions, 10)); CHECK(others(kButtonL3, 5)); CHECK(!others(0, 7)); CHECK(!others(0, 10));
-            sample.buttons = 0; sample.triggers.l2 = 255; consume();
-            CHECK(pad.Engine().GetButton({}, 9));
-            sample.triggers.l2 = 0; consume();
-            sample.left_stick = {128, 0}; consume(); // up, on the stick a right Joy-Con has not
-            CHECK(pad.Engine().GetAxis({}, 2) == 0); CHECK(pad.Engine().GetAxis({}, 3) == 1);
-            sample.left_stick = {255, 128}; consume(); // right
-            CHECK(pad.Engine().GetAxis({}, 2) == 1); CHECK(pad.Engine().GetAxis({}, 3) == 0);
-            sample.left_stick = {128, 128};
-
-            pad.SetGrip(0, Grip::usual);
-            sample.buttons = 0; sample.connected = 0; consume(); sample.connected = 1; consume();
-            std::puts("Single Joy-Con held upright: its four buttons from the shapes, its stick from the arrows and either stick, shoulder buttons PASS");
-        }
-
-        // HD rumble over audio haptics: low band -> large voice, high band -> small voice.
+        // Rumble: both guest sides on one DualSense; low band -> large motor, high band -> small.
         {
             using Common::Input::DriverResult;
             using Type = Common::Input::VibrationAmplificationType;
@@ -522,145 +215,21 @@ void CheckPad() {
             auto right = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:2");
             auto handheld = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:8,pad:1");
             CHECK(left->IsVibrationEnabled());
-            const int haptic = 300 + state.haptic_opens;
-            const auto clear_blocks = [&] {
-                std::scoped_lock lock(state.mutex);
-                state.haptic_audio[haptic].clear();
-            };
-            const auto wait_blocks = [&](std::size_t count) {
-                std::unique_lock lock(state.mutex);
-                CHECK(state.wake.wait_for(lock, 2s, [&] {
-                    return state.haptic_audio[haptic].size() >= count;
-                }));
-            };
-            const auto last_peak = [&] {
-                std::scoped_lock lock(state.mutex);
-                const auto& blocks = state.haptic_audio[haptic];
-                CHECK(!blocks.empty() && blocks.back().size() == 512 * sizeof(s16));
-                int loudest = 0;
-                for (std::size_t i = 0; i < 512; ++i) {
-                    s16 sample;
-                    std::memcpy(&sample, blocks.back().data() + i * sizeof(s16), sizeof(sample));
-                    loudest = std::max(loudest, std::abs(sample));
-                }
-                return loudest;
-            };
-            // Left-channel energy at a frequency over the last captured blocks.
-            const auto band_energy = [&](float hz, std::size_t blocks) {
-                std::vector<s16> channel;
-                {
-                    std::scoped_lock lock(state.mutex);
-                    const auto& captured = state.haptic_audio[haptic];
-                    CHECK(captured.size() >= blocks);
-                    for (auto it = captured.end() - blocks; it != captured.end(); ++it) {
-                        CHECK(it->size() == 512 * sizeof(s16));
-                        for (std::size_t frame = 0; frame < 256; ++frame) {
-                            s16 sample;
-                            std::memcpy(&sample, it->data() + frame * 2 * sizeof(s16), sizeof(sample));
-                            channel.push_back(sample);
-                        }
-                    }
-                }
-                double sine = 0, cosine = 0;
-                for (std::size_t n = 0; n < channel.size(); ++n) {
-                    const double phase = 2 * std::numbers::pi * hz * n / 48000;
-                    sine += channel[n] * std::sin(phase);
-                    cosine += channel[n] * std::cos(phase);
-                }
-                return 2 * std::sqrt(sine * sine + cosine * cosine) / channel.size();
-            };
             state.vibrations.clear();
-            clear_blocks();
             CHECK(pad.Poll()); CHECK(state.vibrations.empty());
-            CHECK(left->SetVibration({.low_amplitude = 1.0f, .low_frequency = 160.0f,
-                                      .type = Type::Exponential}) == DriverResult::Success);
-            CHECK(right->SetVibration({.high_amplitude = 0.5f, .high_frequency = 320.0f,
-                                       .type = Type::Linear}) == DriverResult::Success);
-            CHECK(pad.Poll()); CHECK(state.vibrations.empty());
-            wait_blocks(32);
-            CHECK(band_energy(160.0f, 32) > 9000);
-            CHECK(band_energy(320.0f, 32) > 3500);
-            CHECK(band_energy(600.0f, 32) < 3000);
-            // The perceptual curve lifts small gameplay amplitudes onto the PCM route: 0.2
-            // exponential plays near 0.39 (~7000), not 0.2 (~3640).
-            CHECK(left->SetVibration({.low_amplitude = 0.2f, .low_frequency = 160.0f,
-                                      .type = Type::Exponential}) == DriverResult::Success);
-            CHECK(right->SetVibration({}) == DriverResult::Success);
-            clear_blocks();
-            CHECK(pad.Poll()); CHECK(state.vibrations.empty());
-            wait_blocks(32);
-            CHECK(band_energy(160.0f, 32) > 5000);
-            CHECK(band_energy(160.0f, 32) < 11000);
-            CHECK(pad.Poll()); CHECK(state.vibrations.empty()); // Unchanged levels are not resent.
+            CHECK(left->SetVibration({.low_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
+            CHECK(right->SetVibration({.high_amplitude = 0.5f, .type = Type::Linear}) == DriverResult::Success);
+            CHECK(pad.Poll()); CHECK(state.vibrations.size() == 1);
+            CHECK(state.vibrations[0].large_motor == 255); CHECK(state.vibrations[0].small_motor == 154);
+            CHECK(pad.Poll()); CHECK(state.vibrations.size() == 1); // Unchanged levels are not resent.
             CHECK(left->SetVibration({}) == DriverResult::Success);
             CHECK(right->SetVibration({}) == DriverResult::Success);
-            clear_blocks();
-            CHECK(pad.Poll()); CHECK(state.vibrations.empty());
-            wait_blocks(8);
-            CHECK(last_peak() < 2000);
-            CHECK(handheld->SetVibration({.high_amplitude = 1.0f, .high_frequency = 320.0f,
-                                          .type = Type::Exponential}) == DriverResult::Success);
-            clear_blocks();
-            CHECK(pad.Poll());
-            wait_blocks(4);
-            CHECK(band_energy(320.0f, 4) > 3500);
-            CHECK(handheld->SetVibration({}) == DriverResult::Success);
-            CHECK(pad.Poll());
+            CHECK(pad.Poll()); CHECK(state.vibrations.size() == 2);
+            CHECK(state.vibrations[1].large_motor == 0); CHECK(state.vibrations[1].small_motor == 0);
+            CHECK(handheld->SetVibration({.high_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
+            CHECK(pad.Poll()); CHECK(state.vibrations.size() == 3); CHECK(state.vibrations[2].small_motor == 255);
         }
 
-        // Click side is latched; release samples often no longer contain touch coordinates.
-        for (const unsigned x : {100u, 1500u}) {
-            sample.buttons = 0; sample.touch = {}; consume();
-            for (int i = 0; i < 30; ++i) consume();
-            sample.touch.count = 1; sample.touch.points[0].x = x;
-            sample.buttons = kButtonTouchPad; consume();
-            sample.buttons = 0; sample.touch = {}; consume();
-            CHECK(pad.Engine().GetButton({}, x < 960 ? 11 : 10));
-            CHECK(!pad.Engine().GetButton({}, x < 960 ? 10 : 11));
-            for (int i = 0; i < 30; ++i) consume();
-            CHECK(!pad.Engine().GetButton({}, 10)); CHECK(!pad.Engine().GetButton({}, 11));
-        }
-        // Both shortcuts, both sides, and either order (including one simultaneous sample).
-        for (unsigned x : {100u, 1500u}) {
-            for (ButtonMask shoulder : {kButtonL1, kButtonR1}) {
-                for (int order = 0; order < 3; ++order) {
-                    sample.buttons = 0; sample.touch = {}; consume();
-                    for (int i = 0; i < 30; ++i) consume();
-                    sample.touch.count = 1; sample.touch.points[0].x = x;
-                    if (order != 0) {
-                        sample.buttons = order == 1 ? kButtonTouchPad : shoulder;
-                        consume();
-                    }
-                    sample.buttons = kButtonTouchPad | shoulder; consume();
-                    CHECK(pad.TakeHudToggle() == (x < 960 && shoulder == kButtonR1));
-                    CHECK(pad.TakeReturnToMenu() == (x < 960 && shoulder == kButtonL1));
-                    // Crossing the midpoint while held must not change the latched side.
-                    sample.touch.points[0].x = x < 960 ? 1500 : 100; consume();
-                    CHECK(!pad.TakeHudToggle()); CHECK(!pad.TakeReturnToMenu());
-                    CHECK(pad.Engine().GetButton({}, shoulder == kButtonL1 ? 6 : 7) == (x >= 960));
-                    sample.buttons = 0; sample.touch = {}; consume();
-                    CHECK(pad.Engine().GetButton({}, 10) == (x >= 960));
-                    CHECK(!pad.Engine().GetButton({}, 11));
-                    for (int i = 0; i < 30; ++i) consume();
-                }
-            }
-        }
-        sample.touch.count = 1; sample.touch.points[0].x = 1500;
-        sample.buttons = kButtonTouchPad;
-        for (int i = 0; i < 65; ++i) consume();
-        CHECK(pad.Engine().GetButton({}, 10));
-        {
-            auto plus = Common::Input::CreateInputDeviceFromString("engine:virtual_gamepad,port:0,button:10");
-            std::vector<bool> edges;
-            plus->SetCallback({[&](const auto& status) { edges.push_back(status.button_status.value); }});
-            consume(); consume();
-            CHECK(std::none_of(edges.begin(), edges.end(), [](bool down) { return !down; }));
-        }
-        sample.buttons |= kButtonR1; consume();
-        CHECK(!pad.TakeHudToggle()); CHECK(pad.Engine().GetButton({}, 10));
-        CHECK(pad.Engine().GetButton({}, 7));
-        sample.buttons = 0; sample.touch = {}; consume();
-        CHECK(!pad.Engine().GetButton({}, 10)); CHECK(!pad.Engine().GetButton({}, 11));
         auto button = Common::Input::CreateInputDeviceFromString("engine:virtual_gamepad,port:0,button:0");
         std::vector<bool> changes;
         button->SetCallback({[&](const auto& status) { changes.push_back(status.button_status.value); }});
@@ -682,175 +251,235 @@ void CheckPad() {
         }
         state.read_result = 0; consume(); pad.Close(); pad.Close();
         CHECK(!pad.Engine().GetButton({}, 9));
-        // Closing leaves the compatible path with still motors.
-        CHECK(state.vibrations.size() == 1);
-        CHECK(state.vibrations[0].large_motor == 0); CHECK(state.vibrations[0].small_motor == 0);
-        CHECK((state.vibration_modes.back() == std::pair<int, int>{7, 2}));
+        CHECK(state.vibrations.size() == 4); // Closing stops the motors.
+        CHECK(state.vibrations[3].large_motor == 0); CHECK(state.vibrations[3].small_motor == 0);
         CHECK(state.pad_closes == 1); CHECK(state.user_terminations == 1);
     }
-    // Without S16 the stream negotiates F32.
-    state.haptic_fail_format = 1;
-    {
-        using Common::Input::DriverResult;
-        using Type = Common::Input::VibrationAmplificationType;
-        Eden::Pad pad;
-        CHECK(pad.Open());
-        CHECK(state.haptic_open_formats.back() == 4);
-        auto left = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:1");
-        const int haptic = 300 + state.haptic_opens;
-        CHECK(left->SetVibration({.low_amplitude = 1.0f, .low_frequency = 160.0f,
-                                  .type = Type::Exponential}) == DriverResult::Success);
-        CHECK(pad.Poll());
-        std::unique_lock lock(state.mutex);
-        CHECK(state.wake.wait_for(lock, 2s, [&] { return state.haptic_audio[haptic].size() >= 2; }));
-        const auto& block = state.haptic_audio[haptic].back();
-        CHECK(block.size() == 512 * sizeof(float));
-        float loudest = 0;
-        for (std::size_t i = 0; i < 512; ++i) {
-            float sample;
-            std::memcpy(&sample, block.data() + i * sizeof(float), sizeof(sample));
-            CHECK(sample >= -1.0f && sample <= 1.0f);
-            loudest = std::max(loudest, std::abs(sample));
-        }
-        CHECK(loudest > 0.3f);
-    }
-    state.haptic_fail_format = 0;
-    // Without a vibration port the game rumbles the classic motors instead.
-    state.fail_haptic_open = true;
-    {
-        using Common::Input::DriverResult;
-        using Type = Common::Input::VibrationAmplificationType;
-        Eden::Pad pad;
-        CHECK(pad.Open());
-        CHECK((state.vibration_modes.back() == std::pair<int, int>{7, 2}));
-        auto left = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:1");
-        auto right = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:2");
-        auto handheld = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:8,pad:1");
-        state.vibrations.clear();
-        CHECK(pad.Poll()); CHECK(state.vibrations.empty());
-        CHECK(left->SetVibration({.low_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
-        CHECK(right->SetVibration({.high_amplitude = 0.5f, .type = Type::Linear}) == DriverResult::Success);
-        CHECK(pad.Poll()); CHECK(state.vibrations.size() == 1);
-        CHECK(state.vibrations[0].large_motor == 255); CHECK(state.vibrations[0].small_motor == 154);
-        CHECK(pad.Poll()); CHECK(state.vibrations.size() == 1); // Unchanged levels are not resent.
-        CHECK(left->SetVibration({}) == DriverResult::Success);
-        CHECK(right->SetVibration({}) == DriverResult::Success);
-        CHECK(pad.Poll()); CHECK(state.vibrations.size() == 2);
-        CHECK(state.vibrations[1].large_motor == 0); CHECK(state.vibrations[1].small_motor == 0);
-        CHECK(handheld->SetVibration({.high_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
-        CHECK(pad.Poll()); CHECK(state.vibrations.size() == 3); CHECK(state.vibrations[2].small_motor == 255);
-    }
-    state.fail_haptic_open = false;
-    // When the pad refuses advanced mode the port is closed and the motors take over.
-    state.vibration_mode_1_result = -1;
-    {
-        using Common::Input::DriverResult;
-        using Type = Common::Input::VibrationAmplificationType;
-        const int opens_before = state.haptic_opens, closes_before = state.haptic_closes;
-        Eden::Pad pad;
-        CHECK(pad.Open());
-        CHECK(state.haptic_opens == opens_before + 1);
-        CHECK(state.haptic_closes == closes_before + 1);
-        CHECK((state.vibration_modes[state.vibration_modes.size() - 2] == std::pair<int, int>{7, 1}));
-        CHECK((state.vibration_modes.back() == std::pair<int, int>{7, 2}));
-        auto left = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:1");
-        state.vibrations.clear();
-        CHECK(left->SetVibration({.low_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
-        CHECK(pad.Poll());
-        CHECK(state.vibrations.size() == 1);
-        CHECK(state.vibrations[0].large_motor == 255);
-    }
-    state.vibration_mode_1_result = 0;
-    // A dead port falls back to the motors; a retry later restores the PCM route.
-    {
-        using Common::Input::DriverResult;
-        using Type = Common::Input::VibrationAmplificationType;
-        Eden::Pad pad;
-        CHECK(pad.Open());
-        const int closes_before = state.haptic_closes;
-        auto left = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:1");
-        auto right = Common::Input::CreateOutputDeviceFromString("engine:virtual_gamepad,port:0,pad:2");
-        CHECK(left->SetVibration({.low_amplitude = 1.0f, .type = Type::Exponential}) == DriverResult::Success);
-        CHECK(right->SetVibration({.high_amplitude = 0.5f, .type = Type::Linear}) == DriverResult::Success);
-        CHECK(pad.Poll());
-        const int haptic = 300 + state.haptic_opens;
-        {
-            std::unique_lock lock(state.mutex);
-            CHECK(state.wake.wait_for(lock, 2s, [&] { return !state.haptic_audio[haptic].empty(); }));
-        }
-        {
-            std::unique_lock lock(state.mutex);
-            state.vibrations.clear();
-            const std::size_t modes_before = state.vibration_modes.size();
-            state.haptic_close_delay = 100ms;
-            state.fail_haptic_output = true;
-            CHECK(state.wake.wait_for(lock, 2s, [&] {
-                return !state.vibrations.empty() && state.haptic_closes == closes_before + 1;
-            }));
-            CHECK(state.vibrations.size() == 1);
-            CHECK(state.vibrations[0].large_motor == 255); CHECK(state.vibrations[0].small_motor == 154);
-            CHECK(state.vibration_modes.size() == modes_before + 1);
-            CHECK((state.vibration_modes.back() == std::pair<int, int>{7, 2}));
-            state.fail_haptic_output = false;
-            state.haptic_close_delay = 0ms;
-        }
-        const int opens_before = state.haptic_opens;
-        std::this_thread::sleep_for(2200ms); // the bring-up retry interval passes
-        CHECK(pad.Poll());
-        CHECK(state.haptic_opens == opens_before + 1);
-        CHECK((state.vibration_modes.back() == std::pair<int, int>{7, 1}));
-        const int revived = 300 + state.haptic_opens;
-        {
-            std::unique_lock lock(state.mutex);
-            CHECK(state.wake.wait_for(lock, 2s, [&] { return !state.haptic_audio[revived].empty(); }));
-        }
-    }
-    // Every vibration port opened is closed; the refused and the dead port close undrained.
-    CHECK(state.haptic_opens == state.haptic_closes);
-    CHECK(state.haptic_drains == state.haptic_closes - 2);
     state.user_init_result = -1; // A service owned by the embedding application.
     { Eden::Pad pad; CHECK(pad.Open()); }
-    CHECK(state.pad_closes == 6); CHECK(state.user_terminations == 5);
+    CHECK(state.pad_closes == 2); CHECK(state.user_terminations == 1);
     state.user_init_result = 0; state.user_result = -1;
     { Eden::Pad pad; CHECK(!pad.Open()); }
-    CHECK(state.user_terminations == 6);
+    CHECK(state.user_terminations == 2);
     state.user_result = 0; state.pad_open_result = -1;
     { Eden::Pad pad; CHECK(!pad.Open()); }
-    CHECK(state.user_terminations == 7); CHECK(state.pad_closes == 6);
+    CHECK(state.user_terminations == 3); CHECK(state.pad_closes == 2);
     state.pad_open_result = 7;
-    // A controller whose reads keep failing (after rest mode or the home menu, #97 and #269) is
-    // opened again after a second of errors, in place, and again later (2 s, 4 s ...) while they go
-    // on; a handle that does not open leaves the slot stale, nothing closed twice; it works again.
+    std::puts("Pad mappings, calibration, motion, rumble, 64-sample edges, disconnect and ownership PASS");
+}
+
+void CheckPadRecovery() {
+    using namespace ps5::pad;
+    const auto reset = [] {
+        state.pad_samples.clear();
+        state.user_init_result = state.user_result = state.read_result = 0;
+        state.foreground_user = 84;
+        state.pad_open_result = 7;
+        state.pad_get_handle_result = -1;
+        state.user_terminations = state.pad_closes = state.pad_opens = 0;
+        state.login_users.clear();
+        state.pad_open_results.clear(); state.pad_read_results.clear(); state.pad_reads.clear();
+        state.pad_open_users.clear(); state.pad_get_handle_users.clear(); state.pad_closed_handles.clear();
+        state.vibrations.clear(); state.vibration_handles.clear();
+        state.vibration_mode_handles.clear(); state.motion_handles.clear();
+        state.guest_input = false;
+    };
+    const auto poll = [](Eden::Pad& pad, unsigned count) {
+        for (unsigned i = 0; i < count; ++i) (void)pad.Poll();
+    };
+    auto pressed = neutral_data(1000);
+    pressed.connected = 1;
+    pressed.buttons = kButtonCircle | kButtonTouchPad;
+    pressed.triggers.l2 = pressed.triggers.r2 = 255;
+    pressed.left_stick = {255, 0}; pressed.right_stick = {0, 255};
+    pressed.angular_velocity.x = 1.0f;
+
+    // Generic failure, a mock no-device error, and an impossible sample count.
+    // Empty reads and disconnected reports are successful reads, not retry triggers.
+    for (const int error : {-1, -19, 65}) {
+        reset();
+        Eden::Pad pad;
+        pad.SetMapping(Eden::Assign(Eden::kDefaultMapping, Eden::game_a, Eden::pad_circle));
+        CHECK(pad.Open()); CHECK(pad.TakeConnectionChanges() == 1u);
+        poll(pad, 300);
+        auto disconnected = neutral_data();
+        for (unsigned i = 0; i < 300; ++i) {
+            state.pad_samples.push_back(disconnected);
+            CHECK(pad.Poll());
+        }
+        CHECK(state.pad_opens == 1 && state.pad_closes == 0);
+        state.pad_samples.push_back(pressed); CHECK(pad.Poll());
+        auto moving = pressed; moving.timestamp_us = 5000;
+        state.pad_samples.push_back(moving); CHECK(pad.Poll());
+        CHECK(pad.Engine().GetButton({}, 0));
+        CHECK(pad.Engine().GetAxis({}, 0) == 1.0f);
+        CHECK(pad.Engine().GetMotion({}, 0).gyro_x != 0.0f);
+        state.read_result = error;
+        state.pad_open_result = 9;
+        CHECK(!pad.Poll());
+        for (int button = 0; button < 22; ++button) CHECK(!pad.Engine().GetButton({}, button));
+        for (int axis = 0; axis < 4; ++axis) CHECK(pad.Engine().GetAxis({}, axis) == 0.0f);
+        CHECK(pad.Engine().GetMotion({}, 0).gyro_x == 0.0f);
+        CHECK(pad.Engine().GetMotion({}, 0).accel_z == -1.0f);
+        poll(pad, 248);
+        CHECK(state.pad_opens == 1 && state.pad_closes == 0);
+        CHECK(!pad.Poll()); // Failure 250: exactly one close/open, same user and player.
+        CHECK(state.pad_opens == 2 && state.pad_closed_handles == std::vector<int>{7});
+        CHECK(state.last_pad_user == 84 && state.pad_reads[9] == 0);
+        CHECK(state.vibration_mode_handles.back() == 9 && state.motion_handles.back() == 9);
+        CHECK(pad.ConnectedPlayers() == 1u && pad.TakeConnectionChanges() == 0u);
+        state.read_result = 0;
+        state.pad_samples.push_back(pressed); CHECK(pad.Poll());
+        CHECK(pad.Engine().GetButton({}, 0));
+        poll(pad, 300); // Working empty reads retain held input and open nothing.
+        CHECK(pad.Engine().GetButton({}, 0) && state.pad_opens == 2);
+        state.read_result = error;
+        poll(pad, 249); CHECK(state.pad_opens == 2);
+        state.read_result = 0; CHECK(pad.Poll()); // Even zero samples reset the error streak.
+        state.read_result = error;
+        state.pad_open_result = 11;
+        poll(pad, 249); CHECK(state.pad_opens == 2);
+        CHECK(!pad.Poll()); CHECK(state.pad_opens == 3);
+        state.read_result = 0;
+        pad.Close(); pad.Close();
+        CHECK((state.pad_closed_handles == std::vector<int>{7, 9, 11}));
+        CHECK(state.user_terminations == 1);
+    }
+
+    // A successful reopen alone is not recovery: failed reads on each new handle
+    // must still back off, rather than retrying every 250 polls forever.
+    reset();
     {
         Eden::Pad pad;
-        CHECK(pad.Open());
-        const int opens = state.pad_opens, closes = state.pad_closes;
-        state.read_result = -1;
-        for (unsigned i = 1; i < 250; ++i) CHECK(!pad.Poll());
-        CHECK(state.pad_opens == opens && state.pad_closes == closes);
-        CHECK(!pad.Poll());
-        CHECK(state.pad_opens == opens + 1 && state.pad_closes == closes + 1);
-        CHECK(pad.ConnectedPlayers() == 1u);
-        state.pad_open_result = -1;  // the handle does not open: the slot is stale, the player stays
-        for (unsigned i = 1; i < 500; ++i) CHECK(!pad.Poll());
-        CHECK(state.pad_closes == closes + 1);
-        CHECK(!pad.Poll());
-        // (The stand-in counts an attempt to open, refused or not.)
-        CHECK(state.pad_opens == opens + 2 && state.pad_closes == closes + 2);
-        CHECK(pad.ConnectedPlayers() == 1u);
-        state.pad_open_result = 7;   // tried again 4 s later, with nothing to close
-        for (unsigned i = 1; i < 1000; ++i) CHECK(!pad.Poll());
-        CHECK(state.pad_opens == opens + 2);
-        CHECK(!pad.Poll());
-        CHECK(state.pad_opens == opens + 3 && state.pad_closes == closes + 2);
-        state.read_result = 0;
-        auto pressed = neutral_data(); pressed.connected = 1; pressed.buttons = kButtonCircle;
-        state.pad_samples.push_back(pressed);
-        CHECK(pad.Poll()); CHECK(pad.Engine().GetButton({}, 0));
-        for (unsigned i = 0; i < 300; ++i) CHECK(pad.Poll());
-        CHECK(state.pad_opens == opens + 3);  // working reads open nothing
+        CHECK(pad.Open()); (void)pad.TakeConnectionChanges();
+        state.read_result = -1; state.pad_open_result = 9;
+        poll(pad, 250);
+        CHECK(state.pad_opens == 2 && state.pad_closes == 1);
+        for (unsigned delay : {500u, 1000u, 2000u, 4000u, 8000u, 8000u}) {
+            const int opens = state.pad_opens, closes = state.pad_closes;
+            ++state.pad_open_result;
+            poll(pad, delay - 1);
+            CHECK(state.pad_opens == opens && state.pad_closes == closes);
+            CHECK(!pad.Poll());
+            CHECK(state.pad_opens == opens + 1 && state.pad_closes == closes + 1);
+            CHECK(pad.ConnectedPlayers() == 1u && pad.TakeConnectionChanges() == 0u);
+        }
+        pad.Close(); pad.Close();
+        CHECK(state.pad_closes == state.pad_opens);
     }
-    std::puts("Pad mappings, a changed button mapping, calibration, motion, HD rumble over audio haptics with motor fallback, 64-sample edges, disconnect and ownership, a controller opened again after failed reads PASS");
+
+    reset();
+    {
+        Eden::Pad pad;
+        pad.SetMapping(Eden::Assign(Eden::kDefaultMapping, Eden::game_a, Eden::pad_circle));
+        CHECK(pad.Open()); (void)pad.TakeConnectionChanges();
+        state.read_result = -19;
+        state.pad_open_result = -1;
+        poll(pad, 250);
+        CHECK(state.pad_opens == 2 && state.pad_closes == 1 && state.pad_reads[7] == 250);
+        CHECK(pad.Open()); CHECK(state.pad_opens == 2); // Stale Open is still idempotent.
+        pad.SetMapping(Eden::Assign(Eden::kDefaultMapping, Eden::game_a, Eden::pad_cross));
+        for (unsigned delay : {500u, 1000u, 2000u, 4000u, 8000u, 8000u}) {
+            const int opens = state.pad_opens;
+            poll(pad, delay - 1);
+            CHECK(state.pad_opens == opens);
+            CHECK(!pad.Poll()); CHECK(state.pad_opens == opens + 1);
+            CHECK(state.pad_closed_handles == std::vector<int>{7});
+            CHECK(state.pad_reads[7] == 250); // Released handles are never read again.
+            CHECK(pad.ConnectedPlayers() == 1u && pad.TakeConnectionChanges() == 0u);
+        }
+        // The fallback may supply a handle when Open still fails. No read on the retry tick.
+        state.pad_get_handle_result = 35;
+        const int opens = state.pad_opens;
+        poll(pad, 7999); CHECK(state.pad_opens == opens);
+        CHECK(!pad.Poll()); CHECK(state.pad_opens == opens + 1 && state.pad_reads[35] == 0);
+        CHECK(state.vibration_mode_handles.back() == 35 && state.motion_handles.back() == 35);
+        state.read_result = 0;
+        state.pad_samples.push_back(pressed); CHECK(pad.Poll());
+        CHECK(pad.Engine().GetButton({}, 0)); // Mapping remained locked while stale.
+        CHECK(pad.Engine().SetVibration({.port = 0, .pad = 1}, {.low_amplitude = 1.0f}) ==
+              Common::Input::DriverResult::Success);
+        CHECK(pad.Poll());
+        CHECK(state.vibration_handles.back() == 35 && state.vibrations.back().large_motor == 255);
+        state.read_result = -1;
+        state.pad_get_handle_result = -1;
+        state.pad_open_result = 36;
+        poll(pad, 249); CHECK(state.pad_opens == opens + 1);
+        CHECK(!pad.Poll()); CHECK(state.pad_opens == opens + 2); // Backoff reset after success.
+        pad.Close(); pad.Close();
+        CHECK((state.pad_closed_handles == std::vector<int>{7, 35, 36}));
+        for (const auto& [handle, reads] : state.pad_reads) { (void)reads; CHECK(handle >= 0); }
+    }
+
+    // A released handle number may already belong to a new user's controller. A stale
+    // player remains reserved, is not duplicated by Rescan, and never closes that number.
+    reset();
+    {
+        state.login_users = {84, 42};
+        state.pad_open_results = {{84, 7}, {42, 8}};
+        state.pad_read_results = {{8, -19}};
+        Eden::Pad pad;
+        CHECK(pad.Open()); CHECK(pad.TakeConnectionChanges() == 3u);
+        state.pad_open_results[42] = -1;
+        poll(pad, 250);
+        CHECK(pad.ConnectedPlayers() == 3u && pad.TakeConnectionChanges() == 0u);
+        CHECK(state.pad_closed_handles == std::vector<int>{8});
+        state.login_users = {84, 42, 99};
+        state.pad_open_results[99] = 8; // Reuse the released number, not the stale player's slot.
+        state.pad_read_results[8] = 0;
+        poll(pad, 250);
+        CHECK(pad.ConnectedPlayers() == 7u && pad.TakeConnectionChanges() == 4u);
+        CHECK(std::count(state.pad_open_users.begin(), state.pad_open_users.end(), 42) == 2);
+        poll(pad, 250); // Stale retry fails; the new user's handle 8 must stay open.
+        CHECK(state.pad_closed_handles == std::vector<int>{8});
+        CHECK(std::count(state.pad_open_users.begin(), state.pad_open_users.end(), 42) == 3);
+        CHECK(pad.Engine().SetVibration({.port = 2, .pad = 1}, {.low_amplitude = 1.0f}) ==
+              Common::Input::DriverResult::Success);
+        CHECK(pad.Poll()); CHECK(state.vibration_handles.back() == 8);
+        state.login_users = {84, 99};
+        poll(pad, 250);
+        CHECK(pad.ConnectedPlayers() == 5u && pad.TakeConnectionChanges() == 2u);
+        CHECK(state.pad_closed_handles == std::vector<int>{8}); // Stale logout closes nothing.
+        poll(pad, 1250); // No old-user retries after logout, even past its next deadline.
+        CHECK(std::count(state.pad_open_users.begin(), state.pad_open_users.end(), 42) == 3);
+        state.login_users = {84, 99, 101}; state.pad_open_results[101] = 9;
+        poll(pad, 250);
+        CHECK(pad.ConnectedPlayers() == 7u && pad.TakeConnectionChanges() == 2u);
+        CHECK(pad.Engine().SetVibration({.port = 1, .pad = 1}, {.low_amplitude = 1.0f}) ==
+              Common::Input::DriverResult::Success);
+        CHECK(pad.Poll()); CHECK(state.vibration_handles.back() == 9);
+        pad.Close(); pad.Close();
+        CHECK((state.pad_closed_handles == std::vector<int>{8, 7, 9, 8}));
+    }
+
+    // Primary recovery must not stop other users' login/logout scans. Full Close also
+    // releases stale reservations, allowing the same Pad instance to open a new session.
+    reset();
+    {
+        state.login_users = {84, 42}; state.pad_open_results = {{84, 7}, {42, 8}};
+        Eden::Pad pad;
+        CHECK(pad.Open()); (void)pad.TakeConnectionChanges();
+        state.pad_read_results[7] = -19; state.pad_open_results[84] = -1;
+        poll(pad, 250);
+        state.login_users = {84};
+        poll(pad, 250);
+        CHECK(pad.ConnectedPlayers() == 1u && pad.TakeConnectionChanges() == 2u);
+        pad.Close(); pad.Close();
+        CHECK(pad.ConnectedPlayers() == 0u);
+        CHECK((state.pad_closed_handles == std::vector<int>{7, 8}));
+        CHECK(state.user_terminations == 1);
+        state.pad_open_results[84] = 9; state.pad_read_results.clear();
+        pad.SetMapping(Eden::Assign(Eden::kDefaultMapping, Eden::game_a, Eden::pad_cross));
+        CHECK(pad.Open()); CHECK(state.pad_opens == 4 && state.last_pad_user == 84);
+        auto cross = neutral_data(); cross.connected = 1; cross.buttons = kButtonCross;
+        state.pad_samples.push_back(cross); CHECK(pad.Poll());
+        CHECK(pad.Engine().GetButton({}, 0));
+        pad.Close(); pad.Close();
+        CHECK((state.pad_closed_handles == std::vector<int>{7, 8, 9}));
+        CHECK(state.user_terminations == 2);
+    }
+    reset();
+    std::puts("Pad recovery: errors/neutralization, recover250, backoff500/1000/cap8000, successful reset, stale ownership, handle reuse and cleanup PASS");
 }
 
 void CheckAudio() {
@@ -923,9 +552,8 @@ void CheckAudio() {
         stream->ClearQueue();
         std::vector<s16> full(65536, 1234); SinkBuffer large{32768, 0, 10, false};
         stream->AppendBuffer(large, full);
-        // A full ring drops its oldest audio for the new buffer instead of stopping the game.
         std::array<s16, 2> extra{}; SinkBuffer one{1, 0, 11, false};
-        stream->AppendBuffer(one, extra);
+        Reject([&] { stream->AppendBuffer(one, extra); });
         CHECK(stream->GetQueueSize() == 1); stream->ClearQueue();
         CHECK(stream->GetQueueSize() == 0); sink.CloseStream(stream);
     }
@@ -957,10 +585,7 @@ void CheckAudio() {
     Reject([&] { stream->AppendBuffer(buffer, pcm); });
     sink.CloseStreams(); state.fail_output = false;
     const int opened = state.audio_opens;
-    auto* input = sink.AcquireSinkStream(system, 2, "input null", StreamType::In);
-    const auto released = input->ReleaseBuffer(0xf00 / sizeof(s16));
-    CHECK(released.size() == 0xf00 / sizeof(s16));
-    CHECK(std::ranges::all_of(released, [](s16 sample) { return sample == 0; }));
+    sink.AcquireSinkStream(system, 2, "input null", StreamType::In);
     sink.CloseStreams(); CHECK(state.audio_opens == opened);
     CHECK(state.audio_opens == state.audio_closes); CHECK(state.audio_drains == 6);
     std::puts("Audio PCM mono/stereo/6-channel, volume, queue, underrun, pause/resume and failure cleanup PASS");
@@ -1078,7 +703,7 @@ void CheckResampling() {
 int main() {
     Common::FS::CreateEdenPaths(); Common::Log::Initialize(); Common::Log::Start();
     int status = 0;
-    try { CheckResampling(); CheckVoiceFlags(); CheckControllerStyle(); CheckKeyboard(); CheckPad(); CheckAudio(); }
+    try { CheckResampling(); CheckVoiceFlags(); CheckControllerStyle(); CheckPad(); CheckPadRecovery(); CheckAudio(); }
     catch (const std::exception& error) { std::fprintf(stderr, "%s\n", error.what()); status = 1; }
     Common::Log::Stop();
     return status;

@@ -1,170 +1,218 @@
 # Third-party notices
 
-ProsperoEden is licensed under GPL-3.0-or-later (see [LICENSE](LICENSE)). It
-builds on the following projects, each under its own license.
+Prospero.Eden Encore is a modified community fork distributed under
+**GPL-3.0-or-later**. See [LICENSE](LICENSE). Third-party components retain
+their own copyright and license terms.
 
-## Emulator
+This file is the attribution and provenance map for the release. Complete
+license texts collected for the release are in [LICENSES](LICENSES/). The
+installed PS5 title also carries `legal/LICENSE`, `legal/THIRD_PARTY_NOTICES.md`
+and `legal/LICENSES/`, so the notices remain available when the installable
+`.ffpfsc` image is distributed by itself.
 
-- **[Eden](https://github.com/eden-emulator/mirror)**, GPL-3.0-or-later. The emulator core, built
-  from the commit pinned in `UPSTREAM.json`, together with the dependencies Eden
-  fetches and pins itself: Dynarmic, Boost, fmt, xbyak, zstd, lz4, Opus, SDL3,
-  simpleini, sirit, SPIRV-Headers, Vulkan-Headers, Vulkan-Utility-Libraries,
-  Vulkan Memory Allocator, ENet, frozen, cpp-httplib, nlohmann/json, and the time
-  zone data. Each keeps its upstream license.
-- **[FFmpeg](https://ffmpeg.org)**, LGPL-2.1-or-later. Built from Eden's pinned
-  source with only the H.264, VP8 and VP9 decoders.
-- **[OpenSSL](https://www.openssl.org)**, Apache-2.0, and
-  **[zlib](https://zlib.net)**, zlib license. Taken from the
-  [pacbrew](https://github.com/ps5-payload-dev/pacbrew-repo) PS5 packages.
-- **[curl](https://curl.se)** (libcurl), curl license, and
-  **[libpsl](https://github.com/rockdaboot/libpsl)**, MIT. From the same pacbrew
-  packages; the update check uses them.
-- **[PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate)**,
-  GPL-3.0-or-later. Its update check and self-update kit (`headless/update_check`),
-  its self-update helper (`headless/self_update_helper`, built into `self-updater.elf`)
-  and `tools/validate-loader-elf.py`.
-- **[miniz](https://github.com/richgel999/miniz)** 3.0.2, MIT, unmodified in
-  `third_party/miniz` with its `LICENSE`. The self-update helper reads release
-  ZIPs with it; the app packs and unpacks save data for the save sync with it.
-- **[QR Code generator library](https://github.com/nayuki/QR-Code-generator)** (C), MIT,
-  unmodified in `third_party/qrcodegen` with its `LICENSE`. The launcher draws the QR code
-  of a save sync's pairing with it.
-- **LLVM compiler-rt** `emutls.c`, Apache-2.0 WITH LLVM-exception.
+Nothing in an open-source copyright license should be read as a grant of
+trademark rights unless the applicable owner expressly says so.
 
-## Network client libraries
+## Identified upstream authors, maintainers and project teams
 
-- **[libsmb2](https://github.com/sahlberg/libsmb2)**, pinned tag `libsmb2-6.3`,
-  LGPL-2.1-or-later for the client library. Copyright Ronnie Sahlberg and
-  contributors, including Primary Data Inc., Brian Dodge and André Guilherme.
-  Used for read-only SMB access; the network build uses the static client library,
-  not the upstream example applications. Exact upstream licensing and copyright
-  notices are retained in [third_party/licenses/libsmb2](third_party/licenses/libsmb2).
-  Its MD4 code is derived from the **RSA Data Security, Inc. MD4 Message-Digest
-  Algorithm** and retains that implementation's attribution/license terms. The
-  pinned source also contains public-domain notices for its tiny-AES128-C,
-  Colin Plumb/Ian Jackson MD5 and portable-endian components; these are preserved
-  in `libsmb2/SOURCE_NOTICES.txt`, not replaced by a generic LGPL notice.
-- **[libnfs](https://github.com/sahlberg/libnfs)**, pinned tag `libnfs-8.0.0`,
-  LGPL-2.1-or-later for the client library, with simplified BSD terms for protocol
-  definitions and generated protocol code as described in upstream `COPYING`.
-  Copyright Ronnie Sahlberg and other upstream rightsholders; NFSv4 protocol
-  sources also retain The Internet Society's copyright notice. The application
-  selects NFSv3, but the library build still includes NFSv4 code. Exact upstream
-  texts and source notices are retained in
-  [third_party/licenses/libnfs](third_party/licenses/libnfs). Upstream GPL example
-  applications/utilities are not part of this client-only build.
+The following recognises identified creators, contributors and project team accounts
+in addition to the original license notices. It is not an exhaustive list of all
+authors. Repository links provide provenance and full contributor histories.
 
-Both source archive URLs and SHA-256 pins are in `tools/deps.json`; verification
-and the additional file hashes are recorded in
-[third_party/licenses/SOURCES.json](third_party/licenses/SOURCES.json).
+- [ProsperoEden](https://github.com/blackbearreloaded/ProsperoEden) — BlackBearReloaded (`@blackbearreloaded`).
+- [ProsperoEden integration](https://github.com/Swordpdf/ProsperoEden) — Oliv3rmoon and Leonardo Medeiros de Mello Jr, alongside the upstream community.
+- [Eden](https://github.com/eden-emulator/mirror) — Eden Emulator Project team (`@eden-emulator`) and contributors.
+- [Citron Neo emulator](https://github.com/citron-neo/emulator) — Citron Neo team (`@citron-neo`); SM/audio fixes by `@HopeSuffers`.
+- [ProsperoPuzzles](https://github.com/blackbearreloaded/ProsperoPuzzles) — BlackBearReloaded (`@blackbearreloaded`).
+- [PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate) — BlackBearReloaded (`@blackbearreloaded`).
+- [PS5 OpenGL](https://github.com/blackbearreloaded/ps5-opengl) — BlackBearReloaded (`@blackbearreloaded`).
+- [Mihawk's PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa) — Mihawk (`@mihawk-99`) and Mesa contributors.
+- [Mihawk's PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan) — Mihawk (`@mihawk-99`).
+- [Mihawk's PS5 PayloadSDK](https://github.com/mihawk-99/PS5_PayloadSDK) — Mihawk (`@mihawk-99`) and upstream SDK authors.
+- [PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk) — John Törnblom (`@john-tornblom`) and contributors `@ps5-payload-dev`.
+- [ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan) — `@mpereiraesaa` and contributors.
+- [PSBrew/MkPFS](https://github.com/PSBrew/MkPFS) — PSBrew team (`@PSBrew`).
+- [SharpProspero](https://github.com/SvenGDK/SharpProspero) — SvenGDK (`@SvenGDK`).
+- [Encore overrides](https://github.com/niakw/encore-overrides) — `@niakw`.
+- [ghost-land/Nlib-API](https://github.com/ghost-land/Nlib-API) — ghost-land team (`@ghost-land`) and contributors.
+- [kinnay/zbic](https://github.com/kinnay/zbic) — `@kinnay`; zstd source files from Atmosphère.
+- [FFmpeg](https://github.com/FFmpeg/FFmpeg) — Fabrice Bellard (original creator), FFmpeg team and contributors.
+- [HarfBuzz](https://github.com/harfbuzz/harfbuzz) — Behdad Esfahbod, David Corbett, Khaled Hosny and HarfBuzz contributors.
+- [fmt](https://github.com/fmtlib/fmt) — Victor Zverovich (`@vitaut`) and contributors.
+- [LLVM](https://github.com/llvm/llvm-project) — LLVM community (`@llvm`) and contributors.
+- [pacbrew](https://github.com/ps5-payload-dev/pacbrew-repo) — ps5-payload-dev team and contributors.
+- [zlib](https://github.com/madler/zlib) — Jean-loup Gailly and Mark Adler (`@madler`).
+- [Boost.Context](https://github.com/boostorg/context) — Boost.Context team and Boost contributors.
+- [Xbyak](https://github.com/herumi/xbyak) — Mitsunari Shigeo (`@herumi`).
+- [SPIRV-LLVM-Translator](https://github.com/KhronosGroup/SPIRV-LLVM-Translator) — Khronos Group and SPIRV-LLVM-Translator contributors.
+- [stb](https://github.com/nothings/stb) — Sean T. Barrett (`@nothings`) and authors of stb components.
+- [ps5-native-gamepad-input-research](https://github.com/blackbearreloaded/ps5-native-gamepad-input-research) — BlackBearReloaded (`@blackbearreloaded`).
+- [ps5-audio-decoding-research](https://github.com/blackbearreloaded/ps5-audio-decoding-research) — BlackBearReloaded (`@blackbearreloaded`).
 
-## Adapted code and optional online data
+## Emulator and compression
 
-- **[Citron Neo / Citron-Nextendo](https://github.com/NextendoNetwork/citron-nextendo)**,
-  reference commit `8e76192472a3993a8f8fa6835e7ed061d443a9f7`. The account/API
-  files inspected for the Nextendo adaptation say `Copyright 2026 citron Emulator
-  Project`, GPL-2.0-or-later; the DNS/account-service reference files retain yuzu
-  (2018) and citron (2025) notices under the same license. Their later-version
-  option permits GPL-3.0-or-later adaptation in ProsperoEden; the reference README
-  itself declares GPL-3.0-or-later. The actual pinned GPL texts and SPDX headers
-  are retained in
-  [third_party/licenses/citron-nextendo](third_party/licenses/citron-nextendo).
-  This credits the bounded session/account/API and routing adaptation, not a
-  wholesale import or license audit of that repository. See
-  [Nextendo provenance](docs/features/NEXTENDO.md#source-and-license-provenance).
-  No Ryujinx-Nextendo/PolyForm Shield implementation, signing keys, credentials or
-  third-party server implementation is included by this feature.
-- **[TitleDB](https://github.com/blawar/titledb)** by Blake Warner,
-  MIT, reference commit `d424690446eec6f4484209b9a1c067c7f7511398`.
-  Its format informs the cheat-catalog reader and its public catalog is an
-  explicitly requested download source. The exact license, including
-  `Copyright (c) 2019 Blake Warner`, is retained in
-  [third_party/licenses/titledb/LICENSE](third_party/licenses/titledb/LICENSE).
-  No TitleDB catalog or third-party cheat payload is bundled with ProsperoEden;
-  tests use invented fixtures. A runtime download, selected-code installation or
-  later export is distinct from distributing this application and must retain
-  applicable source attribution and permissions. Other catalog URLs do not
-  inherit TitleDB's MIT declaration. See [CHEAT_DATABASE.md](docs/CHEAT_DATABASE.md).
-- **[AmiiboAPI](https://github.com/N3evin/AmiiboAPI)**, a public metadata service
-  and optional user-selected photo source (`amiiboapi.org` and
-  `raw.githubusercontent.com`). Its API software license is MIT, copyright
-  Nevin Vu; no API server code or artwork is bundled here. That software license
-  is not a blanket grant over third-party artwork, trademarks, game content or
-  tag data. The feature downloads public names only after opt-in and photos only
-  for explicitly selected models; it does not download tags or keys and preserves
-  local names/custom art. Users and redistributors must assess rights for any
-  separately obtained content. See [AMIIBO_LAUNCHER_SYNC.md](docs/AMIIBO_LAUNCHER_SYNC.md).
+- **[ProsperoEden](https://github.com/blackbearreloaded/ProsperoEden)** —
+  GPL-3.0. Encore is derived from its PS5 port/fork and retains portions of its
+  native integration and 1.000.040-era filesystem-access path.
+- **[Eden](https://github.com/eden-emulator/mirror)** — GPL-3.0. The emulator
+  core is built from the commit pinned in `UPSTREAM.json`.
+- **[Citron Neo emulator](https://github.com/citron-neo/emulator)** — GPL-family
+  Eden/yuzu-derived code. Encore's *experimental, disabled-by-default* ServiceManager
+  and lazy audio backport refers to Citron commits `f07609c52033` and `21813e8cb3ea`.
+  Its source is retained for isolated review; it is not active in the shipping baseline.
+  Original copyright and license notices remain applicable.
+- Eden's pinned dependencies include **Dynarmic (0BSD), Boost, fmt, Xbyak, zstd,
+  LZ4, Opus, SDL3, simpleini, sirit, SPIRV-Headers, Vulkan-Headers,
+  Vulkan-Utility-Libraries, Vulkan Memory Allocator, ENet, frozen,
+  cpp-httplib, nlohmann/json** and time-zone data. Each component retains its
+  upstream license and copyright notices; the available full texts are bundled
+  under `LICENSES/`.
+- **[FFmpeg](https://ffmpeg.org)** — LGPL-2.1-or-later. Encore builds the
+  pinned source with the H.264, VP8 and VP9 decoder subset used by the PS5
+  media path.
+- **[OpenSSL](https://www.openssl.org)** — Apache-2.0, and **zlib** — zlib
+  license. The PS5 libraries come from the pinned
+  [pacbrew](https://github.com/ps5-payload-dev/pacbrew-repo) package.
+- **LLVM compiler-rt** pieces used by the PS5 cross-build are covered by the
+  LLVM project's Apache-2.0 license with LLVM exception.
 
+### ZBIC license selection
+
+Encore pins **[kinnay/zbic](https://github.com/kinnay/zbic)** at commit
+`11b08f2712264bbed731545085cbd9702096ceb7` for Nintendo Switch 22.0+ ZBIC
+NSO decompression.
+
+The kinnay/zbic repository itself contains a GPLv2 root license, but Encore
+does **not** compile or redistribute its Python extension/module as a separate
+dependency. The PS5 build includes only the snapshot's Zstandard implementation
+files used by `headless/zbic_compression.cpp`. Those files state in their own
+headers that they are dual-licensed under a BSD-style license or GPLv2 and that
+the recipient may select either. **Encore selects the BSD-style terms for those
+files.** The selected license text is preserved as
+`LICENSES/ZBIC-zstd-BSD.txt`.
 ## Graphics
 
-- **[PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa)** and
-  **[PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan)** by Mihawk. The
-  RADV Vulkan driver (Mesa, mainly MIT) and its PS5 link recipe and platform
-  layer (GPL-3.0-or-later).
-- **[ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan)** by mpereiraesaa,
-  an experimental Vulkan graphics and compute API for native PS5 homebrew.
-- **[ps5-opengl](https://github.com/blackbearreloaded/ps5-opengl)**,
-  GPL-3.0-or-later, which includes Mesa components under their own licenses.
-  `third_party/app_heap.c` comes from it.
-- **[bcdec](https://github.com/iOrange/bcdec)** by Sergii "iOrange" Kudlai, MIT or public
-  domain, unmodified in `third_party/bcdec` with its `LICENSE`. Decodes the BC7 blocks of a
-  DDS wallpaper into pixels (docs/WALLPAPERS.md).
+- **[Mihawk's PS5 Mesa](https://github.com/mihawk-99/PS5_Mesa)** and
+  **[Mihawk's PS5 Vulkan](https://github.com/mihawk-99/PS5_Vulkan)** provide
+  the RADV/Vulkan PS5 path. Mesa source files retain their upstream permissive
+  file-level notices; Mihawk's PS5 platform/tooling repository is GPL-3.0.
+- **[ps5-vulkan](https://github.com/mpereiraesaa/ps5-vulkan)** — GPL-3.0;
+  experimental native PS5 Vulkan work used by the graphics stack.
+- **[ps5-opengl](https://github.com/blackbearreloaded/ps5-opengl)** — GPL-3.0,
+  with Mesa components retaining their own licenses. Encore pins source commit
+  `ad2807d41cef2681882a9ee0d20808779f74b7cd`; `third_party/app_heap.c`
+  originates from that project.
 
 ## Platform and interface
 
-- **[PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk)** by John
-  Törnblom (ps5-payload-dev).
-- **[PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate)**,
-  GPL-3.0-or-later. The native app runtime and packaging tool. Its packaging
-  tool translates parts of SvenGDK's
-  [SharpProspero](https://github.com/SvenGDK/SharpProspero).
-- **[PS5-Lapy-JB-Daemon](https://github.com/ArkSama/PS5-Lapy-JB-Daemon)** by
-  ArkSama, with the cooperative owned-root design from
-  **[mpereiraesaa's fork](https://github.com/mpereiraesaa/PS5-Lapy-JB-Daemon)** and the pinned
-  **[ProsperoEden compatibility fork](https://github.com/blackbearreloaded/PS5-Lapy-JB-Daemon)**.
-  Lapy is MIT licensed; its shared protocol header is LGPL-2.1-or-later.
-  ProsperoEden pins the fork, invokes its unmodified exact-title helper build,
-  verifies its generated manifest and bundles the helper ELF with its license.
-- **[ps5log](https://github.com/mpereiraesaa/ps5-agc-gears/tree/1ae1f9182abd2770c131b97419034fb85173c2dc/native/ps5log)**,
-  GPL-3.0-or-later. The pinned single-header logging client used as an upstream
-  Lapy helper build input.
-- **[ProsperoPuzzles](https://github.com/blackbearreloaded/ProsperoPuzzles)**,
-  GPL-3.0-or-later. The launcher's drawing, text, animation and sound code
-  (`headless/prosperoeden/pe`) started there.
-- **[ps5-homebrew-ui](https://github.com/blackbearreloaded/ps5-homebrew-ui)**,
-  GPL-3.0-or-later. The launcher's themes start from its theme recipes: its
-  theme table (`src/ui/theme.cpp`) is compiled into the launcher. Fetched at
-  the commit pinned in `tools/deps.json`.
-- **Montserrat** by Julieta Ulanovsky and contributors, SIL Open Font License
-  1.1 (`third_party/fonts`). The launcher's font is baked from Montserrat Medium.
-- **[HarfBuzz](https://github.com/harfbuzz/harfbuzz)**, "Old MIT" license (its
-  `COPYING` file). Shapes the launcher's text in the scripts that need it, such
-  as Thai and Arabic. Fetched at the release pinned in `tools/deps.json`.
-- **[stb](https://github.com/nothings/stb)** by Sean Barrett, MIT or public
-  domain (`tools/launcher/stb` and `third_party/stb`). `stb_truetype` bakes the launcher's font and,
-  in the app, reads the console's system fonts for the scripts Montserrat does
-  not have. `stb_image` (`third_party/stb`) reads the wallpaper images in the app.
-  `stb_image_write` saves the PC previews and is not part of the app.
-- The launcher's sound effects were generated with
-  [ElevenLabs](https://elevenlabs.io) and edited for this project.
-- `third_party/ps5_pad.hpp` and `third_party/native_audio.hpp` are this
-  project's own platform declarations, GPL-3.0-or-later.
+- **[PS5 Payload SDK](https://github.com/ps5-payload-dev/sdk)** — GPL-3.0.
+- **[Mihawk's PS5 PayloadSDK](https://github.com/mihawk-99/PS5_PayloadSDK)** —
+  GPL-3.0; fork used by the RADV/Vulkan build path.
+- **[PS5 Native App Boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate)** —
+  GPL-3.0. Encore reuses its native runtime, packaging integration and sandbox
+  elevation helper. Its packaging code incorporates/derives work credited to
+  **[SharpProspero](https://github.com/SvenGDK/SharpProspero)** — GPL-3.0.
+- **[ProsperoPuzzles](https://github.com/blackbearreloaded/ProsperoPuzzles)** —
+  GPL-3.0. The launcher's drawing, text, animation and sound playback code
+  started from that project.
+- **Montserrat** by Julieta Ulanovsky and contributors — SIL Open Font License
+  1.1. The exact bundled notice is preserved under `LICENSES/`.
+- **[HarfBuzz](https://github.com/harfbuzz/harfbuzz)** — its upstream COPYING
+  terms. It shapes launcher text for complex scripts such as Thai and Arabic.
+- **[stb](https://github.com/nothings/stb)** — upstream dual public-domain/MIT
+  terms. Encore uses its font tooling/system-font support and retains upstream
+  notices.
+- `third_party/ps5_pad.hpp` comes from
+  **[ps5-native-gamepad-input-research](https://github.com/blackbearreloaded/ps5-native-gamepad-input-research)**
+  and `third_party/native_audio.hpp` from
+  **[ps5-audio-decoding-research](https://github.com/blackbearreloaded/ps5-audio-decoding-research)**;
+  both upstream repositories are GPL-3.0.
 
-## Release packaging boundary
+## Runtime metadata and media
 
-These notices and license copies do not by themselves satisfy source-delivery or
-static-link relinking obligations. The release must retain applicable notices,
-provide corresponding source/build materials through an appropriate license
-compliance route, and preserve recipients' modification/relinking rights. The
-new files still need to be included and checked in the final package; this notice
-change does not modify packaging tools or certify compliance. See
-[release license qualification](docs/features/RELEASE_LICENSE_NOTICES.md).
+- **[ghost-land/Nlib-API](https://github.com/ghost-land/Nlib-API)** — GPL-3.0.
+  Encore queries its public NX endpoints at runtime for title metadata and
+  launcher media such as icons, banners and screenshots. Nlib source code and
+  a pre-seeded Nlib media library are **not** embedded in the Encore release;
+  returned responses/media may be cached locally by the user.
+- Copyright, trademark and other rights in metadata, cover art, banners,
+  screenshots or other media returned by a remote service remain with their
+  respective rightsholders. Encore does **not** represent Nlib-served media as
+  public-domain, royalty-free, or licensed for independent redistribution.
+  Remote-service availability and terms can change independently of Encore.
+
+## Project-authored sound effects
+
+The launcher UI sound files under `headless/prosperoeden/ui/sounds/` are
+generated deterministically by `tools/launcher/generate-sfx.py` from
+mathematical oscillators and deterministic noise. They contain no third-party
+audio samples, recordings, model-generated clips, or external audio-service
+output. The generation script and generated assets are distributed as part of
+Encore under the project's applicable GPL-3.0-or-later terms.
+## Compressed-container reader (NSZ/XCZ)
+
+The in-place NCZ reader, Eden VFS adapter and associated synthetic-format
+regression fixtures under `headless/ncz.h`, `headless/ncz.cpp`,
+`headless/ncz_vfs.h`, `headless/ncz_check.cpp`, `headless/game_files.h`,
+and `tools/check-ncz.py` originate from the community contribution
+[`ProsperoEden` PR #285](https://github.com/Swordpdf/ProsperoEden/pull/285)
+by Oliv3rmoon (Copyright 2026), licensed under **GPL-3.0-or-later**.
+
+Encore retains the original source copyright and license notices and adds
+native C++ source-owner adaptations, symlink-safe cache access, tests and
+project-specific integrations. These formats do not bundle games, proprietary
+keys, firmware or proprietary compression algorithms.
+
+## Selected ProsperoEden frontend adaptations
+
+The local integration snapshot `5211718fb77f687a027dc5f675209bc64af4b982`
+supplied selected application-owned improvements, not a replacement emulator core:
+
+- **Oliv3rmoon**: controller recovery (`d9240dc`, `9ec8ab0`, `f19f8d1`),
+  loader diagnostics (`dae49cf`), ExeFS history adaptation (PR #286), and
+  `library.json` interchange (PR #292). Original copyright headers are retained.
+- **Leonardo Medeiros de Mello Jr**: bounded NRO/image metadata (`20ef10e`)
+  and name-first export privacy (`f1a92c6`), adapted to Encore's own interfaces
+  and packaging rather than importing the entire integration.
+
+These adaptations and their tests are **GPL-3.0-or-later**. The existing
+`LICENSE` and `LICENSES/GPL-3.0-or-later.txt` remain unchanged. See
+[the port ledger](docs/PROSPEROEDEN_PORTS_2026-10-30.md) for exact scope and limits;
+the upstream community credit is not a claim of sole authorship by a repository owner.
+
+## Names, logos and trademarks
+
+Prospero.Eden Encore is an **unofficial community fork**. It is not affiliated
+with, sponsored by, endorsed by, or supported by Sony Interactive
+Entertainment, Nintendo, the Eden Emulator Project, or any other upstream
+project unless an upstream project expressly states otherwise.
+
+PlayStation, PS5, DualSense, Nintendo, Nintendo Switch, Eden and other product,
+project or company names and logos may be trademarks or registered trademarks
+of their respective owners. Their use in Encore is for attribution,
+compatibility identification or description of upstream lineage and does not
+imply endorsement.
+
+Copyright licensing and trademark rights are separate. In particular,
+distribution of copyrightable Eden-derived code or artwork under an applicable
+open-source license does not by itself grant a right to use an owner's marks
+outside the scope permitted by trademark law or separate permission.
+
+## User-supplied console content
+
+Encore does not include encryption keys, Nintendo firmware, commercial games,
+DLC, game updates or other proprietary console content. Users must supply their
+own files and are responsible for having the rights required by applicable law
+for the software and data they use.
+
+## No warranty
+
+Encore and the third-party free/open-source software distributed with it are
+provided under their respective licenses and warranty disclaimers. The GPL
+warranty disclaimer for Encore is reproduced in full in [LICENSE](LICENSE).
 
 ## Thanks
 
-ProsperoEden exists thanks to the Eden maintainers and contributors, Mihawk,
-mpereiraesaa, John Törnblom, SvenGDK, and the whole PS5 homebrew community.
-
-## Lua 5.4.9
-
-Embedded launcher scripting runtime. Copyright Lua.org, PUC-Rio. MIT license; see `third_party/lua/LICENSE.txt`. Source and checksum: `third_party/lua/SOURCE.json`.
+ProsperoEden and Encore exist thanks to the Eden maintainers and contributors,
+Mihawk, mpereiraesaa, John Törnblom, SvenGDK, the PS5 homebrew community and
+the many upstream free/open-source projects credited above.

@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 
 namespace pe::host
@@ -35,7 +35,7 @@ struct Sample
 
 // Invented titles: nothing here names a real game.
 constexpr Sample kSamples[] = {
-    {"Starfall Odyssey", "NSP", "6.4 GB", "1.2.0", 2, "English (US)", "", 0x1b2a6b, 0x40b3c8, 0xffd166, true},
+    {"Starfall Odyssey", "NSP", "6.4 GB", "1.2.0", 2, "English (US)", "", 0x1b2a6b, 0x40b3c8, 0xffd166},
     {"Moss & Lantern", "XCI", "2.1 GB", "", 0, "English (US)", "", 0x16402f, 0x7bc86c, 0xf4e285},
     {"Kart Carnival Deluxe", "NSP", "7.8 GB", "3.0.1", 48, "English (US)", "", 0xb3261e, 0xffb238, 0xffffff},
     {"Tiny Harbor", "NSP", "512.0 MB", "", 0, "English (US)", "", 0x256d8f, 0x9bd8e6, 0xfff3d6},
@@ -44,11 +44,30 @@ constexpr Sample kSamples[] = {
     {"Pocket Rally Turbo", "NSP", "1.9 GB", "", 0, "English (US)", "", 0x202020, 0xe85d04, 0xf8f9fa},
     {"Cloudline", "NSP", "3.3 GB", "", 1, "English (US)", "", 0x5fa8d3, 0xcae9ff, 0x1b4965},
     {"Ember Knights II", "XCI", "9.6 GB", "2.4.0", 5, "English (US)", "", 0x3d0c02, 0xd62828, 0xfcbf49},
-    {"Paper Garden and the Clockwork Orchard", "NSP", "840.5 MB", "", 0, "English (US)", "", 0xf1e3c6, 0x90be6d, 0x386641},
+    {"Paper Garden", "NSP", "840.5 MB", "", 0, "English (US)", "", 0xf1e3c6, 0x90be6d, 0x386641},
     {"Neon Drifters", "NSP", "5.2 GB", "1.0.3", 0, "English (US)", "", 0x10002b, 0x7b2cbf, 0x5ef2ff},
     {"Caf\xC3\xA9 Nocturne", "NSP", "2.7 GB", "", 0, "French", "", 0x2b1d0e, 0xa9713c, 0xf6e7cb},
     {"Sky Shepherds", "XCI", "4.4 GB", "", 3, "English (US)", "", 0x457b9d, 0xa8dadc, 0xf1faee, true},
 };
+
+// Original fictional store-style descriptions for host-only sample titles.
+// They do not describe any commercially released game or its compatibility.
+constexpr const char *kSampleDescriptions[] = {
+    "Explore uncharted star systems, recruit a daring crew, and uncover the signal calling from beyond the last constellation.",
+    "Carry a lantern through a forgotten woodland, awaken its hidden spirits, and restore the light before the forest falls silent.",
+    "Race through spectacular festival circuits, master wild shortcuts, and battle your rivals with playful power-ups.",
+    "Build your dream seaside town, welcome passing travelers, and turn a quiet fishing pier into a bustling little harbor.",
+    "Follow the songs of an ancient valley, solve the mysteries of its ruins, and discover the stories whispered by the mountains.",
+    "Conquer dusty mountain passes, perfect every hairpin turn, and climb the ranks of the ultimate pocket-sized rally series.",
+    "Soar between floating cities, ride ever-changing winds, and uncover the secrets of a world suspended above the clouds.",
+    "Reunite the Ember Knights, forge elemental weapons, and stand against the darkness spreading across a shattered kingdom.",
+    "Fold and plant your way through a whimsical paper world, solving gentle puzzles to bring a long-forgotten garden to life.",
+    "Drift through electric midnight streets, challenge rival crews, and become a legend of the neon-lit underground.",
+    "Open your café after dusk, serve extraordinary drinks, and discover the secrets of the night through your guests' stories.",
+    "Guide a flock across skybound meadows, befriend the winds, and protect your floating village from an approaching storm.",
+};
+static_assert(sizeof(kSamples) / sizeof(kSamples[0]) ==
+              sizeof(kSampleDescriptions) / sizeof(kSampleDescriptions[0]));
 
 void put_pixel(std::vector<std::uint8_t> &pixels, int size, int x, int y, float r, float g, float b)
 {
@@ -110,26 +129,100 @@ bool write_cover(const std::string &path, const Sample &sample, int index)
     return ok;
 }
 
-// Invented games on the sample download sources.
-constexpr Sample kServerSamples[] = {
-    {"Lighthouse Keeper", "NSP", "3.2 GB", "", 0, "English (US)", "", 0x0b1d3a, 0x2a6f97, 0xffe66d},
-    {"Rune Gardens", "XCI", "11.6 GB", "", 0, "English (US)", "", 0x1f3d1a, 0x9bc53d, 0xe55934},
-    {"Orbit Postman", "NSP", "780.4 MB", "", 0, "English (US)", "", 0x14051f, 0x6a4c93, 0x8ac926},
-};
-constexpr std::uint64_t kServerSizes[] = {3435973837ull, 12455405158ull, 818311987ull};
-// What of them is in .remote-downloads/ already (in percent), from a download stopped before:
-// Orbit Postman's goes on, read from the drive first for the check of its contents.
-constexpr std::uint64_t kServerHad[] = {0, 0, 40};
-// Which sources have them: Rune Gardens is on both.
-const std::vector<std::string> kServerSources[] = {{"Home"}, {"Home", "Office"}, {"Office"}};
+// Deterministic vertically oriented test case scans. They are synthetic test
+// *fixtures*, not generated UI captures: only the production C++ OpenGL renderer
+// generates the actual evidence PNG. Front and back differ substantially so
+// source bugs that duplicate one face are caught visually.
+bool write_case_fixture(const std::string& path, bool back)
+{
+    constexpr int width = 360, height = 560;
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(width) * height * 4);
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const float xf = static_cast<float>(x) / width;
+            const float yf = static_cast<float>(y) / height;
+            const bool band = (y >= 74 && y < 302);
+            const bool thumb = back && y >= 340 && y < 452 && x >= 28 && x < 330;
+            const bool stripe = back && y > 462 && ((y / 18) % 3 == 0);
+            float r = back ? 0.07f + 0.22f * yf : 0.12f + 0.25f * (1.0f - yf);
+            float g = back ? 0.09f + 0.12f * xf : 0.09f + 0.22f * yf;
+            float b = back ? 0.19f + 0.20f * xf : 0.32f + 0.43f * xf;
+            if (band) {
+                const float wave = 0.5f + 0.5f * std::sin(xf * 12.0f + yf * 30.0f);
+                r += back ? 0.11f : 0.17f * wave;
+                g += back ? 0.20f * wave : 0.10f;
+                b += back ? 0.18f : 0.15f * wave;
+            }
+            if (thumb) { r = 0.16f + xf * 0.25f; g = 0.30f; b = 0.50f; }
+            if (stripe) { r = 0.65f; g = 0.38f; b = 0.78f; }
+            if (x < 7 || x >= width - 7 || y < 7 || y >= height - 7) {
+                r = 0.85f; g = 0.25f; b = 0.67f;
+            }
+            const std::size_t i = (static_cast<std::size_t>(y) * width + x) * 4;
+            pixels[i] = static_cast<std::uint8_t>(std::clamp(b, 0.0f, 1.0f) * 255);
+            pixels[i + 1] = static_cast<std::uint8_t>(std::clamp(g, 0.0f, 1.0f) * 255);
+            pixels[i + 2] = static_cast<std::uint8_t>(std::clamp(r, 0.0f, 1.0f) * 255);
+            pixels[i + 3] = 255;
+        }
+    }
+    unsigned char header[18]{};
+    header[2] = 2;
+    header[12] = static_cast<unsigned char>(width);
+    header[13] = static_cast<unsigned char>(width >> 8);
+    header[14] = static_cast<unsigned char>(height);
+    header[15] = static_cast<unsigned char>(height >> 8);
+    header[16] = 32;
+    header[17] = 0x28;
+    std::FILE* file = std::fopen(path.c_str(), "wb");
+    if (!file) return false;
+    const bool ok = std::fwrite(header, 1, 18, file) == 18 &&
+        std::fwrite(pixels.data(), 1, pixels.size(), file) == pixels.size();
+    return std::fclose(file) == 0 && ok;
+}
+
+// Production-render test data: a real 16:9 TGA texture rendered by the exact
+// launcher GPU pipeline, but with invented scenery instead of copyrighted game
+// art. This catches full-bleed crop, overlays and header occlusion that a bare
+// layout contract cannot see. Do not ship this texture in the PS5 application.
+bool write_preview_hero(const std::string& path)
+{
+    constexpr int w = 1920;
+    constexpr int h = 1080;
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(w) * h * 4);
+    for (int y = 0; y < h; ++y) {
+        const float v = static_cast<float>(y) / h;
+        for (int x = 0; x < w; ++x) {
+            const float u = static_cast<float>(x) / w;
+            // Sky/ocean at sunset, warm scene on the right. The details are
+            // deliberately synthetic: geometry and shader blending are tested.
+            const float glow = std::max(0.0f, 1.0f - std::abs(u - 0.69f) * 1.7f) *
+                               std::max(0.0f, 1.0f - std::abs(v - 0.27f) * 2.0f);
+            const float terrain = v > 0.66f + 0.07f * std::sin(11.0f * u) ? 1.0f : 0.0f;
+            const float haze = (1.0f - v) * 0.35f;
+            put_pixel(pixels, w, x, y,
+                      std::clamp(0.05f + glow * 0.66f + terrain * 0.07f, 0.0f, 1.0f),
+                      std::clamp(0.16f + glow * 0.36f + haze + terrain * 0.03f, 0.0f, 1.0f),
+                      std::clamp(0.31f + glow * 0.22f + haze + terrain * 0.05f, 0.0f, 1.0f));
+        }
+    }
+    std::FILE* file = std::fopen(path.c_str(), "wb");
+    if (!file) return false;
+    const unsigned char header[18] = {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                      w & 0xff, w >> 8, h & 0xff, h >> 8, 32, 0x28};
+    const bool good = std::fwrite(header, 1, 18, file) == 18 &&
+                      std::fwrite(pixels.data(), 1, pixels.size(), file) == pixels.size();
+    std::fclose(file);
+    return good;
+}
 
 // The same labels as the console's settings (headless/settings_store.h), translated like them.
-constexpr const char *kResolutionLabels[] = {"0.5x (faster, softer)", "0.75x (faster)",
-                                             "1x (native)", "1.5x (sharper)", "2x (sharpest)",
-                                             "3x (slower)", "4x (slowest)"};
-const std::vector<std::string> kResolutionKeys = {"0.5x", "0.75x", "1x", "1.5x", "2x", "3x", "4x"};
+constexpr const char *kResolutionLabels[] = {"0.25x (minimum)", "0.5x (fastest, softer)", "0.75x (faster)",
+                                             "1x (recommended)", "1.25x (sharper)", "1.5x (sharper)",
+                                             "2x (high memory)", "3x (very high memory)", "4x (extreme memory)"};
+const std::vector<std::string> kResolutionKeys = {"0.25x", "0.5x", "0.75x", "1x", "1.25x", "1.5x", "2x", "3x", "4x"};
 constexpr const char *kFilterLabels[] = {"Bilinear", "AMD FSR", "Bicubic", "Nearest"};
-constexpr const char *kAstcLabels[] = {"Compressed", "Full quality"};
+constexpr const char *kAntiAliasingLabels[] = {"None", "FXAA", "SMAA"};
+constexpr const char *kPerformanceProfileLabels[] = {"Minimum", "Recommended", "High", "Ultra", "Custom"};
 constexpr const char *kLanguageLabels[] = {
     "English (US)", "English (UK)", "French", "French (Canada)", "German", "Italian", "Spanish",
     "Spanish (Latin America)", "Portuguese", "Portuguese (Brazil)", "Dutch", "Russian", "Polish",
@@ -148,7 +241,11 @@ constexpr int kLanguageRegions[] = {1, 2, 2, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 0, 5,
 
 FakeServices::FakeServices(const std::string &covers_directory)
 {
-    wallpapers_directory_ = covers_directory + "/wallpapers";
+    // Optional real images are fetched into the GitHub runner workspace.
+    // No game art is checked into git or published in native packages.
+    preview_botw_ = std::getenv("PE_PREVIEW_BOTW") != nullptr &&
+                    std::string_view(std::getenv("PE_PREVIEW_BOTW")) == "1";
+    enable_sample_case_ = std::getenv("PE_PREVIEW_NO_BOX_SCANS") == nullptr;
     int index = 0;
     for (const Sample &sample : kSamples)
     {
@@ -161,6 +258,8 @@ FakeServices::FakeServices(const std::string &covers_directory)
         game.file = std::string(sample.name) + " [" + id + "]." +
                     (std::string(sample.format) == "NSP" ? "nsp" : "xci");
         game.title_id = 0x0100A00000001000ull + static_cast<std::uint64_t>(index) * 0x10000;
+        game.description = kSampleDescriptions[index];
+        game.intro = game.description;
         if (sample.update[0] != 0)
         {
             game.addons = fill(tr("Update {0}"), {sample.update});
@@ -177,67 +276,106 @@ FakeServices::FakeServices(const std::string &covers_directory)
         game.language = tr(sample.language);
         if (sample.missing[0] != 0)
             game.language_note = fill(tr("{0} not available"), {tr(sample.missing)});
-        // One game has no cover art, to show the placeholder.
-        if (index != 8)
+        // The README screenshot may use original, title-specific illustrated
+        // covers created in its temporary host directory. Normal fixture runs
+        // keep their existing deterministic covers and missing-cover test.
+        const bool branded = std::getenv("PE_PREVIEW_BRANDED_HOME") != nullptr &&
+            std::string_view(std::getenv("PE_PREVIEW_BRANDED_HOME")) == "1";
+        if (index != 8 || branded)
         {
             game.cover = covers_directory + "/cover-" + std::to_string(index) + ".tga";
-            if (!write_cover(game.cover, sample, index))
+            // A README preview must never silently fall back to the generic art.
+            if (branded) {
+                if (!std::filesystem::is_regular_file(game.cover))
+                    game.cover.clear();
+            } else if (!write_cover(game.cover, sample, index)) {
                 game.cover.clear();
+            }
+        }
+        // The dedicated README capture showcases Eden Encore's *own*
+        // packaged wallpaper. Its fixture must not generate the artificial
+        // sunset Hero: the async full-library scan can rehydrate Game.hero
+        // AFTER Home::home() has cleared the snapshot (so the old capture
+        // still looked identical). Omit that source for this host mode only.
+        if (std::string_view(sample.name) == "Echoes of the Valley" &&
+            std::getenv("PE_PREVIEW_BRANDED_HOME") == nullptr) {
+            const std::string image = covers_directory + "/preview-hero.tga";
+            if (write_preview_hero(image)) {
+                game.hero = image;
+                game.intro = "An atmospheric adventure across lost islands.";
+                game.max_players = 2;
+            }
+        }
+        if (preview_botw_ && std::string_view(sample.name) == "Echoes of the Valley") {
+            game.name = "The Legend of Zelda: Breath of the Wild";
+            game.file = "The Legend of Zelda - Breath of the Wild [01007EF00011E000].xci";
+            game.title_id = 0x01007EF00011E000ull;
+            // For a missing original front, the fallback starts from the
+            // sample application's own icon rather than secretly loading a
+            // real box-front scan as its supposedly missing source.
+            game.cover = std::getenv("PE_PREVIEW_NO_BOX_FRONT") != nullptr ?
+                covers_directory + "/cover-" + std::to_string(index) + ".tga" :
+                covers_directory + "/botw-front.tga";
+            game.hero = covers_directory + "/botw-hero.tga";
+            game.screenshots = {game.hero};
+            game.intro = "Explore the vast landscapes of Hyrule.";
+            game.description = "Discover Hyrule, explore its landscapes and embark on an open-air adventure.";
+            game.max_players = 1;
         }
         games_.push_back(game);
         ++index;
     }
-    for (const Sample &sample : kServerSamples)
-    {
-        ui::Game game;
-        game.name = sample.name;
-        game.format = sample.format;
-        game.size = sample.size;
-        game.file = std::string(sample.name) + "." + (std::string(sample.format) == "NSP" ? "nsp" : "xci");
-        game.sources = kServerSources[remote_.size() % 3];
-        game.key = "name:" + game.file;
-        game.remote = true;
-        game.cover = covers_directory + "/server-" + std::to_string(remote_.size()) + ".tga";
-        if (!write_cover(game.cover, sample, index++))
-            game.cover.clear();
-        remote_.push_back(game);
-    }
-    // Runtime preview: exercise the complete scrolling library without shipping game payloads.
-    for(int extra=static_cast<int>(games_.size());extra<64;++extra) {
-        ui::Game game=games_[static_cast<std::size_t>(extra)%games_.size()];
-        game.name="Sample Software "+std::to_string(extra+1); game.file=game.name+".nsp";
-        // A copy of a game with the sample mods has them too: the game the preview's Library
-        // settles on is one.
-        const bool modded = std::find(modded_.begin(), modded_.end(), game.title_id) != modded_.end();
-        game.title_id=0x0100C00000000000ull+static_cast<std::uint64_t>(extra);
-        if (modded)
-            modded_.push_back(game.title_id);
-        games_.push_back(std::move(game));
-    }
     std::sort(games_.begin(), games_.end(),
               [](const ui::Game &a, const ui::Game &b) { return a.name < b.name; });
+    for (ui::Game& game : games_) {
+        if (game.name == (preview_botw_ ?
+                         "The Legend of Zelda: Breath of the Wild" :
+                         "Echoes of the Valley")) {
+            sample_case_title_id_ = game.title_id;
+            if (preview_botw_) {
+                sample_case_front_ = covers_directory + "/botw-front.tga";
+                sample_case_back_ = covers_directory + "/botw-back.tga";
+                sample_case_spine_ = covers_directory + "/botw-spine.tga";
+            } else {
+                sample_case_front_ = covers_directory + "/fixture-case-front.tga";
+                sample_case_back_ = covers_directory + "/fixture-case-back.tga";
+                if (!write_case_fixture(sample_case_front_, false)) sample_case_front_.clear();
+                if (!write_case_fixture(sample_case_back_, true)) sample_case_back_.clear();
+            }
+            if (enable_sample_case_) {
+                // Host evidence for four independent configurations: both
+                // scans, front only, back only, and neither. A missing one
+                // must never synthesize over the other genuine face.
+                if (std::getenv("PE_PREVIEW_NO_BOX_FRONT") == nullptr)
+                    game.box_front = sample_case_front_;
+                if (std::getenv("PE_PREVIEW_NO_BOX_BACK") == nullptr)
+                    game.box_back = sample_case_back_;
+            }
+            break;
+        }
+    }
 }
 
 ui::Home FakeServices::home()
 {
+    std::lock_guard lock(state_mutex_);
     ui::Home home;
     home.setup_ready = setup_ready;
-    home.homebrew_ready = homebrew_ready;
     if (!setup_ready)
         home.status = fill(tr("Setup required: {0} Open Settings, Game files to choose the folder that "
                               "holds your keys, firmware and roms folders (or add the files to {1}), "
                               "then reopen ProsperoEden."),
                            {fill(tr("Missing or empty keys/prod.keys in {0}."), {"/data/prosperoeden"}),
                             "/data/prosperoeden"});
-    else if (!crash_report.empty())
+    else if (!crash_report_.empty())
     {
-        home.status = fill(tr("ProsperoEden stopped because of an error. A report was saved to {0}."), {crash_report});
+        home.status = fill(tr("ProsperoEden stopped because of an error. A report was saved to {0}."), {crash_report_});
         home.launch_failed = true;
     }
-    else if (!launch_error.empty())
+    else if (!launch_error_.empty())
     {
         home.status = fill(tr("Game could not start: {0} Details: {1}"),
-                           {launch_error, "/data/prosperoeden/logs/stderr.log"});
+                           {launch_error_, "/data/prosperoeden/logs/stderr.log"});
         home.launch_failed = true;
     }
     if (has_history && setup_ready)
@@ -249,46 +387,65 @@ ui::Home FakeServices::home()
                     return game;
             return games_.front();
         };
-        // As the console does: a game taken away is not offered, the next recent one is.
-        const char *const recent[] = {"Echoes of the Valley", "Kart Carnival Deluxe", "Starfall Odyssey",
-                                      "Caf\xC3\xA9 Nocturne", "Neon Drifters", "Pocket Rally Turbo",
-                                      "Cloudline", "Ember Knights II"};
-        const char *first = recent[0];
-        for (const char *name : recent)
-            if (game_exists(find(name).file))
-            {
-                first = name;
-                break;
-            }
-        const ui::Game &last = find(first);
+        const ui::Game &last = find(preview_botw_ ?
+            "The Legend of Zelda: Breath of the Wild" : "Echoes of the Valley");
         home.last_file = last.file;
         home.last_exists = true;
         home.last_title = last.name;
-        home.last_caption = last.language_note;
-        home.last_caption_warning = true;
+        // The normal UI specimen is not a warning state. Separate renders
+        // exercise missing ROM/firmware/errors so the baseline stays legible.
+        home.last_caption = last.description;
+        home.last_description = last.description;
+        home.last_caption_warning = false;
         home.last_cover = last.cover;
+        home.last_hero = last.hero;
+        home.last_intro = last.intro;
+        home.last_max_players = last.max_players;
         home.last_title_id = last.title_id;
         home.last_addons = last.addons;
         home.last_language = last.language;
-        for (const char *name : recent)
+        for (const char *name : {preview_botw_ ?
+                                 "The Legend of Zelda: Breath of the Wild" :
+                                 "Echoes of the Valley", "Kart Carnival Deluxe", "Starfall Odyssey",
+                                 "Caf\xC3\xA9 Nocturne", "Moss & Lantern", "Tiny Harbor", "Cloudline"})
         {
             const ui::Game &game = find(name);
-            if (game_exists(game.file))
-                home.recents.push_back({game.file, game.name, game.cover});
+            home.recents.push_back({game.file, game.name, game.cover});
+            home.recents.back().hero = game.hero;
+            home.recents.back().title_id = game.title_id;
+            home.recents.back().max_players = game.max_players;
+            home.recents.back().intro = game.intro;
+            home.recents.back().description = game.description;
+        }
+    }
+    // The README preview must display the *packaged Eden wallpaper*
+    // (ui/art/backdrop.tga, from assets/encore-background.jpg), not the
+    // synthetic 16:9 sunset used by general host fixture screenshots.
+    // Clear only the host specimen's Hero layers so Launcher::draw_home()
+    // falls through to the real production Backdrop renderer and textures.
+    if (const char* branded = std::getenv("PE_PREVIEW_BRANDED_HOME");
+        branded != nullptr && std::string_view(branded) == "1") {
+        home.last_hero.clear();
+        home.last_screenshot.clear();
+        for (ui::Recent& recent : home.recents) {
+            recent.hero.clear();
+            recent.screenshot.clear();
         }
     }
     home.system_status = fill(tr("{0} games installed"), {std::to_string(games_.size())}) + "  /  " +
-                         (setup_ready ? tr("Firmware ready") : tr("Setup required"));
+                         (setup_ready ? tr("Guest firmware checks passed") : tr("Setup required"));
     return home;
 }
 
 bool FakeServices::docked(std::uint64_t title_id)
 {
+    std::lock_guard lock(state_mutex_);
     return std::find(handheld_.begin(), handheld_.end(), title_id) == handheld_.end();
 }
 
 bool FakeServices::set_docked(std::uint64_t title_id, bool docked)
 {
+    std::lock_guard lock(state_mutex_);
     handheld_.erase(std::remove(handheld_.begin(), handheld_.end(), title_id), handheld_.end());
     if (!docked)
         handheld_.push_back(title_id);
@@ -309,16 +466,14 @@ const std::vector<std::string> &FakeServices::filter_labels()
     static const std::vector<std::string> labels = translated(kFilterLabels);
     return labels;
 }
-const std::vector<std::string> &FakeServices::astc_labels()
+const std::vector<std::string> &FakeServices::anti_aliasing_labels()
 {
-    static const std::vector<std::string> labels = translated(kAstcLabels);
+    static const std::vector<std::string> labels = translated(kAntiAliasingLabels);
     return labels;
 }
-// The bundled presets the preview shows, as a console with no presets of its own lists them.
-const std::vector<std::string> &FakeServices::post_processing_labels()
+const std::vector<std::string> &FakeServices::performance_profile_labels()
 {
-    static const std::vector<std::string> labels = {
-        tr("Off"), "Anime", "Cinematic", "Clean", "Dreamy", "Retro", "Vivid"};
+    static const std::vector<std::string> labels = translated(kPerformanceProfileLabels);
     return labels;
 }
 const std::vector<std::string> &FakeServices::language_labels()
@@ -342,26 +497,6 @@ std::string FakeServices::setup_details()
                fill(tr("Missing or empty keys/prod.keys in {0}."), {"/data/prosperoeden"});
 }
 
-std::vector<std::string> FakeServices::wallpapers()
-{
-    std::vector<std::string> names;
-    std::error_code error;
-    for (std::filesystem::directory_iterator it{wallpapers_directory_, error}, end; !error && it != end;
-         it.increment(error))
-        if (it->is_regular_file())
-            names.push_back(it->path().filename().string());
-    // Sorted without regard to case, as the console lists a folder (eden_services.cpp).
-    const auto lower = [](std::string text)
-    {
-        for (char &c : text)
-            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return text;
-    };
-    std::sort(names.begin(), names.end(),
-              [&](const std::string &a, const std::string &b) { return lower(a) < lower(b); });
-    return names;
-}
-
 bool FakeServices::folders(const std::string &directory, std::vector<std::string> *names)
 {
     names->clear();
@@ -382,107 +517,38 @@ bool FakeServices::folders(const std::string &directory, std::vector<std::string
 
 std::vector<ui::Mod> FakeServices::mods(std::uint64_t title_id)
 {
+    std::lock_guard lock(state_mutex_);
     if (!has_mods || std::find(modded_.begin(), modded_.end(), title_id) == modded_.end())
         return {};
     std::vector<ui::Mod> mods = {
-        {"60 FPS", tr("Patch"), true, {}},
-        {"Cheats folder", tr("Cheats"), true, {}, true},
-        {"Sharper textures", tr("Files"), true, {}},
-        {"Starter pack", std::string(tr("Files")) + ", " + tr("Cheats"), true, {}},
-        {"cheat_lives.txt", tr("Cheats"), true, {}, true},
+        {"60 FPS", tr("Patch"), true},
+        {"Sharper textures", tr("Files"), true},
+        {"Starter pack", std::string(tr("Files")) + ", " + tr("Cheats"), true},
     };
     for (ui::Mod &mod : mods)
         mod.enabled = std::find(mods_off_.begin(), mods_off_.end(), mod.name) == mods_off_.end();
-    for (const char *cheat : {"60 FPS", "30 FPS", "Infinite health", "All items", "Moon jump"})
-        mods[1].cheats.push_back(
-            {cheat, std::find(cheats_on_.begin(), cheats_on_.end(), cheat) != cheats_on_.end()});
     return mods;
-}
-
-std::vector<ui::GameCheat> FakeServices::cheats(std::uint64_t title_id)
-{
-    std::vector<ui::GameCheat> cheats;
-    for (const ui::Mod &mod : mods(title_id))
-    {
-        for (const ui::Cheat &cheat : mod.cheats)
-            cheats.push_back({mod.name, cheat.name, cheat.enabled});
-        if (mod.name == "Starter pack")
-            cheats.push_back({mod.name, "Bonus outfit", bonus_cheat_});
-        if (mod.name == "cheat_lives.txt")
-            cheats.push_back({mod.name, "Infinite lives", mod.enabled});
-    }
-    if (title_id == downloaded_title) cheats.push_back({"Downloaded cheats - preview fixture", "Preview optional cheat", downloaded_chosen});
-    return cheats;
-}
-
-bool FakeServices::set_cheat_enabled(std::uint64_t title_id, const std::string &mod, const std::string &cheat,
-                                     bool enabled)
-{
-    if (title_id == downloaded_title && mod == "Downloaded cheats - preview fixture") { downloaded_chosen = enabled; return true; }
-    // The cheats of mods with one: as EdenServices keeps them.
-    if (mod == "Starter pack")
-    {
-        bonus_cheat_ = enabled;
-        return true;
-    }
-    if (mod == "cheat_lives.txt")
-        return set_mod_enabled(title_id, mod, enabled);
-    const auto drop = [this](const std::string &name)
-    { cheats_on_.erase(std::remove(cheats_on_.begin(), cheats_on_.end(), name), cheats_on_.end()); };
-    drop(cheat);
-    if (!enabled)
-        return true;
-    if (cheat == "60 FPS" || cheat == "30 FPS")
-    {
-        drop("60 FPS");
-        drop("30 FPS");
-    }
-    cheats_on_.push_back(cheat);
-    return true;
-}
-
-bool FakeServices::check_cheat_database(const ui::Game& game, bool offline) {
-    if (cheat_job.busy || game.remote) return false;
-    const auto generation = cheat_job.generation + 1;
-    cheat_job = {}; cheat_job.generation = generation;
-    cheat_job.file = game.file; cheat_job.source = "https://example.invalid/synthetic-preview.json";
-    cheat_job.build = "AB000000000000CD" + std::string(48, '0');
-    cheat_job.phase = offline ? "checking" : "downloading";
-    cheat_job.busy = true; cheat_job.offline = offline;
-    cheat_job.total = 12000; cheat_polls = 0; ++cheat_checks;
-    return true;
-}
-bool FakeServices::install_cheat_database(const ui::Game& game) {
-    if (cheat_job.busy || cheat_job.file != game.file || cheat_job.phase != "ready") return false;
-    cheat_job.phase = "installing"; cheat_job.busy = true; cheat_polls = 0;
-    cheat_pending_title = game.title_id; ++cheat_job.generation; ++cheat_installs;
-    return true;
-}
-ui::CheatDatabase FakeServices::cheat_database() {
-    if (cheat_job.busy) {
-        cheat_job.done = std::min<std::uint64_t>(cheat_job.total, ++cheat_polls * 300);
-        if (cheat_polls > 40 && cheat_mode != "slow") {
-            const bool installing = cheat_job.phase == "installing";
-            cheat_job.busy = false; ++cheat_job.generation;
-            cheat_job.phase = cheat_mode == "failed" ? "failed" : cheat_mode == "no_match" ? "no_match" : installing ? "installed" : "ready";
-            cheat_job.entries = 1; cheat_job.cached = true;
-            cheat_job.names = {"Preview optional cheat"};
-            if (cheat_job.phase == "no_match") {
-                cheat_job.names.clear(); cheat_job.entries = 0;
-                cheat_job.other_builds = {"cd00000000000000 / v65536", "ef00000000000000 / v131072"};
-            }
-            if (cheat_job.phase == "installed") downloaded_title = cheat_pending_title;
-            if (cheat_job.phase == "failed") cheat_job.error = "Synthetic preview: network unavailable. Choose offline cache or try again.";
-        }
-    }
-    return cheat_job;
 }
 
 bool FakeServices::set_mod_enabled(std::uint64_t, const std::string &name, bool enabled)
 {
+    std::lock_guard lock(state_mutex_);
     mods_off_.erase(std::remove(mods_off_.begin(), mods_off_.end(), name), mods_off_.end());
     if (!enabled)
         mods_off_.push_back(name);
+    return true;
+}
+
+bool FakeServices::enable_mod_and_mods(std::uint64_t title_id, const std::string &name)
+{
+    if (title_id == 0 || name.empty() || name.size() > 255)
+        return false;
+    std::lock_guard lock(state_mutex_);
+    // Synthetic preview state only, not evidence of a production settings transaction.
+    mods_off_.erase(std::remove(mods_off_.begin(), mods_off_.end(), name), mods_off_.end());
+    mods_enabled_ = true;
+    ++mods_writes;
+    last_mods_title = title_id;
     return true;
 }
 
@@ -496,278 +562,6 @@ ui::FolderInfo FakeServices::folder_info(const std::string &directory)
         info.games = static_cast<int>(games_.size());
     }
     return info;
-}
-
-bool FakeServices::delete_game(const ui::Game &game, std::string *message)
-{
-    const auto local = std::find_if(games_.begin(), games_.end(),
-                                    [&](const ui::Game &g) { return g.file == game.file && !g.sources.empty(); });
-    if (local == games_.end())
-        return false;
-    // On its sources only again.
-    ui::Game remote = *local;
-    remote.remote = true;
-    remote.title_id = 0;
-    remote_.push_back(remote);
-    games_.erase(local);
-    ++generation_;
-    *message = fill(tr("Deleted {1} files ({0}). Save data and settings are kept."), {game.size, "2"});
-    return true;
-}
-
-} // namespace pe::host
-
-namespace pe::host
-{
-
-ui::Sources FakeServices::sources()
-{
-    ui::Sources sources;
-    sources.setup_file = "/data/prosperoeden/config/remote/sources.json";
-    sources.generation = generation_;
-    if (!has_server)
-        return sources;
-    sources.configured = true;
-    sources.list.push_back({"Home", "http://192.168.1.20:3000", false, true, "", 12});
-    sources.list.push_back({"Office", "https://games.example.org", false, !server_fails,
-                            server_fails ? "The server did not answer" : "", server_fails ? 0 : 5});
-    return sources;
-}
-
-bool FakeServices::download(const ui::Game &game, int source, bool first)
-{
-    const auto found = std::find_if(remote_.begin(), remote_.end(), [&](const ui::Game &g) { return g.key == game.key; });
-    if (found == remote_.end() || source < 0 || source >= static_cast<int>(found->sources.size()))
-        return false;
-    for (ui::Download &download : queue_)
-        if (download.key == game.key)
-        {
-            if (download.state == ui::DownloadState::failed)
-            {
-                download.state = ui::DownloadState::queued;
-                download.error.clear();
-                download_fails = false;
-            }
-            return true;
-        }
-    ui::Download download;
-    download.key = found->key;
-    download.file = found->file;
-    download.name = found->name;
-    download.source = found->sources[static_cast<std::size_t>(source)];
-    download.cover = found->cover;
-    for (std::size_t i = 0; i < std::size(kServerSamples); ++i)
-        if (found->name == kServerSamples[i].name)
-        {
-            download.total = kServerSizes[i];
-            download.done = kServerSizes[i] * kServerHad[i] / 100;
-        }
-    if (first)
-    {
-        // After the one downloading.
-        auto at = queue_.begin();
-        while (at != queue_.end() &&
-               (at->state == ui::DownloadState::downloading || at->state == ui::DownloadState::verifying))
-            ++at;
-        queue_.insert(at, download);
-    }
-    else
-    {
-        queue_.push_back(download);
-    }
-    return true;
-}
-
-bool FakeServices::cancel_download(const std::string &key)
-{
-    const auto at = std::find_if(queue_.begin(), queue_.end(), [&](const ui::Download &d) { return d.key == key; });
-    if (at == queue_.end())
-        return false;
-    going_on_.erase(std::remove_if(going_on_.begin(), going_on_.end(), [&](const auto &g) { return g.first == key; }),
-                    going_on_.end());
-    queue_.erase(at);
-    return true;
-}
-
-std::vector<ui::Download> FakeServices::downloads()
-{
-    // One step of the first game that can move: 2.5% of it.
-    for (ui::Download &download : queue_)
-    {
-        if (download.state == ui::DownloadState::failed)
-            continue;
-        // One that goes on: what it had is read first, for the check of its contents, a step of 10%
-        // a look, up to where it was (verifying), then it downloads from there.
-        auto going_on = std::find_if(going_on_.begin(), going_on_.end(), [&](const auto &g) { return g.first == download.key; });
-        if (download.state == ui::DownloadState::queued && download.done > 0 && going_on == going_on_.end())
-        {
-            going_on_.emplace_back(download.key, download.done);
-            download.state = ui::DownloadState::verifying;
-            download.done = 0;
-            download.rate = 0;
-            break;
-        }
-        if (download.state == ui::DownloadState::verifying)
-        {
-            download.done = std::min(going_on->second, download.done + download.total / 10);
-            if (download.done >= going_on->second)
-                download.state = ui::DownloadState::downloading;
-            break;
-        }
-        download.state = ui::DownloadState::downloading;
-        download.done = std::min(download.total, download.done + download.total / 40);
-        download.rate = 48ull << 20;
-        if (download_fails && download.done * 10 >= download.total * 3)
-        {
-            download.state = ui::DownloadState::failed;
-            download.error = "The connection timed out";
-        }
-        else if (download.done >= download.total)
-        {
-            // On the console now: it joins the library.
-            const auto game = std::find_if(remote_.begin(), remote_.end(),
-                                           [&](const ui::Game &g) { return g.file == download.file; });
-            if (game != remote_.end())
-            {
-                ui::Game local = *game;
-                local.remote = false;
-                local.title_id = 0x0100B00000001000ull + static_cast<std::uint64_t>(game - remote_.begin()) * 0x10000;
-                local.language = tr("English (US)");
-                games_.push_back(local);
-                remote_.erase(game);
-            }
-            const std::string file = download.file;
-            queue_.erase(std::find_if(queue_.begin(), queue_.end(), [&](const ui::Download &d) { return d.file == file; }));
-            ++generation_;
-        }
-        break;
-    }
-    return queue_;
-}
-
-// ---- save sync ----
-
-void FakeServices::start_save_sync(const std::string &file, bool before)
-{
-    sync_ = {};
-    sync_.stage = ui::SaveSyncStage::working;
-    sync_.before = before;
-    sync_.profile = "Player 1";
-    for (const ui::Game &game : games_)
-        if (game.file == file)
-            sync_.game = game.name;
-    sync_looks_ = 0;
-}
-
-ui::SaveSync FakeServices::save_sync()
-{
-    // A few looks while it works, then what came of it.
-    if (sync_.stage == ui::SaveSyncStage::working && ++sync_looks_ >= 8)
-    {
-        if (save_sync_too_old)
-        {
-            sync_.stage = ui::SaveSyncStage::failed;
-            sync_.error = "RomM 4.9.2 is older than the save sync takes: it needs RomM 5.0.0 or newer";
-            sync_.too_old = true;
-            sync_.server_version = "4.9.2";
-            sync_.needed_version = "5.0.0";
-        }
-        else if (save_sync_fails)
-        {
-            sync_.stage = ui::SaveSyncStage::failed;
-            sync_.error = "The server did not answer";
-        }
-        else if (save_sync_conflict)
-        {
-            sync_.stage = ui::SaveSyncStage::conflict;
-            sync_.console_time = 1791457200; // 2026-10-08, 11:00 UTC
-            sync_.server_time = 1791468000;  // and 14:00
-            sync_.server_device = "Pixel 8";
-            save_sync_conflict = false;
-        }
-        else
-        {
-            sync_.stage = ui::SaveSyncStage::done;
-            sync_.outcome = sync_.before ? ui::SaveSyncOutcome::same : ui::SaveSyncOutcome::uploaded;
-        }
-    }
-    return sync_;
-}
-
-void FakeServices::choose_save_data(ui::SaveChoice choice)
-{
-    if (sync_.stage != ui::SaveSyncStage::conflict)
-        return;
-    sync_.stage = ui::SaveSyncStage::working;
-    sync_looks_ = 0;
-    sync_.outcome = choice == ui::SaveChoice::console ? ui::SaveSyncOutcome::uploaded :
-                    choice == ui::SaveChoice::server  ? ui::SaveSyncOutcome::downloaded :
-                                                        ui::SaveSyncOutcome::kept;
-}
-
-void FakeServices::played(const std::string &name)
-{
-    sync_ = {};
-    sync_.stage = ui::SaveSyncStage::working;
-    sync_.before = false;
-    sync_.game = name;
-    sync_.profile = "Player 1";
-    sync_looks_ = 0;
-}
-
-// ---- Settings > Save sync ----
-
-ui::SaveSyncSetup FakeServices::save_sync_setup()
-{
-    ui::SaveSyncSetup setup;
-    setup.file = "/data/prosperoeden/config/remote/save-sync.json";
-    const char *names[] = {"Player 1", "Kids"};
-    for (int i = 0; i < 2; ++i)
-    {
-        ui::SaveSyncProfile profile;
-        profile.name = names[i];
-        profile.current = i == 0;
-        profile.linked = !linked_[static_cast<std::size_t>(i)].empty();
-        profile.server = linked_[static_cast<std::size_t>(i)];
-        setup.profiles.push_back(profile);
-    }
-    return setup;
-}
-
-bool FakeServices::start_pairing(int profile, int server)
-{
-    pair_ = {};
-    pair_.stage = ui::PairingStage::asking;
-    pair_.profile = profile == 0 ? "Player 1" : "Kids";
-    pair_.server = pair_servers()[static_cast<std::size_t>(server)].name;
-    pair_profile_ = profile;
-    pair_looks_ = 0;
-    return true;
-}
-
-ui::PairingStatus FakeServices::pairing()
-{
-    ++pair_looks_;
-    if (pair_.stage == ui::PairingStage::asking && pair_looks_ > 2)
-    {
-        pair_.stage = ui::PairingStage::waiting;
-        pair_.code = "K7QM2XWP";
-        pair_.address = "http://192.168.1.20:3000/pair/device?user_code=K7QM2XWP";
-        pair_.seconds_left = 598;
-    }
-    else if (pair_.stage == ui::PairingStage::waiting && pair_looks_ > 40)
-    {
-        pair_.stage = ui::PairingStage::done;
-        pair_.user = "alex";
-        linked_[static_cast<std::size_t>(pair_profile_)] = "alex @ http://192.168.1.20:3000";
-    }
-    return pair_;
-}
-
-bool FakeServices::unlink_profile(int profile)
-{
-    linked_[static_cast<std::size_t>(profile)].clear();
-    return true;
 }
 
 } // namespace pe::host

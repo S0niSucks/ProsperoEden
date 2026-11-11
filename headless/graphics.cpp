@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "performance.h"
+#ifdef EDEN_DEV_PROFILE
+#include "present_interval_witness.h"
+#endif
+#include "log_pipe.h"
 #include "assets_dir.h"
 #include <glad/glad.h>
 #include <EGL/egl.h>
@@ -16,14 +20,12 @@
 #include <cstring>
 #include <time.h>
 #include "hud.h"
-#include "loading_art.h"
-#include "network/network.h"
 #include "loading_scene_glsl.h"
-#include "loading_text_glsl.h"
 #include "preferences.h"
 #include "diagnostics.h"
 #include "display_refresh.h"
 #include "graphics.h"
+#include "experimental_performance.h"
 #include "common/scope_exit.h"
 #include "core/core.h"
 #include "core/frontend/graphics_context.h"
@@ -43,55 +45,58 @@ namespace Eden {
 void PresentVulkanLoading(VideoCore::RendererBase& renderer);
 #endif
 namespace {
-int RoomPingMilliseconds() {
-    const auto member = ::Network::GetRoomMember().lock();
-    return member ? member->GetPingMilliseconds() : -1;
-}
 // What the loading screen's time carries for reduced motion (loading_scene.glsl): 1000 when the
 // player turned it on in Settings > Accessibility, read once.
 double LoadingCalm() {
     static const double calm = LoadPreferences().reduce_motion ? 1000.0 : 0.0;
     return calm;
 }
-// What the overlay's line says about the machine (hud.h, HudMachine): how loaded the host's
-// cores are, how busy the GPU thread is, and how much of the memory pool is still free. Read once
-// a picture, which is what the counters inside them are built for (performance.cpp).
-HudMachine MachineNow() {
-    HudMachine machine;
-    // The four emulated cores when they can be read, else the app's share of every CPU.
-    Performance::GuestCoreLoads(machine.cores);
-    if (machine.cores[0] == ~0u && machine.cores[1] == ~0u && machine.cores[2] == ~0u && machine.cores[3] == ~0u)
-        machine.cpu = Performance::HostCpuPercent();
-    machine.gpu = Performance::GpuBusyPercent();
-    Performance::MemoryPool(&machine.memory_free, &machine.memory_total);
-    if (const auto held = Performance::graphics_memory_held.load(std::memory_order_relaxed)) machine.graphics = held();
-    return machine;
-}
 std::atomic<bool> hud_enabled{true};
-// The overlay's chip: how large it is drawn, which of the picture's four corners it stands in,
-// whether it is drawn in its inks rather than one, and what the line may say (hud.h). Read by the
-// renderer thread, so they are set with the session's preferences the same way hud_enabled is.
-std::atomic<int> hud_size{0};
-std::atomic<int> hud_corner{0};
-std::atomic<bool> hud_colors{true};
-std::atomic<int> hud_fields{0x2ff};
-// What the session's settings say the overlay should look like, for all of them at once.
-void LoadHudPreferences() {
-    const auto prefs = PreferencesFor(session_title.load());
-    hud_enabled.store(prefs.hud, std::memory_order_relaxed);
-    // The GPU is only timed while the overlay shows its share.
-    Performance::gpu_time_wanted.store(prefs.hud && (prefs.hud_fields & kHudFieldGpu) != 0, std::memory_order_relaxed);
-    hud_size.store(prefs.hud_size, std::memory_order_relaxed);
-    hud_corner.store(prefs.hud_corner, std::memory_order_relaxed);
-    hud_colors.store(prefs.hud_colors, std::memory_order_relaxed);
-    hud_fields.store(prefs.hud_fields, std::memory_order_relaxed);
-}
+#ifdef EDEN_PS5_VULKAN
 HudClock vulkan_hud_clock;
-// What the display is actually given: the guest's frames plus the ones frame generation
-// adds (CountPresentedFrame(), hud.h).
-HudClock vulkan_hud_output_clock;
-HudSnapshot vulkan_hud;
+HudSnapshotMemo vulkan_hud_memo;
+// Only the presenting thread advances the FPS clock. A hidden HUD needs
+// no per-frame clock bookkeeping; the first visible frame starts fresh.
+bool vulkan_hud_clock_active{};
 double vulkan_hud_stats_time{}, vulkan_hud_speed{};
+#endif
+HudSnapshot vulkan_hud;
+// No new clocks or HLE traversal on present. Ordinary five-second reports
+// read these cumulative counters once; only the explicit native DEV interval
+// witness samples them on each presentation callback (relaxed atomic loads).
+// Their deltas are concurrent worker time, NOT additive wall-clock frame time.
+// R404 captures the four guest JIT cores from the SAME report-boundary reads,
+// avoiding false attribution of parallel compilation to one paused thread.
+// Indexes 0..11 retain the R403 aggregate format for backward compatibility;
+// 12..15: compile ns/core, 16..19: compile calls/core, 20..23: evacuations/core.
+using FramePressureNumbers = std::array<unsigned long long, 24>;
+FramePressureNumbers CaptureFramePressure() noexcept {
+    using namespace Eden::Performance;
+    const auto read = [](const std::atomic<unsigned long long>& value) {
+        return value.load(std::memory_order_relaxed);
+    };
+    FramePressureNumbers result{read(gpu_queue_wait.nanoseconds), read(gpu_dispatch.nanoseconds),
+            read(gpu_fence_drain.nanoseconds), read(gpu_present_wait.nanoseconds),
+            read(gpu_queue_full.nanoseconds), read(guest_dequeue_wait.nanoseconds),
+            read(guest_sync_wait.nanoseconds), read(guest_ipc_wait.nanoseconds),
+            read(cache_lock_contended), read(cache_lock_blocked),
+            read(cache_lock_wait_ns), 0};
+    unsigned long long jit_ns = 0;
+    for (unsigned core = 0; core < compilation.size(); ++core) {
+        const auto ns = read(compilation[core].nanoseconds);
+        jit_ns += ns;
+        result[12 + core] = ns;
+        result[16 + core] = read(compilation[core].calls);
+        result[20 + core] = read(evacuations[core]);
+    }
+    result[11] = jit_ns;
+    return result;
+}
+#ifdef EDEN_DEV_PROFILE
+// Diagnostic-only: the widest present gap in each reporting window, not a
+// guest frame or GPU ownership profile.
+FrameDiagnostics::PresentIntervalWitness<24> vulkan_interval_witness;
+#endif
 bool vulkan_loading{};
 double vulkan_loading_start{-1};
 unsigned vulkan_loading_frames{};
@@ -253,10 +258,8 @@ public:
             Cleanup(eglMakeCurrent(display, surface, surface, hud_context), "HUD cleanup current");
             glDeleteProgram(hud_program);
             glDeleteVertexArrays(1, &hud_vao);
-            glDeleteTextures(1, &hud_picture_texture);
             glDeleteProgram(loading_program);
             glDeleteVertexArrays(1, &loading_vao);
-            glDeleteTextures(1, &loading_texture);
             DoneCurrent();
             Cleanup(eglDestroyContext(display, hud_context), "HUD context");
         }
@@ -298,12 +301,17 @@ public:
         }
         ++presented_frames;
 #ifdef EDEN_DEV_PROFILE
-        static const double capture_start = now;
-        static bool captured_passes = false;
-        if (!captured_passes && now - capture_start >= 150.0) {
-            captured_passes = true;
-            Eden::Performance::capture_passes = 8;
-            std::printf("EDEN_DEV_PASS_REQUEST time=%.3f\n", now - capture_start);
+        // R291: DEV capture passes were armed on every game after 150 seconds
+        // even with Detailed Logging disabled, and static state leaked across
+        // games. Keep the feature only in explicit deep-frame diagnostics.
+        if (Eden::Performance::detailed_gpu_profile.load(std::memory_order_relaxed) &&
+            !captured_passes) {
+            if (capture_start < 0) capture_start = now;
+            if (now - capture_start >= 150.0) {
+                captured_passes = true;
+                Eden::Performance::capture_passes = 8;
+                std::printf("EDEN_DEV_PASS_REQUEST time=%.3f\n", now - capture_start);
+            }
         }
         static double sample_start = now, prior_frame = now, worst_frame = 0;
         static unsigned sample_frames = 0;
@@ -311,7 +319,8 @@ public:
         prior_frame = now;
         ++sample_frames;
         if (now - sample_start >= 5.0) {
-            Eden::Performance::SampleGpuFrame(presented_frames);
+            if (Eden::NativeLogs::Detailed()) {
+                Eden::Performance::SampleGpuFrame(presented_frames);
             std::printf("EDEN_DEV_DRAW calls=%llu ns=%llu\n",
                         Eden::Performance::rasterizer_draw.calls.load(),
                         Eden::Performance::rasterizer_draw.nanoseconds.load());
@@ -321,6 +330,8 @@ public:
             std::printf("EDEN_DEV_FRAME frames=%u seconds=%.6f fps=%.3f worst_ms=%.3f total=%u\n",
                         sample_frames, now - sample_start, sample_frames / (now - sample_start),
                         worst_frame * 1000.0, presented_frames);
+                std::fflush(stdout);
+            }
             sample_start = now;
             sample_frames = 0;
             worst_frame = 0;
@@ -334,10 +345,13 @@ public:
             sample_worst = std::max(sample_worst, now - prior_sample_frame);
             prior_sample_frame = now;
             if (now - sample_start >= 5.0) {
-                std::printf("EDEN_GAME_FRAME frames=%u seconds=%.6f fps=%.3f worst_ms=%.3f total=%u\n",
+                if (Eden::NativeLogs::Detailed()) {
+                    std::printf("EDEN_GAME_FRAME frames=%u seconds=%.6f fps=%.3f worst_ms=%.3f total=%u\n",
                             sample_frames, now - sample_start,
                             sample_frames / (now - sample_start), sample_worst * 1000.0,
                             presented_frames);
+                    std::fflush(stdout);
+                }
                 sample_start = now;
                 sample_frames = 0;
                 sample_worst = 0;
@@ -345,17 +359,16 @@ public:
         }
 #endif
         clock.Present(now);
-        if (system && now - last_stats >= 1.0) {
-            const auto stats = system->GetAndResetPerfStats();
-            speed_percent = stats.emulation_speed * 100.0;
-            last_stats = now;
-        }
-        // Nothing is measured or written while the overlay is off.
-        const auto commands = QuickOverlay::Read();
-        if (commands.text[0]) DrawHud(commands.text.data(), false, true, commands.image);
-        else if (hud_enabled.load(std::memory_order_relaxed)) {
-            const auto text = FormatHudText(clock, speed_percent, "OGL", MachineNow(), RoomPingMilliseconds(),
-                                            static_cast<uint32_t>(hud_fields.load(std::memory_order_relaxed)));
+        // No periodic performance-stat reset, string formatting or HUD draw
+        // while the overlay is OFF. Keep the ultra-cheap present clock so
+        // enabling it later still gives a fresh, valid FPS sample.
+        if (hud_enabled.load(std::memory_order_relaxed)) {
+            if (system && now - last_stats >= 1.0) {
+                const auto stats = system->GetAndResetPerfStats();
+                speed_percent = stats.emulation_speed * 100.0;
+                last_stats = now;
+            }
+            const auto text = FormatHudText(clock, speed_percent, "OGL");
             DrawHud(text.data(), false);
         }
         Check(eglSwapBuffers(display, surface), "eglSwapBuffers");
@@ -366,8 +379,8 @@ public:
         if (!DrawLoading(now - loading_start + LoadingCalm())) {
             // The scene's shader did not build on this driver: plain text instead.
             const unsigned dots = static_cast<unsigned>(now * 4) % 4;
-            char text[16] = "LOADING";
-            for (unsigned i = 0; i < dots; ++i) text[7 + i] = '.';
+            char text[16] = "ENCORE";
+            for (unsigned i = 0; i < dots; ++i) text[6 + i] = '.';
             DrawHud(text, true);
         }
         Check(eglSwapBuffers(display, surface), "loading swap");
@@ -389,10 +402,12 @@ private:
         Check(eglMakeCurrent(display, surface, surface, hud_context), "loading current");
         SCOPE_EXIT { Cleanup(eglMakeCurrent(display, surface, surface, context), "loading restore"); };
         if (!loading_program) {
-            const std::string fragment = std::string("#version 330 core\nuniform sampler2D loading_art;\n") +
-                kLoadingSceneGlsl +
-                "uniform vec2 size; uniform float seconds; uniform uint state[24]; out vec4 color;\n"
-                "void main(){ color = vec4(loading_scene(gl_FragCoord.xy, size, seconds, state), 1.0); }\n";
+            // The rotating case is the sole branded loading animation.
+            // Keep the original GPU warm-up/pacing but never replace the
+            // fading case with the obsolete purple GL fallback scene.
+            const std::string fragment =
+                "#version 330 core\nout vec4 color;\n"
+                "void main(){ color = vec4(0.024, 0.035, 0.039, 1.0); }\n";
             const char* sources[]{
                 "#version 330 core\nvoid main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);"
                 "gl_Position=vec4(p*2.0-1.0,0.0,1.0);}",
@@ -427,19 +442,6 @@ private:
             }
             loading_program = program;
             glGenVertexArrays(1, &loading_vao);
-            // Its picture (loading_art.h): the game's cover and its blurred copy, or one clear
-            // texel for a game without a cover.
-            const Loading::Art art = Loading::GetArt();
-            glGenTextures(1, &loading_texture);
-            glBindTexture(GL_TEXTURE_2D, loading_texture);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, art.width, art.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                         art.rgba.data());
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         }
         EGLint width{}, height{};
         Check(eglQuerySurface(display, surface, EGL_WIDTH, &width) &&
@@ -451,58 +453,27 @@ private:
         glViewport(0, 0, width, height);
         glUniform2f(glGetUniformLocation(loading_program, "size"), float(width), float(height));
         glUniform1f(glGetUniformLocation(loading_program, "seconds"), float(seconds));
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, loading_texture);
-        glUniform1i(glGetUniformLocation(loading_program, "loading_art"), 0);
-        // What the start is doing (hud.h).
-        const auto state = Loading::State();
-        glUniform1uiv(glGetUniformLocation(loading_program, "state[0]"), state.size(), state.data());
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glFlush();
         return true;
     }
-    void DrawHud(const char* text, bool startup, bool quick = false,
-                 const std::shared_ptr<const QuickPicture>& picture = {}) {
+    void DrawHud(const char* text, bool startup) {
         if (!window_owner) return;
         // A separate context on this same thread isolates guest GL state and queries.
         Check(eglMakeCurrent(display, surface, surface, hud_context), "HUD current");
         SCOPE_EXIT { Cleanup(eglMakeCurrent(display, surface, surface, context), "HUD restore"); };
         if (!hud_program) {
-            // The overlay's font and the walk over it (loading_text.glsl, the same table the
-            // loading screen's shader reads), then what this picture does with it.
-            // The line's own ink is picked by hud_pick, which reads the characters around each
-            // one; this picture only asks the palette for its colour and lays the chip out.
-            const std::string fragment =
-                std::string("#version 330 core\nuniform uint glyphs[28]; uniform vec2 at;"
-                            " uniform vec2 box; uniform vec2 box_at;"
-                             " uniform float cap; uniform int startup; uniform bool colors;"
-                             " uniform bool picture_mode; uniform sampler2D hud_picture; uniform float picture_pad;"
-                            " out vec4 color;\n") +
-                kLoadingTextGlsl +
-                 "void main(){\n"
-                 "if (picture_mode) {"
-                 " vec2 local = gl_FragCoord.xy - box_at;"
-                 " vec4 panel = hud_panel(vec2(local.x, box.y - local.y), box);"
-                 " vec2 uv = (local - vec2(picture_pad)) / (box - vec2(2.0 * picture_pad));"
-                 " vec4 image = vec4(0.0);"
-                 " if (all(greaterThanEqual(uv, vec2(0.0))) && all(lessThanEqual(uv, vec2(1.0))))"
-                 " image = texture(hud_picture, vec2(uv.x, 1.0 - uv.y));"
-                 " color = vec4(mix(panel.rgb, image.rgb, image.a), mix(panel.a, 1.0, image.a)); return; }\n"
-                "Pick pick = Pick(-1, 0, vec2(0.0), 1.0);\n"
-                "hud_pick(pick, glyphs, gl_FragCoord.xy, at, cap);\n"
-                "float cover = pick_cover(pick);\n"
-                "if (startup != 0) {"
-                " color = vec4(mix(vec3(0.0196,0.0392,0.0039), vec3(0.7216,0.9490,0.0471), cover), 1.0);"
-                " return; }\n"
-                "vec4 panel = hud_panel(vec2(gl_FragCoord.x - box_at.x,"
-                " box_at.y + box.y - gl_FragCoord.y), box);\n"
-                "vec3 ink = colors ? hud_ink(pick.ink) : kHudInk;\n"
-                "color = vec4(mix(panel.rgb, ink, cover), mix(panel.a, 1.0, cover));\n}\n";
+            hud_program = glCreateProgram();
             const char* sources[]{
                 "#version 330 core\nvoid main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);"
                 "gl_Position=vec4(p*2.0-1.0,0.0,1.0);}",
-                fragment.c_str()};
-            hud_program = glCreateProgram();
+                "#version 330 core\nuniform uint glyphs[24]; uniform ivec2 origin; uniform int startup;"
+                "uniform float cell; out vec4 color;"
+                "void main(){ivec2 p=ivec2(gl_FragCoord.xy)-origin; bool ink=false;"
+                "if(p.x>=0&&p.y>=0){ivec2 c=ivec2(vec2(p)/cell);int i=c.x/4;int x=c.x%4;"
+                "if(i<24&&x<3&&c.y<5) ink=((glyphs[i]>>uint(c.y*3+2-x))&1u)!=0u;}"
+                "color=startup!=0?(ink?vec4(0.7216,0.9490,0.0471,1.0):vec4(0.0196,0.0392,0.0039,1.0))"
+                ":(ink?vec4(0.9,0.95,1.0,1.0):vec4(0.025,0.04,0.075,0.5));}"};
             for (unsigned i = 0; i < 2; ++i) {
                 GLuint shader = glCreateShader(i ? GL_FRAGMENT_SHADER : GL_VERTEX_SHADER);
                 glShaderSource(shader, 1, &sources[i], nullptr);
@@ -525,102 +496,45 @@ private:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glUseProgram(hud_program);
         glBindVertexArray(hud_vao);
-        glUniform1i(glGetUniformLocation(hud_program, "picture_mode"), 0);
-        // The overlay's box, laid out for a picture 1080 rows high and scaled to the surface's.
-        // It covers only what it holds, so the picture underneath shows around it.
+        // Laid out for a picture 1080 rows high (a glyph's cell is 4 pixels there) and scaled to
+        // the surface's.
         const float scale = static_cast<float>(height) / 1080.0f;
-        const auto units = [scale](float value) { return static_cast<int>(std::lround(value * scale)); };
-        // The chip's scale, from the size the session named: 1x, 1.5x or 2x (hud.h).
-        const float hud_scale = 1.0f + 0.5f * static_cast<float>(quick ? QuickHudSize(text) : hud_size.load(std::memory_order_relaxed));
-        const int box_w = startup ? width :
-            units(HudTextWidth(text, kHudCapUnits * hud_scale) + 2 * kHudPadUnits * hud_scale);
-        const int box_h = startup ? height : units(kHudBoxUnits * hud_scale);
-        // Against whichever corner was named, at the same distance in from each of its two edges.
-        const int corner = quick ? 0 : hud_corner.load(std::memory_order_relaxed);
-        const int box_x = startup ? 0 :
-            (corner == 1 || corner == 3 ? width - box_w - units(kHudBoxX) : units(kHudBoxX));
-        const int box_y = startup ? 0 :
-            (corner >= 2 ? height - box_h - units(kHudBoxY) : units(kHudBoxY));
-        if (box_w <= 0 || box_h <= 0 || box_x < 0 || box_x + box_w > width || box_y + box_h > height) return;
-        glViewport(box_x, height - box_y - box_h, box_w, box_h);
-        // The line's left end and its baseline, counted from the surface's bottom left the way
-        // OpenGL counts rows: centred when the loading screen's own shader would not build, or
-        // where the box puts them.
-        const float cap_units = startup ? kHudCapUnits * 3.0f : kHudCapUnits * hud_scale;
-        const int cap = units(cap_units);
-        const int text_width = units(HudTextWidth(text, cap_units));
-        glUniform2f(glGetUniformLocation(hud_program, "at"),
-                    startup ? (width - text_width) * 0.5f : box_x + units(kHudPadUnits * hud_scale),
-                    startup ? (height - cap) * 0.5f :
-                        height - box_y - units(kHudBaselineUnits * hud_scale));
-        glUniform1f(glGetUniformLocation(hud_program, "cap"), static_cast<float>(cap));
-        // The chip the line stands in, in the surface's own rows: its size, and its bottom left
-        // corner the way OpenGL counts them.
-        glUniform2f(glGetUniformLocation(hud_program, "box"), static_cast<float>(box_w),
-                    static_cast<float>(box_h));
-        glUniform2f(glGetUniformLocation(hud_program, "box_at"), static_cast<float>(box_x),
-                    static_cast<float>(height - box_y - box_h));
-        HudSnapshot snapshot{};
-        PutHudText(snapshot, text);
-        glUniform1uiv(glGetUniformLocation(hud_program, "glyphs[0]"), snapshot.glyphs.size(),
-                      snapshot.glyphs.data());
-        glUniform1i(glGetUniformLocation(hud_program, "startup"), startup ? 1 : 0);
-        glUniform1i(glGetUniformLocation(hud_program, "colors"),
-                    !startup && !quick && hud_colors.load(std::memory_order_relaxed) ? 1 : 0);
-        if (startup)
-            glDisable(GL_BLEND);
-        else {
+        const auto units = [scale](int value) { return static_cast<int>(std::lround(value * scale)); };
+        const int text_width = int(std::strlen(text)) * 16;
+        glViewport(startup ? 0 : units(16), startup ? 0 : height - units(64),
+                   startup ? width : units(text_width + 24), startup ? height : units(48));
+        const auto glyphs = HudText(text);
+        glUniform1uiv(glGetUniformLocation(hud_program, "glyphs[0]"), glyphs.size(), glyphs.data());
+        glUniform2i(glGetUniformLocation(hud_program, "origin"),
+                    startup ? (width - units(text_width)) / 2 : units(28),
+                    startup ? (height - units(20)) / 2 : height - units(50));
+        glUniform1i(glGetUniformLocation(hud_program, "startup"), startup);
+        glUniform1f(glGetUniformLocation(hud_program, "cell"), 4.0f * scale);
+        if (!startup) {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        if (quick && picture) {
-            if (hud_picture != picture) {
-                if (!hud_picture_texture) glGenTextures(1, &hud_picture_texture);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, hud_picture_texture);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, QuickPicture::kSide, QuickPicture::kSide,
-                             0, GL_RGBA, GL_UNSIGNED_BYTE, picture->rgba.data());
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-                hud_picture = picture;
-            }
-            const int side = units(QuickPicture::kBox);
-            const int top = box_y + box_h + units(QuickPicture::kGap);
-            if (box_x + side <= width && top + side <= height) {
-                glViewport(box_x, height - top - side, side, side);
-                glUniform1i(glGetUniformLocation(hud_program, "picture_mode"), 1);
-                glUniform2f(glGetUniformLocation(hud_program, "box"), float(side), float(side));
-                glUniform2f(glGetUniformLocation(hud_program, "box_at"), float(box_x), float(height - top - side));
-                glUniform1f(glGetUniformLocation(hud_program, "picture_pad"), float(units(QuickPicture::kPad)));
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, hud_picture_texture);
-                glUniform1i(glGetUniformLocation(hud_program, "hud_picture"), 0);
-                glDrawArrays(GL_TRIANGLES, 0, 3);
-            }
-        } else hud_picture.reset();
         glFlush();
     }
     unsigned presented_frames{}, loading_frames{};
     bool loading{true}, loading_failed{};
     double loading_start{-1};
     LoadingPace loading_pace;
-    GLuint loading_program{}, loading_vao{}, loading_texture{};
+    GLuint loading_program{}, loading_vao{};
     unsigned startup_guest_frames{};
     StartupGate startup_gate;
     HudClock clock;
+#ifdef EDEN_DEV_PROFILE
+    double capture_start{-1};
+    bool captured_passes{};
+#endif
 #ifndef EDEN_DEV_PROFILE
     double sample_start{-1}, prior_sample_frame{}, sample_worst{};
     unsigned sample_frames{};
 #endif
     EGLContext hud_context{EGL_NO_CONTEXT};
     GLuint hud_program{}, hud_vao{};
-    GLuint hud_picture_texture{};
-    std::shared_ptr<const QuickPicture> hud_picture;
     EGLDisplay display;
     EGLSurface surface;
     EGLContext context{EGL_NO_CONTEXT};
@@ -633,30 +547,11 @@ private:
 void ToggleHud() {
     const bool enabled = !hud_enabled.load(std::memory_order_relaxed);
     hud_enabled.store(enabled, std::memory_order_relaxed);
-    Performance::gpu_time_wanted.store(
-        enabled && (hud_fields.load(std::memory_order_relaxed) & static_cast<int>(kHudFieldGpu)) != 0,
-        std::memory_order_relaxed);
-    // A game with its own FPS overlay setting keeps the change for itself.
-    const uint64_t title = session_title.load();
-    if (auto game = LoadGameSettings(title); title && game.hud >= 0) {
-        game.hud = enabled ? 1 : 0;
-        if (!SaveGameSettings(title, game)) Report("settings", "Could not save the game's HUD setting");
-        return;
-    }
     auto preferences = LoadPreferences();
     preferences.hud = enabled;
     if (!SavePreferences(preferences)) Report("settings", "Could not save HUD preference");
 }
-HudSnapshot GetVulkanHud(QuickOverlay::Snapshot* quick) {
-    if (quick) *quick = {};
-    if (!vulkan_loading) {
-        auto commands = QuickOverlay::Read();
-        if (commands.text[0]) {
-            const auto hud = MakeQuickHudSnapshot(commands.text.data());
-            if (quick) *quick = std::move(commands);
-            return hud;
-        }
-    }
+HudSnapshot GetVulkanHud() {
     return vulkan_loading || hud_enabled.load(std::memory_order_relaxed) ? vulkan_hud : HudSnapshot{};
 }
 // idle: the GPU thread has no game commands waiting (hud.h, LoadingPace).
@@ -683,13 +578,12 @@ GraphicsWindow::GraphicsWindow(bool use_vulkan) : vulkan(use_vulkan) {
     vulkan_loading_start = -1;
     vulkan_loading_frames = 0;
     vulkan_loading_pace = {};
-    // The next game's picture is its own; a stale size would say the last one's.
-    Hud::ForgetGuestScreen();
-    LoadHudPreferences();
+    hud_enabled.store(LoadPreferences().hud, std::memory_order_relaxed);
 #ifdef EDEN_PS5_VULKAN
     if (vulkan) {
         vulkan_hud_clock = {};
-        vulkan_hud_output_clock = {};
+        vulkan_hud_clock_active = false;
+        vulkan_hud_memo.Reset();
         vulkan_hud = MakeLoadingSnapshot(0);
         vulkan_hud_stats_time = vulkan_hud_speed = 0;
         window_info.type = Core::Frontend::WindowSystemType::PS5;
@@ -778,15 +672,6 @@ GraphicsWindow::~GraphicsWindow() {
     Cleanup(eglTerminate(display), "display");
     std::puts("EDEN_EGL_CLOSED");
 }
-void CountPresentedFrame() {
-    // The renderer calls this for every frame it hands to the present manager, so F in the HUD is
-    // the output rate. Same clock and timestamp as OnFrameDisplayed(); only the count differs.
-    const double now = std::chrono::duration<double>(
-                           std::chrono::steady_clock::now().time_since_epoch())
-                           .count();
-    vulkan_hud_output_clock.Present(now);
-}
-
 void GraphicsWindow::OnFrameDisplayed() {
 #ifdef PS5_NATIVE
     if (vulkan) {
@@ -797,61 +682,222 @@ void GraphicsWindow::OnFrameDisplayed() {
                         now - vulkan_loading_start);
         vulkan_loading = false;
 #ifdef EDEN_PS5_VULKAN
-        vulkan_hud_clock.Present(now);
-        if (system && now - vulkan_hud_stats_time >= 1.0) {
-            vulkan_hud_speed = system->GetAndResetPerfStats().emulation_speed * 100.0;
-            vulkan_hud_stats_time = now;
+        // Hidden FPS overlay must not advance the optional HUD-only clock.
+        // A visible transition resets the clock and the glyph memo once,
+        // without disturbing mandatory game/presentation counters below.
+        if (hud_enabled.load(std::memory_order_relaxed)) {
+            if (!vulkan_hud_clock_active) {
+                vulkan_hud_clock = {};
+                vulkan_hud_memo = {};
+                vulkan_hud_clock_active = true;
+            }
+            vulkan_hud_clock.Present(now);
+            if (system && now - vulkan_hud_stats_time >= 1.0) {
+                vulkan_hud_speed = system->GetAndResetPerfStats().emulation_speed * 100.0;
+                vulkan_hud_stats_time = now;
+            }
+            // The glyphs change only with the clock's one-second window or
+            // the guest speed sample. A snapshot reset forces the first game
+            // frame to replace the loading scene, even when FPS is unknown.
+            if (vulkan_hud_memo.RefreshNeeded(vulkan_hud_clock, vulkan_hud_speed))
+                vulkan_hud = MakeHudSnapshot(vulkan_hud_clock, vulkan_hud_speed);
+        } else {
+            vulkan_hud_clock_active = false;
         }
-        vulkan_hud =
-            MakeHudSnapshot(vulkan_hud_clock, vulkan_hud_output_clock, vulkan_hud_speed,
-                            // Nothing is measured while the overlay is off.
-                            hud_enabled.load(std::memory_order_relaxed) ? MachineNow() : HudMachine{},
-                            Eden::Display::output_millihertz.load(std::memory_order_relaxed) / 1000.0,
-                            RoomPingMilliseconds(), hud_size.load(std::memory_order_relaxed),
-                            hud_corner.load(std::memory_order_relaxed),
-                            hud_colors.load(std::memory_order_relaxed),
-                            static_cast<uint32_t>(hud_fields.load(std::memory_order_relaxed)));
 #endif
         ++frame_total;
-        // What a recorded controller session counts frames by (gameplay_test.h): the input
-        // worker runs on another thread, so it reads a copy rather than the member.
-        Display::gameplay_frame.store(frame_total, std::memory_order_relaxed);
         if (frame_sample_start < 0) {
             frame_sample_start = frame_sample_last = now;
+            // Do not read 24 GPU/HLE/JIT atomics in ordinary quiet mode.
+            // A runtime logging toggle seeds a fresh baseline at its first
+            // detailed window instead of attributing earlier quiet work.
+            frame_pressure_was_detailed = Eden::NativeLogs::Detailed();
+            frame_pressure_logging_generation = Eden::NativeLogs::Generation();
+            if (frame_pressure_was_detailed)
+                frame_pressure_previous = CaptureFramePressure();
+#ifdef EDEN_DEV_PROFILE
+            // A new game/window must not inherit the previous title's peak.
+            vulkan_interval_witness.Reset();
+            const bool capture_interval = Eden::NativeLogs::Detailed() &&
+                Eden::Performance::detailed_gpu_profile.load(std::memory_order_relaxed) &&
+                Experimental::vulkan_frame_probe.load(std::memory_order_relaxed);
+            if (capture_interval)
+                vulkan_interval_witness.Observe(CaptureFramePressure(), 0.0, frame_total);
+#endif
         } else {
             ++frame_sample_count;
-            frame_sample_worst = std::max(frame_sample_worst, now - frame_sample_last);
+            const double present_interval = now - frame_sample_last;
+            frame_sample_worst = std::max(frame_sample_worst, present_interval);
+#ifdef EDEN_DEV_PROFILE
+            // One 24-counter relaxed snapshot per displayed interval only when
+            // BOTH diagnostic detail and the optional frame probe are enabled.
+            // The delayed callback cannot attribute this work to one guest frame.
+            const bool capture_interval = Eden::NativeLogs::Detailed() &&
+                Eden::Performance::detailed_gpu_profile.load(std::memory_order_relaxed) &&
+                Experimental::vulkan_frame_probe.load(std::memory_order_relaxed);
+            if (capture_interval)
+                vulkan_interval_witness.Observe(CaptureFramePressure(),
+                                                present_interval * 1000.0, frame_total);
+            else if (vulkan_interval_witness.seeded)
+                vulkan_interval_witness.Reset();
+#endif
+            // User-observed FC27 dribble drops: capture how often a nominal 30 FPS
+            // frame exceeds 38/50/100 ms without enabling verbose GPU logs.
+            // This is a presentation signal, NOT proof that the guest game advances.
+            frame_late_38 += present_interval >= 0.038;
+            frame_late_50 += present_interval >= 0.050;
+            frame_late_100 += present_interval >= 0.100;
+            frame_late_200 += present_interval >= 0.200;
+            frame_late_500 += present_interval >= 0.500;
+            if (Eden::NativeLogs::Detailed() &&
+                Experimental::vulkan_frame_probe.load(std::memory_order_relaxed)) {
+                // Opt-in passive pacing histogram: never sleep or synthesize
+                // frames on the guest/compositor hot path.
+                const double ms = present_interval * 1000.0;
+                const unsigned bucket = ms < 20.0 ? 0 : ms < 29.0 ? 1 :
+                    ms < 38.0 ? 2 : ms < 50.0 ? 3 : ms < 100.0 ? 4 : 5;
+                ++experimental_pacing_bins[bucket];
+            }
+            // Consecutive frames above 50 ms distinguish sustained slowdown
+            // from isolated JIT/shader compilation gaps. No heap/log on hot path.
+            frame_slow_streak = present_interval >= 0.050 ? frame_slow_streak + 1 : 0;
+            frame_max_slow_streak = std::max(frame_max_slow_streak, frame_slow_streak);
 #ifdef EDEN_DEV_PROFILE
             // Present intervals by vsync multiple: a 60 FPS title that misses by a little
             // shows up in the 2-vsync bucket, a slow one across all of them. "half" counts the
             // frames that came within one refresh of a 120 Hz output.
             static std::array<unsigned, 5> interval_hist{};
-            const double interval_ms = (now - frame_sample_last) * 1000.0;
-            ++interval_hist[interval_ms < 12.5 ? 4 : interval_ms < 20.0 ? 0 : interval_ms < 36.0 ? 1 :
-                            interval_ms < 52.0 ? 2 : 3];
+            if (Eden::NativeLogs::Detailed()) {
+                const double interval_ms = present_interval * 1000.0;
+                ++interval_hist[interval_ms < 12.5 ? 4 : interval_ms < 20.0 ? 0 : interval_ms < 36.0 ? 1 :
+                                interval_ms < 52.0 ? 2 : 3];
+            }
 #endif
             frame_sample_last = now;
             if (now - frame_sample_start >= 5.0) {
+                // Quiet gameplay still counts late intervals but never formats
+                // per-window diagnostic lines or flushes the log pipe.
+                if (Eden::NativeLogs::Detailed()) {
                 // The game's frames; the ones a slower display did not show are counted apart.
                 std::printf("EDEN_VULKAN_FRAME frames=%u seconds=%.6f fps=%.3f worst_ms=%.3f total=%u "
-                            "not_shown=%u clock_hz=%.1f\n",
+                            "not_shown=%u clock_hz=%.1f late38=%u late50=%u late100=%u late200=%u late500=%u slow_streak=%u\n",
                     frame_sample_count, now - frame_sample_start,
                     frame_sample_count / (now - frame_sample_start),
                     frame_sample_worst * 1000.0, frame_total, Display::skipped_frames.load(),
-                    Display::game_millihertz.load() / 1000.0);
+                    Display::game_millihertz.load() / 1000.0,
+                    frame_late_38, frame_late_50, frame_late_100,
+                    frame_late_200, frame_late_500, frame_max_slow_streak);
 #ifdef EDEN_DEV_PROFILE
                 std::printf("EDEN_VULKAN_INTERVALS v1=%u v2=%u v3=%u v4plus=%u half=%u\n", interval_hist[0],
                             interval_hist[1], interval_hist[2], interval_hist[3], interval_hist[4]);
                 interval_hist = {};
 #endif
+                if (Experimental::vulkan_frame_probe.load(std::memory_order_relaxed)) {
+                    std::printf("EDEN_EXPERIMENT_PRESENT lt20=%u ms20_29=%u ms29_38=%u "
+                                "ms38_50=%u ms50_100=%u ge100=%u\n",
+                        experimental_pacing_bins[0], experimental_pacing_bins[1],
+                        experimental_pacing_bins[2], experimental_pacing_bins[3],
+                        experimental_pacing_bins[4], experimental_pacing_bins[5]);
+                    experimental_pacing_bins = {};
+                }
+                // Correlate slow five-second intervals with GPU queueing,
+                // guest synchronization, cache contention and JIT work without
+                // traversing development tables or locking the renderer.
+                const auto pressure_now = CaptureFramePressure();
+                FramePressureNumbers pressure_delta{};
+                // Logging may toggle OFF then ON entirely between two
+                // reporting boundaries. The final bool alone would label
+                // that mixed 5-s interval as measured; reject its deltas.
+                const unsigned report_logging_generation = Eden::NativeLogs::Generation();
+                bool pressure_valid = frame_pressure_was_detailed &&
+                    frame_pressure_logging_generation == report_logging_generation;
+                for (std::size_t i = 0; pressure_valid && i < pressure_delta.size(); ++i) {
+                    if (pressure_now[i] < frame_pressure_previous[i]) {
+                        pressure_valid = false;
+                        break;
+                    }
+                    pressure_delta[i] = pressure_now[i] - frame_pressure_previous[i];
+                }
+                // These GPU/HLE/cache/JIT timers are diagnostic-only on
+                // native quiet runs. Their zeroed atomics are NOT measured
+                // zero-length waits; retain pacing stats but label the absent
+                // instrumentation explicitly instead of printing false zeros.
+                if (!Eden::Performance::detailed_gpu_profile.load(std::memory_order_relaxed)) {
+                    std::printf("EDEN_FRAME_PRESSURE frame=%u detail=not_measured\n", frame_total);
+                } else if (pressure_valid) {
+                    constexpr double to_ms = 1.0 / 1'000'000.0;
+                    std::printf("EDEN_FRAME_PRESSURE frame=%u gpu_idle_ms=%.3f gpu_dispatch_ms=%.3f "
+                                "gpu_fence_ms=%.3f gpu_present_ms=%.3f gpu_full_ms=%.3f "
+                                "guest_dequeue_ms=%.3f guest_sync_ms=%.3f guest_ipc_ms=%.3f "
+                                "cache_contended=%llu cache_blocked=%llu cache_wait_ms=%.3f jit_ms=%.3f\n",
+                        frame_total, pressure_delta[0] * to_ms, pressure_delta[1] * to_ms,
+                        pressure_delta[2] * to_ms, pressure_delta[3] * to_ms,
+                        pressure_delta[4] * to_ms, pressure_delta[5] * to_ms,
+                        pressure_delta[6] * to_ms, pressure_delta[7] * to_ms,
+                        pressure_delta[8], pressure_delta[9], pressure_delta[10] * to_ms,
+                        pressure_delta[11] * to_ms);
+                    // Detailed logs only. A per-core interval is a CPU-worker sum,
+                    // NOT a measured stall or an elapsed time on the renderer.
+                    // The same cumulative snapshot also supplies aggregate jit_ms.
+                    for (unsigned core = 0; core < Eden::Performance::compilation.size(); ++core)
+                        std::printf("EDEN_FRAME_JIT_CORE frame=%u core=%u compile_ns=%llu "
+                                    "compile_calls=%llu evacuations=%llu\n",
+                            frame_total, core, pressure_delta[12 + core],
+                            pressure_delta[16 + core], pressure_delta[20 + core]);
+                } else {
+                    std::printf("EDEN_FRAME_PRESSURE frame=%u counters_reset=1\n", frame_total);
+                }
+#ifdef EDEN_DEV_PROFILE
+                // Only the largest >=100-ms observed presentation interval of
+                // this window. Worker counters overlap and do NOT identify a
+                // frame's root cause; avoid per-frame logs or new locks.
+                if (vulkan_interval_witness.captured) {
+                    const auto& d = vulkan_interval_witness.peak_delta;
+                    std::printf("EDEN_PRESENT_INTERVAL_WITNESS frame=%u interval_ms=%.3f "
+                                "jit_ns=%llu jit_calls=%llu jit0_ns=%llu jit1_ns=%llu jit2_ns=%llu jit3_ns=%llu "
+                                "evacuations=%llu cache_wait_ns=%llu gpu_fence_ns=%llu "
+                                "gpu_dispatch_ns=%llu guest_sync_ns=%llu scope=between_presents\n",
+                        vulkan_interval_witness.peak_frame, vulkan_interval_witness.peak_ms,
+                        d[11], d[16] + d[17] + d[18] + d[19],
+                        d[12], d[13], d[14], d[15],
+                        d[20] + d[21] + d[22] + d[23],
+                        d[10], d[2], d[1], d[6]);
+                }
+#endif
+                frame_pressure_previous = pressure_now;
+                frame_pressure_was_detailed = true;
+                frame_pressure_logging_generation = report_logging_generation;
                 Eden::Performance::ReportVulkan();
 #ifdef EDEN_DEV_PROFILE
-                // Composite runs on the GPU thread, so its owner CPU clock is valid here.
-                Eden::Performance::ReportGpuThread(frame_total);
+                // HLE table scan + CPU snapshot can stall the compositor itself.
+                // Only run with Detailed Logging or explicit frame-profile.txt.
+                if (Eden::Performance::detailed_gpu_profile.load(std::memory_order_relaxed))
+                    Eden::Performance::ReportGpuThread(frame_total);
+#endif
+                // Keep logging asynchronous: a blocking stdio flush on the
+                // render callback can indefinitely stall presentation when the
+                // device log writer is delayed. LogPipe drains stdout off-thread.
+                // A native process fault has its own crash-only output path.
+                } else {
+                    // Do not sample 24 counters every five seconds when the
+                    // log sink is disabled. Mark the baseline stale, so a
+                    // later runtime logging toggle never creates false deltas.
+                    frame_pressure_was_detailed = false;
+                    experimental_pacing_bins = {};
+#ifdef EDEN_DEV_PROFILE
+                    interval_hist = {};
+#endif
+                }
+#ifdef EDEN_DEV_PROFILE
+                if (vulkan_interval_witness.seeded)
+                    vulkan_interval_witness.NextWindow();
 #endif
                 frame_sample_start = now;
                 frame_sample_count = 0;
                 frame_sample_worst = 0;
+                frame_late_38 = frame_late_50 = frame_late_100 = 0;
+                frame_late_200 = frame_late_500 = 0;
+                frame_slow_streak = frame_max_slow_streak = 0;
             }
         }
     }
@@ -861,14 +907,18 @@ void GraphicsWindow::OnFrameDisplayed() {
             std::chrono::steady_clock::now().time_since_epoch()).count();
         std::printf("EDEN_STAGE backend=%s phase=first_frame_callback mono_ns=%lld\n",
                     vulkan ? "Vulkan" : "OpenGL", static_cast<long long>(mono_ns));
-        std::fflush(stdout);
+        // LogPipe drains stdout asynchronously; forcing a 64-KiB stdio flush
+        // from the first presentation callback can block on its pipe writer.
     }
     // Development autoboot bypasses the launcher, which normally hides splash.
     // OpenGL already does this inside EGL; Vulkan uses the shared frame callback.
-    if (vulkan && !splash_hidden) {
+    if (vulkan && !splash_hide_attempted) {
+        // Avoid a native system-service call and a log line on EVERY present
+        // when the firmware rejects HideSplashScreen. A single attempt per
+        // graphics session is enough; retrying at 30/60 FPS can cause stutter.
+        splash_hide_attempted = true;
         const int result = sceSystemServiceHideSplashScreen();
         std::printf("EDEN_VULKAN_HIDE_SPLASH rc=%08x\n", static_cast<unsigned>(result));
-        std::fflush(stdout);
         splash_hidden = result == 0;
     }
 #endif

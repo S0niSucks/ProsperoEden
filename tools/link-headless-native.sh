@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -euo pipefail
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-source "$root/tools/ci/native-evidence.sh"
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
 template="$root/../ps5-native-app-boilerplate"
 sdk="$PS5_PAYLOAD_SDK"
 output=$1
@@ -30,29 +29,61 @@ if [[ -n $radv_archive ]]; then
     # RADV's platform provides the real thread-local destructor registration.
     tls_flags=()
 fi
-# Mesa's Vulkan entrypoint tables reference optional driver entrypoints as weak
-# symbols (vk_entrypoints_gen --weak). An unimplemented one must resolve to 0,
-# not become a dynamic import the native packager has no SDK stub for.
-# lld 21+ no longer exports undefined weak symbols from executables by default
-# (-z dynamic-undefined-weak opts back in); lld 18 still does, and its only switch
-# for that is --no-dynamic-linker, which otherwise affects just PT_INTERP, absent
-# from the PS5 link script anyway. Every one of these weak imports is a Mesa
-# entrypoint-table reference that resolves to 0 either way.
 # The SDK's dlfcn wrappers explicitly return unavailable when these optional
 # weak hooks are null. This static frontend supplies no dynamic-loader hooks.
-eden_native_run --phase native-link --link -- \
-    "$template/.deps/native/ps5-payload-sdk/bin/prospero-lld" \
-    "${tls_flags[@]}" "${radv_link_flags[@]}" -L "$sdk/target/lib" \
-    --defsym=__dlopen=0 --defsym=__dlsym=0 --defsym=__dladdr=0 \
-    --defsym=__dlclose=0 --defsym=__dlerror=0 \
-    -T "$template/tooling/native/ps5-pie.ld" -T "$root/tools/unwind.ld" \
-    --eh-frame-hdr --gc-sections --version-script "$root/tools/app-symbols.map" -e _start \
-    --no-dynamic-linker \
-    --error-limit=0 -Map="$output.map" \
-    --wrap=aligned_alloc --wrap=malloc --wrap=calloc --wrap=realloc --wrap=free \
-    --wrap=posix_memalign --wrap=malloc_usable_size \
-    --wrap=sceKernelAllocateDirectMemory --wrap=sceKernelReleaseDirectMemory \
-    -o "$output" --start-group "${libraries[@]}" "${radv_link_inputs[@]}" \
-    "$sdk/target/lib/libc++.a" "$sdk/target/lib/libc++abi.a" "$sdk/target/lib/libunwind.a" \
-    --end-group --as-needed "$sdk/target/lib/libSceLibcInternal.so" "$sdk/target/lib/libkernel.so" \
-    "$sdk/target/lib/libc.a" "$sdk/target/lib/libSceNet.so"
+lld="$template/.deps/native/ps5-payload-sdk/bin/prospero-lld"
+nm_tool=$(command -v llvm-nm-18 || command -v llvm-nm || command -v nm)
+
+link_native() {
+    local target=$1
+    local map=$2
+    shift 2
+    "$lld" \
+        "${tls_flags[@]}" "${radv_link_flags[@]}" "$@" -L "$sdk/target/lib" \
+        --defsym=__dlopen=0 --defsym=__dlsym=0 --defsym=__dladdr=0 \
+        --defsym=__dlclose=0 --defsym=__dlerror=0 \
+        -T "$template/tooling/native/ps5-pie.ld" -T "$root/tools/unwind.ld" \
+        --eh-frame-hdr --gc-sections --version-script "$root/tools/app-symbols.map" -e _start \
+        --error-limit=0 -Map="$map" \
+        --wrap=aligned_alloc --wrap=malloc --wrap=calloc --wrap=realloc --wrap=free \
+        --wrap=posix_memalign --wrap=malloc_usable_size --wrap=fcntl \
+        -o "$target" --start-group "${libraries[@]}" "${radv_link_inputs[@]}" \
+        "$sdk/target/lib/libc++.a" "$sdk/target/lib/libc++abi.a" "$sdk/target/lib/libunwind.a" \
+        --end-group --as-needed "$sdk/target/lib/libSceLibcInternal.so" "$sdk/target/lib/libkernel.so" \
+        "$sdk/target/lib/libc.a" "$sdk/target/lib/libSceNet.so"
+}
+
+# No -z nodynamic-undefined-weak: the native linker ignores this unknown option.
+# The two-link pass below explicitly resolves any remaining weak symbol to 0
+# and verifies no weak imports survive; the unsupported flag never protected us.
+# First pass: let every real static/system provider resolve what it can.
+# Mesa dispatch tables intentionally carry weak references for optional hooks; anything weak that
+# survives this complete link has no provider on the PS5 and must behave as a NULL function pointer.
+weak_scan="$output.weak-scan"
+weak_map="$output.weak-scan.map"
+link_native "$weak_scan" "$weak_map"
+mapfile -t unresolved_weak < <(
+    "$nm_tool" -D --undefined-only "$weak_scan" 2>/dev/null |
+        awk '$1 ~ /^[wWvV]$/ {print $2}' | sort -u
+)
+
+weak_flags=()
+for name in "${unresolved_weak[@]}"; do
+    [[ $name =~ ^[A-Za-z_][A-Za-z0-9_$.]*$ ]] || {
+        echo "Unsafe weak symbol name from linker: $name" >&2
+        exit 2
+    }
+    weak_flags+=("--defsym=${name}=0")
+done
+printf 'Native weak imports resolved to NULL: %d\n' "${#weak_flags[@]}"
+rm -f "$weak_scan" "$weak_map"
+
+# Final link: no unresolved weak symbol is allowed to become a native-title import.
+link_native "$output" "$output.map" "${weak_flags[@]}"
+if "$nm_tool" -D --undefined-only "$output" 2>/dev/null |
+        awk '$1 ~ /^[wWvV]$/ {print $2}' | grep -q .; then
+    echo "Native link still contains unresolved weak imports:" >&2
+    "$nm_tool" -D --undefined-only "$output" 2>/dev/null |
+        awk '$1 ~ /^[wWvV]$/ {print "  " $2}' >&2
+    exit 1
+fi

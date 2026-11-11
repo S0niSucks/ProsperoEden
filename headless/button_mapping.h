@@ -6,6 +6,7 @@
 // touchpad + R1) are not part of it.
 #pragma once
 #include <array>
+#include <cstdint>
 
 namespace Eden {
 enum GameButton : int {
@@ -24,11 +25,54 @@ inline constexpr const char* kPadButtonKeys[kPadButtons] = {
     "touchpad"};
 
 using ButtonMapping = std::array<int, kGameButtons>;  // game button -> DualSense button
-// The game's A, B, X and Y where the DualSense has the same places; the touchpad is Minus (the
-// Create button presses it too while it has no game button of its own).
-inline constexpr ButtonMapping kDefaultMapping = {
+
+// PlayStation semantics: the game's primary action (A) is Cross, back/cancel (B) is Circle,
+// X is Square and Y is Triangle. This is Encore's default on a PS5.
+inline constexpr ButtonMapping kPlayStationMapping = {
+    pad_cross, pad_circle, pad_square, pad_triangle, pad_l1, pad_r1, pad_l2, pad_r2, pad_options,
+    pad_touchpad, pad_l3, pad_r3};
+
+// Switch semantics/physical positions: A is the right face button, B the bottom, X the top and Y
+// the left. This matches the original Nintendo layout when played on a DualSense.
+inline constexpr ButtonMapping kSwitchMapping = {
     pad_circle, pad_cross, pad_triangle, pad_square, pad_l1, pad_r1, pad_l2, pad_r2, pad_options,
     pad_touchpad, pad_l3, pad_r3};
+
+inline constexpr ButtonMapping kDefaultMapping = kPlayStationMapping;
+// The guest owns all in-game action assignments. The controller layout
+// resolves once at launch and remains stable throughout the session.
+inline constexpr const ButtonMapping& BaseMappingForLayout(int layout) {
+    return layout == 1 ? kSwitchMapping : kPlayStationMapping;
+}
+
+// The one input profile resolved in the launcher before guest HID starts.
+// A per-title layout override uses its own default button map even if
+// it has no custom edits. Otherwise the global mapping is inherited.
+struct SessionButtonMapping {
+    int layout;
+    ButtonMapping buttons;
+};
+inline constexpr SessionButtonMapping ResolveSessionButtonMapping(
+    int global_layout, const ButtonMapping& global_buttons,
+    int title_layout, bool title_has_custom_buttons,
+    const ButtonMapping& title_buttons) {
+    const int layout = title_layout >= 0 ? title_layout : global_layout;
+    return {layout,
+            title_has_custom_buttons ? title_buttons :
+            title_layout >= 0 ? BaseMappingForLayout(title_layout) : global_buttons};
+}
+
+// A static PlayStation RomFS glyph atlas assumes A=Cross/B=Circle/X=Square/Y=Triangle.
+// A custom or Switch-position profile must not silently activate art bound
+// to those action labels. This check is independent of the physical pad image.
+inline constexpr bool CompatibleWithPlayStationActionGlyphs(
+    const SessionButtonMapping& session) noexcept {
+    return session.layout == 0 && session.buttons == kPlayStationMapping;
+}
+
+inline bool MappingIsCustom(const ButtonMapping& mapping, int layout) {
+    return mapping != BaseMappingForLayout(layout);
+}
 
 inline bool ValidMapping(const ButtonMapping& mapping) {
     std::array<bool, kPadButtons> used{};
@@ -53,24 +97,5 @@ inline ButtonMapping Assign(ButtonMapping mapping, int game, int pad) {
     if (other >= 0) mapping[other] = mapping[game];
     mapping[game] = pad;
     return mapping;
-}
-
-// The launcher's own menu buttons (Settings > Controls > Menu keybinds): which face button presses
-// each core menu action. Only the four face buttons take part, each once; the D-pad, the shoulders
-// and Options stay fixed.
-enum MenuAction : int { menu_select, menu_back, menu_secondary, menu_settings, kMenuActions };
-// Their names in the settings file.
-inline constexpr const char* kMenuActionKeys[kMenuActions] = {"select", "back", "secondary", "settings"};
-using MenuBinding = std::array<int, kMenuActions>;  // menu action -> face DualSense button (0-3)
-// Select on Cross, Back on Circle, the secondary action on Square, game settings on Triangle.
-inline constexpr MenuBinding kDefaultMenuBinding = {pad_cross, pad_circle, pad_square, pad_triangle};
-
-inline bool ValidMenuBinding(const MenuBinding& binding) {
-    std::array<bool, kMenuActions> used{};
-    for (const int pad : binding) {
-        if (pad < 0 || pad >= kMenuActions || used[pad]) return false;
-        used[pad] = true;
-    }
-    return true;
 }
 } // namespace Eden

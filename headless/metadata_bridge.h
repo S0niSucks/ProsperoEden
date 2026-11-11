@@ -20,43 +20,26 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
                                const char* cover_tga_path, char* title,
                                size_t title_capacity);
 
-// A cover in a picture file's bytes (PNG or JPEG, as a download source sends it) as the TGA the
-// launcher draws, at most 512 pixels a side. Nonzero when it was written.
-int eden_write_cover_tga(const unsigned char* encoded, size_t size, const char* cover_tga_path);
-
 // The languages the game declares in its own control data (NACP flags: bit n is NS
 // ApplicationLanguage n), or 0 when they cannot be read.
 uint32_t eden_game_supported_languages(const char* rom_path, const char* keys_dir);
 // The language the game will use when the player chose `chosen` (an index of Eden's
-// Settings::Language): that language or a variant of it when the game has one, else English,
-// else the next one in the console's fallback order. The game's languages are read from
+// Settings::Language): its closest supported language in the console's fallback order, read from
 // its update's control data when the last eden_scan_addons found one, else from its own; `chosen`
 // itself when the game's languages are unknown.
 int eden_game_language(const char* rom_path, const char* keys_dir, uint64_t title_id, int chosen);
 
-// What an NSP or XCI holds: a game (it has an application), else an update, else DLC; 0 when it
-// cannot be read (no keys yet, a damaged file).
-enum {
-    EDEN_CONTENT_UNKNOWN = 0,
-    EDEN_CONTENT_GAME = 1,
-    EDEN_CONTENT_UPDATE = 2,
-    EDEN_CONTENT_DLC = 3,
-};
-int eden_rom_content(const char* rom_path, const char* keys_dir);
-
-// Update and DLC files (NSP or XCI, any depth) in updates_dir and in the game folders of roms_dir
-// (its folders, one per game; roms_dir may be null), read with the provider that also applies them
-// to a running game. Replaces the previous scan; eden_game_addons queries it.
-void eden_scan_addons(const char* updates_dir, const char* roms_dir, const char* keys_dir);
-// The update and DLC files of a game in updates_dir and in game_dir, the game's own folder in
-// roms/ (null for a game directly in roms/), NSP or XCI at any depth, by the title IDs they hold:
-// each one's full path is handed to found. Returns how many there were.
-typedef void (*eden_found_file)(void* user, const char* path);
-int eden_game_addon_files(uint64_t title_id, const char* updates_dir, const char* game_dir, const char* keys_dir,
-                          eden_found_file found, void* user);
+// Update and DLC files (NSP or XCI, any depth) in updates_dir, read with the provider that also
+// applies them to a running game. Replaces the previous scan; eden_game_addons queries it.
+void eden_scan_addons(const char* updates_dir, const char* keys_dir);
 // For a base game: the newest update's display version (empty without one) and its DLC count.
 // Returns nonzero when either exists.
 int eden_game_addons(uint64_t title_id, char* update_version, size_t capacity, unsigned* dlc_count);
+// Resolved IN-GAME GRAPHICS version: scanned update if present, else base NACP
+// display-version from the selected title. Returns 0 if metadata/scan unknown.
+// Does not read or request a cheat/NSO Build ID.
+int eden_game_glyph_display_version(const char* rom_path, const char* keys_dir,
+                                    uint64_t title_id, char* output, size_t capacity);
 
 // Save transfer for one game (ryujinx_saves.h). Sources, in the game files folder next to roms/:
 // save-import/<title ID>/ (a save folder copied by hand) or ryujinx/ (a Ryujinx data folder).

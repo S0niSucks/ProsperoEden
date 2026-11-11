@@ -75,9 +75,6 @@ class Mixer
     bool set_bus_gain(Bus bus, float gain);
     bool set_master_gain(float gain);
     bool stop_all();
-    // Acknowledged on the audio thread after queued voices have relinquished their clips.
-    std::uint64_t stop_all_fenced();
-    std::uint64_t completed_fence() const { return fence_done_.load(std::memory_order_acquire); }
     // Attach before the audio thread starts; streams play on the music bus.
     void attach_stream(std::size_t slot, StreamRing *ring)
     {
@@ -134,7 +131,6 @@ class Mixer
         float seconds = 0.0f;
         std::size_t slot = 0;
         StreamRing *ring = nullptr;
-        std::uint64_t fence = 0;
     };
     struct Voice
     {
@@ -173,8 +169,6 @@ class Mixer
     std::array<float, kStreams> stream_step_{};
     std::array<std::array<float, kMaxGrain * 2>, kStreams> stream_buffer_{};
     std::atomic<std::uint64_t> underruns_{0};
-    std::uint64_t fence_next_ = 0;
-    std::atomic<std::uint64_t> fence_done_{0};
 };
 
 } // namespace pe::audio

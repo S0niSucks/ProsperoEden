@@ -1,0 +1,42 @@
+{
+  "schema": "a04-p04-nfs-r1-scenario-fixtures-v1",
+  "agent": "A04",
+  "status": "NOT_RUN",
+  "kind": "fixture-data-and-requirements-only-no-parser-or-client-exists",
+  "source_contract": "ProsperoEden/headless/network/transport.cpp:74-90,256-268; editor.cpp:51-53,75-85,158-186 (documentary source study, not a pinned repo contract)",
+  "endpoint": "192.0.2.20 is documentation-only (RFC 5737) and MUST NOT be contacted",
+  "note": "No NFS parser/editor/transport exists in the Encore repository; these are declarative expectations for the future approved implementation, mirroring the A03/SMB fixture shape.",
+  "base": {
+    "shares": [{
+      "id": "fixture-nfs-01", "name": "Synthetic stable NFS share", "protocol": "nfs",
+      "server": "192.0.2.20", "export": "/fixture", "folder": "roms", "updates_dir": "addons",
+      "version": 3, "uid": 1000, "gid": 1000, "port": 2049, "mount_port": 0,
+      "timeout_ms": 5000, "cache_mib": 16, "enabled": true
+    }]
+  },
+  "cases": [
+    {"id": "CFG-NFS-01", "change": "unchanged base", "expected_future_parse": "accept; not a connection"},
+    {"id": "CFG-NFS-02", "change": "id empty or 41 ASCII bytes; duplicate id; duplicate endpoint/export/folder with different id", "expected_future_parse": "reject each"},
+    {"id": "CFG-NFS-03", "change": "server = hostname, nfs:// URL, 0.0.0.0 or 255.255.255.255", "expected_future_parse": "reject each; numeric IPv4 only"},
+    {"id": "CFG-NFS-04", "change": "port or mount_port = 0*, 65536, string, boolean, fractional (*mount_port 0 may mean auto: must be an explicit documented choice)", "expected_future_parse": "reject each"},
+    {"id": "CFG-NFS-05", "change": "uid/gid = negative, non-numeric, or > 4294967295", "expected_future_parse": "reject each"},
+    {"id": "CFG-NFS-06", "change": "uid = 0 or gid = 0 (source permits zero)", "expected_future_parse": "open owner decision; AUTH_SYS numeric identity is not secure authentication; do not expose root identity without explicit policy", "unresolved": true},
+    {"id": "CFG-NFS-07", "change": "version = 4, or tls/krb5 flag present", "expected_future_parse": "reject: outside verified NFSv3 scope; no silent downgrade and no v4/TLS claim"},
+    {"id": "CFG-NFS-08", "change": "SMB fields (user/password/domain/encrypt) present on protocol nfs", "expected_future_parse": "reject each"},
+    {"id": "CFG-NFS-09", "change": "protocol switched nfs->smb or smb->nfs in a draft", "expected_future_parse": "reset protocol-specific fields (source clears share plus SMB credentials); never carry credentials across protocols"},
+    {"id": "CFG-NFS-10", "change": "export/folder/updates_dir = ../escape, /absolute, a//b, a\\b, a/%2e%2e, or trailing /", "expected_future_parse": "reject each; export must be absolute and validated, relative paths safe"},
+    {"id": "CFG-NFS-11", "change": "timeout_ms = 249 or 15001; cache_mib = 0 or 33; >4 shares; unknown property; depth > 8; bytes > 65536; symlink/hardlink/nonregular node", "expected_future_parse": "reject each"},
+    {"id": "CFG-NFS-12", "change": "malformed document then save; identity/bytes change between read and publication", "expected_future_parse": "refuse; preserve original bytes; no overwrite (WriteOwned semantics)"}
+  ],
+  "host_only_cases_executed_by_central_a50": "fixture/nfs_transport_check.cpp N01-N14",
+  "runtime_acceptance_not_simulated": [
+    "A trusted, externally quiescent, stable share is a precondition; the app cannot enforce it against external writers.",
+    "AUTH_SYS numeric UID/GID is not secure user authentication; app read-only mode is not a server permission.",
+    "Detected size/mtime/identity/namespace change poisons the whole session permanently; readers fail; cached bytes are unreachable; fresh launch with a new session is required.",
+    "Same-metadata content mutation is NOT detectable by this contract (fixture N04 documents it); no immutable-snapshot or malicious-server guarantee.",
+    "A failed read after copying a prefix is never success; guest-visible error must follow; no zero-fill success.",
+    "Disconnect/cancel invalidates old readers; reconnect never reattaches old handles (fixture N06).",
+    "No write/resize/rename route may reach the remote share; the interface offers none.",
+    "NSP/XCI/NRO discovered remotely and NSP/XCI add-ons only, one add-on level, documented bounds; no remote NSZ/XCZ/ExeFS support claim."
+  ]
+}

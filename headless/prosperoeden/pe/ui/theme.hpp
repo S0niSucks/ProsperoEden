@@ -1,14 +1,13 @@
-// ProsperoEden - Launcher themes: colour roles, type, shape, motion, artwork, ambient light, sound.
+// ProsperoEden - Launcher colours, type sizes and motion constants.
 // Copyright (C) 2026 BlackBearReloaded
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #pragma once
 
 #include "pe/gfx/draw_list.hpp"
+#include "launcher_appearance.h"
 
 #include <algorithm>
-#include <span>
-#include <string_view>
 
 namespace pe::ui
 {
@@ -17,138 +16,104 @@ using gfx::Align;
 using gfx::Color;
 using gfx::Rect;
 
-// A theme is data: what the launcher's screens are painted with. The screens name roles (accent,
-// panel, title), never a hue, and a theme fills every role. It does not move anything: where the
-// rail, the hero and the lists are is the launcher's. docs/THEMES.md is the contract.
-//
-// A theme starts from a recipe of the UI kit (ps5-homebrew-ui, `kit`): its surface style, shadows,
-// focus ring and motion, and colours for every role derived from the kit's. It then sets what it
-// wants of its own over that.
-struct Theme
+namespace theme
 {
-    // ---- identity ----
-    const char *id = "";      // in the settings file, and the folder of its files
-    const char *name = "";    // as Settings > Theme shows it (a name: not translated)
-    const char *summary = ""; // one line about it (English; marked with TR() where it is set)
-    const char *kit = "";     // the kit theme its recipe starts from
-    int contract = 1;         // the version of this structure it was made for
 
-    // ---- colour: surfaces ----
-    Color base;       // behind everything, where the artwork does not reach
-    Color scrim;      // what dims the artwork behind screens and dialogs
-    Color glass;      // panels over the artwork
-    Color panel;      // screens' panels and dialogs
-    Color panel_edge; // their hairline
-    Color row;        // a control at rest
-    Color row_edge;
-    Color row_focus;  // under the highlight
-    // ---- colour: the accent (one meaning a screen: where you are) ----
-    Color accent;
-    Color accent_deep; // the far end of its gradients
-    Color accent_pale; // values, kickers, the focus ring
-    Color on_accent;   // text on an accent fill
-    Color highlight;   // light in the artwork: the sun, the motes
-    // ---- colour: text, from the brightest to the faintest ----
-    Color text;
-    Color title;
-    Color value;
-    Color body;
-    Color copy;
-    Color meta;
-    Color label;
-    Color muted;
-    Color faint;
-    Color warning; // what needs the player (always with a mark, never the colour alone)
-    Color rule;    // dividing lines
+// Eden brand palette: dark neutral surfaces with the official violet/pink/blue accents.
+// Updated only by the launcher owner thread, before recording a frame. Worker
+// services/decoders never consult these roles. Original retains existing colours.
+inline Color kBase = Color::rgb(0x07070d);
+inline Color kScrim = Color::rgb(0x04040a);
+inline Color kGlass = Color::rgb(0x120f1c);
+inline Color kPanel = Color::rgb(0x0b0a12);
+inline Color kPanelEdge = Color::rgb(0x8c78ad);
+inline Color kPanelEdgeSoft = Color::rgb(0x5b506f);
+inline Color kRow = Color::rgb(0x12101a);
+inline Color kRowEdge = Color::rgb(0x625875);
+inline Color kRowFocus = Color::rgb(0x2b1b42);
+inline Color kFocusCore = Color::rgb(0xff70e4);
+inline Color kFocusBlue = Color::rgb(0xbb59ff);
 
-    // ---- type: one family, sizes in virtual pixels (the screen is 1920 by 1080) ----
-    float size_hero = 88.0f;    // the home screen's game
-    float size_display = 48.0f; // a screen's title
-    float size_lead = 40.0f;
-    float size_brand = 36.0f;
-    float size_heading = 32.0f;
-    float size_clock = 28.0f;
-    float size_text = 24.0f;  // rows, actions
-    float size_small = 20.0f; // values, hints, captions
-    float weight_title = 0.9f; // how much heavier titles are drawn (pixels of outline at 48)
-    float tracking_kicker = 4.0f; // between the letters of the small capital headings
+// Keep the historic names to avoid touching every widget; values are Eden's official accents.
+inline Color kLime = Color::rgb(0xbf42f6);
+inline Color kLimeDeep = Color::rgb(0x6547c7);
+inline Color kLimePale = Color::rgb(0xe1b7ff);
+inline Color kSun = Color::rgb(0xff44c4);
+inline Color kBlue = Color::rgb(0x62b4ff);
+inline Color kAccentTeal = Color::rgb(0xe0b1ff);
 
-    // ---- shape ----
-    float radius_row = 18.0f;   // rows, buttons
-    float radius_card = 22.0f;  // cards, tiles, covers
-    float radius_panel = 30.0f; // panels, dialogs
-    bool pill_chips = true;     // chips and state tags are pills
-    float border = 1.0f;        // hairlines
-    float focus_width = 2.0f;   // the focus ring's stroke
-    float focus_glow = 30.0f;   // how far its light reaches
-    bool glass_panels = true;   // panels show the blurred artwork behind them
-    float shadow_blur = 48.0f;
-    float shadow_offset = 20.0f;
+// Text
+inline const Color kText = Color::rgb(0xf4f2f8);
+inline const Color kTitle = Color::rgb(0xffffff);
+inline const Color kValue = Color::rgb(0xf0edf7);
+inline const Color kBody = Color::rgb(0xdedbe8);
+inline const Color kCopy = Color::rgb(0xc5c1d2);
+inline const Color kMeta = Color::rgb(0xa9a5b8);
+inline const Color kLabel = Color::rgb(0xb7b2c5);
+inline const Color kMuted = Color::rgb(0xa19cad);
+inline const Color kFaint = Color::rgb(0x7e798b);
+inline const Color kWarning = Color::rgb(0xff9f9f);
+inline Color kRule = Color::rgb(0x3f3b51);
 
-    // ---- motion (springs in rad/s, times in seconds) ----
-    float focus_spring = 20.0f;
-    float cursor_spring = 26.0f;
-    float scroll_spring = 16.0f;
-    float screen_seconds = 0.30f;
-    float launch_seconds = 0.95f;
-    float stagger = 0.07f; // between the parts of a screen as it arrives
-    float breathe = 2.6f;  // the focus glow's slow pulse (rad/s)
-
-    // ---- artwork (files in the theme's art folder) ----
-    const char *backdrop = "backdrop.tga";
-    const char *backdrop_blur = "backdrop-blur.tga";
-    const char *brand = "brand.tga";
-    float light_x = 0.710f; // where the artwork's light is, as a share of its width and height
-    float light_y = 0.391f;
-
-    // ---- ambient light over the artwork ----
-    int motes = 26;     // 0: none
-    float drift = 1.0f; // how far the artwork wanders (0: it stands still)
-
-    // ---- layout variants ----
-    bool list_settings = false;  // settings shows a list instead of tiles
-    bool game_backdrop = false;  // the selected game's cover art fills the background
-    bool minimal_home = false;   // home screen: clean layout, no controller display
-    bool top_nav = false;        // horizontal section tabs at the top instead of the sidebar rail
-    float scrim_opacity = 0.0f;  // >0: flat scrim at this alpha; 0: directional gradient scrim
-    float game_page_offset = 0.0f; // px to push the game settings columns below their base position
-
-    // ---- sound: a folder of ui/sounds with its own cues ("": the launcher's) ----
-    const char *sounds = "";
-};
-
-// An accent colour preset: a named set of the five accent roles a theme can swap.
-struct AccentPreset
+inline int palette_id = 0;
+inline void ApplyPalette(int requested)
 {
-    const char *id;   // stored in the settings file
-    const char *name; // shown in Settings
-    Color accent;
-    Color accent_deep;
-    Color accent_pale;
-    Color on_accent;
-    Color highlight;
-};
+    struct Palette {
+        std::uint32_t base, panel, glass, edge, focus, accent, deep, pale, sun, blue;
+    };
+    // Role-based native themes inspired by the UI reference's separation of
+    // themes from screen designs. No reference renderer/fonts/assets imported.
+    static constexpr Palette palettes[] = {
+        {0x07070d,0x0b0a12,0x120f1c,0x8c78ad,0xff70e4,0xbf42f6,0x6547c7,0xe1b7ff,0xff44c4,0x62b4ff},
+        {0x070f1c,0x101e31,0x14283d,0x7189a7,0x8bdcff,0x52b8ef,0x235984,0xc4ecff,0x9baaf2,0x63d8ed},
+        {0x081611,0x10271d,0x183527,0x7c9e85,0xb5e894,0x8ccc7b,0x345f3c,0xd5edbd,0xeac57c,0x80c9b2},
+        {0x111318,0x1c2027,0x252a33,0x8b93a2,0xf0f2f8,0xbec8db,0x4f596b,0xe4e9f1,0xb1bad0,0x9fc3df},
+        {0x1b100d,0x2d1e18,0x38271e,0xb18e75,0xffd295,0xe9aa6c,0x865334,0xffe2bc,0xee9e89,0xb1cdd5},
+    };
+    palette_id = Eden::Appearance::Valid(requested, Eden::Appearance::kPalettes) ? requested : 0;
+    const Palette& p = palettes[palette_id];
+    kBase = Color::rgb(p.base); kPanel = Color::rgb(p.panel); kGlass = Color::rgb(p.glass);
+    kPanelEdge = Color::rgb(p.edge); kFocusCore = Color::rgb(p.focus);
+    kLime = Color::rgb(p.accent); kLimeDeep = Color::rgb(p.deep); kLimePale = Color::rgb(p.pale);
+    kSun = Color::rgb(p.sun); kBlue = Color::rgb(p.blue);
+    kScrim = palette_id ? Color::rgb(p.base) : Color::rgb(0x04040a);
+    kPanelEdgeSoft = palette_id ? Color::rgb(p.edge) : Color::rgb(0x5b506f);
+    kRow = palette_id ? Color::rgb(p.glass) : Color::rgb(0x12101a);
+    kRowEdge = palette_id ? Color::rgb(p.edge) : Color::rgb(0x625875);
+    kRowFocus = palette_id ? Color::rgb(p.deep) : Color::rgb(0x2b1b42);
+    kFocusBlue = palette_id ? Color::rgb(p.accent) : Color::rgb(0xbb59ff);
+    kAccentTeal = palette_id ? Color::rgb(p.pale) : Color::rgb(0xe0b1ff);
+    kRule = palette_id ? Color::rgb(p.edge) : Color::rgb(0x3f3b51);
+}
 
-// The theme in use. Read where things are drawn, so a change of theme shows in the next frame.
-const Theme &th();
-// Every theme this build has, the first being the one a new install uses.
-std::span<const Theme> themes();
-// The place of the one in use in themes().
-int theme_index();
-// Puts a theme in use by its id; false when this build has none of that name (the one in use stays).
-bool use_theme(std::string_view id);
-// The accent presets for the theme in use.
-std::span<const AccentPreset> accent_presets();
-// Which accent preset is active (-1: the theme's own colours).
-int accent_index();
-// Applies an accent preset by id on top of the active theme; "" restores the theme's own.
-void use_accent(std::string_view id);
+// Type sizes (Montserrat Medium)
+constexpr float kDisplay = 48.0f;
+constexpr float kLead = 40.0f;
+constexpr float kBrand = 36.0f;
+constexpr float kHeading = 32.0f;
+constexpr float kClock = 28.0f;
+constexpr float kText24 = 24.0f;
+constexpr float kSmall = 20.0f;
 
-// A kit theme (ps5-homebrew-ui) as a launcher theme: every role filled from the kit's colours, its
-// corners, focus ring and motion. False when the kit has no theme of that id (theme_kit.cpp).
-bool theme_from_kit(std::string_view kit_id, Theme *theme);
+// Motion (spring responsiveness in rad/s, durations in seconds)
+constexpr float kFocusSpring = 20.0f;
+constexpr float kCursorSpring = 26.0f;
+constexpr float kScrollSpring = 16.0f;
+constexpr float kScreenSeconds = 0.30f;
+// Allow one visible face change while keeping game admission bounded.
+// Front preview 1.2 s, first turn 1.3 s, BACK remains readable 4.5 s,
+// return turn 1.3 s, final settle/fade 0.5 s. A truthful staged cinematic
+// transition, NOT a proxy for guest/emulation loading percentage.
+constexpr float kCaseFrontHold = 1.20f;
+constexpr float kCaseTurnSeconds = 0.72f; // rapid pass through spine; never a pause
+constexpr float kCaseBackHold = 4.50f;
+constexpr float kCaseSettleSeconds = 0.50f;
+constexpr float kLaunchSeconds = kCaseFrontHold + 2.0f * kCaseTurnSeconds +
+                                 kCaseBackHold + kCaseSettleSeconds;
 
-// How the launcher is shown: Settings > Accessibility. It lies over whatever theme is in use.
+} // namespace theme
+
+// How the launcher is shown: Settings > Accessibility.
 struct Look
 {
     bool large_text = false;    // small text is drawn larger
@@ -182,24 +147,5 @@ inline bool inside(const Rect &r, float x, float y)
 {
     return x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h;
 }
-
-// ---- where the launcher's parts are (the same in every theme) ----
-namespace layout
-{
-constexpr float kRail = 120.0f;    // the section rail's width
-constexpr float kLeft = 184.0f;    // content from here ...
-constexpr float kRight = 1824.0f;  // ... to here
-constexpr float kWidth = kRight - kLeft;
-constexpr float kTop = 44.0f;      // the top bar's line box: 64 high
-constexpr float kFooter = 1026.0f; // the hints' centre line
-constexpr float kPanelLeft = 960.0f;
-constexpr float kPanelWidth = 864.0f;
-constexpr float kPanelTop = 110.0f;
-constexpr float kPanelBottom = 980.0f;
-// A list of settings beside others (a game's page): its rows, and how many show.
-constexpr float kPaneRow = 84.0f;
-constexpr float kPanePitch = 94.0f;
-constexpr int kPaneRows = 7;
-} // namespace layout
 
 } // namespace pe::ui

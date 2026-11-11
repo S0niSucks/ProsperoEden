@@ -1,10 +1,9 @@
-#include "game_name.h"
 #include "metadata_bridge.h"
 #include "game_files.h"
 #include "nro_assets.h"
 #include "assets_dir.h"
 #include "diagnostics.h"
-#include "profiles.h"
+#include "glyph_version.h"
 #include "ryujinx_saves.h"
 #if defined(__PROSPERO__)
 #include "native_directory.h"
@@ -19,22 +18,13 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
-// Eden builds stb_image for JPEG only (src/common/stb.h), the format of a game's own icon. A cover
-// from a download source (a RomM server's) is a PNG as often: this file has a reader of its own
-// for both, private to it (STB_IMAGE_STATIC), beside Eden's.
-#define STB_IMAGE_STATIC
-#define STB_IMAGE_IMPLEMENTATION
-#define STBI_ONLY_JPEG 1
-#define STBI_ONLY_PNG 1
-#define STBI_NO_STDIO
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-function"
 #include <stb_image.h>
-#pragma GCC diagnostic pop
 
 #include "common/fs/path_util.h"
 #include "core/file_sys/card_image.h"
@@ -59,61 +49,47 @@ constexpr std::array<const char*, 18> language_names{
     "BrazilianPortuguese", "Polish", "Thai",
 };
 
-FileSys::VirtualDir ExtractControl(const std::shared_ptr<FileSys::NCA>& control) {
-    if (!control || control->GetStatus() != Loader::ResultStatus::Success) return {};
-    const auto romfs = control->GetRomFS();
-    return romfs ? FileSys::ExtractRomFS(romfs) : FileSys::VirtualDir{};
-}
-
-// The control data of an update packed into the same NSP or XCI as the game (a dump holding the
-// game together with its update), or nothing. Eden runs such an update (AppLoader_NSP/XCI::
-// ReadUpdateRaw), and its control data replaces the game's.
-FileSys::VirtualDir PackedUpdateControl(const FileSys::NSP& package) {
-    const u64 update = FileSys::GetUpdateTitleID(FileSys::GetBaseTitleID(package.GetProgramTitleID()));
-    const auto ncas = package.GetNCAs();
-    const auto found = ncas.find(update);
-    if (found == ncas.end()) return {};
-    for (const auto& [key, nca] : found->second)
-        if (key.second == FileSys::ContentRecordType::Control)
-            if (auto romfs = ExtractControl(nca)) return romfs;
-    return {};
-}
-
-// The game's control RomFS; with `packed_update`, also that of an update packed in the same file.
-FileSys::VirtualDir OpenControlRomFs(const FileSys::VirtualFile& file, bool xci,
-                                     FileSys::VirtualDir* packed_update = nullptr) {
+FileSys::VirtualDir OpenControlRomFs(const FileSys::VirtualFile& file, bool xci) {
+    std::shared_ptr<FileSys::NCA> control;
     if (xci) {
         FileSys::XCI image(file);
         if (image.GetStatus() != Loader::ResultStatus::Success) return {};
-        if (packed_update)
-            if (const auto secure = image.GetSecurePartitionNSP();
-                secure && secure->GetStatus() == Loader::ResultStatus::Success)
-                *packed_update = PackedUpdateControl(*secure);
-        return ExtractControl(image.GetNCAByType(FileSys::NCAContentType::Control));
+        control = image.GetNCAByType(FileSys::NCAContentType::Control);
+    } else {
+        FileSys::NSP package(file);
+        if (package.GetStatus() != Loader::ResultStatus::Success) return {};
+        control = package.GetNCA(FileSys::GetBaseTitleID(package.GetProgramTitleID()),
+                                 FileSys::ContentRecordType::Control);
     }
-    FileSys::NSP package(file);
-    if (package.GetStatus() != Loader::ResultStatus::Success) return {};
-    if (packed_update) *packed_update = PackedUpdateControl(package);
-    return ExtractControl(package.GetNCA(FileSys::GetBaseTitleID(package.GetProgramTitleID()),
-                                         FileSys::ContentRecordType::Control));
+    if (!control || control->GetStatus() != Loader::ResultStatus::Success) return {};
+    const auto romfs = control->GetRomFS();
+    return romfs ? FileSys::ExtractRomFS(romfs) : FileSys::VirtualDir{};
 }
 
 std::string ReadTitle(const FileSys::VirtualDir& romfs) {
     auto nacp = romfs->GetFile("control.nacp");
     if (!nacp) nacp = romfs->GetFile("Control.nacp");
     if (!nacp || nacp->GetSize() < 0x3000) return {};
-    // The first of the game's names (one per language, English first) that is text: a name can be
-    // empty or hold something else (game_name.h), and the next language's is then the one to show.
     std::array<char, 0x200> name{};
     for (std::size_t language = 0; language < 16; ++language) {
         if (nacp->Read(reinterpret_cast<unsigned char*>(name.data()), name.size(),
                        language * 0x300) != name.size()) return {};
         name.back() = '\0';
-        if (!name.front()) continue;
-        if (Eden::UsableName(name.data())) return Eden::PlainName(name.data());
-        std::fprintf(stderr, "[ProsperoEden] library: name %zu of a game is not text; trying its next one\n", language);
+        if (name.front()) return name.data();
     }
     return {};
+}
+
+// Read the source game's own NACP display version; this is game metadata,
+// NOT the executable NSO Build ID used by EdiZon cheat tables. Unknown or
+// unsupported encodings retain original in-game Nintendo artwork.
+std::string ReadGlyphDisplayVersion(const FileSys::VirtualDir& romfs) {
+    if (!romfs) return {};
+    auto nacp = romfs->GetFile("control.nacp");
+    if (!nacp) nacp = romfs->GetFile("Control.nacp");
+    FileSys::RawNACP raw{};
+    if (!nacp || nacp->ReadObject(&raw) != sizeof(raw)) return {};
+    return Eden::GlyphVersion::FromNacp(raw.version_string);
 }
 
 // The supported-language flags of a control RomFS's NACP (bit n is NS ApplicationLanguage n); 0
@@ -124,14 +100,6 @@ uint32_t ReadLanguages(const FileSys::VirtualDir& romfs) {
     FileSys::RawNACP raw{};
     if (!nacp || nacp->ReadObject(&raw) != sizeof(raw)) return 0;
     return static_cast<uint32_t>(raw.supported_languages);
-}
-
-// The game's language flags: a packed update's when it has them (a game can gain languages in an
-// update), else the game's own.
-uint32_t ReadLanguages(const FileSys::VirtualDir& game, const FileSys::VirtualDir& packed_update) {
-    if (packed_update)
-        if (const uint32_t languages = ReadLanguages(packed_update)) return languages;
-    return game ? ReadLanguages(game) : 0;
 }
 
 // Game file -> its language flags, kept from the Library's metadata pass over the same data.
@@ -147,17 +115,17 @@ FileSys::VirtualFile FindIcon(const FileSys::VirtualDir& romfs) {
     return {};
 }
 
-// A picture's bytes as a 32-bit TGA, made smaller by whole steps (box filter) until it is at most
-// `largest` pixels a side. A picture of more than 4096 pixels a side is not read at all (a cover
-// from a server could take a lot of memory).
+// Adapted from ProsperoEden 20ef10e6ec2ffb6556fcfd4b61b3ed899f1db26b.
+// Inspect encoded size and dimensions before the decoder allocates pixels.
 bool WriteTgaBytes(const unsigned char* encoded, std::size_t size, const char* output, int largest) {
     int width = 0;
     int height = 0;
     int channels = 0;
-    if (!encoded || !size || size > (64u << 20) ||
+    if (!encoded || !size || size > (64u << 20) || !output || largest <= 0 ||
         !stbi_info_from_memory(encoded, static_cast<int>(size), &width, &height, &channels) ||
         width <= 0 || height <= 0 || width > 4096 || height > 4096) return false;
-    unsigned char* rgba = stbi_load_from_memory(encoded, static_cast<int>(size), &width, &height, &channels, 4);
+    unsigned char* rgba = stbi_load_from_memory(encoded, static_cast<int>(size),
+                                               &width, &height, &channels, 4);
     if (!rgba || width <= 0 || height <= 0 || width > 4096 || height > 4096) {
         stbi_image_free(rgba);
         return false;
@@ -184,14 +152,15 @@ bool WriteTgaBytes(const unsigned char* encoded, std::size_t size, const char* o
     for (int y = 0; ok && y < out_height; ++y) {
         for (int x = 0; x < out_width; ++x) {
             unsigned sum[4]{};
-            for (int dy = 0; dy < step; ++dy)
-                for (int dx = 0; dx < step; ++dx) {
-                    const unsigned char* source =
-                        rgba + (static_cast<std::size_t>(y * step + dy) * static_cast<std::size_t>(width) +
-                                static_cast<std::size_t>(x * step + dx)) * 4;
+            const int sample_width = std::min(step, width - x * step);
+            const int sample_height = std::min(step, height - y * step);
+            for (int dy = 0; dy < sample_height; ++dy)
+                for (int dx = 0; dx < sample_width; ++dx) {
+                    const unsigned char* source = rgba +
+                        (static_cast<std::size_t>(y * step + dy) * width + x * step + dx) * 4;
                     for (int k = 0; k < 4; ++k) sum[k] += source[k];
                 }
-            const unsigned count = static_cast<unsigned>(step * step);
+            const unsigned count = static_cast<unsigned>(sample_width * sample_height);
             row[4 * x + 0] = static_cast<unsigned char>(sum[2] / count);
             row[4 * x + 1] = static_cast<unsigned char>(sum[1] / count);
             row[4 * x + 2] = static_cast<unsigned char>(sum[0] / count);
@@ -205,9 +174,12 @@ bool WriteTgaBytes(const unsigned char* encoded, std::size_t size, const char* o
 }
 
 bool WriteTga(const FileSys::VirtualFile& icon, const char* output) {
-    if (!icon || icon->GetSize() > (64u << 20)) return false;
-    const auto encoded = icon->ReadAllBytes();
-    return WriteTgaBytes(encoded.data(), encoded.size(), output, 4096);
+    if (!icon) return false;
+    const auto size = icon->GetSize();
+    if (!size || size > (64u << 20)) return false;
+    // Keep the read bounded even if the backing file grows after GetSize().
+    const auto encoded = icon->ReadBytes(size);
+    return encoded.size() == size && WriteTgaBytes(encoded.data(), encoded.size(), output, 4096);
 }
 
 Eden::NroAssets::Layout NroLayout(const FileSys::VirtualFile& file) {
@@ -215,26 +187,16 @@ Eden::NroAssets::Layout NroLayout(const FileSys::VirtualFile& file) {
         return file->Read(data, size, offset);
     });
 }
+
 std::unique_ptr<FileSys::NACP> NroControl(const FileSys::VirtualFile& file,
-                                        const Eden::NroAssets::Layout& layout) {
+                                       const Eden::NroAssets::Layout& layout) {
     if (!layout.valid || !layout.nacp.size) return {};
     const auto control = std::make_shared<FileSys::OffsetVfsFile>(file, layout.nacp.size,
-                                                                layout.nacp.offset, "Control.nacp");
+                                                               layout.nacp.offset, "Control.nacp");
     FileSys::RawNACP raw{};
     if (control->ReadObject(&raw) != sizeof(raw)) return {};
     return std::make_unique<FileSys::NACP>(control);
 }
-}
-
-int eden_write_cover_tga(const unsigned char* encoded, size_t size, const char* cover_tga_path) {
-    if (!encoded || !size || size > (64u << 20) || !cover_tga_path) return 0;
-    // Written beside, then moved into place: the menu may be drawing the old one.
-    const std::string staged = std::string{cover_tga_path} + ".new";
-    if (!WriteTgaBytes(encoded, size, staged.c_str(), 512) || std::rename(staged.c_str(), cover_tga_path) != 0) {
-        (void)std::remove(staged.c_str());
-        return 0;
-    }
-    return 1;
 }
 
 uint64_t eden_game_title_id(const char* rom_path) {
@@ -243,7 +205,7 @@ uint64_t eden_game_title_id(const char* rom_path) {
     FileSys::RealVfsFilesystem vfs;
     const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
     if (!file) return 0;
-    if (Eden::IsHomebrewFile(rom_path)) {
+    if (Eden::EndsWithNoCase(rom_path, ".nro")) {
         const auto control = NroControl(file, NroLayout(file));
         return control ? control->GetTitleId() : 0;
     }
@@ -267,7 +229,7 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
     if (!rom_path || !keys_dir || !cover_tga_path || !title || title_capacity == 0) return 0;
     title[0] = '\0';
     GameLanguages().erase(rom_path);
-    if (Eden::IsHomebrewFile(rom_path)) {
+    if (Eden::EndsWithNoCase(rom_path, ".nro")) {
         FileSys::RealVfsFilesystem vfs;
         const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
         if (!file) return 0;
@@ -277,9 +239,8 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
         if (const auto control = NroControl(file, layout)) {
             GameLanguages()[rom_path] = control->GetSupportedLanguages();
             for (const auto& name : control->GetApplicationNames())
-                if (Eden::UsableName(name)) {
-                    const auto plain = Eden::PlainName(name);
-                    std::snprintf(title, title_capacity, "%s", plain.c_str());
+                if (!name.empty()) {
+                    std::snprintf(title, title_capacity, "%s", name.c_str());
                     result |= EDEN_METADATA_TITLE;
                     break;
                 }
@@ -298,11 +259,12 @@ int eden_extract_game_metadata(const char* rom_path, const char* keys_dir,
     std::string path = rom_path;
     std::transform(path.begin(), path.end(), path.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    const bool xci = Eden::IsCardImageFile(path);
-    FileSys::VirtualDir packed_update;
-    const auto romfs = OpenControlRomFs(file, xci, &packed_update);
+    // Direct NSO/NCA/NAX/KIP inputs have their own core loaders; they
+    // are not PFS/HFS containers and have no package Control RomFS.
+    if (!Eden::IsPackageFile(path) && !Eden::IsCardImageFile(path)) return 0;
+    const auto romfs = OpenControlRomFs(file, Eden::IsCardImageFile(path));
     if (!romfs) return 0;
-    GameLanguages()[rom_path] = ReadLanguages(romfs, packed_update);
+    GameLanguages()[rom_path] = ReadLanguages(romfs);
 
     int result = 0;
     const auto extracted_title = ReadTitle(romfs);
@@ -319,7 +281,7 @@ uint32_t eden_game_supported_languages(const char* rom_path, const char* keys_di
     if (!rom_path || !keys_dir) return 0;
     if (const auto known = GameLanguages().find(rom_path); known != GameLanguages().end()) return known->second;
     try {
-        if (Eden::IsHomebrewFile(rom_path)) {
+        if (Eden::EndsWithNoCase(rom_path, ".nro")) {
             FileSys::RealVfsFilesystem vfs;
             const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
             const auto control = file ? NroControl(file, NroLayout(file)) : nullptr;
@@ -332,10 +294,10 @@ uint32_t eden_game_supported_languages(const char* rom_path, const char* keys_di
         std::string path = rom_path;
         std::transform(path.begin(), path.end(), path.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        FileSys::VirtualDir packed_update;
-        const auto romfs = OpenControlRomFs(file, Eden::IsCardImageFile(path), &packed_update);
+        if (!Eden::IsPackageFile(path) && !Eden::IsCardImageFile(path)) return 0;
+        const auto romfs = OpenControlRomFs(file, Eden::IsCardImageFile(path));
         if (!romfs) return 0;
-        return GameLanguages()[rom_path] = ReadLanguages(romfs, packed_update);
+        return GameLanguages()[rom_path] = ReadLanguages(romfs);
     } catch (const std::exception& error) {
         std::fprintf(stderr, "[ProsperoEden] languages: %s\n", error.what());
         return 0;
@@ -344,6 +306,7 @@ uint32_t eden_game_supported_languages(const char* rom_path, const char* keys_di
 
 namespace {
 struct AddOns {
+    bool update_present = false;
     std::string update;
     unsigned dlc = 0;
     uint32_t languages = 0;  // the update's own language flags (its control data replaces the game's)
@@ -353,67 +316,61 @@ std::map<uint64_t, AddOns>& ScannedAddOns() {
     static std::map<uint64_t, AddOns> scanned;
     return scanned;
 }
+bool& UpdatesScanCompleted() {
+    static bool completed = false;
+    return completed;
+}
+std::mutex& ScannedAddOnsMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+std::mutex& ScanAddOnsJobMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+// Both the map and completion flag are protected by ScannedAddOnsMutex.
+// A scanner builds its snapshot privately, publishing only at completion.
+// Never hold this mutex while reading/decrypting game files.
 }
 
-int eden_rom_content(const char* rom_path, const char* keys_dir) {
-    if (!rom_path || !keys_dir) return EDEN_CONTENT_UNKNOWN;
-    try {
-        Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
-        FileSys::RealVfsFilesystem vfs;
-        const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
-        if (!file) return EDEN_CONTENT_UNKNOWN;
-        std::string path = rom_path;
-        std::transform(path.begin(), path.end(), path.begin(),
-                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        std::shared_ptr<FileSys::NSP> package;
-        if (Eden::IsPackageFile(path)) {
-            package = std::make_shared<FileSys::NSP>(file);
-        } else if (Eden::IsCardImageFile(path)) {
-            FileSys::XCI image(file);
-            if (image.GetStatus() == Loader::ResultStatus::Success) package = image.GetSecurePartitionNSP();
-        }
-        if (!package || package->GetStatus() != Loader::ResultStatus::Success) return EDEN_CONTENT_UNKNOWN;
-        int content = EDEN_CONTENT_UNKNOWN;
-        for (const auto& [title_id, contents] : package->GetNCAs())
-            for (const auto& [key, nca] : contents) {
-                if (key.first == FileSys::TitleType::Application) return EDEN_CONTENT_GAME;
-                if (key.first == FileSys::TitleType::Update) content = EDEN_CONTENT_UPDATE;
-                else if (key.first == FileSys::TitleType::AOC && content != EDEN_CONTENT_UPDATE)
-                    content = EDEN_CONTENT_DLC;
-            }
-        return content;
-    } catch (const std::exception&) {
-        return EDEN_CONTENT_UNKNOWN;
+void eden_scan_addons(const char* updates_dir, const char* keys_dir) {
+    // Serialise concurrent library rescans: otherwise an older scan can
+    // publish after a later refresh, replacing fresh update metadata.
+    // The job lock is independent of the short reader snapshot lock.
+    const std::lock_guard scan_job_guard{ScanAddOnsJobMutex()};
+    // The library scan may overlap a game launch. Mutating a std::map while
+    // the launcher reads metadata is undefined behavior, including crashes.
+    // Build off-thread/off-lock and atomically publish a complete snapshot.
+    std::map<uint64_t, AddOns> scanned;
+    const auto publish = [&](bool complete) {
+        std::lock_guard lock{ScannedAddOnsMutex()};
+        ScannedAddOns().swap(scanned);
+        UpdatesScanCompleted() = complete;
+    };
+    {
+        std::lock_guard lock{ScannedAddOnsMutex()};
+        ScannedAddOns().clear();
+        UpdatesScanCompleted() = false;
     }
-}
-
-namespace {
-// The folders of roms/ that are game folders (one per game, its update and DLC beside it):
-// every folder in it but hidden ones.
-std::vector<FileSys::VirtualDir> GameFolders(FileSys::RealVfsFilesystem& vfs, const char* roms_dir) {
-    std::vector<FileSys::VirtualDir> folders;
-    if (!roms_dir) return folders;
-    if (const auto roms = vfs.OpenDirectory(roms_dir, FileSys::OpenMode::Read))
-        for (auto& folder : roms->GetSubdirectories())
-            if (!folder->GetName().empty() && folder->GetName().front() != '.') folders.push_back(std::move(folder));
-    return folders;
-}
-} // namespace
-
-void eden_scan_addons(const char* updates_dir, const char* roms_dir, const char* keys_dir) {
-    auto& scanned = ScannedAddOns();
-    scanned.clear();
     if (!updates_dir || !keys_dir) return;
     try {
         Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
         FileSys::RealVfsFilesystem vfs;
-        std::vector<FileSys::VirtualDir> directories = GameFolders(vfs, roms_dir);
-        if (auto updates = vfs.OpenDirectory(updates_dir, FileSys::OpenMode::Read))
-            directories.insert(directories.begin(), std::move(updates));
-        if (directories.empty()) return;
-        const FileSys::ExternalContentProvider provider(std::move(directories));
+        auto directory = vfs.OpenDirectory(updates_dir, FileSys::OpenMode::Read);
+        if (!directory) {
+            // A player with no updates/ folder has *zero updates*, not an
+            // unreadable update. Allow verified base-NACP art selection only
+            // if the directory is genuinely ABSENT; permission/I/O failures
+            // remain unknown and fail closed to original Nintendo visuals.
+            std::error_code error;
+            const bool exists = std::filesystem::exists(updates_dir, error);
+            if (!error && !exists) publish(true);
+            return;
+        }
+        const FileSys::ExternalContentProvider provider({std::move(directory)});
         for (const auto& entry : provider.ListEntriesFilter(FileSys::TitleType::Update, std::nullopt, std::nullopt)) {
             auto& addons = scanned[FileSys::GetBaseTitleID(entry.title_id)];
+            addons.update_present = true;
             if (!addons.update.empty()) continue;
             // Newest first; the display version comes from the update's own control data.
             if (const auto versions = provider.ListUpdateVersions(entry.title_id); !versions.empty()) {
@@ -430,57 +387,52 @@ void eden_scan_addons(const char* updates_dir, const char* roms_dir, const char*
         std::set<uint64_t> dlc;
         for (const auto& entry : provider.ListEntriesFilter(FileSys::TitleType::AOC, std::nullopt, std::nullopt))
             if (dlc.insert(entry.title_id).second) ++scanned[FileSys::GetBaseTitleID(entry.title_id)].dlc;
+        publish(true);
     } catch (const std::exception& error) {
         std::fprintf(stderr, "[ProsperoEden] updates: %s\n", error.what());
-        scanned.clear();
+        // Fail closed. The incomplete scan never becomes visible to readers.
     }
 }
 
-namespace {
-// Whether an NSP or XCI holds content of the game: its update (base | 0x800) or one of its DLC
-// (base + 0x1000 + n) have the game's base title ID.
-bool HoldsContentOf(const FileSys::VirtualFile& file, uint64_t base) {
-    std::string name = file->GetName();
-    std::transform(name.begin(), name.end(), name.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    std::shared_ptr<FileSys::NSP> package;
-    if (Eden::IsPackageFile(name)) {
-        package = std::make_shared<FileSys::NSP>(file);
-    } else if (Eden::IsCardImageFile(name)) {
-        FileSys::XCI image(file);
-        if (image.GetStatus() == Loader::ResultStatus::Success) package = image.GetSecurePartitionNSP();
-    }
-    if (!package || package->GetStatus() != Loader::ResultStatus::Success) return false;
-    for (const auto& [title_id, contents] : package->GetNCAs())
-        if (FileSys::GetBaseTitleID(title_id) == base) return true;
-    return false;
-}
-
-int FindAddOnFiles(const FileSys::VirtualDir& directory, uint64_t base, eden_found_file found, void* user, int depth) {
-    if (!directory || depth > 8) return 0;
-    int count = 0;
-    for (const auto& file : directory->GetFiles())
-        if (HoldsContentOf(file, base)) {
-            found(user, file->GetFullPath().c_str());
-            ++count;
-        }
-    for (const auto& folder : directory->GetSubdirectories()) count += FindAddOnFiles(folder, base, found, user, depth + 1);
-    return count;
-}
-} // namespace
-
-int eden_game_addon_files(uint64_t title_id, const char* updates_dir, const char* game_dir, const char* keys_dir,
-                          eden_found_file found, void* user) {
-    if (!title_id || !updates_dir || !keys_dir || !found) return 0;
+// Native launch-time display-art version: take the detected update when one
+// exists, otherwise parse the base game's NACP. A missing/failed updates
+// scan must NOT mistake an updated game for an unpatched base version.
+int eden_game_glyph_display_version(const char* rom_path, const char* keys_dir,
+                                    uint64_t title_id, char* output, size_t capacity) {
+    if (output && capacity) output[0] = '\0';
+    if (!rom_path || !keys_dir || !title_id || !output || capacity == 0) return 0;
     try {
-        Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
-        FileSys::RealVfsFilesystem vfs;
-        const uint64_t base = FileSys::GetBaseTitleID(title_id);
-        int count = FindAddOnFiles(vfs.OpenDirectory(updates_dir, FileSys::OpenMode::Read), base, found, user, 0);
-        if (game_dir) count += FindAddOnFiles(vfs.OpenDirectory(game_dir, FileSys::OpenMode::Read), base, found, user, 0);
-        return count;
+        std::string version;
+        bool scanned_update = false;
+        {
+            const std::lock_guard lock{ScannedAddOnsMutex()};
+            if (!UpdatesScanCompleted()) return 0;
+            const auto& entries = ScannedAddOns();
+            const auto found = entries.find(FileSys::GetBaseTitleID(title_id));
+            if (found != entries.end() && found->second.update_present) {
+                // An installed update with unreadable version fails closed.
+                scanned_update = true;
+                version = found->second.update;
+            }
+        }
+        if (!scanned_update) {
+            Common::FS::SetEdenPath(Common::FS::EdenPath::KeysDir, keys_dir);
+            FileSys::RealVfsFilesystem vfs;
+            const auto file = vfs.OpenFile(rom_path, FileSys::OpenMode::Read);
+            if (!file) return 0;
+            std::string extension = std::filesystem::path(rom_path).extension().string();
+            std::transform(extension.begin(), extension.end(), extension.begin(),
+                [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            if (!Eden::IsPackageFile(extension) && !Eden::IsCardImageFile(extension))
+                return 0;
+            const auto control = OpenControlRomFs(file, Eden::IsCardImageFile(extension));
+            version = ReadGlyphDisplayVersion(control);
+        }
+        if (version.empty() || version.size() >= capacity) return 0;
+        std::snprintf(output, capacity, "%s", version.c_str());
+        return 1;
     } catch (const std::exception& error) {
-        std::fprintf(stderr, "[ProsperoEden] updates: %s\n", error.what());
+        std::fprintf(stderr, "[ProsperoEden] glyph source version: %s\n", error.what());
         return 0;
     }
 }
@@ -489,32 +441,23 @@ int eden_game_language(const char* rom_path, const char* keys_dir, uint64_t titl
     const auto& codes = Service::Set::available_language_codes;
     if (chosen < 0 || chosen >= static_cast<int>(codes.size())) return chosen;
     uint32_t supported = 0;
-    const auto& scanned = ScannedAddOns();
-    if (const auto found = scanned.find(FileSys::GetBaseTitleID(title_id));
-        title_id && found != scanned.end() && !found->second.update.empty())
-        supported = found->second.languages;
+    {
+        const std::lock_guard lock{ScannedAddOnsMutex()};
+        const auto& scanned = ScannedAddOns();
+        if (const auto found = scanned.find(FileSys::GetBaseTitleID(title_id));
+            title_id && found != scanned.end() && !found->second.update.empty())
+            supported = found->second.languages;
+    }
     if (!supported) supported = eden_game_supported_languages(rom_path, keys_dir);
     namespace NS = Service::NS;
     const auto application = NS::ConvertToApplicationLanguage(codes[static_cast<std::size_t>(chosen)]);
     const auto* priorities = application ? NS::GetApplicationLanguagePriorityList(*application) : nullptr;
     if (!supported || !priorities) return chosen;
-    // The console's order for a language goes on to its neighbours before English: Brazilian
-    // Portuguese to Portuguese, then to Latin American Spanish. A player who chose Portuguese
-    // does not expect Spanish. So: the chosen language and its own variants in the console's
-    // order, then English, and only then the rest of that order. A language code starts with
-    // its two letters ("pt-BR", "pt"), which tells the variants of one language.
-    const auto letters = [](Service::Set::LanguageCode code) { return static_cast<u64>(code) & 0xffff; };
-    const u64 own = letters(codes[static_cast<std::size_t>(chosen)]);
-    const u64 english = u64{'e'} | u64{'n'} << 8;
-    for (int pass = 0; pass < 3; ++pass) {
-        for (const auto language : *priorities) {
-            if ((supported & NS::GetSupportedLanguageFlag(language)) == 0) continue;
-            const auto match = NS::ConvertToLanguageCode(language);
-            if (!match) continue;
-            if ((pass == 0 && letters(*match) != own) || (pass == 1 && letters(*match) != english)) continue;
-            for (std::size_t i = 0; i < codes.size(); ++i)
-                if (codes[i] == *match) return static_cast<int>(i);
-        }
+    for (const auto language : *priorities) {
+        if ((supported & NS::GetSupportedLanguageFlag(language)) == 0) continue;
+        const auto match = NS::ConvertToLanguageCode(language);
+        for (std::size_t i = 0; match && i < codes.size(); ++i)
+            if (codes[i] == *match) return static_cast<int>(i);
     }
     return chosen;
 }
@@ -522,21 +465,39 @@ int eden_game_language(const char* rom_path, const char* keys_dir, uint64_t titl
 int eden_game_addons(uint64_t title_id, char* update_version, size_t capacity, unsigned* dlc_count) {
     if (update_version && capacity) update_version[0] = '\0';
     if (dlc_count) *dlc_count = 0;
-    const auto& scanned = ScannedAddOns();
-    const auto found = scanned.find(FileSys::GetBaseTitleID(title_id));
-    if (!title_id || found == scanned.end()) return 0;
-    if (update_version && capacity) std::snprintf(update_version, capacity, "%s", found->second.update.c_str());
-    if (dlc_count) *dlc_count = found->second.dlc;
-    return !found->second.update.empty() || found->second.dlc != 0;
+    AddOns snapshot;
+    {
+        const std::lock_guard lock{ScannedAddOnsMutex()};
+        const auto& scanned = ScannedAddOns();
+        const auto found = scanned.find(FileSys::GetBaseTitleID(title_id));
+        if (!title_id || found == scanned.end()) return 0;
+        snapshot = found->second;
+    }
+    if (update_version && capacity) std::snprintf(update_version, capacity, "%s", snapshot.update.c_str());
+    if (dlc_count) *dlc_count = snapshot.dlc;
+    return !snapshot.update.empty() || snapshot.dlc != 0;
 }
 
 namespace {
-// The save folder name of the profile games use (profiles.h), as Eden's save paths spell it.
-// Without a profile file (no game has run yet) the one existing user save folder is used.
+// The save folder name of the profile games use: Eden's user 0, the first valid entry of
+// profiles.dat (0x10-byte header, then 0xC8-byte entries starting with the 16-byte UUID), written
+// as Eden's save paths spell it (upper 64 bits, then lower). Eden creates the file on the first
+// game boot; without it the one existing user save folder is used.
 std::string EdenUserFolder(const std::filesystem::path& saves, std::string& error) {
-    // The chosen profile's (profiles.h): a save goes in and comes out for whoever is playing.
-    if (const auto profiles = Eden::Profiles::Read(); !profiles.empty())
-        return profiles[static_cast<std::size_t>(Eden::Profiles::CurrentIndex())].Key();
+    std::vector<char> data;
+    const std::string profiles = Eden::UserDir() + "/nand/system/save/8000000000000010/su/avators/profiles.dat";
+    if (Eden::RyujinxSaves::ReadFile(profiles, data) && data.size() >= 0x650) {
+        for (std::size_t offset = 0x10; offset + 0xC8 <= 0x650; offset += 0xC8) {
+            uint64_t low = 0, high = 0;
+            std::memcpy(&low, data.data() + offset, sizeof(low));
+            std::memcpy(&high, data.data() + offset + 8, sizeof(high));
+            if (!low && !high) continue;
+            char name[33];
+            std::snprintf(name, sizeof(name), "%016llX%016llX", static_cast<unsigned long long>(high),
+                          static_cast<unsigned long long>(low));
+            return name;
+        }
+    }
     std::error_code list_error;
     std::vector<std::string> users;
     for (const auto& entry : Eden::RyujinxSaves::ListFolder(saves, list_error)) {
@@ -600,7 +561,7 @@ int eden_save_import(uint64_t title_id, char* path, size_t capacity) {
         return EDEN_SAVE_NO_USER;
     }
     const std::string title = TitleName(title_id);
-    const fs::path backups = fs::path{Eden::kDataDir} / "backup" / "save-import";
+    const fs::path backups = fs::path{Eden::BackupDir()} / "save-import";
     bool replaced = false;
     if (!Eden::RyujinxSaves::Import(source.saves, root / user / title, root / std::string(32, '0') / title, backups,
                                     title + "-" + TimeStamp(), error, &replaced)) {

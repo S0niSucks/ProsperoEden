@@ -8,9 +8,23 @@ worker=(cache/'native-local/headless/gpu_thread.cpp').read_text()
 start=worker.index('u64 ThreadManager::PushCommand(')
 body=worker[start:worker.index('\n} // namespace',start)]
 assert 'state.queue.EmplaceWait(' not in body
+assert 'state.queue.EmplaceWaitWithStopToken(' in body
+assert 'std::this_thread::sleep_for(std::chrono::microseconds(100))' not in body
+# This fixture exercises queue cancellation, not the DEV time accountant.
+# Remove only the optional RAII profiling wrapper from the generated body.
+timer_start = '        { ::Eden::Performance::DiagnosticTimer full_timer(::Eden::Performance::gpu_queue_full);\n'
+timer_call = ('        pushed = state.queue.EmplaceWaitWithStopToken(stop_source.get_token(),\n'
+              '            std::move(command_data), fence, block);\n'
+              '        }')
+if timer_start in body:
+    assert body.count(timer_start) == 1
+    assert body.count(timer_call) == 1
+    body = body.replace(timer_start, '')
+    body = body.replace(timer_call, timer_call[:-len('\n        }')])
 main=(root/'headless/main.cpp').read_text()
 assert 'system.Pause();' not in main
 code=r'''
+#include "gpu_failure.h"
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -29,22 +43,7 @@ struct ThreadManager {
           Common::SPSCQueue<Item,2> queue; std::condition_variable_any cv; } state;
  std::stop_source stop_source;
  u64 PushCommand(CommandData&&,bool,bool);
- // The worker file defines these after PushCommand; here there is no worker to end.
- void NotifyShutdown();
- void Stop() { stop_source.request_stop(); }
 };
-// headless/CMakeLists.txt times a push that found the queue full (gpu_queue_full), so the body
-// below carries Eden's Timer. This standalone TU does not include headless/performance.h - whose
-// clock is an extern the test would have to link - so the Timer is stubbed here: two atomics and
-// a clock read on scope exit cannot change what the queue does.
-namespace Eden::Performance {
-struct Totals { std::atomic<unsigned long long> calls{}, nanoseconds{}, requested_bytes{}; };
-inline Totals gpu_queue_full;
-class Timer {
-public:
-    explicit Timer(Totals&, unsigned long long = 0, bool = 0) {}
-};
-} // namespace Eden::Performance
 '''+body+r'''
 int main() {
  ThreadManager manager;
@@ -70,6 +69,11 @@ int main() {
 '''
 with tempfile.TemporaryDirectory() as tmp:
  p=Path(tmp)/'check.cpp';p.write_text(code);exe=Path(tmp)/'check'
- subprocess.run(['c++','-std=c++20','-pthread','-fsanitize=address,undefined','-I'+str(cache/'source/src'),str(p),'-o',str(exe)],check=True)
+ # Native generated queue header adds the cancellable producer method;
+ # the plain pinned upstream header intentionally does not have that method.
+ subprocess.run(['c++','-std=c++20','-pthread','-fsanitize=address,undefined',
+                 '-I'+str(root/'headless'),
+                 '-I'+str(cache/'native-local/headless/include'),
+                 '-I'+str(cache/'source/src'),str(p),'-o',str(exe)],check=True)
  subprocess.run([str(exe)],check=True,timeout=10)
 print('GPU producer cancellation: PASS full queue, ordered contents, stopped enqueue and fence wait')

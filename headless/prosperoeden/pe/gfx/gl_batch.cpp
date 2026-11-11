@@ -40,24 +40,11 @@ void main()
 {
     vec2 corner = kCorners[gl_VertexID];
     int shape = int(a_params.w + 0.5);
-    if (shape == 9 || shape == 10)
-    {
-        vec2 top = mix(a_rect.xy, a_rect.zw, corner.x);
-        vec2 bottom = mix(a_border.xy, a_border.zw, corner.x);
-        vec2 virt = mix(top, bottom, corner.y);
-        float w = mix(a_params.x, a_params.y, corner.x);
-        vec2 ndc = (virt * u_viewport.x + u_viewport.yz) / u_surface * 2.0 - 1.0;
-        gl_Position = vec4(ndc.x * w, -ndc.y * w, 0.0, w);
-        v_virtual = virt; v_local = vec2(0.0); v_half = vec2(0.0);
-        v_st = corner; v_uv = corner;
-        v_top = a_top; v_bottom = a_bottom; v_border = vec4(0.0);
-        v_params = a_params; v_extra = a_extra;
-        return;
-    }
     vec2 size = a_rect.zw;
     // Grow shapes by their softness plus one output pixel for anti-aliasing;
     // glyph and image quads map texels exactly and are not grown.
-    float pad = (shape == 1 || shape == 3) ? 0.0 : a_params.z + 1.0 / u_viewport.x;
+    float pad = (shape == 1 || shape == 3 || shape == 9 || shape == 10 || shape == 11 || shape == 12 || shape == 13 || shape == 14 || shape == 15) ?
+        0.0 : a_params.z + 1.0 / u_viewport.x;
     vec2 local = mix(vec2(-pad), size + vec2(pad), corner);
     vec2 virt = a_rect.xy + local;
     vec2 unit = local / max(size, vec2(1e-3));
@@ -71,9 +58,84 @@ void main()
     v_border = a_border;
     v_params = a_params;
     v_extra = a_extra;
+    float clip_w = 1.0;
+    if (shape == 9 || shape == 10 || shape == 11 || shape == 12 || shape == 13 || shape == 14 || shape == 15) {
+        // A real projective quad, not a horizontally squashed 2D image.
+        // Shared retail-case geometry across all titles and console/host.
+        const float a = a_params.x;
+        const float cs = cos(a), sn = sin(a);
+        const vec2 centre = a_rect.xy + 0.5 * size;
+        const vec2 local = (corner - 0.5) * size;
+        float x, z;
+        if (shape == 9 || shape == 11) {
+            // Place a real back surface on the FAR plane of the case.
+            // It must not occupy the same Z as the front artwork.
+            float depth = a_params.y > 0.5 ? 44.0 : 0.0;
+            x = local.x * cs - depth * sn;
+            z = -local.x * sn - depth * cs;
+            vec2 oriented = vec2(a_params.y > 0.5 ? 1.0 - corner.x : corner.x,
+                                 corner.y);
+            v_uv = mix(a_extra.xy, a_extra.zw, oriented);
+        } else if (shape == 10 || shape == 14 || shape == 15) {
+            // The side lies between two parallel printed planes. It occupies
+            // real space in Z rather than being a 2D strip in screen-space.
+            float side = a_extra.x < -0.5 ? -0.5 :
+                         a_extra.x > 0.5 ? 0.5 :
+                         (sn > 0.0 ? -0.5 : 0.5);
+            float edge_x = side * size.x;
+            float depth = a_params.z + corner.x * a_params.y;
+            x = edge_x * cs - depth * sn;
+            z = -edge_x * sn - depth * cs;
+            if (shape == 14) v_uv = vec2(corner.x, corner.y);
+        } else if (shape == 12) {
+            float depth = corner.y * a_params.z;
+            x = local.x * cs - depth * sn;
+            z = -local.x * sn - depth * cs;
+        } else {
+            // True rounded corner: eight 3D quarter-arc segments, extruded
+            // along the full case depth. This is an actual curved silhouette,
+            // NOT a 2D rounded border or a flat image on the side.
+            const float pi = 3.14159265358979323846;
+            int quadrant = int(a_extra.x + 0.5);
+            float theta0 = quadrant == 0 ? pi :
+                           quadrant == 1 ? 1.5*pi :
+                           quadrant == 2 ? 0.0 : 0.5*pi;
+            float theta = theta0 +
+                (a_extra.y + corner.y) / max(1.0, a_extra.z) * 0.5*pi;
+            float radius = a_params.y;
+            float side_x = (quadrant == 0 || quadrant == 3 ? -1.0 : 1.0);
+            float side_y = (quadrant <= 1 ? -1.0 : 1.0);
+            float rounded_x = side_x * (0.5 * size.x - radius) +
+                              radius * cos(theta);
+            float rounded_y = side_y * (0.5 * size.y - radius) +
+                              radius * sin(theta);
+            float depth = corner.x * a_params.z;
+            x = rounded_x * cs - depth * sn;
+            z = -rounded_x * sn - depth * cs;
+            // Normal on curved side, consumed by the lit plastic material.
+            v_uv = vec2(cos(theta), sin(theta));
+            virt.y = rounded_y;
+        }
+        // One rigid transform for all six surfaces. Previously the caps
+        // faked a separate vertical slope, leaving visibly disconnected
+        // white triangles at the plastic corners.
+        float world_y = shape == 12 ?
+            (a_params.y > 0.5 ? 0.5 : -0.5) * size.y :
+            shape == 13 ? virt.y : local.y;
+        const float pitch = 0.055;
+        float pitched_y = world_y * cos(pitch) - z * sin(pitch);
+        float pitched_z = world_y * sin(pitch) + z * cos(pitch);
+        clip_w = max(0.65, 1.0 - pitched_z / 820.0);
+        // Small camera roll exposes the shell while preserving the paper's
+        // perspective (and retaining the same camera for front/back/corners).
+        virt = centre + vec2(x + pitched_y * 0.018,
+                             pitched_y + x * 0.045) / clip_w;
+        v_virtual = virt;
+    }
     vec2 surface = virt * u_viewport.x + u_viewport.yz;
     vec2 ndc = surface / u_surface * 2.0 - 1.0;
-    gl_Position = vec4(ndc.x, -ndc.y, 0.0, 1.0);
+    // Non-unit W gives hardware perspective-correct image UV interpolation.
+    gl_Position = vec4(ndc.x * clip_w, -ndc.y * clip_w, 0.0, clip_w);
 }
 )";
 
@@ -142,13 +204,135 @@ void main()
         float d = round_box(v_local, v_half, radius);
         color = vec4(fill.rgb, fill.a * (1.0 - smoothstep(-v_params.z, v_params.z, d)));
     }
-    else if (shape == 10)
-    {
-        color = fill;
-    }
-    else if (shape == 3 || shape == 9)
+    else if (shape == 3)
     {
         color = texture(u_texture, v_uv) * fill;
+    }
+    else if (shape == 9)
+    {
+        // The paper is a square-cornered continuous wrap, not three
+        // individually rounded rectangles separated from the side print.
+        float d = round_box(v_local, v_half, 0.0);
+        color = v_params.z > 0.5 ? texture(u_texture, clamp(v_uv, 0.0, 1.0)) * v_top : v_top;
+        float scan_inside = v_params.z > 0.5 ?
+            step(0.0, v_uv.x) * step(v_uv.x, 1.0) *
+            step(0.0, v_uv.y) * step(v_uv.y, 1.0) : 1.0;
+        color.a *= scan_inside * (1.0 - smoothstep(-1.0, 1.0, d));
+    }
+    else if (shape == 14)
+    {
+        // A flat original scan is texture-mapped onto our own dimensional
+        // side plane. The scan carries ink only, not any 3D shell pixels.
+        vec4 ink = texture(u_texture, v_uv);
+        float side_light = 0.81 + 0.19 * (1.0 - v_st.x);
+        color = vec4(ink.rgb * v_top.rgb * side_light, ink.a * v_top.a);
+    }
+    else if (shape == 15)
+    {
+        // User's red empty-spine reference rendered as clean vector features
+        // directly on our physical side plane. No low-resolution texture or
+        // fake game title is ever stretched to cover the height.
+        vec2 p = vec2(v_st.x * 44.0, v_st.y * 730.0);
+        vec3 red = v_top.rgb * (0.85 + 0.15 * (1.0 - v_st.x));
+        float left_outer = 1.0 - smoothstep(-0.9, 0.9,
+            round_box(p - vec2(14.5, 34.0), vec2(8.0, 20.0), 7.7));
+        float left_inner = 1.0 - smoothstep(-0.9, 0.9,
+            round_box(p - vec2(14.5, 34.0), vec2(5.1, 17.0), 5.0));
+        float right_body = 1.0 - smoothstep(-0.9, 0.9,
+            round_box(p - vec2(30.0, 34.0), vec2(7.8, 20.0), 7.5));
+        float left_dot = 1.0 - smoothstep(2.3, 3.9,
+            length(p - vec2(14.5, 25.5)));
+        float right_dot = 1.0 - smoothstep(2.3, 3.9,
+            length(p - vec2(30.0, 42.0)));
+        float footer = 1.0 - smoothstep(-0.8, 0.8,
+            round_box(p - vec2(22.0, 683.0), vec2(12.0, 26.0), 9.0));
+        float footer_inset = 1.0 - smoothstep(-0.8, 0.8,
+            round_box(p - vec2(22.0, 683.0), vec2(8.7, 22.0), 6.0));
+        float symbol = max(max(left_outer - left_inner, right_body),
+                           max(left_dot, footer - footer_inset));
+        vec3 white = vec3(0.96, 0.97, 1.0);
+        vec3 ink = mix(red, white, clamp(symbol, 0.0, 1.0));
+        ink = mix(ink, red, right_dot * 0.92);
+        color = vec4(ink, v_top.a);
+    }
+    else if (shape == 10)
+    {
+        // An inked side wall, not a red overlay on a flat poster. Near/far
+        // planes receive different light; a narrow front-facing lip catches
+        // the rim light without turning the whole wall bright white.
+        float rim = exp(-70.0 * min(v_st.x, 1.0 - v_st.x));
+        float broad = 0.77 + 0.20 * (1.0 - v_st.x);
+        color = mix(v_top, v_bottom, v_st.x);
+        color.rgb = min(vec3(1.0), color.rgb * broad +
+            vec3(0.44, 0.34, 0.36) * rim * 0.18);
+    }
+    else if (shape == 12)
+    {
+        // Rounded top/bottom plastic cap: half-transparent near rim, brighter
+        // distal reflection, subdued middle to retain physical depth.
+        // Solid top/bottom surfaces: diffused light in the plastic, distinct
+        // bright front-edge refraction, and a darker rear-facing inner wall.
+        float front_glint = exp(-48.0 * v_st.y);
+        float rear_shadow = smoothstep(0.58, 1.0, v_st.y);
+        float near_edge = smoothstep(0.0, 0.02, v_st.x) *
+                          smoothstep(0.0, 0.02, 1.0 - v_st.x);
+        color = mix(v_top, v_bottom, v_st.y);
+        color.rgb = min(vec3(1.0), color.rgb * (0.96 - 0.24 * rear_shadow) +
+                        vec3(0.17, 0.19, 0.22) * front_glint);
+        color.a *= near_edge * (0.86 + 0.10 * front_glint);
+    }
+    else if (shape == 13)
+    {
+        // Soft plastic with a curved normal-derived highlight and an
+        // illuminated front rim, darkening naturally toward the rear plane.
+        vec2 n = normalize(v_uv);
+        vec2 key_light = normalize(vec2(-0.58, -0.82));
+        vec2 secondary = normalize(vec2(0.92, -0.39));
+        float diffuse = 0.48 + 0.37 * max(dot(n, key_light), 0.0);
+        float highlight = pow(max(dot(n, key_light), 0.0), 20.0);
+        float fill = 0.11 * max(dot(n, secondary), 0.0);
+        // Curved corner normals interpolate across eight physical strips.
+        // The highlight tracks their actual curvature, not a screen border.
+        float near_glint = 0.20 * exp(-20.0 * v_st.x);
+        float rear_shadow = 1.0 - 0.23 * v_st.x;
+        vec4 material = mix(v_top, v_bottom, v_st.x);
+        material.rgb = min(vec3(1.0), material.rgb *
+            (diffuse + fill + near_glint) * rear_shadow +
+            vec3(0.62, 0.72, 0.83) * highlight * 0.41);
+        material.a *= 0.90 - 0.15 * v_st.x;
+        color = material;
+    }
+    else if (shape == 11)
+    {
+        // One molded shell around the SAME paper, projected on its face.
+        // Only the 12px RIGHT opening, 13px TOP and 13px BOTTOM are lit.
+        // The rest is fully transparent, never a second overlay on the ink.
+        float from_edge = (1.0 - v_st.x) * (v_half.x * 2.0);
+        float from_cap = min(v_st.y, 1.0 - v_st.y) * (v_half.y * 2.0);
+        float bevel = 1.0 - smoothstep(8.0, 13.0, from_edge);
+        float outer_glint = exp(-0.5 * pow((from_edge - 2.3) / 1.25, 2.0));
+        float inner_ridge = exp(-0.5 * pow((from_edge - 9.0) / 1.55, 2.0));
+        float grazing = 0.15 + 0.20 * pow(abs(sin(v_params.x)), 1.5);
+        // A visible molded front/rear cap line even when the horizontal
+        // depth surface projects almost edge-on (especially at the bottom).
+        float cap_band = 1.0 - smoothstep(11.5, 13.2, from_cap);
+        float cap_outer = exp(-0.5 * pow((from_cap - 1.8) / 1.25, 2.0));
+        float cap_inner = exp(-0.5 * pow((from_cap - 11.5) / 1.6, 2.0));
+        float cap_sheen = 0.78 + 0.22 * cos(v_st.x * 5.8 + v_params.x);
+        float cap_intensity = (0.53 * cap_band + 0.30 * cap_outer +
+                               0.25 * cap_inner) * cap_sheen;
+        float rim_intensity = (0.27 + grazing) * bevel +
+                              0.44 * outer_glint + 0.22 * inner_ridge;
+        // Fine manufacturing grain on PLASTIC ONLY, never on the scan.
+        float grain = 0.96 + 0.04 * sin(v_st.y * 670.0);
+        float sheen = 0.5 + 0.5 * sin(v_st.y * 7.0 + v_params.x * 0.65);
+        vec3 material = mix(v_top.rgb, vec3(0.99, 0.995, 1.0),
+                            0.29 + 0.19 * sheen);
+        float shell = 1.0 - smoothstep(-1.0, 1.0,
+                            round_box(v_local, v_half, 22.0));
+        color = vec4(material, v_top.a * shell *
+                     clamp(max(rim_intensity, cap_intensity) * grain,
+                           0.0, 0.96));
     }
     else if (shape == 8)
     {
@@ -188,14 +372,15 @@ GlBatch::~GlBatch()
 
 void GlBatch::release()
 {
-    if (buffer_ != 0)
-        glDeleteBuffers(1, &buffer_);
-    if (vao_ != 0)
-        glDeleteVertexArrays(1, &vao_);
+    glDeleteBuffers(static_cast<GLsizei>(buffers_.size()), buffers_.data());
+    glDeleteVertexArrays(static_cast<GLsizei>(vaos_.size()), vaos_.data());
     if (program_ != 0)
         glDeleteProgram(program_);
-    buffer_ = vao_ = program_ = 0;
-    capacity_ = 0;
+    buffers_.fill(0);
+    vaos_.fill(0);
+    capacities_.fill(0);
+    next_slot_ = 0;
+    program_ = 0;
 }
 
 bool GlBatch::init()
@@ -203,20 +388,26 @@ bool GlBatch::init()
     program_ = build_program("batch2d", kVertex, kFragment);
     if (program_ == 0)
         return false;
-    glGenVertexArrays(1, &vao_);
-    glGenBuffers(1, &buffer_);
-    glBindVertexArray(vao_);
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_);
+    glGenVertexArrays(static_cast<GLsizei>(vaos_.size()), vaos_.data());
+    glGenBuffers(static_cast<GLsizei>(buffers_.size()), buffers_.data());
     constexpr GLsizei stride = sizeof(Instance);
-    for (GLuint attribute = 0; attribute < 6; ++attribute)
+    // Each VAO remembers its own VBO. Rotating both prevents a stalled
+    // read of the previous frame's same-size storage in the PS5 GL driver.
+    for (std::size_t slot = 0; slot < buffers_.size(); ++slot)
     {
-        glEnableVertexAttribArray(attribute);
-        glVertexAttribPointer(
-            attribute, 4, GL_FLOAT, GL_FALSE, stride,
-            reinterpret_cast<const void *>(static_cast<std::uintptr_t>(attribute * 16)));
-        glVertexAttribDivisor(attribute, 1);
+        glBindVertexArray(vaos_[slot]);
+        glBindBuffer(GL_ARRAY_BUFFER, buffers_[slot]);
+        for (GLuint attribute = 0; attribute < 6; ++attribute)
+        {
+            glEnableVertexAttribArray(attribute);
+            glVertexAttribPointer(
+                attribute, 4, GL_FLOAT, GL_FALSE, stride,
+                reinterpret_cast<const void *>(static_cast<std::uintptr_t>(attribute * 16)));
+            glVertexAttribDivisor(attribute, 1);
+        }
     }
     glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     return true;
 }
 
@@ -264,29 +455,6 @@ std::uint32_t GlBatch::create_texture(int width, int height, const std::uint8_t 
     return texture;
 }
 
-std::uint32_t GlBatch::create_bc7_texture(int width, int height, const std::uint8_t *blocks, std::size_t size)
-{
-    constexpr GLenum kBc7 = 0x8E8C; // GL_COMPRESSED_RGBA_BPTC_UNORM
-    while (glGetError() != GL_NO_ERROR)
-    {
-    }
-    GLuint texture = 0;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glCompressedTexImage2D(GL_TEXTURE_2D, 0, kBc7, width, height, 0, static_cast<GLsizei>(size), blocks);
-    if (glGetError() != GL_NO_ERROR)
-    {
-        glDeleteTextures(1, &texture);
-        return 0;
-    }
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    return texture;
-}
-
 void GlBatch::delete_texture(std::uint32_t texture)
 {
     if (texture != 0)
@@ -300,12 +468,18 @@ void GlBatch::draw(const DrawList &list, const Viewport &viewport, int surface_w
     const auto &instances = list.instances();
     if (instances.empty())
         return;
-    // Orphan, then fill: re-specifying storage avoids waiting on the GPU's
-    // reads of the previous frame (ps5-opengl drains on same-size reuse).
-    glBindBuffer(GL_ARRAY_BUFFER, buffer_);
-    capacity_ = std::max(capacity_, instances.size());
-    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(capacity_ * sizeof(Instance)), nullptr,
-                 GL_STREAM_DRAW);
+    // The old path orphaned the SAME GL store every frame. PS5 OpenGL can
+    // drain on that operation, making held-D-pad navigation stutter.
+    // Rotate three VBOs, and resize a store only when it actually grows.
+    const std::size_t slot = next_slot_++ % kStreamBufferSlots;
+    glBindBuffer(GL_ARRAY_BUFFER, buffers_[slot]);
+    const auto capacity = StreamCapacity(capacities_[slot], instances.size());
+    if (capacity != capacities_[slot])
+    {
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(capacity * sizeof(Instance)), nullptr,
+                     GL_STREAM_DRAW);
+        capacities_[slot] = capacity;
+    }
     glBufferSubData(GL_ARRAY_BUFFER, 0,
                     static_cast<GLsizeiptr>(instances.size() * sizeof(Instance)),
                     instances.data());
@@ -323,7 +497,8 @@ void GlBatch::draw(const DrawList &list, const Viewport &viewport, int surface_w
 
     GLuint bound_texture = 0;
     bool scissor = false;
-    glBindVertexArray(vao_);
+    Rect last_scissor_clip{};
+    glBindVertexArray(vaos_[slot]);
     for (const Run &run : list.runs())
     {
         if (run.count == 0)
@@ -335,18 +510,30 @@ void GlBatch::draw(const DrawList &list, const Viewport &viewport, int surface_w
         }
         if (run.clipped)
         {
-            const float x0 = std::floor(run.clip.x * viewport.scale + viewport.offset_x);
-            const float y0 = std::floor(run.clip.y * viewport.scale + viewport.offset_y);
-            const float x1 =
-                std::ceil((run.clip.x + run.clip.w) * viewport.scale + viewport.offset_x);
-            const float y1 =
-                std::ceil((run.clip.y + run.clip.h) * viewport.scale + viewport.offset_y);
+            // Runs with different textures often share the same clip. Keep
+            // the actual last GL scissor and avoid recomputing/submitting it
+            // for every image/text run in a clipped library panel.
+            const bool new_scissor =
+                !scissor || run.clip.x != last_scissor_clip.x ||
+                run.clip.y != last_scissor_clip.y ||
+                run.clip.w != last_scissor_clip.w ||
+                run.clip.h != last_scissor_clip.h;
             if (!scissor)
                 glEnable(GL_SCISSOR_TEST);
             scissor = true;
-            glScissor(static_cast<GLint>(x0), surface_height - static_cast<GLint>(y1),
-                      static_cast<GLsizei>(std::max(0.0f, x1 - x0)),
-                      static_cast<GLsizei>(std::max(0.0f, y1 - y0)));
+            if (new_scissor)
+            {
+                const float x0 = std::floor(run.clip.x * viewport.scale + viewport.offset_x);
+                const float y0 = std::floor(run.clip.y * viewport.scale + viewport.offset_y);
+                const float x1 =
+                    std::ceil((run.clip.x + run.clip.w) * viewport.scale + viewport.offset_x);
+                const float y1 =
+                    std::ceil((run.clip.y + run.clip.h) * viewport.scale + viewport.offset_y);
+                glScissor(static_cast<GLint>(x0), surface_height - static_cast<GLint>(y1),
+                          static_cast<GLsizei>(std::max(0.0f, x1 - x0)),
+                          static_cast<GLsizei>(std::max(0.0f, y1 - y0)));
+                last_scissor_clip = run.clip;
+            }
         }
         else if (scissor)
         {

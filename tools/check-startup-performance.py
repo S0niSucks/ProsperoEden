@@ -3,6 +3,7 @@
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
@@ -10,21 +11,35 @@ assert not re.search(r'\b(?:__syscall|syscall)\s*\(', (root / 'headless/performa
 cache = Path((root / '.local/headless-cache').read_text().strip())
 source = cache / 'source/src'
 original = (source / 'common/thread.cpp').read_text()
-derived = (cache / 'native-local/headless/thread.cpp').read_text()
-# The include names the port folder as the build was configured (a symlinked checkout differs).
-include, derived = derived.split('\n', 1)
-assert include.startswith('#include "') and Path(include[10:-1]).resolve() == root / 'headless/performance.h', include
-assert derived == original.replace(
+derived = (root / 'vendor/encore-active/eden-core/src' / 'common/thread.cpp').read_text()
+include_line, derived_body = derived.split('\n', 1)
+assert include_line.startswith('#include "') and include_line.endswith('"')
+# Cached CI/native derivatives can remember the checkout path they were generated from.
+# The contract is the injected performance header, not that stale absolute checkout prefix.
+assert Path(include_line[len('#include "'):-1]).name == 'performance.h'
+assert derived_body == original.replace(
     'void SetCurrentThreadName(const char* name) {',
     'void SetCurrentThreadName(const char* name) {\n    ::Eden::Performance::RegisterWorker(name);')
 main = (root / 'headless/main.cpp').read_text()
 assert main.index('Performance::PlatformChecks()') < main.index('Common::Log::Initialize()')
-# Periodic sampling is allowed only in the explicit development profile branch.
+# Development profiling owns periodic snapshots. Shipping blocks on the ordinary completion
+# condition and carries no profiler/watchdog wakeup in the gameplay hot path.
 development_wait = main.split('#ifdef EDEN_DEV_PROFILE\n                        for ', 1)[1].split('#elif defined(EDEN_DEV_ROM_ID)', 1)[0]
-assert main.count('Performance::Snapshot()') == development_wait.count('Performance::Snapshot()') == 1
-assert 'completion->wake.wait(lock,' in main
-assert 'completion->wake.wait(lock, completed);' in main
+assert development_wait.count('Performance::Snapshot()') == 1
+assert main.count('Performance::Snapshot()') == 1
+shipping = main.split('// Shipping path: no periodic profiler/watchdog work while a game runs.', 1)[1].split('#endif', 1)[0]
+assert 'Performance::Snapshot()' not in shipping
+assert 'wait_for' not in shipping
+assert 'completion->wake.wait(lock, completed);' in shipping
 assert 'completion->return_to_menu' in main
+if sys.platform == 'darwin':
+    # The executable harness below intentionally exercises Linux/x86 host APIs
+    # (CPUID/RDTSC, sched_getaffinity, clock_getcpuclockid and GNU ld --wrap).
+    # On Apple Silicon, keep every source/derivative assertion above and leave
+    # that Linux runtime control to CI; the native PS5 build compiles the real
+    # x86_64-sie-ps5 implementation immediately after these source checks.
+    print('Startup performance source/derivative contract PASS (Linux x86 runtime harness deferred to CI)')
+    raise SystemExit(0)
 code = r'''
 #include "performance.h"
 #include "fastmem.h"
@@ -49,16 +64,10 @@ extern "C" void ps5_opengl_heap_snapshot(const char*, unsigned) {}
 namespace Eden::Fastmem {
 Stats WindowStats() noexcept { return {}; }
 std::uint64_t Faults() noexcept { return 0; }
-std::uint64_t Demotions() noexcept { return 0; }
 }
 int main() {
     using namespace Eden::Performance;
     PlatformChecks();
-    // A Timer counts only while timers are on (development builds and cost runs).
-    Totals untimed;
-    for (unsigned i = 0; i < 1000; ++i) { Timer timer(untimed, 16); }
-    assert(untimed.calls == 0 && untimed.requested_bytes == 0 && untimed.nanoseconds == 0);
-    timers_on = true;
     Totals timed;
     for (unsigned i = 0; i < 1000; ++i) { Timer timer(timed, 16); }
     assert(timed.calls == 1000 && timed.requested_bytes == 16000 && timed.nanoseconds > 0);
@@ -100,45 +109,6 @@ int main() {
     worker.join(); // No sampling after shutdown or join.
 }
 '''
-# The overlay's per-core load leaves the core's idle polling out (GuestCoreLoads): a core that
-# burns 300 ms of CPU, 225 ms of it polling while idle, reads about 75 ms of work, not 300.
-loads_code = r'''
-#include "performance.h"
-#include "fastmem.h"
-#include <atomic>
-#include <cassert>
-#include <chrono>
-#include <cstdio>
-#include <thread>
-extern "C" void ps5_opengl_heap_snapshot(const char*, unsigned) {}
-namespace Eden::Fastmem {
-Stats WindowStats() noexcept { return {}; }
-std::uint64_t Faults() noexcept { return 0; }
-std::uint64_t Demotions() noexcept { return 0; }
-}
-static void Burn(std::chrono::milliseconds length) {
-    const auto end = std::chrono::steady_clock::now() + length;
-    while (std::chrono::steady_clock::now() < end) std::atomic_signal_fence(std::memory_order_seq_cst);
-}
-int main() {
-    using namespace Eden::Performance;
-    using namespace std::chrono_literals;
-    PlatformChecks();
-    RegisterWorker("CPUCore_2");
-    unsigned loads[4];
-    GuestCoreLoads(loads);                 // asks for readings
-    SampleCoreCpu(2);                      // the first one
-    std::this_thread::sleep_for(260ms);
-    GuestCoreLoads(loads);                 // takes it as the start
-    Burn(300ms);
-    CountIdle(2, 300'000'000, false, 225'000'000);
-    SampleCoreCpu(2);
-    GuestCoreLoads(loads);
-    std::printf("core 2 load %u%%\n", loads[2]);
-    // 75 ms of work over ~560 ms: about 13%; counting the polling as work would read about 54%.
-    assert(loads[2] != ~0u && loads[2] >= 4 && loads[2] <= 30);
-}
-'''
 with tempfile.TemporaryDirectory(prefix='eden-startup-') as directory:
     directory = Path(directory)
     (directory / 'check.cpp').write_text(code)
@@ -151,16 +121,6 @@ with tempfile.TemporaryDirectory(prefix='eden-startup-') as directory:
                     str(source / 'common/x64/rdtsc.cpp'), str(source / 'common/steady_clock.cpp'),
                     '-Wl,--wrap=clock_gettime', '-o', str(executable)], check=True)
     output = subprocess.check_output([str(executable)], text=True, timeout=15)
-    (directory / 'loads.cpp').write_text(loads_code)
-    loads_executable = directory / 'loads'
-    subprocess.run(['clang++-18', '-std=c++20', '-O2', '-pthread', '-DARCHITECTURE_x86_64',
-                    '-I', str(root / 'headless'), '-I', str(root / 'src'), '-I', str(source),
-                    '-I', str(root / '.deps/fmt-12.1.0/include'),
-                    str(directory / 'loads.cpp'), str(root / 'headless/performance.cpp'),
-                    str(root / 'src/memory_pages.cpp'), str(source / 'common/cpu_features.cpp'),
-                    str(source / 'common/x64/rdtsc.cpp'), str(source / 'common/steady_clock.cpp'),
-                    '-o', str(loads_executable)], check=True)
-    print(subprocess.check_output([str(loads_executable)], text=True, timeout=15).strip())
     assert 'EDEN_PERF_CPU_CLOCK_CHECK valid=1 ' in output
     assert 'EDEN_PERF_CPU_CLOCK_CHECK valid=0 ' in output
     assert output.count('EDEN_PERF_OWNER_CLOCK_CHECK valid=1 ') == 1
@@ -181,4 +141,4 @@ with tempfile.TemporaryDirectory(prefix='eden-startup-') as directory:
     for index, expected in ((1, '-22'), (3, '-95'), (4, '-95')):
         assert re.search(r'EDEN_PERF_CPU_POINT core=0 .*cpu_ns=' + expected + ' ', snapshots[index])
     assert re.search(r'EDEN_PERF_CPU_POINT core=1 .*cpu_ns=\d+ thread=456 pc=1234 svc=ffffffff', snapshots[0])
-print('Startup checks, owner CPU qualification, unavailable-clock controls and per-core load without idle polling PASS')
+print('Startup checks, owner CPU qualification and unavailable-clock controls PASS')

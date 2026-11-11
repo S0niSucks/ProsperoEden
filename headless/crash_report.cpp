@@ -2,7 +2,9 @@
 // The crash report (crash_report.h). What the handler runs is in this file and uses only system
 // calls, atomics and the buffers below.
 #include "crash_report.h"
-#include "build_identity.h"
+#ifdef PS5_NATIVE
+#include "performance.h"
+#endif
 
 #include <signal.h>
 #include <algorithm>
@@ -31,8 +33,6 @@ std::int64_t sceKernelGetDirectMemorySize();
 std::int32_t sceKernelAvailableDirectMemorySize(std::int64_t, std::int64_t, std::size_t, std::int64_t*, std::size_t*);
 std::size_t eden_heap_committed(void);
 std::size_t eden_heap_large_held(unsigned* blocks);
-std::size_t eden_heap_last_failure(unsigned* why, std::size_t* count);
-std::uintptr_t eden_guest_write_refused(unsigned* why, unsigned* state) noexcept;
 #endif
 // The app's code, from the link (tools/unwind.ld).
 extern const char __eden_text_start[];
@@ -78,7 +78,6 @@ std::time_t started_at = 0;
 long utc_offset = 0;
 char logs[200];
 char version[40];
-char build_identity[65]; // copied before the handler runs; no file access or hashing in a signal
 char sessions[2][400];
 std::atomic<unsigned> session_now{0};
 std::atomic<bool> reported{false};  // the report is written: the helper threads act
@@ -301,9 +300,7 @@ void Compose(const Kind* kind, int code, std::uint64_t address, const Registers&
     t.Put(version);
     t.Put(" (code size 0x");
     t.Hex(CodeEnd() - CodeStart());
-    t.Put(")\nbuild identity: ");
-    t.Put(build_identity);
-    t.Put("\ntime: ");
+    t.Put(")\ntime: ");
     t.Dec(static_cast<std::uint64_t>(stamp.year), 4);
     t.Put('-');
     t.Dec(stamp.month, 2);
@@ -348,6 +345,15 @@ void Compose(const Kind* kind, int code, std::uint64_t address, const Registers&
     t.Put(sessions[session_now.load(std::memory_order_acquire) & 1]);
     t.Put('\n');
 #ifdef PS5_NATIVE
+    // No periodic log file in quiet mode. Preserve coarse progress inside
+    // the crash report itself, even if the last GPU command never returned.
+    t.Put("gpu completed commands (64-step sample): ");
+    t.Dec(gpu_completed_commands.load(std::memory_order_relaxed));
+    t.Put("\nwatchdog suspected stalls: ");
+    t.Dec(gpu_stall_suspicions.load(std::memory_order_relaxed));
+    t.Put("\ninvalid guest-memory accesses: ");
+    t.Dec(::Eden::Performance::unmapped_access_count.load(std::memory_order_relaxed));
+    t.Put('\n');
     {
         std::int64_t start = 0;
         std::size_t largest = 0;
@@ -367,37 +373,6 @@ void Compose(const Kind* kind, int code, std::uint64_t address, const Registers&
         t.Put(" MiB in ");
         t.Dec(blocks);
         t.Put(" large blocks\n");
-        // A std::bad_alloc names no size: the heap keeps the last request it refused and why.
-        unsigned why = 0;
-        std::size_t refused = 0;
-        const std::size_t failed = eden_heap_last_failure(&why, &refused);
-        if (refused != 0) {
-            static constexpr const char* kWhy[] = {
-                "", ": no allocator for a new piece", ": the console had no memory for a new piece",
-                ": the heap was at its limit", ": its size does not fit in memory"};
-            t.Put("heap refused: ");
-            t.Dec(refused);
-            t.Put(refused == 1 ? " request, the last of " : " requests, the last of ");
-            if (failed == static_cast<std::size_t>(-1)) t.Put("an impossible size");
-            else {
-                t.Dec(failed);
-                t.Put(" bytes");
-            }
-            t.Put(why < sizeof(kWhy) / sizeof(kWhy[0]) ? kWhy[why] : "");
-            t.Put('\n');
-        }
-        // A write to the guest's memory the memory service gave up on (src/guest_memory_service.inc).
-        unsigned refused_why = 0, refused_state = 0;
-        if (const std::uintptr_t refused = eden_guest_write_refused(&refused_why, &refused_state)) {
-            static constexpr const char* kState[] = {"Zero", "Own", "Shared", "Fine"};
-            t.Put("guest memory: a write at 0x");
-            t.Hex(refused);
-            t.Put(refused_why == 1 ? " was refused after 17 faults in a row with nothing to change"
-                                   : " was refused: no block was left for its slot");
-            t.Put(", the slot ");
-            t.Put(refused_state < 4 ? kState[refused_state] : "locked");
-            t.Put('\n');
-        }
     }
 #endif
     t.Put("registers:");
@@ -546,7 +521,7 @@ void WaitForReport() noexcept {
 // Starts the app again (or closes it), calling only the system.
 void Restarter() {
     WaitForReport();
-    Sleep(300000);  // what was printed reaches the log files (log_flusher.h)
+    Sleep(300000);  // what was printed reaches the log files (log_pipe.h)
     if (!leave.load(std::memory_order_acquire)) eden_restart_app();
     eden_exit_app();
     helper_failed.store(true, std::memory_order_release);
@@ -574,7 +549,6 @@ bool Readable(const void* address, std::size_t bytes) noexcept {
 }
 
 void Install(const std::string& logs_folder, const char* app_version, bool restarted) {
-    Eden::ReadBuildIdentity(build_identity);
     if (installed) return;
     CopyText(logs, sizeof(logs), logs_folder.c_str());
     CopyText(version, sizeof(version), app_version);

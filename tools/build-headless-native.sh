@@ -8,16 +8,33 @@ probe=OFF
 if [[ ${1:-} == --devices ]]; then devices=ON; fi
 if [[ ${1:-} == --graphics ]]; then graphics=ON; fi
 if [[ ${1:-} == --gpu-probe ]]; then graphics=ON; probe=ON; fi
-jobs=${EDEN_BUILD_JOBS:-$(nproc)}
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
+source "$root/tools/host-env.sh"
+eden_host_env "$root"
+jobs=${EDEN_BUILD_JOBS:-$(eden_host_jobs)}
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid EDEN_BUILD_JOBS: $jobs" >&2; exit 1; }
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 command -v ninja >/dev/null
 cache=$(command -v ccache)
-root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root"
+# Source provenance travels with the app; the scratch tree is a detached
+# upstream snapshot, so derive the SHA from our actual Encore checkout.
+source_commit=$(git -C "$root" rev-parse --verify HEAD)
+# Do not conflate GitHub run numbers with Encore's R-revisions.
+build_label="${EDEN_LAUNCHER_BUILD_LABEL:-$(python3 -B "$root/tools/ci/derive-encore-build-label.py")}"
+[[ "$build_label" =~ ^R[0-9]+$ ]] || { echo "Invalid Encore build label: $build_label" >&2; exit 1; }
+[[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || {
+    echo "Cannot attest the native Encore source commit" >&2
+    exit 1
+}
 bash tools/build-core-fixture.sh
 scratch=$(cat .local/headless-cache)
-[[ "$scratch" == "${XDG_CACHE_HOME:-$HOME/.cache}"/ps5-eden-headless.* && "$(cat "$scratch/owner")" == "$root" ]]
+[[ "$scratch" == "${XDG_CACHE_HOME:-$HOME/.cache}"/ps5-eden-headless.* && "$(cd -- "$(cat "$scratch/owner")" && pwd -P)" == "$root" ]]
+# Static release preflight has no extracted Eden source yet. At this later
+# native stage, enforce patch applicability to the actual pinned upstream.
+if [[ ${EDEN_SKIP_SOURCE_CHECKS:-0} != 1 && ${EDEN_SKIP_PREBUILD_SOURCE_CHECKS:-0} != 1 ]]; then
+    python3 -B "$root/tools/check-dummy-thread-waits.py" --require-pinned-source
+    python3 -B "$root/tools/check-dynarmic-icache.py" --require-pinned-source
+fi
 # Cache the read-only native dependency trees beside the upstream sources.
 # Repeated header checks across /mnt/c took minutes before compilation began.
 if [[ ! -f "$scratch/sdk/.complete" ]]; then
@@ -37,11 +54,72 @@ export PKG_CONFIG_PATH=
 mkdir -p "$PKG_CONFIG_LIBDIR"
 cdeps="$EDEN_NATIVE_C_DEPS"
 test -f "$cdeps/lib/libcrypto.a"
+python3 -B "$root/tools/materialize-openssl-cert.py"     "$scratch/source/.patch/openssl/0001-add-bundled-cert.patch"     "$cdeps/include/openssl/cert.h"
 ffmpeg="$scratch/ffmpeg-native/install"
 test -f "$ffmpeg/lib/libavcodec.a" || { echo 'Run tools/build-headless-ffmpeg.sh first.' >&2; exit 1; }
+# A fresh Git checkout gives every fork-owned source a new mtime, which makes a restored Ninja
+# tree rebuild it even when its bytes did not change. Preserve a content+mtime manifest inside the
+# cached scratch tree: matching files recover their previous mtime, while changed files keep the
+# fresh checkout mtime and are rebuilt normally. Missing objects are still rebuilt by Ninja.
+python3 -B - "$root" "$scratch/fork-source-stamps.json" <<'PY_STAMPS'
+import hashlib, json, os, pathlib, subprocess, sys
+root = pathlib.Path(sys.argv[1])
+manifest_path = pathlib.Path(sys.argv[2])
+previous = {}
+try:
+    previous = json.loads(manifest_path.read_text())
+except (FileNotFoundError, json.JSONDecodeError, OSError):
+    pass
+
+tracked = subprocess.check_output(
+    ['git', '-C', str(root), 'ls-files', '-z', 'headless'], text=False
+).split(b'\0')
+extensions = {'.c', '.cc', '.cpp', '.h', '.hpp', '.inc', '.cmake'}
+files = []
+for raw in tracked:
+    if not raw:
+        continue
+    rel = raw.decode()
+    path = root / rel
+    if not path.is_file():
+        continue
+    if path.suffix not in extensions and path.name != 'CMakeLists.txt':
+        continue
+    files.append((rel, path))
+
+current = {}
+restored = 0
+for rel, path in files:
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    old = previous.get(rel)
+    if isinstance(old, dict) and old.get('sha256') == digest:
+        try:
+            mtime_ns = int(old['mtime_ns'])
+            os.utime(path, ns=(mtime_ns, mtime_ns))
+            restored += 1
+        except (KeyError, ValueError, OSError):
+            pass
+    stat = path.stat()
+    current[rel] = {'sha256': digest, 'mtime_ns': stat.st_mtime_ns}
+
+manifest_path.parent.mkdir(parents=True, exist_ok=True)
+tmp = manifest_path.with_suffix('.new')
+tmp.write_text(json.dumps(current, sort_keys=True, separators=(',', ':')) + '\n')
+tmp.replace(manifest_path)
+print(f'Encore incremental source stamps: {restored}/{len(files)} restored')
+PY_STAMPS
+
 cmake -S "$scratch/source" -B "$scratch/native-local" -G Ninja \
     -DCMAKE_TOOLCHAIN_FILE="$root/headless/ps5.cmake" -DPS5_NATIVE=ON -DEDEN_DEVICE_FRONTEND="$devices" \
-    -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DENABLE_LTO=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+    -DEDEN_ENCORE_SOURCE_COMMIT="$source_commit" \
+    -DEDEN_LAUNCHER_BUILD_LABEL="$build_label" \
+    -DEDEN_SHARED_JIT="${EDEN_SHARED_JIT:-OFF}" \
+    -DEDEN_JIT_COMPILE_BATCH="${EDEN_JIT_COMPILE_BATCH:-OFF}" \
+    -DEDEN_FINAL_RELEASE_PROFILE="${EDEN_FINAL_RELEASE_PROFILE:-OFF}" \
+    -DEDEN_GUEST_WRITE_BRIDGE_DEV="${EDEN_GUEST_WRITE_BRIDGE_DEV:-OFF}" \
+    -DEDEN_UNQUALIFIED_FERMI2D_COPY="${EDEN_UNQUALIFIED_FERMI2D_COPY:-OFF}" \
+    -DEDEN_INLINE_EXCLUSIVES="${EDEN_INLINE_EXCLUSIVES:-OFF}" \
     -DEDEN_PS5_VULKAN="${EDEN_PS5_VULKAN:-OFF}" \
     -DEDEN_VULKAN_DRIVER="${EDEN_VULKAN_DRIVER:-CUSTOM}" \
     -DEDEN_DEV_VULKAN="${EDEN_DEV_VULKAN:-OFF}" \
@@ -65,63 +143,66 @@ cmake -S "$scratch/source" -B "$scratch/native-local" -G Ninja \
 python3 -B "$root/headless/check_slab_lifetime.py" \
     "$scratch/native-local/headless/include/core/hle/kernel/slab_helpers.h" \
     "$scratch/source/src/core/hle/kernel/slab_helpers.h"
-echo "Building Eden with $jobs parallel jobs"
-cmake --build "$scratch/native-local" --target eden-headless core -j "$jobs"
-python3 -B "$root/tools/check-timing-stop.py" "$scratch/native-local"
-python3 -B "$root/tools/check-post-processing-paths.py" "$scratch/native-local"
-# In every build: an object that saw Eden's own table header would write a table the rest keeps sparse.
-python3 -B "$root/tools/check-sparse-header.py" "$scratch/native-local"
-python3 -B "$root/tools/check-gpu-page-table.py" "$scratch/native-local"
-python3 -B "$root/tools/check-build-identity.py"
-python3 -B "$root/tools/check-source-snapshot.py"
-python3 -B "$root/tools/check-multiplayer-headers.py" "$scratch/native-local"
-# Source checks of the release configuration (development builds opt out: EDEN_SKIP_SOURCE_CHECKS=1).
-[[ ${EDEN_SKIP_SOURCE_CHECKS:-0} == 1 ]] && exit 0
-python3 -B "$root/headless/check_audio_shutdown.py" "$scratch/native-local/headless/core.cpp" "$scratch/source/src/core/core.cpp"
-python3 -B "$root/tools/check-audio-queue.py" "$scratch/native-local/headless/sink_stream.cpp" "$scratch/source/src"
-python3 -B "$root/tools/check-load-failure.py"
-python3 -B "$root/tools/check-recent-games.py"
-python3 -B "$root/tools/check-update-versions.py" "$scratch/native-local/headless/registered_cache.cpp"
-python3 -B "$root/tools/check-game-folder-mods.py"
-python3 -B "$root/tools/check-forwarded-rom.py"
-python3 -B "$root/tools/check-game-files-count.py"
-python3 -B "$root/tools/check-games-folder.py"
-python3 -B "$root/tools/check-nro-assets.py"
-python3 -B "$root/tools/check-amiibo-file.py"
-python3 -B "$root/tools/check-library-file.py" "$scratch"
-python3 -B "$root/tools/check-execute-program.py"
-python3 -B "$root/tools/check-system-font-mod.py"
-python3 -B "$root/tools/check-loader-message.py"
-python3 -B "$root/tools/check-wallpaper-paths.py"
-python3 -B "$root/tools/launcher/strings.py" check
-python3 -B "$root/tools/check-nso-memory.py"
-python3 -B "$root/tools/check-performance.py"
-python3 -B "$root/tools/check-performance-settings.py"
-python3 -B "$root/tools/check-startup-performance.py"
-python3 -B "$root/tools/check-worker-affinity.py"
-python3 -B "$root/tools/check-tsc-fallback.py"
-python3 -B "$root/tools/check-jit-protection.py"
-python3 -B "$root/tools/check-jit-allocator.py"
-python3 -B "$root/tools/check-jit-patch-lookup.py"
-python3 -B "$root/tools/check-jit-assert.py"
-python3 -B "$root/tools/check-crash-report.py"
-python3 -B "$root/tools/check-system-keyboard.py"
-python3 -B "$root/tools/check-launcher-theme.py"
-if [[ "$probe" == OFF ]]; then
-    python3 -B "$root/tools/check-exclusive-monitor.py"
-else
-    # The graphics-only entry returns before Core construction; its JIT is dead-stripped.
-    python3 -B "$root/tools/check-gpu-probe.py" --self-test
-    python3 -B "$root/tools/check-native-queue-probe.py"
-fi
-if [[ "$graphics" == ON ]]; then
-    python3 -B "$root/tools/check-native-gpu-thread.py"
-    python3 -B "$root/tools/check-gpu-producer-stop.py"
-    python3 -B "$root/tools/check-gpu-sync-stop.py"
-    python3 -B "$root/tools/check-nvdrv-process-lifetime.py"
-    python3 -B "$root/tools/check-integer-buffer-clear.py"
-    python3 -B "$root/tools/check-game-capture-shutdown.py"
+
+# All authored Python generators must parse before expensive native translation.
+# This does not run tests or execute any generator side effects.
+python3 -B "$root/tools/check-python-source-syntax.py"
+
+# Native PS5 syntax gate: both all-on dev and release compile the same launcher
+# and shader translation units. Dev skips release-only source contracts, NOT this
+# compiler check. The explicit prebuild bypass still disables it.
+if [[ "$graphics" == ON && ${EDEN_SKIP_PREBUILD_SOURCE_CHECKS:-0} != 1 ]]; then
+    python3 -B "$root/tools/check-native-source-syntax.py" "$scratch/native-local"
+    if [[ ${EDEN_DEV_PROFILE:-OFF} == ON ]]; then
+        # The all-on development PKG skips only release-shaped assertions:
+        # it must still exercise the real generated GPU worker and stop-aware
+        # SPSC queue before committing to a full native SDK compilation.
+        python3 -B "$root/tools/check-native-gpu-thread.py"
+        python3 -B "$root/tools/check-gpu-producer-stop.py"
+    fi
 fi
 
-python3 -B tools/check-hud.py
-python3 -B tools/check-game-frame-summary.py
+# Run every source/harness check that only needs the configured/generated source tree BEFORE the
+# expensive native compile. A stale source extraction should fail in minutes, not after a 40-minute
+# build. Development builds intentionally skip these release-shape checks.
+if [[ ${EDEN_SKIP_SOURCE_CHECKS:-0} != 1 && ${EDEN_SKIP_PREBUILD_SOURCE_CHECKS:-0} != 1 ]]; then
+    python3 -B "$root/headless/check_audio_shutdown.py" "$scratch/native-local/headless/core.cpp" "$scratch/source/src/core/core.cpp"
+    python3 -B "$root/tools/check-load-failure.py"
+    python3 -B "$root/tools/check-legacy-migration.py"
+    python3 -B "$root/tools/check-storage-contract.py"
+    python3 -B "$root/tools/check-nso-memory.py"
+    python3 -B "$root/tools/check-performance.py"
+    python3 -B "$root/tools/check-native-fiber-stack-host.py"
+    python3 -B "$root/tools/check-startup-performance.py"
+    python3 -B "$root/tools/check-worker-affinity.py"
+    python3 -B "$root/tools/check-tsc-fallback.py"
+    python3 -B "$root/tools/check-jit-protection.py"
+    python3 -B "$root/tools/check-jit-allocator.py"
+    python3 -B "$root/tools/check-jit-patch-lookup.py"
+    python3 -B "$root/tools/check-jit-assert.py"
+    python3 -B "$root/tools/check-crash-report.py"
+    if [[ "$probe" != OFF ]]; then
+        # The graphics-only entry returns before Core construction; its JIT is dead-stripped.
+        python3 -B "$root/tools/check-gpu-probe.py" --self-test
+        python3 -B "$root/tools/check-native-queue-probe.py"
+    fi
+    if [[ "$graphics" == ON ]]; then
+        python3 -B "$root/tools/check-native-gpu-thread.py"
+        python3 -B "$root/tools/check-gpu-producer-stop.py"
+        python3 -B "$root/tools/check-gpu-sync-stop.py"
+        python3 -B "$root/tools/check-nvdrv-process-lifetime.py"
+        python3 -B "$root/tools/check-integer-buffer-clear.py"
+        python3 -B "$root/tools/check-game-capture-shutdown.py"
+    fi
+    python3 -B "$root/tools/check-hud.py"
+    python3 -B "$root/tools/check-game-frame-summary.py"
+fi
+
+echo "Building Eden with $jobs parallel jobs"
+cmake --build "$scratch/native-local" --target eden-headless core -j "$jobs"
+
+# These two checks intentionally require the compiled dependency graph/native machine code.
+python3 -B "$root/tools/check-sparse-header.py" "$scratch/native-local"
+if [[ ${EDEN_SKIP_SOURCE_CHECKS:-0} != 1 && "$probe" == OFF ]]; then
+    python3 -B "$root/tools/check-exclusive-monitor.py"
+fi

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <cstddef>
 #include <vector>
 
@@ -41,12 +42,16 @@ class StreamRing
         const std::size_t head = head_.load(std::memory_order_relaxed);
         const std::size_t tail = tail_.load(std::memory_order_acquire);
         const std::size_t count = std::min(frames, capacity_ - (head - tail));
-        for (std::size_t i = 0; i < count; ++i)
-        {
-            const std::size_t at = ((head + i) % capacity_) * 2;
-            samples_[at] = stereo[i * 2];
-            samples_[at + 1] = stereo[i * 2 + 1];
-        }
+        if (!count)
+            return 0;
+        // Two contiguous copies replace per-frame modulo/address arithmetic.
+        // Publishing head remains after both spans, preserving SPSC ordering.
+        const std::size_t offset = head % capacity_;
+        const std::size_t first = std::min(count, capacity_ - offset);
+        std::memcpy(samples_.data() + offset * 2, stereo, first * 2 * sizeof(float));
+        if (count != first)
+            std::memcpy(samples_.data(), stereo + first * 2,
+                        (count - first) * 2 * sizeof(float));
         head_.store(head + count, std::memory_order_release);
         return count;
     }
@@ -57,12 +62,14 @@ class StreamRing
         const std::size_t tail = tail_.load(std::memory_order_relaxed);
         const std::size_t head = head_.load(std::memory_order_acquire);
         const std::size_t count = std::min(frames, head - tail);
-        for (std::size_t i = 0; i < count; ++i)
-        {
-            const std::size_t at = ((tail + i) % capacity_) * 2;
-            stereo[i * 2] = samples_[at];
-            stereo[i * 2 + 1] = samples_[at + 1];
-        }
+        if (!count)
+            return 0;
+        const std::size_t offset = tail % capacity_;
+        const std::size_t first = std::min(count, capacity_ - offset);
+        std::memcpy(stereo, samples_.data() + offset * 2, first * 2 * sizeof(float));
+        if (count != first)
+            std::memcpy(stereo + first * 2, samples_.data(),
+                        (count - first) * 2 * sizeof(float));
         tail_.store(tail + count, std::memory_order_release);
         return count;
     }

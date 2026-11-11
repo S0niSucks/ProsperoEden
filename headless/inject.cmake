@@ -6,8 +6,8 @@ function(add_eden_headless)
 endfunction()
 cmake_language(DEFER CALL add_eden_headless)
 # One header is replaced for every target: common/sparse_large_vector.h, whose inline functions
-# decide how Eden's large tables take their memory (headless/CMakeLists.txt writes the derived
-# copy). This runs before any target exists, so the folder leads every include path: a source
+# decide how Eden's large tables take their memory (headless/CMakeLists.txt copies the complete
+# Encore-maintained header). This runs before any target exists, so the folder leads every include path: a source
 # file that saw the original would mix two ways of committing the same table.
 include_directories(BEFORE "${CMAKE_BINARY_DIR}/headless/sparse")
 # The program names its sources in log lines and assertions. In a console build they are written
@@ -20,6 +20,3 @@ if(PS5_NATIVE)
                         "-ffile-prefix-map=${CMAKE_BINARY_DIR}/=build/"
                         "-ffile-prefix-map=${EDEN_PORT_ROOT}/=")
 endif()
-# CMake forbids add_subdirectory inside a deferred call. Create the isolated
-# network/client targets now; the deferred port step only attaches them to core.
-add_subdirectory("${EDEN_PORT_DIR}/network" "${CMAKE_BINARY_DIR}/headless/network")

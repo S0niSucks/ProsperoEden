@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 """Compile the actual queue probe with native API mocks; uncertain work cannot free memory."""
 from pathlib import Path
+import platform
 import subprocess,tempfile
 root=Path(__file__).resolve().parents[1]
 source=(root/'headless/gpu_native_probe.inc').read_text()
+for required in (
+    'sceAgcDriverSubmitDcb(&submit)!=0) std::_Exit(1); // Uncertain GPU ownership: no cleanup.',
+    '__builtin_ia32_clflush', '__builtin_ia32_mfence', '__builtin_ia32_pause',
+    'sceKernelReleaseDirectMemory(physical,bytes)', 'sceKernelUsleep(1000)',
+):
+    assert required in source, f'native queue probe contract changed: {required}'
+if platform.machine().lower() not in ('x86_64', 'amd64'):
+    print('Native queue probe source contract PASS (x86 runtime harness deferred to CI)')
+    raise SystemExit(0)
 code=r"""
 #include <cassert>
 #include <cstdio>
@@ -70,7 +80,7 @@ int main() {
 with tempfile.TemporaryDirectory() as tmp:
     exe=Path(tmp)/'probe'
     subprocess.run(['c++','-std=c++20','-Wall','-Wextra','-Werror',
-                    '-I'+str(root/'.deps/mirror-67bada77f8a43a90da2e94e89b8e7da73c256989/src'),
+                    '-I'+str(root/'.deps/mirror-5f142c7926d0c7fcbbd0ce30794d72f638a43b2a/src'),
                     '-x','c++','-o',str(exe),'-'],input=code,text=True,check=True)
     subprocess.run([str(exe)],check=True,stdout=subprocess.DEVNULL)
 print('Native queue probe PASS: 64 cases, packet ABI, submit failure/timeout preserve GPU allocations')

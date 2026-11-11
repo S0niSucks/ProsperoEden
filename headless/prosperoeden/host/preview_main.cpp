@@ -1,4 +1,3 @@
-#ifndef PE_RUNTIME_PREVIEW
 // ProsperoEden - Launcher preview on a PC: draws the real screens to PNG files.
 // Copyright (C) 2026 BlackBearReloaded
 // SPDX-License-Identifier: GPL-3.0-or-later
@@ -15,7 +14,6 @@
 #include "pe/gfx/system_fonts.hpp"
 #include "pe/ui/launcher.hpp"
 
-#include <array>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GL/glcorearb.h>
@@ -25,16 +23,16 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <thread>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 #include <map>
 #include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <utility>
 #include <vector>
 
@@ -82,6 +80,8 @@ struct Stage
 
     void restart(bool first_start = false)
     {
+        launcher.reset(); // drain old owners before applying next-start fixture roots
+        services.activate_content_snapshot();
         launcher = std::make_unique<pe::ui::Launcher>(services, textures, fonts, first_start);
     }
     void frame()
@@ -106,32 +106,6 @@ struct Stage
             if (pause > 0.0f)
                 wait(pause);
         }
-    }
-    // The sections from the home screen: R1 goes to the next one, L1 to the one before.
-    void library()
-    {
-        press({Key::r1});
-    }
-    void multiplayer()
-    {
-        press({Key::r1, Key::r1});
-    }
-    void settings()
-    {
-        press({Key::l1, Key::l1}); // past About, the last section
-    }
-    // Where things lie four to a row (the Library's covers, the Settings tiles): from the one at
-    // `from` to the one at `to`, down or up first, then along the row.
-    void walk(int from, int to, int columns = 4)
-    {
-        for (int row = from / columns; row < to / columns; ++row)
-            press({Key::down});
-        for (int row = from / columns; row > to / columns; --row)
-            press({Key::up});
-        for (int column = from % columns; column < to % columns; ++column)
-            press({Key::right});
-        for (int column = from % columns; column > to % columns; --column)
-            press({Key::left});
     }
     void render()
     {
@@ -159,29 +133,625 @@ struct Stage
         const std::string path = output + "/" + name + ".png";
         const bool written =
             stbi_write_png(path.c_str(), width, height, 4, pixels.data(), width * 4) != 0;
+        const auto error = glGetError();
         std::fprintf(stderr, "%s: %zu instances, %zu draw calls, GL error 0x%x%s\n", name,
-                     list.instances().size(), batch.last_draw_calls(), glGetError(),
+                     list.instances().size(), batch.last_draw_calls(), error,
                      written ? "" : " (not written)");
-        ok = ok && written;
+        ok = ok && written && error == GL_NO_ERROR;
     }
 };
 
 void pictures(Stage &s)
 {
-    // The opening: the console's launch picture, the mark over it, the picture leaving; then
-    // home, as it settles.
+    if (const char* mode = std::getenv("PE_PREVIEW_APPEARANCE");
+        mode && std::strcmp(mode, "1") == 0) {
+        const auto expect = [&](bool passed, const char* label) {
+            if (!passed) { std::fprintf(stderr,"APPEARANCE_ASSERT_FAIL: %s\n",label); s.ok=false; }
+        };
+        const auto settle = [&] {
+            // Real frames enqueue only visible artwork; give the bounded async
+            // fixture workers actual CPU time before recording each specimen.
+            for (int i = 0; i < 60; ++i) {
+                s.frame();
+                s.render();
+                std::this_thread::sleep_for(std::chrono::milliseconds(3));
+            }
+        };
+        const auto selected_ink_witness = [&](pe::gfx::Rect region) {
+            s.render();
+            unsigned glyphs=0;
+            const auto linear=[](float c) { return c<=0.04045f?c/12.92f:std::pow((c+0.055f)/1.055f,2.4f); };
+            const auto luminance=[&](const float* color) {
+                return 0.2126f*linear(color[0])+0.7152f*linear(color[1])+0.0722f*linear(color[2]);
+            };
+            const auto focus=pe::ui::theme::kFocusCore;
+            const float background[]={focus.r,focus.g,focus.b};
+            for (const auto& instance:s.list.instances()) {
+                if(instance.params[3]!=float(pe::gfx::Shape::glyph)) continue;
+                const float x=instance.rect[0]+instance.rect[2]*0.5f;
+                const float y=instance.rect[1]+instance.rect[3]*0.5f;
+                if(x<region.x || x>region.x+region.w || y<region.y || y>region.y+region.h) continue;
+                ++glyphs;
+                if(pe::ui::theme::palette_id || pe::ui::look().high_contrast) {
+                    expect(instance.color_top[0]<0.12f && instance.color_top[1]<0.12f && instance.color_top[2]<0.12f,
+                           "actual selected glyph ink remains dark after high-contrast drawing");
+                    expect((luminance(background)+0.05f)/(luminance(instance.color_top)+0.05f)>=4.5f,
+                           "actual emitted selected glyph contrast at least 4.5:1");
+                }
+            }
+            expect(glyphs>0,"selected-ink witness observes actual emitted glyphs");
+        };
+        {
+            const auto saved=s.services.preferences();
+            auto pair=saved; pair.volume=33; pair.menu_volume=67;
+            s.services.set_preferences(pair);
+            std::atomic<bool> consistent{true};
+            std::thread reader([&] {
+                for(int i=0;i<10000;++i) {
+                    const auto snapshot=s.services.preferences();
+                    if(snapshot.volume+snapshot.menu_volume!=100) consistent.store(false);
+                }
+            });
+            for(int i=0;i<10000;++i) {
+                pair.volume=i%101; pair.menu_volume=100-pair.volume;
+                s.services.set_preferences(pair);
+            }
+            reader.join();
+            expect(consistent.load(),"mock preferences are coherent across worker/owner writes");
+            s.services.set_preferences(saved);
+        }
+        for (int interface = 0; interface < 3; ++interface) {
+            for (int palette = 0; palette < 5; ++palette) {
+                auto preferences = s.services.preferences();
+                preferences.ui_theme = interface;
+                preferences.ui_palette = palette;
+                preferences.library_layout = 0;
+                s.services.set_preferences(preferences);
+                s.restart(false);
+                settle();
+                const std::string name = std::string("appearance-") +
+                    Eden::Appearance::kInterfaces[interface] + "-" + Eden::Appearance::kPalettes[palette];
+                s.shoot(name.c_str());
+            }
+        }
+        for (int palette=0;palette<5;++palette) {
+            auto advanced=s.services.preferences(); advanced.ui_theme=1; advanced.ui_palette=palette;
+            s.services.set_preferences(advanced); s.restart(false); settle();
+            s.press({Key::triangle}); settle();
+            const auto prefix=std::string("switch-editors-")+Eden::Appearance::kPalettes[palette];
+            s.shoot((prefix+"-game").c_str());
+            s.press({Key::down,Key::down,Key::down,Key::down,Key::down,
+                     Key::down,Key::down,Key::down,Key::down,Key::down,Key::cross}); settle();
+            s.shoot((prefix+"-mods").c_str());
+            s.press({Key::circle,Key::up,Key::cross}); settle();
+            s.shoot((prefix+"-mapping").c_str());
+            expect(s.launcher->selected_game().empty(),"advanced editors must not launch");
+            s.restart(false); settle();
+            s.press({Key::r1,Key::r1,Key::r1,Key::down,Key::down,Key::down,Key::down,Key::down}); settle();
+            s.shoot((prefix+"-diagnostics-category").c_str());
+            selected_ink_witness({98,629,493,77});
+            s.press({Key::cross}); settle();
+            s.shoot((prefix+"-diagnostics-dialog").c_str());
+            s.press({Key::circle,Key::down,Key::cross,Key::cross}); settle();
+            s.shoot((prefix+"-files-selection").c_str());
+            selected_ink_witness({201,277,989,80});
+        }
+        {
+            const auto saved=s.services.preferences();
+            for(bool contrast:{false,true}) for(int palette=0;palette<5;++palette) {
+                auto language=saved; language.ui_theme=1; language.ui_palette=palette;
+                language.high_contrast=contrast; language.language=0;
+                s.services.set_preferences(language); s.restart(false); settle();
+                s.press({Key::r1,Key::r1,Key::r1,Key::down,Key::down,Key::down,Key::down,Key::down,Key::down,Key::down}); settle();
+                const auto name=std::string("switch-language-")+Eden::Appearance::kPalettes[palette]+(contrast?"-contrast":"-normal");
+                s.shoot((name+"-category").c_str());
+                selected_ink_witness({98,803,493,77});
+                s.press({Key::cross}); settle();
+                s.shoot(name.c_str());
+                selected_ink_witness({146,260,1628,79}); // language name and selected OK marker
+                selected_ink_witness({1690,260,84,79}); // marker is independently required
+                s.press({Key::circle,Key::up,Key::cross,Key::cross}); settle();
+                s.shoot((name+"-files").c_str());
+                selected_ink_witness({201,277,989,80});
+            }
+            s.services.set_preferences(saved);
+        }
+        {
+            auto refused=s.services.preferences(); refused.ui_theme=1; refused.ui_palette=3;
+            s.services.set_preferences(refused); s.restart(false); settle();
+            s.press({Key::r1,Key::r1,Key::r1,Key::down,Key::down,Key::down,Key::down,Key::cross}); settle();
+            s.services.reject_preferences=true;
+            s.press({Key::right}); settle();
+            expect(s.services.preferences().ui_theme==1 && pe::ui::theme::palette_id==3,"Switch refusal rolls back appearance");
+            s.shoot("switch-appearance-save-refused");
+            s.services.reject_preferences=false;
+            s.services.content_io_available=false;
+            s.press({Key::circle,Key::down,Key::down,Key::cross,Key::down,Key::cross}); settle();
+            s.shoot("switch-storage-unavailable-explanation");
+            s.services.content_io_available=true;
+        }
+        auto recovery=s.services.preferences(); recovery.ui_theme=2; recovery.library_layout=0;
+        s.services.set_preferences(recovery); s.restart(false); settle();
+        s.press({Key::r1,Key::r1,Key::r1,Key::circle}); settle();
+        s.render();
+        const auto clean_collection_instances=s.list.instances().size();
+        for (int failure=0;failure<3;++failure) {
+            s.services.set_launch_error(failure==0 ?
+                "The forwarded game is unavailable or outside the selected games folder." :
+                failure==2 ? "The previous game session returned an error." : "");
+            s.services.set_crash_report(failure==1 ? "/data/prosperoeden/logs/crash-fixture.txt" : "");
+            s.restart(false); settle();
+            s.press({Key::r1,Key::r1,Key::r1,Key::circle}); settle();
+            s.render();
+            expect(s.services.home().setup_ready && s.services.home().launch_failed,
+                   "recovery fixture has ready setup plus failure status");
+            expect(s.list.instances().size()>clean_collection_instances,
+                   "Collection records visible recovery notice after returning from Settings");
+            s.shoot(failure==0 ? "collection-forwarder-refusal" :
+                    failure==1 ? "collection-previous-crash" : "collection-session-error");
+            expect(s.launcher->selected_game().empty(),"recovery navigation must not launch");
+        }
+        s.services.set_launch_error({}); s.services.set_crash_report({});
+        {
+            auto actions=s.services.preferences(); actions.ui_theme=2; actions.library_layout=0;
+            s.services.set_preferences(actions); s.services.library_limit=10;
+            const auto games=s.services.games();
+            expect(games.size()==10,"partial-grid fixture has ten actual items");
+            for(int boundary=0;boundary<2;++boundary) {
+                s.restart(false); settle();
+                if(boundary==0) s.press({Key::down,Key::right,Key::right,Key::right,Key::down}); // 7: no column3 in last row
+                else s.press({Key::down,Key::down,Key::right,Key::right,Key::down}); // 9: clamp at partial row end
+                s.shoot(boundary==0?"collection-grid-missing-column":"collection-grid-partial-last-row");
+                const auto armed=s.services.safe_launch_calls.load();
+                s.press({Key::options});
+                expect(s.services.safe_launch_calls==armed+1,"Collection Options delegates Safe Launch once");
+                expect(s.launcher->selected_game()==s.services.game_path(games[boundary==0?7:9].file),
+                       "integrated grid navigation selects correct existing identity");
+            }
+            s.services.library_limit=0;
+            s.restart(false); settle();
+            const auto complete=s.services.games();
+            int mod_index=-1;
+            for(int i=0;i<int(complete.size());++i)
+                if(!s.services.mods(complete[std::size_t(i)].title_id).empty()) { mod_index=i; break; }
+            expect(mod_index>=0,"Collection mods fixture exists");
+            if(mod_index>=0) {
+                for(int i=0;i<mod_index/4;++i) s.press({Key::down});
+                for(int i=0;i<mod_index%4;++i) s.press({Key::right});
+                const auto id=complete[std::size_t(mod_index)].title_id;
+                const bool before=s.services.mods_enabled(id);
+                const auto writes=s.services.mods_writes.load();
+                s.press({Key::square}); settle();
+                expect(s.services.mods_writes==writes+1 && s.services.last_mods_title==id &&
+                       s.services.mods_enabled(id)!=before,"Collection Square delegates exact-title mods toggle");
+                s.shoot("collection-mods-toggle");
+                s.services.set_mods_enabled(id,before);
+            }
+            const auto recent=s.services.home().recents;
+            expect(recent.size()>=2 && recent[0].file!=complete[0].file,"Recent fixture differs from alphabetical library");
+            for(int position=0;position<2 && position<int(recent.size());++position) {
+                s.restart(false); settle(); s.press({Key::r1,Key::r1});
+                if(position) s.press({Key::right});
+                s.shoot(position?"collection-recent-second":"collection-recent-first");
+                s.press({Key::cross});
+                expect(s.launcher->selected_game().empty(),"Recent card Cross focuses existing Hero before launch");
+                s.press({Key::cross});
+                expect(s.launcher->selected_game()==s.services.game_path(recent[std::size_t(position)].file),
+                       "Collection Recent preserves provider identity/order, not alphabetical grid");
+            }
+        }
+        auto preferences = s.services.preferences();
+        preferences.ui_theme = 2; preferences.library_layout = 1;
+        s.services.set_preferences(preferences);
+        s.restart(false); settle();
+        s.shoot("appearance-collection-list");
+        s.press({Key::down, Key::down, Key::down, Key::down, Key::down,
+                 Key::down, Key::down, Key::down});
+        settle(); s.shoot("appearance-collection-list-second-page");
+        s.press({Key::r2}); settle(); s.shoot("appearance-collection-cover-viewer");
+        s.press({Key::cross}); // viewer must not launch on confirmation
+        if (s.launcher->done() || !s.launcher->selected_game().empty()) s.ok = false;
+        s.press({Key::circle});
+        // Actual controller-driven setting edits, including rejection rollback.
+        preferences.ui_theme = 0; preferences.ui_palette = 0;
+        s.services.set_preferences(preferences);
+        s.restart(false); settle();
+        s.press({Key::r1, Key::r1, Key::r1}); settle();
+        s.press({Key::right, Key::right, Key::right, Key::right, Key::cross}); settle();
+        s.shoot("appearance-chooser");
+        const auto scans_before_appearance=s.services.games_calls.load();
+        s.services.reject_preferences = true;
+        s.press({Key::right}); settle();
+        if (s.services.preferences().ui_theme != 0 || pe::ui::theme::palette_id != 0) s.ok = false;
+        s.shoot("appearance-save-failure");
+        s.services.reject_preferences = false;
+        s.press({Key::right, Key::right, Key::down, Key::right}); settle();
+        if (s.services.preferences().ui_theme != 2 || s.services.preferences().ui_palette != 1 ||
+            pe::ui::theme::palette_id != 1) s.ok = false;
+        s.shoot("appearance-chooser-saved");
+        expect(s.services.games_calls==scans_before_appearance,"appearance-only edits do not start another library scan");
+        s.press({Key::circle, Key::circle}); settle();
+        s.shoot("appearance-collection-after-save");
+        s.services.empty_library = true; s.services.has_history = false;
+        s.services.setup_ready = false; s.restart(false); settle();
+        s.shoot("appearance-empty-setup");
+        s.press({Key::r1, Key::r1, Key::r1}); settle();
+        s.shoot("appearance-empty-settings-recovery");
+        s.services.setup_ready = true; s.services.empty_library = false;
+        s.restart(false); settle();
+        s.press({Key::r1, Key::r1, Key::r1}); settle();
+        s.press({Key::right,Key::right,Key::right,Key::right,Key::right,Key::right,Key::cross}); settle();
+        s.shoot("storage-independent-locations");
+        s.press({Key::down,Key::cross}); settle();
+        s.shoot("storage-games-folder");
+        s.press({Key::triangle}); settle();
+        if (s.services.saved_location_folder(pe::ui::StorageLocation::games) !=
+            s.services.location_folder(pe::ui::StorageLocation::games)) s.ok=false;
+        const auto old_active_games=s.services.location_folder(pe::ui::StorageLocation::games);
+        expect(s.services.set_location_folder(pe::ui::StorageLocation::games,"/mnt/ext2/fixture-games"),"save distinct fixture root");
+        expect(s.services.location_folder(pe::ui::StorageLocation::games)==old_active_games,"active games root frozen before reopen");
+        s.press({Key::circle,Key::cross,Key::down,Key::down,Key::cross}); settle();
+        s.press({Key::down}); settle(); // discovery is asynchronous, do not send this into its busy gate
+        s.shoot("storage-wallpaper-picker");
+        s.press({Key::cross}); settle();
+        expect(!s.services.saved_wallpaper_name().empty() && s.services.wallpaper_image().empty(),"wallpaper saved, not active before reopen");
+        s.restart(false); settle(); s.shoot("storage-wallpaper-after-reopen");
+        expect(s.services.location_folder(pe::ui::StorageLocation::games)=="/mnt/ext2/fixture-games","independent games root active after reopen");
+        expect(!s.services.wallpaper_image().empty(),"wallpaper active after reopen");
+        const auto saved_games = s.services.saved_location_folder(pe::ui::StorageLocation::games);
+        const auto saved_wallpapers = s.services.saved_location_folder(pe::ui::StorageLocation::wallpapers);
+        const auto saved_image = s.services.saved_wallpaper_name();
+        s.services.content_io_available = false;
+        std::vector<std::string> stale_folders{"old"},stale_images{"old.png"};
+        expect(!s.services.content_entries("/data",&stale_folders,&stale_images,nullptr) &&
+               stale_folders.empty() && stale_images.empty(),"unavailable mock clears prepopulated lists");
+        s.restart(false); settle();
+        s.press({Key::r1,Key::r1,Key::r1}); settle();
+        s.press({Key::right,Key::right,Key::right,Key::right,Key::right,Key::right,Key::cross,Key::down,Key::cross}); settle();
+        expect(!(s.services.saved_location_folder(pe::ui::StorageLocation::games) != saved_games ||
+            s.services.saved_location_folder(pe::ui::StorageLocation::wallpapers) != saved_wallpapers ||
+            s.services.saved_wallpaper_name() != saved_image || !s.services.wallpaper_image().empty()),"unavailable provider preserves saved state and suppresses wallpaper");
+        s.shoot("storage-unqualified-native-refusal");
+        s.services.content_io_available = true;
+        s.restart(false); settle();
+        s.press({Key::r1,Key::r1,Key::r1}); settle();
+        s.press({Key::right,Key::right,Key::right,Key::right,Key::right,Key::right,Key::cross,Key::down,Key::down});
+        s.services.pause_content = true;
+        s.press({Key::cross}); // stalled discovery must return to the frame owner
+        s.press({Key::circle}); settle();
+        s.services.pause_content = false;
+        expect(s.services.saved_wallpaper_name() == saved_image,"cancelled discovery preserves selected image");
+        s.shoot("storage-discovery-cancelled");
+        // Re-enter and stall a write; Circle cancels before mock publication.
+        s.press({Key::cross,Key::down,Key::down,Key::cross}); settle();
+        s.services.pause_content = true;
+        s.press({Key::triangle,Key::circle}); settle();
+        s.services.pause_content = false;
+        expect(s.services.saved_wallpaper_name() == saved_image &&
+               s.services.saved_location_folder(pe::ui::StorageLocation::wallpapers) == saved_wallpapers,
+               "cancelled write preserves folder and selected image");
+        s.shoot("storage-write-cancelled");
+        const auto await_directory = [&] {
+            for(int i=0;i<1000 && s.services.directory_active.load()==0;++i) {
+                s.frame(); std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            expect(s.services.directory_active==1,"delayed-cancellation query actually entered provider");
+        };
+        for(bool different:{false,true}) {
+            s.restart(false); settle();
+            s.press({Key::r1,Key::r1,Key::r1,Key::right,Key::right,Key::right,Key::right,Key::right,Key::right,Key::cross,Key::down,Key::down});
+            const auto calls=s.services.directory_calls.load();
+            s.services.hold_directory_syscall=true;
+            s.press({Key::cross}); await_directory();
+            s.press({Key::circle,Key::cross,Key::down});
+            if(!different) s.press({Key::down});
+            s.press({Key::cross}); // re-enter BEFORE cancelled owner acknowledges cancellation
+            expect(s.services.directory_calls==calls+1 && s.services.directory_active==1,
+                   "reentry does not overlap directory owners");
+            s.services.hold_directory_syscall=false; settle();
+            expect(s.services.directory_calls==calls+2 && s.services.directory_active==0 && s.services.directory_peak==1,
+                   "current reentry starts once after old owner drains");
+            expect(s.services.directory_requested_images==!different,"deferred reentry uses current storage kind");
+            s.press({Key::cross}); settle(); // actual parent entry must be navigable, not an inert empty browser
+            expect(s.services.directory_calls==calls+3,"reentered browser publishes navigable results");
+            s.shoot(different?"storage-reentry-other-kind":"storage-reentry-same-kind");
+        }
+        s.restart(false); settle();
+        s.press({Key::r1,Key::r1,Key::r1,Key::right,Key::right,Key::right,Key::right,Key::right,Key::right,Key::cross,Key::down});
+        s.services.hold_directory_syscall=true; s.services.throw_directory_once=true;
+        s.press({Key::cross}); await_directory(); s.press({Key::circle});
+        s.services.content_io_available=false;
+        s.press({Key::cross,Key::down,Key::cross}); settle();
+        const auto message_glyphs = [&] {
+            s.render(); std::vector<float> signature;
+            for(const auto& instance:s.list.instances())
+                if(instance.params[3]==float(pe::gfx::Shape::glyph) && instance.rect[1]>700 && instance.rect[1]<850)
+                    signature.insert(signature.end(),instance.extra,instance.extra+4);
+            return signature;
+        };
+        const auto unavailable_feedback=message_glyphs();
+        expect(!unavailable_feedback.empty(),"later-screen refusal feedback is visible before old exception");
+        s.services.hold_directory_syscall=false; settle();
+        expect(message_glyphs()==unavailable_feedback,"cancelled discovery exception cannot replace current-screen feedback");
+        s.shoot("storage-cancelled-exception-feedback");
+        s.services.content_io_available=true;
+        std::fprintf(stderr, "APPEARANCE_NATIVE_UI_FIXTURE_%s\n", s.ok ? "PASS" : "FAIL");
+        return;
+    }
+    if (const char* mode = std::getenv("PE_PREVIEW_SWITCH_THEME");
+        mode != nullptr && std::strcmp(mode, "1") == 0) {
+        s.restart(false);
+        s.wait(1.5f);
+        s.shoot("00-switch-home");
+        // The HOME top row no longer wraps: move right to the final
+        // All Software item (six recent game slots at most).
+        s.press({Key::right, Key::right, Key::right, Key::right,
+                 Key::right, Key::right, Key::cross});
+        s.wait(1.5f);
+        s.shoot("01-switch-all-software");
+        s.press({Key::circle});
+        s.wait(0.5f);
+        // Six bottom icons: About, Files, Multiplayer, Controllers, Settings, Exit.
+        s.press({Key::down, Key::right, Key::right, Key::right, Key::right, Key::cross});
+        s.wait(0.5f);
+        s.shoot("02-switch-settings");
+        s.press({Key::down, Key::down, Key::down, Key::down, Key::cross});
+        s.wait(0.3f);
+        s.shoot("03-switch-appearance");
+        s.press({Key::circle, Key::down, Key::down, Key::cross});
+        s.wait(0.3f);
+        s.shoot("04-switch-storage");
+        s.press({Key::circle, Key::down, Key::cross});
+        s.wait(0.3f);
+        s.shoot("05-switch-language");
+        // Verify the alternative theme's native confirmation overlay.
+        s.press({Key::circle, Key::circle, Key::down,
+                 Key::right, Key::right, Key::right, Key::right, Key::right,
+                 Key::cross});
+        s.wait(0.3f);
+        s.shoot("06-switch-exit-confirm");
+        s.press({Key::circle, Key::up, Key::cross});
+        s.wait(1.0f);
+        // Triangle opens the real game's per-title settings.
+        s.press({Key::triangle});
+        s.wait(0.3f);
+        s.shoot("07-switch-game-options");
+        // The tenth Down reaches Mods while the options list scrolls.
+        s.press({Key::down,Key::down,Key::down,Key::down,Key::down,
+                 Key::down,Key::down,Key::down,Key::down,Key::down,
+                 Key::cross});
+        s.wait(0.3f);
+        s.shoot("08-switch-game-mods");
+        // Return from mods to game options, then Library and HOME.
+        // Use the same Controllers shortcut as the user.
+        s.press({Key::circle,Key::circle,Key::circle,Key::down,
+                 Key::right,Key::right,Key::right,Key::cross});
+        s.wait(0.3f);
+        s.shoot("09-switch-button-mapping");
+        // Back from a HOME-launched controller editor must close to HOME.
+        // Then select a title which has three sample mods, including an
+        // initially disabled one. Exercise its REAL save action.
+        s.press({Key::circle,Key::up,Key::cross});
+        s.wait(0.5f);
+        s.press({Key::right,Key::right,Key::triangle});
+        s.wait(0.3f);
+        s.press({Key::down,Key::down,Key::down,Key::down,Key::down,
+                 Key::down,Key::down,Key::down,Key::down,Key::down,
+                 Key::cross});
+        s.wait(0.3f);
+        s.shoot("10-switch-mods-installed");
+        s.press({Key::down,Key::cross});
+        s.wait(0.2f);
+        s.shoot("11-switch-mod-enabled");
+        const auto game_list=s.services.games();
+        const auto game=std::find_if(game_list.begin(),game_list.end(),
+            [](const pe::ui::Game& candidate){
+                return candidate.name=="Echoes of the Valley";
+            });
+        if(game==game_list.end() ||
+           s.services.mods(game->title_id).size()!=3 ||
+           !s.services.mods(game->title_id)[1].enabled) {
+            std::fprintf(stderr,"Switch mods preview: toggle not saved to fixture backend\\n");
+            s.ok=false;
+        }
+        return;
+    }
+    // Independently verify the game's real launch transition using the same
+    // original C++ draw list, EGL context and shader backend as Home. This
+    // takes *screenshots*, not image synthesis or a mock-up of the layout.
+    // Real C++/OpenGL Library visual evidence WITHOUT either retail face.
+    // Uses the same selected title and layout as the original-scan preview.
+    // This exercises the fixed corner logo, reconstructed rear footer and
+    // uniform-size shelf jackets, rather than only testing the 3D launch.
+    if (const char* missing = std::getenv("PE_PREVIEW_LIBRARY_FALLBACK");
+        missing != nullptr && std::strcmp(missing, "1") == 0)
+    {
+        s.restart(false);
+        s.wait(2.0f);
+        s.press({Key::up, Key::cross});
+        s.wait(1.0f);
+        s.press({Key::r1, Key::r1});
+        s.wait(0.3f);
+        const auto sample = s.services.games();
+        const auto case_scan = s.services.box_art(sample.at(10).title_id);
+        if (!case_scan.front.empty() || !case_scan.back.empty()) {
+            std::fprintf(stderr,
+                         "library-fallback-preview: original scan unexpectedly enabled\\n");
+            s.ok = false;
+            return;
+        }
+        // Do not capture the first asynchronous frame, when Nlib imagery may
+        // still be in the CPU decode queue. No UI repaint or alternate renderer.
+        for (int attempt = 0; attempt < 48; ++attempt) {
+            s.render();
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+            s.launcher->update(1.0f / 60.0f);
+        }
+        s.shoot("00-library-fallback-front");
+        s.press({Key::down});
+        s.wait(0.22f);
+        s.shoot("01-library-fallback-back");
+        s.press({Key::cross});
+        s.wait(0.32f);
+        s.shoot("02-library-fallback-zoom");
+        return;
+    }
+    if (const char* library_only = std::getenv("PE_PREVIEW_LIBRARY_ONLY");
+        library_only != nullptr && std::strcmp(library_only, "1") == 0)
+    {
+        s.restart(false);
+        s.wait(2.0f);
+        s.press({Key::up, Key::cross});
+        s.wait(1.0f);
+        // Fixture games are alphabetically sorted. BOTW's real flat scans
+        // are on the eleventh title (index 10), not on Moss & Lantern.
+        // L1/R1 now change main tabs globally. The old R1 page shortcut
+        // would leave Library before this L2/R2 viewer test. Navigate ten
+        // items with ordinary D-pad Right to reach the SAME BOTW fixture.
+        s.press({Key::right, Key::right, Key::right, Key::right, Key::right,
+                 Key::right, Key::right, Key::right, Key::right, Key::right});
+        s.wait(0.4f);
+        // The host advances game-list frames far faster than the console.
+        // Wait for the actual original retail textures AND their fade-in
+        // before taking evidence. Do not capture an empty placeholder as
+        // though it were a successful rendering.
+        const auto sample_games = s.services.games();
+        const auto retail = s.services.box_art(sample_games.at(10).title_id);
+        bool shelf_ready = false;
+        for (int attempt = 0; attempt < 75; ++attempt) {
+            s.render();
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+            s.launcher->update(1.0f / 60.0f);
+            const auto front = s.textures.cover(retail.front, 181.0f);
+            const auto back = s.textures.cover(retail.back, 181.0f);
+            if (front.texture && back.texture &&
+                front.age > 0.24f && back.age > 0.24f) {
+                shelf_ready = true;
+                break;
+            }
+        }
+        if (!shelf_ready) {
+            std::fprintf(stderr, "library-preview: real front/back scan never became visible\n");
+            s.ok = false;
+            return;
+        }
+        s.shoot("00-library-front-shelf");
+        s.press({Key::down});
+        s.wait(0.15f);
+        s.shoot("01-library-back-focus");
+        s.press({Key::cross});
+        s.wait(0.20f);
+        bool zoom_ready = false;
+        for (int attempt = 0; attempt < 75; ++attempt) {
+            s.render();
+            std::this_thread::sleep_for(std::chrono::milliseconds(45));
+            s.launcher->update(1.0f / 60.0f);
+            const auto full = s.textures.cover(retail.back, 670.0f);
+            if (full.texture && full.age > 0.24f) {
+                zoom_ready = true;
+                break;
+            }
+        }
+        if (!zoom_ready) {
+            std::fprintf(stderr, "library-preview: full-resolution rear scan never became visible\n");
+            s.ok = false;
+            return;
+        }
+        s.shoot("02-library-back-zoom");
+        // Regression evidence: shoulders must zoom the REAL high-res back
+        // insert, while D-pad moves the magnified view (not selected game).
+        s.press({Key::r2, Key::r2, Key::down, Key::right});
+        s.wait(0.42f);
+        s.shoot("03-library-back-zoom-pan");
+        s.press({Key::l2});
+        s.wait(0.30f);
+        s.shoot("04-library-back-zoom-out");
+        // Cross no longer closes the viewer or launches the title.
+        s.press({Key::cross});
+        s.wait(0.12f);
+        s.shoot("05-library-back-cross-ignored");
+        s.press({Key::circle});
+        s.wait(0.16f);
+        s.shoot("06-library-back-closed");
+        return;
+    }
+    if (const char* launch_only = std::getenv("PE_PREVIEW_LAUNCH_ONLY");
+        launch_only != nullptr && std::strcmp(launch_only, "1") == 0)
+    {
+        s.restart(false);
+        s.wait(2.0f); // settle UI transitions in virtual frame time
+        // The Home snapshot is assembled asynchronously on a REAL host
+        // thread. Virtual 120-frame waits can complete in milliseconds,
+        // before the worker finishes; one Cross would be discarded.
+        // Pump the launcher and give the worker bounded real time to
+        // complete. Never fake selected_game() or bypass the Cross handler.
+        bool launched = false;
+        for (int attempt = 0; attempt < 30; ++attempt) {
+            s.launcher->update(0.0f);
+            // Initial Home focuses Continue. Only its actual Cross action
+            // may enter the title's normal launch path.
+            s.press({Key::cross});
+            if (!s.launcher->selected_game().empty()) {
+                launched = true;
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        if (!launched) {
+            std::fprintf(stderr,
+                         "launch-preview: real Cross never launched after waiting for the Home snapshot\n");
+            s.ok = false;
+            return;
+        }
+        // This host program advances 60 virtual frames almost instantly.
+        // The actual launcher renders/pumps in real time, so let the async
+        // texture workers finish before taking evidence. Zero-delta updates
+        // complete queued uploads without advancing the game's transition.
+        for (int attempt = 0; attempt < 8; ++attempt) {
+            s.render();
+            std::this_thread::sleep_for(std::chrono::milliseconds(55));
+            s.launcher->update(0.0f);
+        }
+        s.wait(1.02f); // hold initial cover before the 3D turn
+        s.shoot("00-launch-case-front");
+        s.wait(0.51f); // instantaneous ~90-degree spine glimpse, no dwell
+        s.shoot("01-launch-case-spine");
+        s.wait(1.57f); // back well inside its 4.5-second readable hold
+        s.shoot("02-launch-case-back");
+        return;
+    }
+
+    // Home, as it settles after the app opens.
     s.restart(true);
-    s.frame();
-    s.shoot("00a-opening-picture");
-    s.wait(0.36f);
-    s.shoot("00b-opening-mark-coming");
-    s.wait(0.50f);
-    s.shoot("00c-opening-mark");
     s.wait(0.42f);
-    s.shoot("00d-opening-leaving");
-    s.wait(0.28f);
     s.shoot("00-arriving");
     s.wait(3.0f);
+    // Host-only screenshot gate. The simulated 60 Hz ticks advance much
+    // faster than wall time, so asynchronous cover uploads may still be
+    // pending when the Home image is written. Require all seven GL textures.
+    if (const char *branded = std::getenv("PE_PREVIEW_BRANDED_HOME");
+        branded != nullptr && std::strcmp(branded, "1") == 0) {
+        const auto recents = s.services.home().recents;
+        const std::size_t count = std::min<std::size_t>(7, recents.size());
+        std::size_t ready = 0;
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+        do {
+            ready = 0;
+            for (std::size_t i = 0; i < count; ++i)
+                if (!recents[i].cover.empty() &&
+                    s.textures.cover(recents[i].cover, 214.0f).texture != 0)
+                    ++ready;
+            if (ready == 7 && count == 7) break;
+            s.frame(); // normal upload/decoder pump, never a rendering bypass
+            std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        } while (std::chrono::steady_clock::now() < deadline);
+        std::fprintf(stderr, "ENCORE_PREVIEW_CARD_ART_READY: %zu/%zu\n", ready, count);
+        if (ready != 7 || count != 7) {
+            std::fprintf(stderr, "README preview: missing illustrated game tiles\n");
+            s.ok = false;
+        }
+        s.wait(0.5f); // finish tile opacity transitions
+    }
     s.shoot("01-home");
     s.press({Key::right});
     s.wait(0.6f);
@@ -189,40 +759,30 @@ void pictures(Stage &s)
     s.press({Key::down, Key::right});
     s.wait(0.6f);
     s.shoot("03-home-recent-focus");
-    // The game's settings from the home screen (Triangle), and back to it.
-    s.press({Key::up, Key::triangle});
-    s.wait(0.9f);
-    s.shoot("04c-home-game-settings");
-    s.press({Key::circle});
-    s.wait(0.9f);
-    s.shoot("04d-home-after-game-settings");
-    s.press({Key::down, Key::right});
-    // Triangle on a recent game: that game's settings, and back to it.
-    s.press({Key::triangle});
-    s.wait(0.9f);
-    s.shoot("04e-home-recent-game-settings");
-    s.press({Key::circle});
-    s.wait(0.9f);
-    s.shoot("04f-home-after-recent-game-settings");
-    // Left from the screen's edge: the rail opens with its sections' names.
-    s.press({Key::up, Key::left});
+    s.press({Key::up, Key::up, Key::right});
     s.wait(0.6f);
-    s.shoot("04-home-rail");
-    s.press({Key::down, Key::down, Key::down});
-    s.wait(0.6f);
-    s.shoot("04b-rail-settings");
+    s.shoot("04-home-settings-focus");
+    // Mini production renderer: real launcher C++/GL pipeline, Home-only output.
+    // Run by the lightweight GitHub preview job (not a full PS5 emulator build).
+    if (const char* home_only = std::getenv("PE_PREVIEW_HOME_ONLY");
+        home_only != nullptr && std::strcmp(home_only, "1") == 0)
+        return;
 
     // Library.
     s.restart();
     s.wait(1.0f);
-    s.library();
+    s.press({Key::up, Key::cross});
     s.wait(0.14f);
     s.shoot("05-opening-library");
     s.wait(1.2f);
     s.shoot("06-library");
-    s.walk(0, 9);
+    s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
+             Key::down, Key::down});
     s.wait(0.8f);
     s.shoot("07-library-scrolled");
+    s.press({Key::right});
+    s.wait(0.6f);
+    s.shoot("08-library-handheld");
     // The Library's Mods switch: all of this game's mods off, and on again.
     s.press({Key::square});
     s.wait(0.6f);
@@ -233,89 +793,15 @@ void pictures(Stage &s)
     s.press({Key::triangle});
     s.wait(0.8f);
     s.shoot("09-game-settings");
-    // The console mode, the first of its kinds: handheld for this game.
-    s.press({Key::right});
-    s.wait(0.6f);
-    s.shoot("08-game-handheld");
-    // The game's own Video: a renderer of its own, then the output's refresh rate.
-    s.press({Key::down, Key::cross});
-    s.wait(0.6f);
-    s.shoot("49-game-video");
-    s.press({Key::right});
+    s.press({Key::down, Key::right});
     s.wait(0.6f);
     s.shoot("10-game-settings-changed");
-    // ASTC textures at full quality says what it costs; then back to what Settings has.
+    // The output's refresh rate for this game.
     s.press({Key::down, Key::down, Key::down, Key::right, Key::right});
     s.wait(0.6f);
-    s.shoot("100-game-astc");
-    s.press({Key::right, Key::down, Key::right, Key::right});
-    s.wait(0.6f);
     s.shoot("40-game-refresh");
-    // Its own Performance: Compile ahead switched on for this game only.
-    s.press({Key::circle, Key::down, Key::cross, Key::right, Key::right});
-    s.wait(0.6f);
-    s.shoot("50-game-performance");
-    // Its own speed limit, the row after the switches: 100%, 150%, then 200%.
-    s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down});
-    s.press({Key::right, Key::right, Key::right});
-    s.wait(0.6f);
-    s.shoot("50b-game-speed-limit");
-    // Its own Controls: a button mapping of its own, and A moved to another button.
-    s.press({Key::circle, Key::down, Key::down, Key::cross, Key::down, Key::right});
-    s.wait(0.6f);
-    s.shoot("51-game-controls");
-    s.press({Key::cross, Key::right});
-    s.wait(0.6f);
-    s.shoot("52-game-mapping");
-    {
-        const pe::ui::GameSettings game = s.services.game_settings(0);
-        if (game.renderer != 0 || game.refresh != 1 || game.performance[0] != 1 || game.speed_limit != 2 ||
-            !game.own_mapping ||
-            game.mapping[0] != 2 || game.mapping[3] != 1)
-        {
-            std::fprintf(stderr, "error: the game's own settings did not reach the settings\n");
-            s.ok = false;
-        }
-    }
-    // Back in the game's settings: the kinds it changed say how many.
-    s.press({Key::circle, Key::circle});
-    s.wait(0.6f);
-    s.shoot("53-game-settings-changed");
-    // Its own System: the RNG seed switched on, then typed on the keyboard. A text that is no
-    // seed and a cancelled keyboard leave it as it was; Left takes the seed away again.
-    {
-        // The keyboard answers on a thread of its own: it is given a moment before the frames
-        // that take its answer.
-        const auto type = [&s](std::optional<std::int64_t> answer) {
-            s.services.typed_seed = answer;
-            s.press({Key::cross});
-            std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            s.wait(0.4f);
-        };
-        const auto seed = [&s] { return s.services.game_settings(0).rng_seed; };
-        s.press({Key::down, Key::cross});
-        s.wait(0.6f);
-        s.shoot("D0-game-system");
-        s.press({Key::right});
-        const bool switched_on = seed() == 0;
-        type(1234);
-        s.shoot("D1-game-system-seed");
-        const bool typed = seed() == 1234;
-        type(-1);
-        s.shoot("D2-game-system-not-a-seed");
-        type(std::nullopt);
-        const bool kept = seed() == 1234;
-        s.press({Key::left});
-        if (!switched_on || !typed || !kept || seed() != -1)
-        {
-            std::fprintf(stderr, "error: the game's RNG seed did not follow what was chosen and typed\n");
-            s.ok = false;
-        }
-        s.press({Key::circle});
-        s.wait(0.6f);
-    }
     // The game's mods: the row, the list, one switched on, and a game that has none.
-    s.press({Key::down, Key::down});
+    s.press({Key::down});
     s.wait(0.6f);
     s.shoot("35-game-mods-row");
     s.press({Key::cross});
@@ -332,43 +818,6 @@ void pictures(Stage &s)
     s.wait(0.4f);
     s.shoot("39-mods-folder-made");
     s.services.has_mods = true;
-    // The game's cheats: the row, the list with the switch for all of them first, one frame rate
-    // taking the other's place, all of them off, and a game that has none.
-    s.press({Key::circle, Key::down});
-    s.wait(0.6f);
-    s.shoot("46-game-cheats-row");
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("46b-cheats");
-    s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::cross});
-    s.wait(0.4f);
-    s.shoot("46c-cheats-chosen");
-    s.press({Key::up, Key::up, Key::cross});
-    s.wait(0.4f);
-    s.shoot("46d-cheats-off");
-    s.press({Key::cross});
-    s.services.has_mods = false;
-    s.press({Key::circle, Key::cross});
-    s.wait(0.6f);
-    s.shoot("46e-cheats-none");
-    s.services.cheat_mode = "slow";
-    s.press({Key::cross});
-    s.wait(0.4f);
-    s.shoot("46f-cheats-downloading");
-    s.press({Key::circle});
-    s.wait(0.4f);
-    s.shoot("46g-cheats-cancelled");
-    s.services.cheat_mode.clear();
-    s.press({Key::cross});
-    s.wait(0.9f);
-    s.shoot("46h-cheats-ready");
-    s.press({Key::down, Key::down, Key::cross});
-    s.wait(0.4f);
-    s.shoot("46i-cheats-confirm");
-    s.press({Key::cross});
-    s.wait(0.9f);
-    s.shoot("46j-cheats-installed-off");
-    s.services.has_mods = true;
     s.press({Key::circle, Key::down});
     s.wait(0.6f);
     s.shoot("32-game-save-data");
@@ -381,371 +830,46 @@ void pictures(Stage &s)
     s.press({Key::circle});
     s.wait(0.3f);
     s.press({Key::cross});
-    s.wait(0.16f);
+    s.wait(0.30f);
     s.shoot("11-launching");
-    s.wait(0.12f);
-    s.shoot("11b-launching-arrived");
     s.wait(0.32f);
     s.shoot("12-launching-late");
-
-    // A newer release the app cannot install itself: the notification at the top right, for ten
-    // seconds.
-    s.restart();
-    s.wait(1.0f);
-    s.services.update_version = "v1.000.060";
-    s.services.update_installable = false;
-    s.wait(1.2f);
-    s.shoot("58-update-notice");
-    s.wait(9.5f);
-    s.shoot("59-update-notice-gone");
-    s.services.update_installable = true;
-
-    // One it can: the offer when the app opens, then the install (a step per frame in the
-    // preview: 40 preparing, 360 downloading, 120 unpacking).
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(2.6f);
-    s.shoot("70-update-offer");
-    s.press({Key::right, Key::right});
-    s.wait(0.4f);
-    s.shoot("71-update-offer-skip");
-    s.press({Key::left, Key::left, Key::cross});
-    s.wait(0.3f);
-    s.shoot("72-update-preparing");
-    s.wait(3.2f);
-    s.shoot("73-update-downloading");
-    s.wait(3.5f);
-    s.shoot("74-update-unpacking");
-    s.wait(2.2f);
-    s.shoot("75-update-ready");
-    s.wait(0.9f);
-    s.shoot("76-update-ready-late");
-    // Cancelled while it downloads: the dialog closes, nothing changed.
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(2.6f);
-    s.press({Key::cross});
-    s.wait(1.5f);
-    s.press({Key::circle});
-    s.wait(0.1f);
-    s.shoot("77-update-cancelling");
-    s.wait(1.0f);
-    s.shoot("78-update-cancelled");
-    // A failure: what went wrong, and Try again or Close.
-    s.services.update_version = "v1.000.060";
-    s.services.update_fails = true;
-    s.restart(true);
-    s.wait(2.6f);
-    s.press({Key::cross});
-    s.wait(7.4f);
-    s.shoot("79-update-failed");
-    s.services.update_fails = false;
-
-    // The release notes: What's new on the offer opens them; they scroll a few lines at a time
-    // (Up/Down) or a page (L1/R1), give a little at the end, and Circle goes back to the offer.
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(2.6f);
-    s.press({Key::right});
-    s.wait(0.4f);
-    s.shoot("80-update-offer-whats-new");
-    s.press({Key::cross});
-    s.wait(0.12f);
-    s.shoot("81-update-notes-opening");
-    s.wait(1.0f);
-    s.shoot("82-update-notes");
-    s.press({Key::down, Key::down}, 0.15f);
-    s.wait(0.6f);
-    s.shoot("83-update-notes-scrolled");
-    s.press({Key::r1, Key::r1, Key::r1}, 0.15f);
-    s.wait(0.7f);
-    s.shoot("84-update-notes-end");
-    s.press({Key::down});
-    s.wait(0.05f);
-    s.shoot("85-update-notes-end-give");
-    s.press({Key::right});
-    s.wait(0.4f);
-    s.shoot("86-update-notes-back-button");
-    s.press({Key::circle});
-    s.wait(0.5f);
-    s.shoot("87-update-offer-after-notes");
-    // A release without notes: two buttons, as before.
-    const std::string notes = s.services.update_notes;
-    s.services.update_notes.clear();
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(2.6f);
-    s.shoot("88-update-offer-no-notes");
-    // Notes the catalog cut short end with where the rest is.
-    s.services.update_notes = notes;
-    s.services.update_notes_truncated = true;
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(2.6f);
-    s.press({Key::triangle});
-    s.wait(1.2f);
-    // (The preview draws only when it takes a picture; the notes are laid out when first drawn.)
-    s.shoot("89-update-notes-truncated");
-    s.press({Key::r1, Key::r1, Key::r1, Key::r1}, 0.15f);
-    s.wait(0.8f);
-    s.shoot("89-update-notes-truncated-end");
-    s.services.update_notes_truncated = false;
-
-    // Update notices off (Settings > Diagnostics): the check runs, but the app opens without the
-    // offer; About names the newer version.
-    {
-        pe::ui::Preferences quiet = s.services.preferences();
-        quiet.update_notices = false;
-        s.services.set_preferences(quiet);
-        s.services.update_version = "v1.000.060";
-        s.restart(true);
-        s.heard.clear();
-        s.wait(2.6f);
-        s.shoot("70b-update-notices-off");
-        const bool offered =
-            std::find(s.heard.begin(), s.heard.end(), pe::audio::Cue::notify) != s.heard.end();
-        if (offered || !s.services.update_version.empty())
-        {
-            std::fprintf(stderr, "error: the update offer showed with Update notices off\n");
-            s.ok = false;
-        }
-        s.press({Key::l1}); // About, the last section
-        s.wait(1.0f);
-        s.shoot("70c-update-notices-off-about");
-        quiet.update_notices = true;
-        s.services.set_preferences(quiet);
-    }
-
-    // A game's file taken away while the menu shows it: within a moment it leaves the home screen
-    // (another recent game takes its place) and the Library.
-    s.restart();
-    s.wait(1.0f);
-    for (const pe::ui::Game &game : s.services.games())
-        if (game.name == "Echoes of the Valley")
-            s.services.removed.push_back(game.file);
-    s.wait(2.5f);
-    s.shoot("56-home-game-removed");
-    s.library();
-    s.wait(1.2f);
-    s.shoot("57-library-game-removed");
-    s.services.removed.clear();
 
     // Settings and its dialogs.
     s.restart();
     s.wait(1.0f);
-    s.settings();
+    s.press({Key::up, Key::right, Key::cross});
     s.wait(1.0f);
     s.shoot("13-settings");
-    // Profiles, the first category: a new one, playing as it, and taking it off the list again.
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("60-profiles");
-    // The highlight follows the selection (it glides: the picture is taken once it has arrived).
-    s.press({Key::down});
-    s.wait(0.6f);
-    s.shoot("60b-profiles-moved");
-    s.press({Key::up});
-    s.wait(0.2f);
-    s.press({Key::down, Key::cross});
-    s.wait(0.6f);
-    s.shoot("61-profile-added");
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("62-profile-playing");
-    {
-        const std::vector<pe::ui::Profile> people = s.services.profiles();
-        bool reached = people.size() == 2 && !people[0].playing && people[1].playing;
-        // The one that is playing cannot be taken off the list; the other one can, asked twice.
-        s.press({Key::square, Key::square});
-        reached = reached && s.services.profiles().size() == 2;
-        s.press({Key::up, Key::cross, Key::down, Key::square});
-        s.wait(0.6f);
-        s.shoot("63-profile-remove-asked");
-        reached = reached && s.services.profiles().size() == 2;
-        s.press({Key::square});
-        reached = reached && s.services.profiles().size() == 1 && s.services.profiles()[0].playing;
-        if (!reached)
-        {
-            std::fprintf(stderr, "error: the profiles did not reach the services\n");
-            s.ok = false;
-        }
-    }
-    s.press({Key::circle});
-    s.walk(0, 1);
     s.press({Key::cross});
     s.wait(0.8f);
     s.shoot("14-video");
     s.press({Key::down, Key::right});
     s.wait(0.6f);
     s.shoot("15-video-saved");
-    // ASTC textures at full quality says what it costs; then back to compressed.
     s.press({Key::down, Key::down, Key::down, Key::right});
     s.wait(0.6f);
-    s.shoot("99-video-astc");
-    s.press({Key::right, Key::down, Key::right});
-    s.wait(0.6f);
     s.shoot("41-video-refresh");
-    // The seventh row: the list scrolls to it.
+    // The sixth row: the list scrolls to it.
     s.press({Key::down});
     s.wait(0.6f);
     s.shoot("43-video-overlay");
-    // Performance: seven switches, four of them showing. Reactive flushing starts on, the
-    // others off, and a press on each one reaches the settings.
-    s.press({Key::circle});
-    s.walk(1, 2);
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("46-performance");
-    {
-        const auto states = [&s]
-        {
-            const pe::ui::Preferences p = s.services.preferences();
-            return std::array<bool, 8>{p.block_list, p.async_shaders, p.fast_gpu, p.unsafe_cpu,
-                                       p.unsafe_dma, p.reactive_flushing, p.skip_invalidation, p.compact_memory};
-        };
-        const std::array<bool, 8> start = states();
-        bool reached = start == std::array<bool, 8>{false, false, false, false, false, true, false, false};
-        for (std::size_t row = 0; row < start.size(); ++row)
-        {
-            if (row != 0)
-                s.press({Key::down});
-            s.press({Key::cross});
-            std::array<bool, 8> expected = start;
-            for (std::size_t changed = 0; changed <= row; ++changed)
-                expected[changed] = !start[changed];
-            reached = reached && states() == expected;
-            if (row == 2)
-            {
-                s.wait(0.6f);
-                s.shoot("47-performance-changed");
-            }
-        }
-        // The eighth row: the list scrolled to it.
-        s.wait(0.6f);
-        s.shoot("48-performance-scrolled");
-        if (!reached)
-        {
-            std::fprintf(stderr, "error: the Performance switches did not reach the settings\n");
-            s.ok = false;
-        }
-        // The row after the switches: how fast a game may run. Right goes up a step, left from
-        // 100% wraps to Unlimited, and each choice reaches the settings.
-        s.press({Key::down});
-        s.wait(0.4f);
-        s.press({Key::right});
-        s.wait(0.4f);
-        s.shoot("48b-performance-speed-limit");
-        const int faster = s.services.preferences().speed_limit;
-        s.press({Key::left, Key::left});
-        s.wait(0.4f);
-        s.shoot("48c-performance-speed-unlimited");
-        const int unlimited = s.services.preferences().speed_limit;
-        s.press({Key::right});
-        s.wait(0.4f);
-        if (faster != 1 || unlimited != 4 || s.services.preferences().speed_limit != 0)
-        {
-            std::fprintf(stderr, "error: the speed limit did not reach the settings\n");
-            s.ok = false;
-        }
-        // The last row: the memory a game's console is told it has. Left and right move over the
-        // layouts, and the choice reaches the settings file the launcher writes.
-        s.press({Key::down});
-        s.wait(0.4f);
-        s.press({Key::right});
-        s.wait(0.4f);
-        s.shoot("49-performance-memory");
-        if (s.services.preferences().memory_layout != 1)
-        {
-            std::fprintf(stderr, "error: the console memory did not reach the settings\n");
-            s.ok = false;
-        }
-        s.press({Key::right});
-        s.wait(0.4f);
-        if (s.services.preferences().memory_layout != 2)
-        {
-            std::fprintf(stderr, "error: the console memory did not go past 6 GiB\n");
-            s.ok = false;
-        }
-        // The last of them wraps to the first, which is what a game's console really has.
-        s.press({Key::right});
-        s.wait(0.4f);
-        if (s.services.preferences().memory_layout != 0)
-        {
-            std::fprintf(stderr, "error: the console memory did not wrap to 4 GiB\n");
-            s.ok = false;
-        }
-    }
-    s.press({Key::circle});
-    s.walk(2, 3);
-    s.press({Key::cross});
+    s.press({Key::circle, Key::down, Key::cross});
     s.wait(0.8f);
     s.shoot("16-audio");
-    s.press({Key::circle});
-    s.walk(3, 4);
-    s.press({Key::cross});
+    s.press({Key::circle, Key::down, Key::cross});
     s.wait(0.8f);
     s.shoot("17-controls");
-    // The vibration's strength: a quarter less, and back.
-    s.press({Key::down, Key::left});
-    s.wait(0.4f);
-    s.shoot("17-controls-strength");
-    if (s.services.preferences().vibration_strength != 75 || s.services.last_pulse != 75 || s.services.pulses != 1)
-    {
-        std::fprintf(stderr, "error: the vibration strength did not reach the settings or the controller\n");
-        s.ok = false;
-    }
-    s.press({Key::right});
-    // The button mapping: B moved to Circle takes A's place (A gets Cross), then all back.
-    s.press({Key::down});
-    s.wait(0.4f);
-    s.shoot("54-controls-mapping-row");
-    s.press({Key::cross, Key::down, Key::right});
-    s.wait(0.6f);
-    s.shoot("55-mapping");
-    const pe::ui::ButtonMapping moved = s.services.preferences().mapping;
-    s.press({Key::square});
-    s.wait(0.4f);
-    if (moved[0] != 0 || moved[1] != 1 || s.services.preferences().mapping != pe::ui::kDefaultMapping)
-    {
-        std::fprintf(stderr, "error: the button mapping did not reach the settings\n");
-        s.ok = false;
-    }
-    s.press({Key::circle});
-    s.wait(0.4f);
-    s.press({Key::circle});
-    s.walk(4, 5);
-    s.press({Key::cross});
+    s.press({Key::circle, Key::down, Key::cross});
     s.wait(0.8f);
     s.shoot("30-accessibility");
     s.press({Key::down, Key::down});
     s.wait(0.6f);
     s.shoot("31-accessibility-motion");
-    s.press({Key::circle});
-    s.walk(5, 6);
-    s.press({Key::cross});
+    s.press({Key::circle, Key::down, Key::cross});
     s.wait(0.8f);
     s.shoot("18-diagnostics");
-    s.press({Key::down});
-    s.wait(0.6f);
-    s.shoot("18b-diagnostics-logs-at-once");
-    // Update notices: off and back on, saved each time.
-    s.press({Key::down});
-    s.wait(0.6f);
-    s.shoot("18c-diagnostics-update-notices");
-    s.press({Key::right});
-    s.wait(0.4f);
-    s.shoot("18d-diagnostics-update-notices-off");
-    const bool notices_off = !s.services.preferences().update_notices;
-    s.press({Key::right});
-    s.wait(0.4f);
-    if (!notices_off || !s.services.preferences().update_notices)
-    {
-        std::fprintf(stderr, "error: the Update notices switch did not reach the settings\n");
-        s.ok = false;
-    }
-    s.press({Key::circle});
-    s.walk(6, 7);
-    s.press({Key::cross});
+    s.press({Key::circle, Key::down, Key::cross});
     s.wait(1.0f);
     s.shoot("19-game-files");
     s.press({Key::down, Key::down, Key::triangle});
@@ -753,138 +877,18 @@ void pictures(Stage &s)
     s.shoot("20-game-files-saved");
     s.press({Key::circle});
     s.wait(0.5f);
-    s.press({Key::l1}); // Multiplayer: the section before Settings
-    s.wait(1.0f);
-    s.shoot("B0-multiplayer-choice");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("B1-public-rooms");
-    const auto check_room = [&](bool condition, const char* label) {
-        if (!condition) { std::fprintf(stderr, "Room preview failed: %s\n", label); s.ok = false; }
-    };
-    s.press({Key::down, Key::down, Key::down, Key::cross});
-    check_room(s.services.room.phase == Eden::Multiplayer::Phase::Idle, "incompatible join blocked");
-    s.shoot("B2-public-incompatible");
-    s.press({Key::up, Key::cross}); // Password dialog cancelled by preview service.
-    s.shoot("B3-public-password-cancelled");
-    s.wait(0.8f);
-    check_room(s.services.last_room_connection.host.empty(), "cancelled password does not join");
-    s.press({Key::up, Key::cross});
-    s.wait(0.8f);
-    check_room(s.services.last_room_connection.host == "192.0.2.1", "selected endpoint");
-    check_room(s.services.last_room_connection.password.empty(), "private password isolated");
-    check_room(s.services.saved_room.host == "127.0.0.1" && s.services.saved_room.port == 24872 &&
-               s.services.saved_room.password == "private-secret", "public join keeps the saved private room");
-    s.press({Key::square, Key::circle});
     s.press({Key::down, Key::cross});
-    s.wait(0.8f);
-    s.shoot("C0-multiplayer-offline");
-    s.press({Key::down, Key::down, Key::down, Key::down, Key::cross});
-    s.wait(0.8f);
-    s.shoot("C1-multiplayer-connecting");
-    if (s.services.room.phase != Eden::Multiplayer::Phase::Connecting) s.ok = false;
-    s.services.room = {Eden::Multiplayer::Phase::Connected, "", "Friends' room",
-        {"PlayerPS5 - Kart Carnival Deluxe (3.0.3)", "Desktop player - Kart Carnival Deluxe (3.0.3)"}};
-    s.wait(0.8f);
-    s.shoot("C2-multiplayer-connected");
-    s.press({Key::circle, Key::down, Key::cross});
-    s.shoot("C2a-private-while-connected");
-    for (int i = 3; i <= 16; ++i) s.services.room.members.push_back("Player " + std::to_string(i));
-    s.wait(0.2f);
-    for (int i = 0; i < 20; ++i) s.press({Key::down});
-    s.shoot("C2b-multiplayer-members-bottom");
-    s.services.room.members.resize(2);
-    s.wait(0.2f);
-    s.shoot("C2c-multiplayer-members-shrink");
-    s.press({Key::cross});
-    if (s.services.room.phase != Eden::Multiplayer::Phase::Idle) s.ok = false;
-    s.services.room = {Eden::Multiplayer::Phase::Failed, "Connection lost. Check your internet connection, then rejoin the room before restarting Local Wireless in the game.", {}, {}};
-    s.wait(0.8f);
-    s.shoot("C3-multiplayer-lost");
-    s.services.room.error = "Room join timed out. The server connection opened, but room acceptance did not finish. Retry; if it repeats, ask the host to check the server log.";
-    s.wait(7.0f); // Failure remains visible after transient notices expire.
-    s.shoot("C3a-private-timeout");
-    check_room(s.services.room.phase == Eden::Multiplayer::Phase::Failed, "failure persists");
-    s.press({Key::circle});
-    s.shoot("C3b-choice-timeout");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("C3c-public-timeout");
-    s.services.room.error = "Incorrect password. Enter the room password again; it is case-sensitive.";
-    s.wait(0.8f);
-    s.shoot("C3d-public-password");
-    s.press({Key::circle, Key::down, Key::cross});
-    s.press({Key::square});
-    s.wait(0.5f);
-    if (s.services.room.phase != Eden::Multiplayer::Phase::Idle) s.ok = false;
-    s.press({Key::circle, Key::r1}); // back to Settings, where Game files still has the highlight
-    s.wait(1.0f);
-    s.walk(7, 10);
-    s.press({Key::cross});
     s.wait(1.0f);
     s.shoot("21-language");
     s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
              Key::down, Key::down, Key::cross});
     s.wait(0.8f);
     s.shoot("22-language-chosen");
-    // Settings > Theme: the themes this build has, the one in use marked.
-    s.press({Key::circle});
-    s.wait(0.6f);
-    s.walk(10, 11);
-    s.wait(0.6f);
-    s.shoot("T0-settings-theme");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("T1-theme");
-    s.press({Key::cross, Key::circle});
-    if (s.services.preferences().theme != pe::ui::th().id)
-    {
-        std::fprintf(stderr, "error: the theme chosen did not reach the settings\n");
-        s.ok = false;
-    }
-
-    // The appended category must not move the existing Theme/Colour indices. Exercise the real
-    // settings navigation and browser, including the reset that follows Game files again.
-    s.press({Key::circle}); // Theme's Back returned to Appearance; leave that parent too.
-    s.walk(11, 13);
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("T2-independent-games-folder");
-    const std::string data_folder = s.services.saved_files_folder();
-    s.press({Key::triangle});
-    s.wait(0.5f);
-    s.shoot("T3-independent-games-saved");
-    if (s.services.saved_games_folder().empty() || s.services.saved_files_folder() != data_folder) {
-        std::fprintf(stderr, "error: independent games folder did not save separately\n"); s.ok = false;
-    }
-    s.press({Key::square});
-    if (!s.services.saved_games_folder().empty() || s.services.saved_files_folder() != data_folder) {
-        std::fprintf(stderr, "error: independent games folder did not reset separately\n"); s.ok = false;
-    }
-    s.press({Key::circle});
-
-    s.services.room = {Eden::Multiplayer::Phase::Connected, "", "Friends' room", {"PlayerPS5"}};
-    s.restart();
-    s.wait(1.0f);
-    s.shoot("C4-home-room-connected");
-    s.services.room = {};
-    s.wait(0.5f);
-    s.shoot("C5-home-room-disconnected");
-    s.multiplayer();
-    s.wait(1.0f);
-    s.shoot("C6-multiplayer-off");
-
-    // Two profiles: the home screen names who is playing.
-    s.services.add_profile();
-    s.restart();
-    s.wait(2.0f);
-    s.shoot("64-home-two-profiles");
-    s.services.people.resize(1);
 
     // About.
     s.restart();
     s.wait(1.0f);
-    s.press({Key::l1}); // the last section
+    s.press({Key::up, Key::right, Key::right, Key::cross});
     s.wait(1.0f);
     s.shoot("23-about");
 
@@ -893,41 +897,17 @@ void pictures(Stage &s)
     s.restart();
     s.wait(2.0f);
     s.shoot("24-home-setup-required");
-    s.services.homebrew_sample = true;
-    s.restart();
-    s.library();
-    s.wait(2.0f);
-    s.shoot("24b-nro-without-firmware");
-    s.press({Key::cross});
-    s.wait(1.0f);
-    if (s.launcher->selected_game() != "/games/roms/switch/Tools/Demo.NRO") {
-        std::fprintf(stderr, "error: NRO without keys/firmware did not launch (selected=%s)\n",
-                     s.launcher->selected_game().c_str()); s.ok = false;
-    }
-    s.services.homebrew_ready = false;
-    s.restart();
-    s.library();
-    s.wait(1.0f);
-    s.press({Key::cross});
-    s.ok = s.ok && s.launcher->selected_game().empty();
-    s.services.homebrew_ready = true;
-    s.services.homebrew_sample = false;
-    s.restart();
-    s.library();
-    s.wait(1.0f);
-    s.press({Key::cross});
-    s.ok = s.ok && s.launcher->selected_game().empty(); // encrypted games still need setup
     s.services.setup_ready = true;
-    s.services.launch_error = "The game's keys are missing from prod.keys.";
+    s.services.set_launch_error("The game's keys are missing from prod.keys.");
     s.restart();
     s.wait(2.0f);
     s.shoot("25-home-launch-failed");
-    s.services.launch_error.clear();
-    s.services.crash_report = "/data/prosperoeden/logs/crash-20261001-213000.txt";
+    s.services.set_launch_error({});
+    s.services.set_crash_report("/data/prosperoeden/logs/crash-20261001-213000.txt");
     s.restart();
     s.wait(2.0f);
     s.shoot("25b-home-crash-report");
-    s.services.crash_report.clear();
+    s.services.set_crash_report({});
     s.services.has_history = false;
     s.restart();
     s.wait(2.0f);
@@ -946,236 +926,6 @@ void pictures(Stage &s)
     s.wait(2.0f);
     s.shoot("29-home-four-controllers");
     s.services.connected_controllers = 0b0011;
-
-    // Games on download sources: listed beside the console's own, on their sources until downloaded.
-    s.services.has_server = true;
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.walk(0, 5); // Lighthouse Keeper
-    s.wait(0.6f);
-    s.shoot("80-library-server-game");
-    // Square: into the download queue; it starts at once.
-    s.press({Key::square});
-    s.wait(0.5f);
-    s.shoot("81-library-queued");
-    s.wait(2.0f);
-    s.shoot("82-library-downloading");
-    // Cross on another: played once it is downloaded, after the one downloading.
-    s.walk(5, 8); // Orbit Postman
-    s.wait(0.4f);
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("83-download-waiting");
-    // Its turn: it goes on from where it was, what it had read first for the check of its contents.
-    for (int frame = 0; frame < 1200; ++frame)
-    {
-        bool checking = false;
-        for (const pe::ui::Download &download : s.services.downloads_now())
-            checking = checking || download.state == pe::ui::DownloadState::verifying;
-        if (checking)
-            break;
-        s.frame();
-    }
-    s.wait(0.3f);
-    s.shoot("83b-download-checking");
-    s.wait(4.0f);
-    s.shoot("84-download-running");
-    // Done: the dialog closes and the game starts.
-    for (int frame = 0; frame < 900 && s.launcher->selected_game().empty(); ++frame)
-        s.frame();
-    s.wait(0.3f);
-    s.shoot("85-download-done-starting");
-    {
-        bool joined = false;
-        for (const pe::ui::Game &game : s.services.games())
-            joined = joined || (game.name == "Orbit Postman" && !game.remote);
-        if (!joined || s.launcher->selected_game().empty())
-        {
-            std::fprintf(stderr, "error: a downloaded game did not join the library and start\n");
-            s.ok = false;
-        }
-    }
-    // A downloaded game from the server is deleted from the console in its settings, asked first.
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.walk(0, 8); // Orbit Postman
-    s.wait(0.6f);
-    s.shoot("94-library-downloaded");
-    s.press({Key::triangle});
-    s.wait(0.6f);
-    s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
-             Key::down, Key::down});
-    s.wait(0.6f);
-    s.shoot("95-game-delete-row");
-    s.press({Key::cross});
-    s.wait(0.4f);
-    s.shoot("96-game-delete-asked");
-    s.press({Key::cross});
-    s.wait(1.0f);
-    s.shoot("97-library-deleted");
-    {
-        bool remote = false;
-        for (const pe::ui::Game &game : s.services.games())
-            remote = remote || (game.name == "Orbit Postman" && game.remote);
-        if (!remote)
-        {
-            std::fprintf(stderr, "error: a deleted game is not on the server only again\n");
-            s.ok = false;
-        }
-    }
-    // A download that stops part way: try again, cancel or close.
-    s.services.download_fails = true;
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.walk(0, 11); // Rune Gardens
-    s.wait(0.4f);
-    // Two sources have it: which one, first.
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("98-choose-source");
-    s.press({Key::cross});
-    s.wait(5.0f);
-    s.shoot("86-download-failed");
-    s.press({Key::circle});
-    s.wait(0.6f);
-    s.shoot("87-library-download-failed");
-    // Settings > Downloads: the sources and the queue.
-    s.press({Key::circle});
-    s.wait(0.8f);
-    s.settings();
-    s.wait(1.0f);
-    s.walk(0, 8);
-    s.wait(0.6f);
-    s.shoot("88-settings-downloads");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("89-downloads");
-    s.press({Key::down});
-    s.wait(0.6f);
-    s.shoot("90-downloads-failed-row");
-    s.press({Key::square});
-    s.wait(0.6f);
-    s.shoot("91-downloads-cancelled");
-    s.services.download_fails = false;
-    // The server cannot be reached, and no server at all.
-    s.services.server_fails = true;
-    s.press({Key::circle});
-    s.wait(0.6f);
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("92-downloads-source-offline");
-    s.services.server_fails = false;
-    s.services.has_server = false;
-    s.restart();
-    s.wait(1.0f);
-    s.settings();
-    s.wait(1.0f);
-    s.walk(0, 8);
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("93-downloads-not-set-up");
-
-    // Save sync: before a game starts its save data is put in step with the server's.
-    s.services.save_sync_on = true;
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("A0-save-sync-working");
-    // Both changed: the player chooses.
-    s.services.save_sync_conflict = true;
-    s.wait(2.0f);
-    s.shoot("A1-save-sync-conflict");
-    s.press({Key::down});
-    s.wait(0.4f);
-    s.shoot("A2-save-sync-conflict-server");
-    s.press({Key::cross});
-    for (int frame = 0; frame < 600 && s.launcher->selected_game().empty(); ++frame)
-        s.frame();
-    if (s.launcher->selected_game().empty())
-    {
-        std::fprintf(stderr, "error: the game did not start after its save data was synced\n");
-        s.ok = false;
-    }
-    // The server cannot be reached: play anyway, try again, or not.
-    s.services.save_sync_fails = true;
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.press({Key::cross});
-    s.wait(3.0f);
-    s.shoot("A3-save-sync-failed");
-    s.press({Key::down, Key::down, Key::cross});
-    s.wait(0.8f);
-    s.services.save_sync_fails = false;
-    // After a game, once the menu is back: its save data goes up, with a notice.
-    s.services.played("Starfall Odyssey");
-    s.restart(false);
-    s.wait(2.4f);
-    s.shoot("A4-save-sync-backed-up");
-    // A server too old for the save sync: before a game, play anyway or not; after one, confirmed.
-    s.services.save_sync_too_old = true;
-    s.restart();
-    s.wait(1.0f);
-    s.library();
-    s.wait(1.2f);
-    s.press({Key::cross});
-    s.wait(3.0f);
-    s.shoot("A5-save-sync-too-old");
-    s.press({Key::circle});
-    s.wait(0.8f);
-    s.services.played("Starfall Odyssey");
-    s.restart(false);
-    s.wait(3.0f);
-    s.shoot("A6-save-sync-too-old-after");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("A7-save-sync-too-old-confirmed");
-    s.services.save_sync_too_old = false;
-    s.services.save_sync_on = false;
-
-    // Settings > Save sync: the profiles and their servers; pairing one by a QR code.
-    s.restart();
-    s.wait(1.0f);
-    s.settings();
-    s.wait(1.0f);
-    s.walk(0, 9);
-    s.wait(0.6f);
-    s.shoot("B0-settings-save-sync");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("B1-save-sync-profiles");
-    s.press({Key::cross});
-    s.wait(0.6f);
-    s.shoot("B2-save-sync-choose-server");
-    s.press({Key::cross});
-    s.wait(1.5f);
-    s.shoot("B3-pairing-code");
-    s.wait(10.0f);
-    s.shoot("B4-pairing-done");
-    s.press({Key::cross});
-    s.wait(0.8f);
-    s.shoot("B5-save-sync-paired");
-    s.press({Key::down, Key::square});
-    s.wait(0.4f);
-    s.shoot("B6-save-sync-unlink-asked");
-}
-
-// The first seconds after the app is started, one frame per call of frame().
-void opening_tour(Stage &s)
-{
-    s.services.connected_controllers = 0b0001;
-    s.restart(true);
-    s.wait(4.5f);
 }
 
 // A walk through the launcher, one frame per call of frame().
@@ -1189,55 +939,30 @@ void tour(Stage &s)
     s.wait(1.2f);
     s.services.connected_controllers = 0b0111;
     s.wait(1.4f);
-    // Home: the two actions, the recent games.
     s.press({Key::right, Key::left, Key::down, Key::right, Key::right, Key::left, Key::up}, 0.32f);
     s.wait(0.5f);
-    // The Library: along the covers, then one game's settings.
-    s.press({Key::r1}, 1.0f);
-    s.press({Key::right, Key::right, Key::down, Key::right, Key::down, Key::up, Key::left}, 0.26f);
-    s.press({Key::triangle}, 0.9f);
-    s.press({Key::down}, 0.4f);
-    s.press({Key::cross}, 0.5f);
-    s.press({Key::right, Key::down, Key::right}, 0.4f);
-    s.press({Key::circle}, 0.5f);
-    s.press({Key::down, Key::down}, 0.35f);
-    s.press({Key::circle}, 0.8f);
-    // Multiplayer, then Settings and one of its dialogs.
-    s.press({Key::r1}, 1.0f);
-    s.press({Key::down, Key::up}, 0.4f);
-    s.press({Key::r1}, 1.0f);
-    s.press({Key::right, Key::right, Key::down, Key::left}, 0.3f);
-    s.press({Key::cross}, 0.8f);
-    s.press({Key::down, Key::right}, 0.4f);
+    s.press({Key::up}, 0.4f);
+    s.press({Key::cross});
+    s.wait(1.0f);
+    s.press({Key::down, Key::down, Key::down, Key::down, Key::down, Key::down, Key::down,
+             Key::down, Key::up, Key::up},
+            0.22f);
+    s.press({Key::right}, 0.6f);
+    s.press({Key::triangle}, 0.8f);
+    s.press({Key::down, Key::right, Key::down, Key::right}, 0.4f);
     s.press({Key::circle}, 0.6f);
-    // Back home by the rail, and into the game.
-    s.press({Key::left, Key::left}, 0.5f);
-    s.press({Key::up, Key::up, Key::up}, 0.3f);
-    s.press({Key::cross}, 1.0f);
+    s.press({Key::circle}, 0.8f);
+    s.press({Key::right}, 0.3f);
+    s.press({Key::cross});
+    s.wait(0.9f);
+    s.press({Key::down, Key::down, Key::up}, 0.3f);
+    s.press({Key::cross}, 0.8f);
+    s.press({Key::right, Key::down, Key::left}, 0.4f);
+    s.press({Key::circle}, 0.6f);
+    s.press({Key::circle}, 0.9f);
+    s.press({Key::down}, 0.5f);
     s.press({Key::cross});
     s.wait(1.2f);
-}
-
-// PE_TOUR=update: the app opens with a newer release listed; the offer, Update now, the download
-// and unpacking, and ProsperoEden closing for the update.
-void update_tour(Stage &s)
-{
-    s.services.connected_controllers = 0b0001;
-    s.services.update_version = "v1.000.060";
-    s.restart(true);
-    s.wait(3.4f);
-    // What's new: the notes open, scroll down a little at a time, a page, then back.
-    s.press({Key::right}, 0.6f);
-    s.press({Key::cross}, 1.6f);
-    s.press({Key::down}, 0.7f);
-    s.press({Key::down}, 0.7f);
-    s.press({Key::down}, 0.9f);
-    s.press({Key::r1}, 1.2f);
-    s.press({Key::r1}, 1.4f);
-    s.press({Key::circle}, 0.9f);
-    s.press({Key::left}, 0.6f);
-    s.press({Key::cross});
-    s.wait(10.5f);
 }
 
 } // namespace
@@ -1392,21 +1117,15 @@ int main(int argc, char **argv)
         preferences.reduce_motion = names.find("calm") != std::string_view::npos;
         services.set_preferences(preferences);
     }
-    // PE_THEME=slate: the tour in another of the build's themes.
-    if (const char *theme = std::getenv("PE_THEME"); theme != nullptr && theme[0] != 0)
-    {
+    if (const char *mode = std::getenv("PE_PREVIEW_SWITCH_THEME");
+        mode != nullptr && std::strcmp(mode, "1") == 0) {
         pe::ui::Preferences preferences = services.preferences();
-        preferences.theme = theme;
+        preferences.ui_theme = 1;
         services.set_preferences(preferences);
     }
     pe::ui::Textures textures(batch, services);
-    pe::ui::use_theme(services.preferences().theme);
     if (!textures.load_art(assets))
         std::fprintf(stderr, "warning: launcher art is incomplete\n");
-    // The console's launch picture, three folders up from the launcher's assets in the source
-    // tree, for the opening.
-    if (!textures.load_splash(assets + "/../../../sce_sys/pic0.dds"))
-        std::fprintf(stderr, "warning: no launch picture; the launcher opens without its opening\n");
     textures.set_output_scale(static_cast<float>(width) / 1920.0f);
 
     // PE_SPECIMEN=<file>: instead of the screens, one picture of the file's lines of text (a line
@@ -1421,7 +1140,7 @@ int main(int argc, char **argv)
         }
         const std::uint32_t texture = batch.create_font_texture(font);
         pe::gfx::DrawList list;
-        list.rounded_rect({0.0f, 0.0f, 1920.0f, 1080.0f}, 0.0f, pe::ui::th().panel);
+        list.rounded_rect({0.0f, 0.0f, 1920.0f, 1080.0f}, 0.0f, pe::ui::theme::kPanel);
         float x = 40.0f;
         float y = 60.0f;
         const float size = 30.0f;
@@ -1449,8 +1168,8 @@ int main(int argc, char **argv)
             {
                 for (const std::string &part : font.wrap(line.substr(2), size, column))
                 {
-                    list.rounded_rect({x, y - size, column, pitch - 6.0f}, 4.0f, pe::ui::th().row);
-                    list.text(font, texture, part, x, y, size, pe::ui::th().text);
+                    list.rounded_rect({x, y - size, column, pitch - 6.0f}, 4.0f, pe::ui::theme::kRow);
+                    list.text(font, texture, part, x, y, size, pe::ui::theme::kText);
                     advance();
                 }
                 continue;
@@ -1458,13 +1177,13 @@ int main(int argc, char **argv)
             if (line.substr(0, 2) == "F ")
             {
                 // Cut to a narrow place, as a long title is.
-                list.rounded_rect({x, y - size, 420.0f, pitch - 6.0f}, 4.0f, pe::ui::th().row);
-                list.text(font, texture, font.fit(line.substr(2), size, 420.0f), x, y, size, pe::ui::th().text);
+                list.rounded_rect({x, y - size, 420.0f, pitch - 6.0f}, 4.0f, pe::ui::theme::kRow);
+                list.text(font, texture, font.fit(line.substr(2), size, 420.0f), x, y, size, pe::ui::theme::kText);
                 advance();
                 continue;
             }
-            list.text(font, texture, line, x, y, size, pe::ui::th().text);
-            list.text(font, texture, line, x + column, y, 20.0f, pe::ui::th().accent, pe::gfx::Align::right);
+            list.text(font, texture, line, x, y, size, pe::ui::theme::kText);
+            list.text(font, texture, line, x + column, y, 20.0f, pe::ui::theme::kLime, pe::gfx::Align::right);
             advance();
         }
         batch.sync_font_texture(texture, font);
@@ -1485,12 +1204,7 @@ int main(int argc, char **argv)
                 output, nullptr, {}, {}, make_tour, true, {}};
     stage.pixels.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
     stbi_flip_vertically_on_write(1);
-    const char *which_tour = std::getenv("PE_TOUR");
-    if (make_tour && which_tour && std::strcmp(which_tour, "update") == 0)
-        update_tour(stage);
-    else if (make_tour && which_tour && std::strcmp(which_tour, "opening") == 0)
-        opening_tour(stage);
-    else if (make_tour)
+    if (make_tour)
         tour(stage);
     else
         pictures(stage);
@@ -1500,5 +1214,3 @@ int main(int argc, char **argv)
         std::fprintf(stderr, "%s %.2f: %s\n", fit.second ? "cut" : "shrunk", fit.first, text.c_str());
     return stage.ok ? 0 : 1;
 }
-
-#endif

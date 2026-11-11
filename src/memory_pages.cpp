@@ -2,9 +2,6 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <chrono>
-#include <condition_variable>
-#include <csignal>
 #include <cerrno>
 #include <cstdint>
 #include <cstdio>
@@ -14,29 +11,21 @@
 #include <limits>
 #include <mutex>
 #include <new>
-#include <sched.h>
-#include <signal.h>
-#include <sys/mman.h>
-#include <thread>
-#include <unistd.h>
+#include <unordered_map>
 #include <utility>
 #include <vector>
+#include <sys/mman.h>
+#include <time.h>
+#include <unistd.h>
 
-#include "fastmem.h"
+#ifdef PS5_NATIVE
+#include "jit-sparse-commit.h"
+#endif
 
 #ifdef PS5_NATIVE
 // Keep CPU heaps/tables and JIT views out of RADV's high-word-2 GPU window.
 // This is a non-fixed hint: the kernel retains ownership of collision handling.
 constexpr std::uintptr_t cpu_mapping_hint = 0x1000000000ull;
-// Where the guest's own memory is mapped: above every address a guest can have (2^39, the end of
-// the 39-bit address space of a 64-bit title). A guest page table entry is the page's host
-// address less its guest address, and zero means "no pointer" (common/page_table.h). At the
-// general hint the guest's memory sat at 67 to 71 GiB, inside the guest's address space: a game
-// that mapped 2 MiB there at the matching offset got 512 entries of zero ("memory mapping base
-// yield a nullptr within the table"), read zeros from that memory, jumped to address 0 and was
-// restarted as a guest fault. A hint, as the other is: where the system places the block instead
-// is reported (EDEN_GUEST_MEMORY).
-constexpr std::uintptr_t guest_memory_hint = 0x8000000000ull;
 static bool cpu_mapping_address(void* base) {
     return reinterpret_cast<std::uintptr_t>(base) >= 0x300000000ull && base != MAP_FAILED;
 }
@@ -55,6 +44,49 @@ std::int32_t sceKernelReserveVirtualRange(void**, std::size_t, int, std::size_t)
 std::int32_t sceKernelEnableDmemAliasing();
 int sceKernelDebugOutText(int, const char*);
 }
+#endif
+
+#ifdef PS5_NATIVE
+namespace {
+// This is the fixed addressable direct-memory EXTENT, not available RAM.
+// Demand-backed sparse JIT previously asked the kernel for it for EVERY
+// newly committed 2 MiB page; CPU heap and zero-table allocations did too.
+// Cache only a positive successful answer, so transient early errors retry.
+std::atomic<std::int64_t> cached_direct_memory_extent{0};
+std::int64_t DirectMemoryExtent() noexcept {
+    const auto cached = cached_direct_memory_extent.load(std::memory_order_acquire);
+    if (cached > 0) return cached;
+    const auto current = sceKernelGetDirectMemorySize();
+    if (current > 0)
+        cached_direct_memory_extent.store(current, std::memory_order_release);
+    return current > 0 ? current : 0;
+}
+std::int32_t AllocateDirectOwned(std::size_t bytes, std::size_t align,
+                                  std::int64_t* physical) noexcept {
+    const auto extent = DirectMemoryExtent();
+    // No allocator can recover by passing a negative/zero extent to the native mapping API.
+    return extent > 0 ? sceKernelAllocateDirectMemory(0, extent, bytes, align, 12, physical) : -1;
+}
+// One ownership contract for sparse JIT, sparse page tables and growing
+// native heap reservations. Refuse any mapping outside the full CPU window.
+// A failed syscall that mutated the output VA might still own a reservation;
+// do not silently lose track of it and proceed to reserve another region.
+void* ReserveCpuVirtualRange(std::size_t bytes, std::size_t alignment) noexcept {
+    if (!bytes || !alignment) return nullptr;
+    void* address = reinterpret_cast<void*>(cpu_mapping_hint);
+    const auto rc = sceKernelReserveVirtualRange(&address, bytes, 0, alignment);
+    if (rc != 0) {
+        if (address != reinterpret_cast<void*>(cpu_mapping_hint)) std::abort();
+        return nullptr;
+    }
+    if (!cpu_mapping_range(address, bytes)) {
+        if (!address || address == MAP_FAILED || munmap(address, bytes) != 0)
+            std::abort();
+        return nullptr;
+    }
+    return address;
+}
+} // namespace
 #endif
 
 namespace Common {
@@ -118,8 +150,7 @@ const Header& header_of(const void* pointer, std::size_t page) {
 // PS5 direct memory is real memory from the first byte: there is no page the system fills in
 // when it is first touched. A block from here is dense and zeroed. What must not be dense (the
 // guest page tables, the heap) uses the two families below.
-namespace {
-void* AllocatePagesAt(std::size_t size, [[maybe_unused]] std::uintptr_t hint) noexcept {
+void* AllocateMemoryPages(std::size_t size) noexcept {
     const long page = sysconf(_SC_PAGESIZE);
     const std::size_t lead = page > 0 ? lead_size(size, static_cast<std::size_t>(page)) : 0;
     const auto total = page > 0 ? allocation_size(size, page, lead) : 0;
@@ -127,9 +158,9 @@ void* AllocatePagesAt(std::size_t size, [[maybe_unused]] std::uintptr_t hint) no
     void* base = nullptr;
     std::int64_t physical = -1;
 #ifdef PS5_NATIVE
-    base = reinterpret_cast<void*>(hint);
-    const auto limit = sceKernelGetDirectMemorySize();
-    auto rc = sceKernelAllocateDirectMemory(0, limit, total, lead, 12, &physical);
+    base = reinterpret_cast<void*>(cpu_mapping_hint);
+    const auto limit = DirectMemoryExtent();
+    auto rc = limit > 0 ? sceKernelAllocateDirectMemory(0, limit, total, lead, 12, &physical) : -1;
     if (rc != 0) {
         std::fprintf(stderr, "Direct allocation failed: rc=%08x bytes=%zu limit=%lld\n",
                      unsigned(rc), total, static_cast<long long>(limit));
@@ -137,8 +168,15 @@ void* AllocatePagesAt(std::size_t size, [[maybe_unused]] std::uintptr_t hint) no
         return nullptr;
     }
     rc = sceKernelMapDirectMemory(&base, total, PROT_READ | PROT_WRITE, 0, physical, lead);
-    if (rc != 0 || !cpu_mapping_address(base)) {
+    // Reject a kernel-chosen CPU mapping whose START is legal but whose
+    // final page crosses into RADV's protected high VA/device-memory window.
+    if (rc != 0 || !cpu_mapping_range(base, total)) {
         std::fprintf(stderr, "Direct mapping failed: rc=%08x bytes=%zu\n", unsigned(rc), total);
+        // A failed non-fixed mapping must not change its output pointer:
+        // the kernel may have created an alias before returning an error.
+        // Ownership is then ambiguous; returning physical RAM is unsafe.
+        if (rc != 0 && base != reinterpret_cast<void*>(cpu_mapping_hint))
+            std::abort();
         if (rc == 0 && base && base != MAP_FAILED && munmap(base, total) != 0) std::abort();
         if (sceKernelReleaseDirectMemory(physical, total) != 0) std::abort();
         errno = ENOMEM;
@@ -160,29 +198,14 @@ void* AllocatePagesAt(std::size_t size, [[maybe_unused]] std::uintptr_t hint) no
     new (data - page) Header{physical, total, lead};
     return data;
 }
-} // namespace
 
-void* AllocateMemoryPages(std::size_t size) noexcept {
-#ifdef PS5_NATIVE
-    return AllocatePagesAt(size, cpu_mapping_hint);
-#else
-    return AllocatePagesAt(size, 0);
-#endif
-}
-
-// The guest's memory (host_memory.cpp): as AllocateMemoryPages, above the guest's address space.
-void* AllocateGuestMemory(std::size_t size) noexcept {
-#ifdef PS5_NATIVE
-    void* base = AllocatePagesAt(size, guest_memory_hint);
-    if (!base) base = AllocatePagesAt(size, cpu_mapping_hint);
-    char line[112];
-    const int length = std::snprintf(line, sizeof(line), "EDEN_GUEST_MEMORY va=%p bytes=%zu above_guest=%d\n", base, size,
-                                     int(reinterpret_cast<std::uintptr_t>(base) >= guest_memory_hint));
-    if (length > 0) Report(line);
-    return base;
-#else
-    return AllocatePagesAt(size, 0);
-#endif
+// Exact direct allocation span including metadata and large-page rounding.
+// The caller's payload size is not a physical ownership measurement.
+std::size_t AllocatedMemoryPagesSpan(const void* pointer) noexcept {
+    if (!pointer) return 0;
+    const long page = sysconf(_SC_PAGESIZE);
+    if (page <= 0) std::abort();
+    return header_of(pointer, static_cast<std::size_t>(page)).total;
 }
 
 #ifdef PS5_NATIVE
@@ -192,6 +215,36 @@ std::int64_t DirectMemoryStart(const void* pointer) noexcept {
     if (!pointer || page <= 0) std::abort();
     const auto& header = header_of(pointer, page);
     return header.physical + static_cast<std::int64_t>(header.lead);
+}
+
+// Report *physical direct bytes*, including allocator alignment/header slack,
+// for actual dense Dynarmic regions. Increments happen only on JIT
+// construction/destruction, never per emulated frame.
+static std::atomic<std::size_t> dense_jit_direct_bytes{0};
+void CountDenseJitDirect(void* writable, bool acquire) noexcept {
+    if (!writable) return;
+    const long page = sysconf(_SC_PAGESIZE);
+    if (page <= 0) std::abort();
+    const std::size_t bytes = header_of(writable, page).total;
+    if (acquire) {
+        dense_jit_direct_bytes.fetch_add(bytes, std::memory_order_relaxed);
+    } else {
+        const std::size_t old = dense_jit_direct_bytes.fetch_sub(bytes, std::memory_order_relaxed);
+        if (old < bytes) std::abort();
+    }
+}
+std::size_t DenseJitDirectBytes() noexcept {
+    return dense_jit_direct_bytes.load(std::memory_order_relaxed);
+}
+
+// Return the actual RX virtual-mapping length, not just Xbyak's requested
+// size: large-page direct allocations can round, for example, 3 MiB to 4 MiB.
+// Free must unmap the WHOLE executable view before releasing direct RAM.
+std::size_t ExecutableAliasSpan(void* writable) noexcept {
+    const long page = sysconf(_SC_PAGESIZE);
+    if (!writable || page <= 0) std::abort();
+    const auto header = header_of(writable, page);
+    return header.total - header.lead;
 }
 
 // A second view of our own direct allocation; ownership stays with pointer.
@@ -208,8 +261,15 @@ void* MapExecutableAlias(void* pointer, std::size_t size) noexcept {
     const auto rc = sceKernelMapDirectMemory(&alias, span, PROT_READ, 0,
                                               header.physical + static_cast<std::int64_t>(header.lead),
                                               header.lead);
-    if (rc != 0 || !cpu_mapping_address(alias)) {
+    // The RX alias must fit entirely inside the host CPU VA window;
+    // validating only its first byte could admit a cross-window mapping.
+    if (rc != 0 || !cpu_mapping_range(alias, span)) {
         std::printf("EDEN_JIT_ALIAS_MAP rc=%08x bytes=%zu\n", unsigned(rc), span);
+        // If a non-fixed syscall returned an error but changed its output
+        // address, we cannot prove whether it retained a mapping. The owner
+        // must not release physical backing through the allocator fallback.
+        if (rc != 0 && alias != reinterpret_cast<void*>(cpu_mapping_hint))
+            std::abort();
         if (rc == 0 && alias && alias != MAP_FAILED && munmap(alias, span) != 0) std::abort();
         errno = rc ? unsigned(rc) & 0xffff : ENOMEM;
         return nullptr;
@@ -223,6 +283,352 @@ void* MapExecutableAlias(void* pointer, std::size_t size) noexcept {
         return nullptr;
     }
     return alias;
+}
+#endif
+
+#ifdef PS5_NATIVE
+namespace {
+// Unlike AllocateMemoryPages, the JIT stores code in two stable, separately
+// reserved virtual views. Their *physical* backing is committed in 2 MiB
+// chunks, once, before the compiler writes or executes that chunk.
+struct SparseJitRegion {
+    void* writable = nullptr;
+    std::size_t capacity = 0;
+    std::size_t committed = 0;
+    std::vector<std::int64_t> physical;
+};
+std::mutex sparse_jit_mutex;
+std::unordered_map<void*, SparseJitRegion> sparse_jit_regions;
+std::size_t sparse_jit_committed = 0;
+// The GPU frame reporter MUST NOT take sparse_jit_mutex while Dynarmic
+// commits 2 MiB code chunks. Keep cheap snapshots atomically alongside the
+// owner-locked exact counters. Both are updated only after ownership changes.
+std::atomic<std::size_t> sparse_jit_reserved_live{0};
+std::atomic<std::size_t> sparse_jit_committed_live{0};
+// JIT executable aliases are immutable during an active title. A new region
+// cannot change already committed pages in any live region, so it must not
+// flush other workers' positive hints. Only trim or release invalidates the
+// epoch: both can retire physical backing or recycle an old RX address.
+std::atomic<std::uint64_t> sparse_jit_generation{1};
+}
+
+// Validate the firmware's fixed-address alias contract *before* selecting
+// sparse JIT for a guest. This uses a disposable 2 MiB mapping, performs no
+// execution, and never modifies an active JIT. Failure keeps the dense path.
+bool ProbeSparseJitAlias() noexcept {
+    void* writable = reinterpret_cast<void*>(cpu_mapping_hint);
+    void* executable = reinterpret_cast<void*>(cpu_mapping_hint);
+    bool rw_reserved = false, rx_reserved = false, direct_owned = false;
+    // MAP_FIXED should never return another address. If it does, retain
+    // that successful mapping's ownership until it has been unmapped, rather
+    // than releasing its physical backing with an orphaned virtual alias.
+    void* unexpected_rw = nullptr;
+    void* unexpected_rx = nullptr;
+    std::int64_t physical = -1;
+    bool success = false;
+    do {
+        (void)sceKernelEnableDmemAliasing();
+        writable = ReserveCpuVirtualRange(LargePage, LargePage);
+        if (!writable) break;
+        rw_reserved = true;
+        executable = ReserveCpuVirtualRange(LargePage, LargePage);
+        if (!executable) break;
+        rx_reserved = true;
+        if (executable == writable) std::abort();
+        if (AllocateDirectOwned(LargePage, LargePage, &physical) != 0)
+            break;
+        direct_owned = true;
+        void* actual_rw = writable;
+        void* actual_rx = executable;
+        const auto rw_rc = sceKernelMapDirectMemory(&actual_rw, LargePage,
+                                                     PROT_READ | PROT_WRITE,
+                                                     MAP_FIXED, physical, LargePage);
+        if (actual_rw != writable) {
+            // A failed syscall with a mutated output has unknowable mapping
+            // ownership. Also reject aliases over our other reserved view.
+            if (rw_rc != 0 || !actual_rw || actual_rw == MAP_FAILED ||
+                actual_rw == executable) std::abort();
+            unexpected_rw = actual_rw;
+            break;
+        }
+        if (rw_rc != 0) break;
+        const auto rx_rc = sceKernelMapDirectMemory(&actual_rx, LargePage,
+                                                    PROT_READ, MAP_FIXED,
+                                                    physical, LargePage);
+        if (actual_rx != executable) {
+            if (rx_rc != 0 || !actual_rx || actual_rx == MAP_FAILED ||
+                actual_rx == writable) std::abort();
+            unexpected_rx = actual_rx;
+            break;
+        }
+        if (rx_rc != 0 || mprotect(executable, LargePage, PROT_READ | PROT_EXEC) != 0)
+            break;
+        auto* rw = static_cast<volatile std::uint8_t*>(writable);
+        auto* rx = static_cast<volatile std::uint8_t*>(executable);
+        rw[0] = 0xa5;
+        rw[LargePage - 1] = 0x5a;
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+        success = rx[0] == 0xa5 && rx[LargePage - 1] == 0x5a;
+    } while (false);
+
+    // Release unexpected successful fixed-map aliases FIRST, then both
+    // reserved views and their direct backing. Never leave a live foreign VA
+    // referencing physical memory handed back to the kernel.
+    if (unexpected_rx && munmap(unexpected_rx, LargePage) != 0) std::abort();
+    if (unexpected_rw && munmap(unexpected_rw, LargePage) != 0) std::abort();
+    // Release the disposable virtual mappings before returning their physical
+    // backing to the system. A failed cleanup is not recoverable ownership.
+    if (rx_reserved && executable != writable &&
+        munmap(executable, LargePage) != 0)
+        std::abort();
+    if (rw_reserved && munmap(writable, LargePage) != 0)
+        std::abort();
+    if (direct_owned && sceKernelReleaseDirectMemory(physical, LargePage) != 0)
+        std::abort();
+
+    std::printf("EDEN_JIT_SPARSE_PROBE available=%u alias_rw_rx=%u\n",
+                unsigned(success), unsigned(rx_reserved && rw_reserved));
+    return success;
+}
+
+// Forward declarations: reservation bootstrap may release its own ownership.
+void ReleaseSparseJitCode(void* executable) noexcept;
+
+// The console has unified memory, so report separately the space promised
+// to the JIT and the physical direct pages it actually holds. Only snapshots
+// call this, never the frame or code-emission hot paths.
+void SparseJitUsage(std::size_t* virtual_bytes, std::size_t* committed_bytes) noexcept {
+    if (!virtual_bytes || !committed_bytes) return;
+    const std::lock_guard lock{sparse_jit_mutex};
+    std::size_t reserved = 0;
+    for (const auto& [_, region] : sparse_jit_regions) {
+        reserved += region.capacity;
+    }
+    *virtual_bytes = reserved;
+    *committed_bytes = sparse_jit_committed;
+}
+
+// No mutex, no physical query, no allocator traversal: safe for the five-second
+// native graphics frame reporter. Values may span an in-progress reservation
+// update, so use lifecycle SparseJitUsage() for exact stopped-title receipts.
+void SparseJitUsageFast(std::size_t* virtual_bytes, std::size_t* committed_bytes) noexcept {
+    if (!virtual_bytes || !committed_bytes) return;
+    *virtual_bytes = sparse_jit_reserved_live.load(std::memory_order_relaxed);
+    *committed_bytes = sparse_jit_committed_live.load(std::memory_order_relaxed);
+}
+
+// The upstream ConstantPool constructor writes ~2 MiB (plus alignment) before
+// BlockOfCode's constructor body calls EnsureMemoryCommitted. Provision 4 MiB
+// before returning RX/RW pointers; later code commits stay demand-driven.
+bool CommitSparseJitCode(void* executable, std::size_t required) noexcept;
+
+// Reserve two VA ranges, but no direct memory. The RX base never changes,
+// so Dynarmic's generated PC-relative branches and published pointers survive
+// incremental commits. This differs from AllocateMemoryPages's dense path.
+void* ReserveSparseJitCode(std::size_t size, void** writable_out) noexcept {
+    if (!writable_out || !size || size % LargePage || !cpu_mapping_range(
+            reinterpret_cast<void*>(cpu_mapping_hint), size)) {
+        errno = EINVAL;
+        return nullptr;
+    }
+    *writable_out = nullptr;
+    void* rw = ReserveCpuVirtualRange(size, LargePage);
+    if (!rw) return nullptr;
+    void* rx = ReserveCpuVirtualRange(size, LargePage);
+    if (!rx) {
+        if (munmap(rw, size) != 0) std::abort();
+        return nullptr;
+    }
+    if (rx == rw) std::abort(); // Kernel returned overlapping reservations.
+    try {
+        SparseJitRegion region;
+        region.writable = rw;
+        region.capacity = size;
+        region.physical.reserve(size / LargePage);
+        const std::lock_guard lock{sparse_jit_mutex};
+        if (!sparse_jit_regions.emplace(rx, std::move(region)).second)
+            std::abort();
+        sparse_jit_reserved_live.fetch_add(size, std::memory_order_relaxed);
+        // No epoch bump on insertion: previously live committed RX regions
+        // retain their positive per-worker cache entries. Trim and release
+        // still invalidate the epoch before any backing can be reclaimed.
+    } catch (...) {
+        if (munmap(rx, size) != 0 || munmap(rw, size) != 0) std::abort();
+        errno = ENOMEM;
+        return nullptr;
+    }
+    // This firmware wrapper reports zero even if it is unsupported; actual
+    // per-chunk MapDirectMemory/mprotect calls below are the qualification.
+    (void)sceKernelEnableDmemAliasing();
+    // The 2 MiB constant pool writes during member construction, so simply
+    // reserving zero-backed virtual addresses would immediately fault.
+    // If even the required first 4 MiB are unavailable, drop the reservation.
+    // In explicitly selected sparse mode the allocator MUST NOT silently
+    // fall back to a full physically committed dense JIT: its caller retries
+    // a smaller stable virtual arena, or fails startup without overcommitting.
+    const std::size_t bootstrap = std::min<std::size_t>(size, 2 * LargePage);
+    if (!CommitSparseJitCode(rx, bootstrap)) {
+        ReleaseSparseJitCode(rx);
+        errno = ENOMEM;
+        return nullptr;
+    }
+    *writable_out = rw;
+    std::printf("EDEN_JIT_SPARSE_RESERVE rx=%p rw=%p capacity=%zu bootstrap=%zu\n",
+                rx, rw, size, bootstrap);
+    return rx;
+}
+
+// Sparse reservation may fail when virtual address space is fragmented.
+// If Xbyak fell back to a dense alias, never try to commit into that mapping.
+bool IsSparseJitCode(const void* executable) noexcept {
+    const std::lock_guard lock{sparse_jit_mutex};
+    return sparse_jit_regions.find(const_cast<void*>(executable)) != sparse_jit_regions.end();
+}
+
+// Called only by BlockOfCode::EnsureMemoryCommitted before emission.
+// Never commit at an asynchronous page fault in executing JIT code.
+bool CommitSparseJitCode(void* executable, std::size_t required) noexcept {
+    // Dynarmic calls EnsureMemoryCommitted on EVERY compiled guest block,
+    // but a physical 2 MiB direct-memory page is committed only occasionally.
+    // Avoid 3 guest JIT workers contending on one global mutex for pages
+    // already known to be committed by this same worker. Cache only positive
+    // answers, qualified by reservation epoch; a larger required span takes
+    // the original locked ownership+allocation path.
+    // A guest worker can alternate A64/A32 arenas. One positive TLS entry
+    // would then take the global mutex on every switch, even when both
+    // regions are already committed. Four MRU entries preserve the same
+    // generation/ownership contract without the avoidable lock round trips.
+    static thread_local ::Eden::Jit::SparseCommitPositiveCache local;
+    const std::uint64_t generation = sparse_jit_generation.load(std::memory_order_acquire);
+    if (local.Covers(executable, required, generation)) return true;
+    const std::lock_guard lock{sparse_jit_mutex};
+    const auto it = sparse_jit_regions.find(executable);
+    if (it == sparse_jit_regions.end() || required > it->second.capacity) return false;
+    auto& region = it->second;
+    const std::size_t target = (required + LargePage - 1) / LargePage * LargePage;
+    while (region.committed < target) {
+        std::int64_t physical = -1;
+        if (AllocateDirectOwned(LargePage, LargePage, &physical) != 0) {
+            std::fprintf(stderr, "EDEN_JIT_SPARSE_OOM capacity=%zu committed=%zu required=%zu\n",
+                         region.capacity, region.committed, required);
+            return false;
+        }
+        auto* rw = static_cast<std::uint8_t*>(region.writable) + region.committed;
+        auto* rx = static_cast<std::uint8_t*>(executable) + region.committed;
+        void* actual_rw = rw;
+        void* actual_rx = rx;
+        // The fixed RX/RW views are stable for already-published guest code.
+        // A kernel mapping can fail after the RW view has succeeded; do not
+        // abort the whole game while the new (unpublished) page is recoverable.
+        // Restore *only this new page* to inaccessible guards in BOTH views,
+        // release its physical backing and leave committed bytes unchanged.
+        // If the firmware cannot restore the fixed reservation, fail closed:
+        // reusing a partially mapped code page could execute stale data.
+        const auto restore_guard = [](void* address) noexcept {
+            void* restored = mmap(address, LargePage, PROT_NONE,
+                                  MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            if (restored != address) std::abort();
+        };
+        const auto rollback = [&](const char* stage, int error) noexcept {
+            std::fprintf(stderr,
+                         "EDEN_JIT_SPARSE_MAP_FAILED stage=%s committed=%zu errno=%d rollback=guard\n",
+                         stage, region.committed, error);
+            restore_guard(rx);
+            restore_guard(rw);
+            if (sceKernelReleaseDirectMemory(physical, LargePage) != 0)
+                std::abort();
+            errno = error ? error : ENOMEM;
+            return false;
+        };
+        const auto rw_rc = sceKernelMapDirectMemory(&actual_rw, LargePage,
+                                                    PROT_READ | PROT_WRITE,
+                                                    MAP_FIXED, physical, LargePage);
+        if (actual_rw != rw) std::abort(); // Unexpected mapping address: ownership unknown.
+        if (rw_rc != 0) return rollback("rw", ENOMEM);
+        std::memset(rw, 0, LargePage);
+        const auto rx_rc = sceKernelMapDirectMemory(&actual_rx, LargePage,
+                                                    PROT_READ, MAP_FIXED,
+                                                    physical, LargePage);
+        if (actual_rx != rx) std::abort();
+        if (rx_rc != 0) return rollback("rx", ENOMEM);
+        if (mprotect(rx, LargePage, PROT_READ | PROT_EXEC) != 0)
+            return rollback("rx_exec", errno);
+        region.physical.push_back(physical); // capacity reserved at region creation
+        region.committed += LargePage;
+        sparse_jit_committed += LargePage;
+        sparse_jit_committed_live.fetch_add(LargePage, std::memory_order_relaxed);
+    }
+    // The page protection/mapping writes above happen before publishing a
+    // positive hint. No unvalidated amount is ever returned from fastpath.
+    local.Remember(executable, region.committed,
+                   sparse_jit_generation.load(std::memory_order_relaxed));
+    return true;
+}
+
+// Release only the physical tail of a FULLY quiesced Dynarmic cache.
+bool TrimSparseJitCode(void* executable, std::size_t live_code_end) noexcept {
+    const std::lock_guard lock{sparse_jit_mutex};
+    const auto it = sparse_jit_regions.find(executable);
+    if (it == sparse_jit_regions.end()) return false;
+    auto& region = it->second;
+    const auto plan = ::Eden::Jit::PlanSparseTrim(
+        live_code_end, region.committed, region.capacity, LargePage);
+    if (!plan.valid) return false;
+    if (!plan.release) return true;
+
+    // Invalidate thread-local positive commitment hints before returning
+    // physical pages; a later shader/guest compiler must reallocate them.
+    sparse_jit_generation.fetch_add(1, std::memory_order_acq_rel);
+    const auto guard = [](void* address) noexcept {
+        void* restored = mmap(address, LargePage, PROT_NONE,
+                              MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if (restored != address) std::abort();
+    };
+    while (region.committed > plan.keep) {
+        const std::size_t offset = region.committed - LargePage;
+        auto* rx = static_cast<std::uint8_t*>(executable) + offset;
+        auto* rw = static_cast<std::uint8_t*>(region.writable) + offset;
+        // Both aliases must stop referencing the backing BEFORE it is freed.
+        guard(rx);
+        guard(rw);
+        const auto physical = region.physical.back();
+        if (sceKernelReleaseDirectMemory(physical, LargePage) != 0)
+            std::abort();
+        region.physical.pop_back();
+        region.committed -= LargePage;
+        sparse_jit_committed -= LargePage;
+        sparse_jit_committed_live.fetch_sub(LargePage, std::memory_order_relaxed);
+    }
+    std::printf("EDEN_JIT_SPARSE_TRIM released=%zu retained=%zu capacity=%zu\n",
+                plan.release, plan.keep, region.capacity);
+    return true;
+}
+
+// The virtual reservation and every remaining physical chunk have one owner.
+// Untrimmed full-region release still happens only on JIT teardown.
+void ReleaseSparseJitCode(void* executable) noexcept {
+    SparseJitRegion region;
+    std::size_t remaining = 0;
+    {
+        const std::lock_guard lock{sparse_jit_mutex};
+        const auto it = sparse_jit_regions.find(executable);
+        if (it == sparse_jit_regions.end()) std::abort();
+        region = std::move(it->second);
+        sparse_jit_committed -= region.committed;
+        sparse_jit_committed_live.fetch_sub(region.committed, std::memory_order_relaxed);
+        sparse_jit_reserved_live.fetch_sub(region.capacity, std::memory_order_relaxed);
+        remaining = sparse_jit_committed;
+        // Guest workers must already be quiescent before BlockOfCode releases
+        // its executable view; invalidate all per-thread positive hints now.
+        sparse_jit_generation.fetch_add(1, std::memory_order_acq_rel);
+        sparse_jit_regions.erase(it);
+    }
+    if (munmap(executable, region.capacity) != 0 ||
+        munmap(region.writable, region.capacity) != 0) std::abort();
+    for (const auto physical : region.physical)
+        if (sceKernelReleaseDirectMemory(physical, LargePage) != 0) std::abort();
+    std::printf("EDEN_JIT_SPARSE_RELEASE capacity=%zu committed=%zu remaining=%zu\n",
+                region.capacity, region.committed, remaining);
 }
 #endif
 
@@ -270,47 +676,105 @@ struct SparseRange {
     std::atomic<std::uintptr_t> begin{0}; // 0: free
     std::uintptr_t end = 0;
     std::atomic<bool>* owned = nullptr; // per slot: it has a block of its own
-    bool guest = false;                 // the guest's memory, not a table (counted apart)
     std::int64_t* physical = nullptr;   // that block (PS5)
-    std::atomic<std::uint8_t>* state = nullptr; // per slot, when the range is a service (guest_memory_service.inc)
-    bool promote = false;               // writes to shared slots are promoted (the service runs)
-    std::uint16_t* fine = nullptr;      // per slot: 16 KiB pages a Fine slot keeps (low 8 bits), times made whole (bits 8-11)
-    std::uint32_t* fine_after = nullptr; // per slot: the scan pass from which it may be made Fine again
 };
 std::array<SparseRange, 64> sparse_ranges;
 std::mutex sparse_mutex;
+// Bound the owner-locked scan to currently published entries. Holes inside
+// the bound must still be searched; retire only a completely free tail.
+// Registering a new range grows the bound again before releasing the mutex.
+std::size_t sparse_used_prefix = 0;
+// Protected by sparse_mutex. Changing the range topology invalidates exact
+// negative lookup hints without touching the positive per-worker range hints.
+std::uint64_t sparse_range_generation = 1;
 std::atomic<std::size_t> sparse_reserved{0}, sparse_committed{0};
-// The guest's memory when it is such a range (below: "The guest's memory, backed where it is used").
-std::atomic<std::size_t> guest_reserved{0}, guest_committed{0};
-std::atomic<SparseRange*> guest_range{nullptr};
 std::atomic<int> sparse_state{0}; // 0 unknown, 1 in use, 2 not available (tables are dense)
 
 SparseRange* SparseRangeOf(std::uintptr_t address) {
-    for (auto& range : sparse_ranges) {
-        const auto begin = range.begin.load(std::memory_order_acquire);
-        if (begin != 0 && address >= begin && address < range.end) return &range;
+    // Called only with sparse_mutex held; non-atomic range.end and slot
+    // ownership must never be read across asynchronous table teardown.
+    // Most guest/GPU page-table writes stay inside one sparse range; a
+    // worker can also alternate between two tables. Keep both positive
+    // hints; a stable same-table hot run does not write to TLS.
+    // Every hint points into the process-lifetime static array and is
+    // revalidated against its CURRENT begin/end under the owner mutex.
+    static thread_local std::array<SparseRange*, 2> last_ranges{};
+    static thread_local unsigned next_slot = 0;
+    static thread_local unsigned preferred_slot = 0;
+    // Exact-address ring: dense page-table accesses often alternate between
+    // several addresses. Cache up to four negative probes without assuming
+    // host page alignment or caching a whole guest address region.
+    static thread_local std::array<std::uintptr_t, 4> last_negative_addresses{};
+    static thread_local std::uint64_t last_negative_generation = 0;
+    static thread_local unsigned negative_count = 0;
+    static thread_local unsigned next_negative_slot = 0;
+    if (sparse_used_prefix != 0) {
+        for (unsigned probe = 0; probe < last_ranges.size(); ++probe) {
+            const unsigned slot = preferred_slot ^ probe;
+            SparseRange* candidate = last_ranges[slot];
+            if (!candidate) continue;
+            const auto begin = candidate->begin.load(std::memory_order_acquire);
+            if (begin != 0 && address >= begin && address < candidate->end) {
+                // One cold preference change; stable runs then need one load.
+                if (probe != 0) preferred_slot = slot;
+                return candidate;
+            }
+        }
     }
+    // Cache only exact misses: sparse reservations can be unaligned on
+    // hosts. Mutations bump the topology generation under this same mutex.
+    if (last_negative_generation == sparse_range_generation) {
+        for (unsigned i = 0; i < negative_count; ++i)
+            if (last_negative_addresses[i] == address) return nullptr;
+    } else {
+        // An insertion or retirement may have changed ANY cached answer.
+        // Clearing count is enough; old addresses cannot match this epoch.
+        last_negative_generation = sparse_range_generation;
+        negative_count = 0;
+        next_negative_slot = 0;
+    }
+    for (std::size_t i = 0; i < sparse_used_prefix; ++i) {
+        auto& range = sparse_ranges[i];
+        // Already checked under the same lock; avoid a second atomic read.
+        if (&range == last_ranges[0] || &range == last_ranges[1]) continue;
+        const auto begin = range.begin.load(std::memory_order_acquire);
+        if (begin != 0 && address >= begin && address < range.end) {
+            last_ranges[next_slot] = &range;
+            preferred_slot = next_slot;
+            next_slot ^= 1u;
+            return &range;
+        }
+    }
+    // A miss must not discard still-live positive hints. Dense/sparse
+    // accesses may interleave, and forcing the next valid high-slot lookup
+    // through the 64-entry owner table adds avoidable cost. Every hint is
+    // rechecked against the current begin/end under sparse_mutex, so a
+    // retired or reused slot cannot return a stale range.
+    last_negative_addresses[next_negative_slot] = address;
+    next_negative_slot = (next_negative_slot + 1u) & 3u;
+    if (negative_count < last_negative_addresses.size()) ++negative_count;
     return nullptr;
 }
-
-#ifdef PS5_NATIVE
-// From as high in the pool as there is room (src/direct_memory.c): what is committed this way,
-// the heap's pieces, stays for good, while a game's memory and its graphics come and go below.
-extern "C" int eden_direct_high(std::size_t size, std::size_t alignment, int type, std::int64_t* start);
-// Where the system puts it: a 2 MiB block of this file's, which a session gives back.
-extern "C" int eden_direct_low(std::size_t size, std::size_t alignment, int type, std::int64_t* start);
-#endif
 
 #ifdef PS5_NATIVE
 std::int64_t zero_block = -1;
 
 // A 2 MiB block of direct memory, zeroed through a mapping of its own that is gone again.
 bool ZeroedBlock(std::int64_t* physical) {
-    if (eden_direct_low(SparseSlot, SparseSlot, 12, physical) != 0)
+    if (AllocateDirectOwned(SparseSlot, SparseSlot, physical) != 0)
         return false;
     void* view = reinterpret_cast<void*>(cpu_mapping_hint);
-    if (sceKernelMapDirectMemory(&view, SparseSlot, PROT_READ | PROT_WRITE, 0, *physical, SparseSlot) != 0) {
-        (void)sceKernelReleaseDirectMemory(*physical, SparseSlot);
+    const auto rc = sceKernelMapDirectMemory(&view, SparseSlot, PROT_READ | PROT_WRITE,
+                                             0, *physical, SparseSlot);
+    if (rc != 0 || !cpu_mapping_range(view, SparseSlot)) {
+        // Never release backing while a successful but out-of-range alias
+        // still maps it. The zero page has no published readers yet.
+        // An error with a changed output VA has unknown alias ownership.
+        if (rc != 0 && view != reinterpret_cast<void*>(cpu_mapping_hint))
+            std::abort();
+        if (rc == 0 && view && view != MAP_FAILED &&
+            munmap(view, SparseSlot) != 0) std::abort();
+        if (sceKernelReleaseDirectMemory(*physical, SparseSlot) != 0) std::abort();
         return false;
     }
     std::memset(view, 0, SparseSlot);
@@ -319,25 +783,30 @@ bool ZeroedBlock(std::int64_t* physical) {
 }
 bool MapSlot(std::uintptr_t at, int protection, std::int64_t physical) {
     void* address = reinterpret_cast<void*>(at);
-    return sceKernelMapDirectMemory(&address, SparseSlot, protection, MAP_FIXED, physical, SparseSlot) == 0 &&
-           address == reinterpret_cast<void*>(at);
+    const auto rc = sceKernelMapDirectMemory(&address, SparseSlot, protection,
+                                             MAP_FIXED, physical, SparseSlot);
+    if (address != reinterpret_cast<void*>(at)) {
+        // A surprising successful MAP_FIXED response owns a FOREIGN alias.
+        // It is unsafe to drop the physical page while this alias remains
+        // mapped. Unlike the ordinary fixed-address failure (same pointer),
+        // a mutated output on error has unknown ownership: fail closed.
+        if (rc != 0 || !address || address == MAP_FAILED) std::abort();
+        if (munmap(address, SparseSlot) != 0) std::abort();
+        return false;
+    }
+    return rc == 0;
 }
 #endif
 
-// Reserves `span` bytes whose every slot reads as zeroes. Null when the platform refuses. The
-// guest's memory goes above the guest's address space, as it does when it is taken whole.
-void* ReserveSparse(std::size_t span, [[maybe_unused]] bool guest = false) {
+// Reserves `span` bytes whose every slot reads as zeroes. Null when the platform refuses.
+void* ReserveSparse(std::size_t span) {
 #ifdef PS5_NATIVE
-    void* address = reinterpret_cast<void*>(guest ? guest_memory_hint : cpu_mapping_hint);
-    if (sceKernelReserveVirtualRange(&address, span, 0, SparseSlot) != 0) return nullptr;
-    if (guest ? reinterpret_cast<std::uintptr_t>(address) < guest_memory_hint : !cpu_mapping_range(address, span)) {
-        (void)munmap(address, span);
-        return nullptr;
-    }
+    void* address = ReserveCpuVirtualRange(span, SparseSlot);
+    if (!address) return nullptr;
     const auto start = reinterpret_cast<std::uintptr_t>(address);
     for (std::size_t offset = 0; offset < span; offset += SparseSlot) {
         if (!MapSlot(start + offset, PROT_READ, zero_block)) {
-            (void)munmap(address, span);
+            if (munmap(address, span) != 0) std::abort();
             return nullptr;
         }
     }
@@ -363,14 +832,7 @@ bool OwnSlot(std::uintptr_t at, std::int64_t* physical) {
 #endif
 }
 
-// The service's side of a range (guest_memory_service.inc).
-void ReleaseServiceBlocks(SparseRange& range) noexcept;
-bool ServiceCommit(SparseRange& range, std::size_t slot) noexcept;
-void ServiceStart(SparseRange& range) noexcept;
-void ServiceStop(SparseRange& range) noexcept;
-
 void ReleaseSparse(SparseRange& range) {
-    if (range.state != nullptr) ReleaseServiceBlocks(range); // its blocks, shared ones once
     const auto begin = range.begin.load(std::memory_order_relaxed);
     const std::size_t span = range.end - begin;
     if (munmap(reinterpret_cast<void*>(begin), span) != 0) std::abort();
@@ -382,17 +844,16 @@ void ReleaseSparse(SparseRange& range) {
         if (sceKernelReleaseDirectMemory(range.physical[slot], SparseSlot) != 0) std::abort();
 #endif
     }
-    (range.guest ? guest_reserved : sparse_reserved).fetch_sub(span, std::memory_order_relaxed);
-    (range.guest ? guest_committed : sparse_committed).fetch_sub(owned * SparseSlot, std::memory_order_relaxed);
-    range.guest = false;
-    range.promote = false;
-    delete[] range.state;
-    range.state = nullptr;
-    delete[] range.fine;
-    range.fine = nullptr;
-    delete[] range.fine_after;
-    range.fine_after = nullptr;
+    sparse_reserved.fetch_sub(span, std::memory_order_relaxed);
+    sparse_committed.fetch_sub(owned * SparseSlot, std::memory_order_relaxed);
     range.begin.store(0, std::memory_order_release);
+    ++sparse_range_generation; // retire exact negative hints under sparse_mutex
+    // No readers can inspect the non-atomic range metadata without
+    // sparse_mutex. A released high slot cannot force later first commits
+    // to scan 64 empty records across title restarts.
+    while (sparse_used_prefix > 0 &&
+           sparse_ranges[sparse_used_prefix - 1].begin.load(std::memory_order_relaxed) == 0)
+        --sparse_used_prefix;
     delete[] range.owned;
     delete[] range.physical;
     range.owned = nullptr;
@@ -468,46 +929,35 @@ bool SparseTablesAvailable() noexcept {
     return SparseAvailable();
 }
 
-namespace {
-// A sparse range of `size` bytes: every slot reads as zeroes until CommitSparsePage gives it a
-// block of its own. Null when the size is too small for one or the platform refuses.
-thread_local const char* sparse_refused = "";  // why this thread's last sparse range was refused
-void* NewSparseRange(std::size_t size, bool guest) {
-    sparse_refused = "";
+void* AllocateSparsePages(std::size_t size) noexcept {
     const std::size_t span = (size + SparseSlot - 1) / SparseSlot * SparseSlot;
-    if (size < 2 * SparseSlot || span < size) {
-        sparse_refused = "too-small";
-        return nullptr;
-    }
-    if (!SparseAvailable()) {
-        sparse_refused = "platform";
-        return nullptr;
-    }
+    if (size < 2 * SparseSlot || span < size || !SparseAvailable()) return AllocateMemoryPages(size);
     const std::lock_guard lock{sparse_mutex};
     SparseRange* free_range = nullptr;
-    for (auto& range : sparse_ranges)
+    // The mutex already protects both occupancy and the published prefix.
+    // Scan only live-or-reusable slots, then take the first unoccupied tail.
+    // With one active table this avoids probing the other 63 atomics.
+    for (std::size_t i = 0; i < sparse_used_prefix; ++i) {
+        auto& range = sparse_ranges[i];
         if (range.begin.load(std::memory_order_relaxed) == 0) {
             free_range = &range;
             break;
         }
-    if (free_range == nullptr) {
-        sparse_refused = "no-range";
-        return nullptr;
     }
+    if (!free_range && sparse_used_prefix < sparse_ranges.size())
+        free_range = &sparse_ranges[sparse_used_prefix];
     const std::size_t slots = span / SparseSlot;
     auto* owned = free_range ? new (std::nothrow) std::atomic<bool>[slots] : nullptr;
     auto* physical = owned ? new (std::nothrow) std::int64_t[slots] : nullptr;
-    if (physical == nullptr) {
-        delete[] owned;
-        sparse_refused = "no-table";
-        return nullptr;
-    }
-    void* address = ReserveSparse(span, guest);
+    void* address = physical ? ReserveSparse(span) : nullptr;
     if (address == nullptr) {
-        sparse_refused = "reserve";
         delete[] owned;
         delete[] physical;
-        return nullptr;
+        // The platform took the check's two slots but not this table: it is dense, as before.
+        char line[96];
+        const int length = std::snprintf(line, sizeof(line), "EDEN_SPARSE_TABLES dense bytes=%zu\n", size);
+        if (length > 0) Report(line);
+        return AllocateMemoryPages(size);
     }
     for (std::size_t slot = 0; slot < slots; ++slot) {
         owned[slot].store(false, std::memory_order_relaxed);
@@ -515,35 +965,15 @@ void* NewSparseRange(std::size_t size, bool guest) {
     }
     free_range->owned = owned;
     free_range->physical = physical;
-    free_range->guest = guest;
     free_range->end = reinterpret_cast<std::uintptr_t>(address) + span;
     free_range->begin.store(reinterpret_cast<std::uintptr_t>(address), std::memory_order_release);
-    (guest ? guest_reserved : sparse_reserved).fetch_add(span, std::memory_order_relaxed);
-    if (guest) guest_range.store(free_range, std::memory_order_release);
+    // Publish the finite scan bound only after metadata and begin are ready.
+    // Future lookups see this slot while retaining the original owner lock.
+    sparse_used_prefix = (std::max)(
+        sparse_used_prefix, static_cast<std::size_t>(free_range - sparse_ranges.data()) + 1);
+    ++sparse_range_generation; // publish exact negative-hint invalidation
+    sparse_reserved.fetch_add(span, std::memory_order_relaxed);
     return address;
-}
-} // namespace
-
-void* AllocateSparsePages(std::size_t size) noexcept {
-    if (void* const address = NewSparseRange(size, false)) return address;
-    if (size >= 2 * SparseSlot && SparseAvailable()) {
-        // The platform took the check's two slots but not this table: it is dense, as before.
-        char line[160];
-        const int length = std::snprintf(line, sizeof(line), "EDEN_SPARSE_TABLES dense bytes=%zu step=%s\n",
-                                         size, *sparse_refused ? sparse_refused : "unknown");
-        if (length > 0) Report(line);
-    }
-    void* const dense = AllocateMemoryPages(size);
-    if (!dense) {
-        const int allocation_errno = errno;
-        char line[192];
-        const int length = std::snprintf(line, sizeof(line),
-            "EDEN_SPARSE_TABLES refused bytes=%zu sparse_step=%s dense_errno=%d\n",
-            size, *sparse_refused ? sparse_refused : "unknown", allocation_errno);
-        if (length > 0) Report(line);
-        errno = allocation_errno;
-    }
-    return dense;
 }
 
 void FreeSparsePages(void* base, std::size_t size) noexcept {
@@ -560,120 +990,59 @@ void FreeSparsePages(void* base, std::size_t size) noexcept {
     FreeMemoryPages(base, size); // a table that was allocated dense
 }
 
-// ---- The guest's memory, backed where it is used ----
-//
-// A game's console has 4 GiB, and the guest's kernel divides them into pools: the game's, the
-// applets', the system's. Taken whole, the block is 4 GiB of the pool the CPU shares with the
-// GPU from the moment a game starts. But the kernel hands a pool's pages out as they are asked
-// for, and a page it has not handed out was never written: the applets' pool is not used by a
-// game at all, most of the system's is not, and a small game leaves most of its own. So the
-// block is a sparse range like the tables above, each 2 MiB slot one shared block of zeroes
-// until it is committed, and it is committed where the guest's kernel uses it: everything
-// outside the pools when the kernel starts, and a pool's pages when they are handed out (the
-// two places are in headless/CMakeLists.txt, "The guest's memory is backed where it is used").
-// Reading a slot that was never committed gives zeroes, as the block taken whole would;
-// writing one that was not announced stops the app, on the console as in the host checks.
-void CommitSparsePage(std::uintptr_t page) noexcept;
-
-void* AllocateGuestMemoryWhereUsed(std::size_t size) noexcept {
-    // Development A/B: dev-settings guest_memory=whole takes the block whole, as before.
-    const bool whole = DevSetting("guest_memory=whole");
-    void* base = whole ? nullptr : NewSparseRange(size, true);
-    if (base == nullptr) {
-        // The block taken whole is `size` of the pool the CPU shares with the GPU, at the moment
-        // the game starts. Say which step refused the block backed where used, so a layout above
-        // the Switch's own 4 GiB that will not fit is one log line and not a session that dies
-        // somewhere else.
-        const char* why = whole ? "asked-for" : sparse_refused;
-        char line[128];
-        const int length = std::snprintf(line, sizeof(line),
-                                         "EDEN_GUEST_MEMORY sparse refused bytes=%zu step=%s\n", size,
-                                         why && *why ? why : "unknown");
-        if (length > 0) Report(line);
-        return AllocateGuestMemory(size);
-    }
-    char line[112];
-    const int length = std::snprintf(line, sizeof(line), "EDEN_GUEST_MEMORY va=%p bytes=%zu above_guest=1 backed=where-used\n",
-                                     base, size);
-    if (length > 0) Report(line);
-    if (SparseRange* const range = guest_range.load(std::memory_order_acquire)) ServiceStart(*range);
-    return base;
-}
-
-// Memory behind `bytes` of the guest's memory from `offset` on (whole slots). Nothing to do for
-// a block that was taken whole.
-void CommitGuestMemory(std::uint64_t offset, std::size_t bytes) noexcept {
-    SparseRange* const range = guest_range.load(std::memory_order_acquire);
-    if (range == nullptr || bytes == 0) return;
-    const auto begin = range->begin.load(std::memory_order_relaxed);
-    const std::size_t span = range->end - begin;
-    if (offset >= span) return;
-    if (bytes > span - offset) bytes = span - static_cast<std::size_t>(offset);
-    const std::size_t last = (static_cast<std::size_t>(offset) + bytes - 1) / SparseSlot;
-    for (std::size_t slot = static_cast<std::size_t>(offset) / SparseSlot; slot <= last; ++slot)
-        if (!range->owned[slot].load(std::memory_order_acquire)) CommitSparsePage(begin + slot * SparseSlot);
-}
-
-// The guest's memory, however it was taken.
-void FreeGuestMemory(void* base, std::size_t size) noexcept {
-    if (SparseRange* const range = guest_range.load(std::memory_order_acquire);
-        range != nullptr && range->begin.load(std::memory_order_relaxed) == reinterpret_cast<std::uintptr_t>(base)) {
-        char line[112];
-        const int length = std::snprintf(line, sizeof(line), "EDEN_GUEST_MEMORY given back: held=%zu of=%zu\n",
-                                         guest_committed.load(std::memory_order_relaxed), size);
-        if (length > 0) Report(line);
-        ServiceStop(*range);
-        guest_range.store(nullptr, std::memory_order_release);
-    }
-    FreeSparsePages(base, size);
-}
-
-// The span of the guest's memory and the memory behind it; both 0 for a block taken whole.
-void GuestMemoryUsage(std::size_t* span, std::size_t* held) noexcept {
-    *span = guest_reserved.load(std::memory_order_relaxed);
-    *held = guest_committed.load(std::memory_order_relaxed);
-}
-
 void CommitSparsePage(std::uintptr_t page) noexcept {
+    // FreeSparsePages() destroys 'owned' under this same mutex.
+    // Do not dereference the range or its slot bitmap before taking the lock:
+    // it could have been released and the static range record reused.
+    // This is a first-commit slow path, not the ordinary guest table read path.
+    const std::lock_guard lock{sparse_mutex};
     SparseRange* range = SparseRangeOf(page);
     if (range == nullptr) return; // dense: already writable
     const auto begin = range->begin.load(std::memory_order_relaxed);
     const std::size_t slot = (page - begin) / SparseSlot;
-    if (range->owned[slot].load(std::memory_order_acquire)) return;
-    if (range->state != nullptr) {
-        // A range with slot states commits under the slot's lock (guest_memory_service.inc).
-        if (!ServiceCommit(*range, slot)) {
-            Report("EDEN_SPARSE_TABLES commit failed: out of memory\n");
-            std::abort();
-        }
-        return;
-    }
-    const std::lock_guard lock{sparse_mutex};
     if (range->owned[slot].load(std::memory_order_relaxed)) return;
     if (!OwnSlot(begin + slot * SparseSlot, &range->physical[slot])) {
         // Out of memory in the middle of a guest mapping: there is no table to continue with.
         Report("EDEN_SPARSE_TABLES commit failed: out of memory\n");
         std::abort();
     }
-    (range->guest ? guest_committed : sparse_committed).fetch_add(SparseSlot, std::memory_order_relaxed);
+    sparse_committed.fetch_add(SparseSlot, std::memory_order_relaxed);
     range->owned[slot].store(true, std::memory_order_release);
 }
 
-// Eden gives back a table page once a guest unmapped all of it, and expects zeroes there
-// afterwards. A slot's block is shared by every page of the slot, so the page is zeroed and the
-// block stays: a later CommitSparsePage for it finds the slot owned. A page of a slot that was
-// never written is the shared block of zeroes, read-only, and is left alone.
-void DecommitVectorPage(std::uintptr_t page) noexcept {
-    const long size = sysconf(_SC_PAGESIZE);
-    if (size <= 0) std::abort();
-    if (SparseRange* range = SparseRangeOf(page)) {
-        const std::size_t slot = (page - range->begin.load(std::memory_order_relaxed)) / SparseSlot;
-        if (!range->owned[slot].load(std::memory_order_acquire)) return;
-    }
-    std::memset(reinterpret_cast<void*>(page), 0, static_cast<std::size_t>(size));
+std::size_t SparseCommitSpan() noexcept {
+    return SparseSlot;
 }
 
-#include "guest_memory_service.inc"
+// A complete zeroed sparse slot no longer needs private direct memory. Replace it with the
+// process-wide read-only zero block again, then release its backing. SparseLargeVector calls this
+// only after its committed-page bitmap says the whole 2 MiB slot is empty.
+void DecommitSparsePage(std::uintptr_t page) noexcept {
+    // SparseRangeOf reads the non-atomic range.end and owned metadata.
+    // Keep its only lookup under sparse_mutex: the old speculative lookup
+    // raced table teardown/reuse and repeated the 64-entry scan.
+    // This is a sparse-slot retirement path, not a guest page-table read.
+    const std::lock_guard lock{sparse_mutex};
+    SparseRange* range = SparseRangeOf(page);
+    if (range == nullptr) return; // Dense fallback: ZeroRegion already wrote the zeroes.
+    const auto begin = range->begin.load(std::memory_order_relaxed);
+    const std::size_t slot = (page - begin) / SparseSlot;
+    if (!range->owned[slot].load(std::memory_order_relaxed)) return;
+    const std::uintptr_t at = begin + slot * SparseSlot;
+#ifdef PS5_NATIVE
+    const std::int64_t physical = range->physical[slot];
+    // MAP_FIXED swaps the mapping at the same VA. Readers therefore see either the old private
+    // block or the shared zero block, never an unmapped hole.
+    if (!MapSlot(at, PROT_READ, zero_block)) std::abort();
+    if (sceKernelReleaseDirectMemory(physical, SparseSlot) != 0) std::abort();
+#else
+    if (madvise(reinterpret_cast<void*>(at), SparseSlot, MADV_DONTNEED) != 0) std::abort();
+    if (mprotect(reinterpret_cast<void*>(at), SparseSlot, PROT_READ) != 0) std::abort();
+#endif
+    range->physical[slot] = -1;
+    range->owned[slot].store(false, std::memory_order_release);
+    sparse_committed.fetch_sub(SparseSlot, std::memory_order_relaxed);
+}
 
 // Address space the sparse tables span, and the memory they hold (for the log).
 void SparseUsage(std::size_t* reserved, std::size_t* committed) noexcept {
@@ -691,197 +1060,115 @@ void* ReserveMemoryRange(std::size_t size) noexcept {
 #ifdef PS5_NATIVE
     // Development A/B: dev-settings heap=whole takes the heap's memory at start, as before.
     if (DevSetting("heap=whole")) return nullptr;
-    void* address = reinterpret_cast<void*>(cpu_mapping_hint);
-    if (sceKernelReserveVirtualRange(&address, size, 0, LargePage) != 0) return nullptr;
-    if (!cpu_mapping_range(address, size)) {
-        (void)munmap(address, size);
-        return nullptr;
-    }
-    return address;
+    return ReserveCpuVirtualRange(size, LargePage);
 #else
     void* address = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
     return address == MAP_FAILED ? nullptr : address;
 #endif
 }
 
-bool CommitMemoryRange(void* address, std::size_t size) noexcept {
+bool CommitMemoryRange(void* address, std::size_t size, std::int64_t* physical_out) noexcept {
+    if (physical_out) *physical_out = -1;
     if (address == nullptr || size == 0 || size % LargePage != 0 ||
         reinterpret_cast<std::uintptr_t>(address) % LargePage != 0)
         return false;
 #ifdef PS5_NATIVE
+    // New backing pieces are allocated, mapped and cleared synchronously.
+    // Measure ONLY heap growth (not the per-malloc or per-frame hot path).
+#ifdef EDEN_HEAP_GROWTH_TRACE
+    timespec started{}, allocated{}, mapped{}, zeroed{};
+    (void)clock_gettime(CLOCK_MONOTONIC, &started);
+#endif
     std::int64_t physical = -1;
-    if (eden_direct_high(size, LargePage, 12, &physical) != 0) return false;
+    if (AllocateDirectOwned(size, LargePage, &physical) != 0)
+        return false;
+#ifdef EDEN_HEAP_GROWTH_TRACE
+    (void)clock_gettime(CLOCK_MONOTONIC, &allocated);
+#endif
     void* at = address;
-    if (sceKernelMapDirectMemory(&at, size, PROT_READ | PROT_WRITE, MAP_FIXED, physical, LargePage) != 0 ||
-        at != address) {
-        (void)sceKernelReleaseDirectMemory(physical, size);
+    const auto map_rc = sceKernelMapDirectMemory(&at, size, PROT_READ | PROT_WRITE,
+                                                MAP_FIXED, physical, LargePage);
+    if (map_rc != 0 || at != address) {
+        // MAP_FIXED should not return a different VA, but on success it owns
+        // that mapping. Unmap the unexpected alias BEFORE releasing its direct
+        // physical backing; otherwise a live mapping could retain stale PA.
+        // A failed fixed-map that mutates its output gives no reliable
+        // ownership information. Do not free the direct memory in that case.
+        if (map_rc != 0 && at != address) std::abort();
+        if (map_rc == 0 && at != address && at && at != MAP_FAILED &&
+            munmap(at, size) != 0) std::abort();
+        if (sceKernelReleaseDirectMemory(physical, size) != 0) std::abort();
         return false;
     }
-    // The heap grows through here: no stdio (it may allocate).
-    char line[96];
-    const int length = std::snprintf(line, sizeof(line), "EDEN_HEAP_PIECE bytes=%zu va=%p pa=%llx\n", size, address,
-                                     static_cast<unsigned long long>(physical));
-    if (length > 0) Note(line);
+#ifdef EDEN_HEAP_GROWTH_TRACE
+    (void)clock_gettime(CLOCK_MONOTONIC, &mapped);
+#endif
     std::memset(address, 0, size);
+#ifdef EDEN_HEAP_GROWTH_TRACE
+    (void)clock_gettime(CLOCK_MONOTONIC, &zeroed);
+    const auto delta_ns = [](const timespec& a, const timespec& b) noexcept -> unsigned long long {
+        const auto elapsed = (static_cast<long long>(b.tv_sec) - static_cast<long long>(a.tv_sec)) *
+                                 1000000000LL + (b.tv_nsec - a.tv_nsec);
+        return elapsed > 0 ? static_cast<unsigned long long>(elapsed) : 0ULL;
+    };
+    // The heap grows through here: no stdio that may recurse into malloc.
+    char line[192];
+    const int length = std::snprintf(line, sizeof(line),
+        "EDEN_HEAP_PIECE bytes=%zu va=%p pa=%llx alloc_ns=%llu map_ns=%llu zero_ns=%llu\n",
+        size, address, static_cast<unsigned long long>(physical),
+        delta_ns(started, allocated), delta_ns(allocated, mapped), delta_ns(mapped, zeroed));
+    if (length > 0) Note(line);
+#endif
+    // The 128 MiB initial heap backing has a specific physical owner. Return
+    // it without any dynamic bookkeeping, so failed mspace initialization
+    // can release PA as well as the 3 GiB virtual reservation.
+    if (physical_out) *physical_out = physical;
     return true;
 #else
     return mprotect(address, size, PROT_READ | PROT_WRITE) == 0;
 #endif
 }
+bool CommitMemoryRange(void* address, std::size_t size) noexcept {
+    return CommitMemoryRange(address, size, nullptr);
+}
 
-// ---- A range that fills: a JIT code cache ----
-//
-// The JIT writes a code cache from its start, one block after another, and starts again at the
-// beginning when the cache is full. Taken whole, the four caches of a 64-bit game are 656 MiB of
-// the pool the CPU shares with the GPU, and a large game fills little more than half of that.
-// So a cache is address space only, in two ranges (the one the JIT writes through and the one
-// the code runs from), and memory is put behind both a step at a time as the JIT reaches it:
-// CommitCodeRange is asked before every block. Memory is not taken back while the cache lives.
-namespace {
-constexpr std::size_t CodeStep = std::size_t{16} << 20;
-constexpr std::size_t CodeSteps = 64; // the largest cache: 1 GiB
-struct CodeRange {
-    std::atomic<std::uintptr_t> executable{0}; // 0: free
-    std::uintptr_t writable = 0;
-    std::size_t span = 0;
-    std::atomic<std::size_t> committed{0};
-    std::int64_t physical[CodeSteps] = {};
-};
-std::array<CodeRange, 16> code_ranges;
-std::mutex code_mutex;
-std::atomic<std::size_t> code_reserved{0}, code_committed{0};
-
-// Memory behind the next step of both ranges. code_mutex is held.
-bool CommitCodeStep(CodeRange& range, std::size_t offset) {
-    void* const writable = reinterpret_cast<void*>(range.writable + offset);
-    void* const executable = reinterpret_cast<void*>(range.executable.load(std::memory_order_relaxed) + offset);
+// A just-committed heap growth segment whose mspace constructor returned
+// NULL has no published owner and no live pointers. Replace ONLY that whole
+// piece with an inaccessible guard and free its exact direct backing. The
+// rest of the 3 GiB reservation remains untouched for existing mspaces.
+// JIT sparse rollback already uses this same fixed PROT_NONE mapping pattern.
+void RollbackUnpublishedHeapGrowth(void* address, std::size_t size,
+                                   std::int64_t physical) noexcept {
+    if (!address || size == 0 || size % LargePage != 0 ||
+        reinterpret_cast<std::uintptr_t>(address) % LargePage != 0)
+        std::abort();
 #ifdef PS5_NATIVE
-    std::int64_t physical = -1;
-    if (eden_direct_low(CodeStep, LargePage, 12, &physical) != 0) return false;
-    // A step that fails half way stays as it is: the caller has no cache to go on with.
-    void* at = writable;
-    if (sceKernelMapDirectMemory(&at, CodeStep, PROT_READ | PROT_WRITE, MAP_FIXED, physical, LargePage) != 0 ||
-        at != writable)
-        return false;
-    std::memset(writable, 0, CodeStep);
-    at = executable;
-    if (sceKernelMapDirectMemory(&at, CodeStep, PROT_READ, MAP_FIXED, physical, LargePage) != 0 || at != executable)
-        return false;
-    // As MapExecutableAlias: the mapping call refuses EXEC on some versions.
-    if (mprotect(executable, CodeStep, PROT_READ | PROT_EXEC) != 0) return false;
-    range.physical[offset / CodeStep] = physical;
+    if (physical < 0 || !cpu_mapping_range(address, size)) std::abort();
 #else
-    if (mprotect(writable, CodeStep, PROT_READ | PROT_WRITE) != 0 ||
-        mprotect(executable, CodeStep, PROT_READ | PROT_EXEC) != 0)
-        return false;
+    (void)physical;
 #endif
-    code_committed.fetch_add(CodeStep, std::memory_order_relaxed);
-    return true;
-}
-} // namespace
-
-// Address space for a code cache of `size` bytes: returns the range to write through and sets
-// the one to run from. Null when a cache this small is better taken whole, or when the
-// platform refuses: the caller then takes the cache whole, as before.
-void* ReserveCodeRange(std::size_t size, void** executable) noexcept {
-    if (size < 2 * CodeStep || size % CodeStep != 0 || size / CodeStep > CodeSteps) return nullptr;
-    const std::lock_guard lock{code_mutex};
-    CodeRange* free_range = nullptr;
-    for (auto& range : code_ranges)
-        if (range.executable.load(std::memory_order_relaxed) == 0) {
-            free_range = &range;
-            break;
-        }
-    if (free_range == nullptr) return nullptr;
-    void* views[2] = {nullptr, nullptr};
+    void* guard = mmap(address, size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (guard != address) std::abort();
 #ifdef PS5_NATIVE
-    // Development A/B: dev-settings jit_memory=whole takes every cache whole, as before.
-    if (DevSetting("jit_memory=whole")) return nullptr;
-    (void)sceKernelEnableDmemAliasing(); // reports zero regardless; the first step is the check
-    for (void*& view : views) {
-        view = reinterpret_cast<void*>(cpu_mapping_hint);
-        if (sceKernelReserveVirtualRange(&view, size, 0, LargePage) != 0) {
-            view = nullptr;
-        } else if (!cpu_mapping_range(view, size)) {
-            (void)munmap(view, size);
-            view = nullptr;
-        }
-    }
+    if (sceKernelReleaseDirectMemory(physical, size) != 0) std::abort();
+#endif
+}
+
+void AbandonInitialHeapReservation(void* base, std::size_t reserved,
+                                   std::int64_t first_physical, std::size_t committed) noexcept {
+    // Called ONLY when creating the very first mspace failed. There are no
+    // live allocations or mspace descendants, and heap state is unpublished.
+    if (!base || !reserved || !committed || committed > reserved)
+        std::abort();
+#ifdef PS5_NATIVE
+    if (first_physical < 0) std::abort();
 #else
-    const int fd = memfd_create("eden-jit", MFD_CLOEXEC);
-    if (fd >= 0 && ftruncate(fd, static_cast<off_t>(size)) == 0) {
-        for (void*& view : views) {
-            view = mmap(nullptr, size, PROT_NONE, MAP_SHARED, fd, 0);
-            if (view == MAP_FAILED) view = nullptr;
-        }
-    }
-    if (fd >= 0 && close(fd) != 0) std::abort();
+    (void)first_physical;
 #endif
-    if (views[0] == nullptr || views[1] == nullptr) {
-        for (void* view : views)
-            if (view != nullptr) (void)munmap(view, size);
-        return nullptr;
-    }
-    free_range->writable = reinterpret_cast<std::uintptr_t>(views[0]);
-    free_range->span = size;
-    free_range->committed.store(0, std::memory_order_relaxed);
-    free_range->executable.store(reinterpret_cast<std::uintptr_t>(views[1]), std::memory_order_release);
-    code_reserved.fetch_add(size, std::memory_order_relaxed);
-    *executable = views[1];
-    return views[0];
-}
-
-// Memory behind the first `bytes` of the cache that runs from `executable` (more than the
-// cache: all of it). True when it is there, and for a cache that was taken whole. False when
-// the console has none left.
-bool CommitCodeRange(const void* executable, std::size_t bytes) noexcept {
-    const auto address = reinterpret_cast<std::uintptr_t>(executable);
-    for (auto& range : code_ranges) {
-        if (address == 0 || range.executable.load(std::memory_order_acquire) != address) continue;
-        if (bytes > range.span) bytes = range.span;
-        if (bytes <= range.committed.load(std::memory_order_acquire)) return true;
-        const std::lock_guard lock{code_mutex};
-        std::size_t committed = range.committed.load(std::memory_order_relaxed);
-        while (committed < bytes) {
-            if (!CommitCodeStep(range, committed)) return false;
-            committed += CodeStep;
-            range.committed.store(committed, std::memory_order_release);
-        }
-        char line[112];
-        const int length = std::snprintf(line, sizeof(line), "EDEN_JIT_MEMORY code=%p held=%zu of=%zu\n", executable,
-                                         committed, range.span);
-        if (length > 0) Report(line);
-        return true;
-    }
-    return true;
-}
-
-// Gives back a cache ReserveCodeRange made: its memory and both ranges. False for any other.
-bool FreeCodeRange(void* executable) noexcept {
-    const auto address = reinterpret_cast<std::uintptr_t>(executable);
-    if (address == 0) return false;
-    const std::lock_guard lock{code_mutex};
-    for (auto& range : code_ranges) {
-        if (range.executable.load(std::memory_order_relaxed) != address) continue;
-        const std::size_t committed = range.committed.load(std::memory_order_relaxed);
-        if (munmap(reinterpret_cast<void*>(range.writable), range.span) != 0 || munmap(executable, range.span) != 0)
-            std::abort();
+    // Every direct-memory mapping must be unmapped before releasing its PA.
+    if (munmap(base, reserved) != 0) std::abort();
 #ifdef PS5_NATIVE
-        for (std::size_t step = 0; step < committed / CodeStep; ++step)
-            if (sceKernelReleaseDirectMemory(range.physical[step], CodeStep) != 0) std::abort();
+    if (sceKernelReleaseDirectMemory(first_physical, committed) != 0) std::abort();
 #endif
-        code_reserved.fetch_sub(range.span, std::memory_order_relaxed);
-        code_committed.fetch_sub(committed, std::memory_order_relaxed);
-        range.committed.store(0, std::memory_order_relaxed);
-        range.executable.store(0, std::memory_order_release);
-        return true;
-    }
-    return false;
-}
-
-// Address space the growing code caches span, and the memory behind them (for the log).
-void CodeRangeUsage(std::size_t* reserved, std::size_t* committed) noexcept {
-    *reserved = code_reserved.load(std::memory_order_relaxed);
-    *committed = code_committed.load(std::memory_order_relaxed);
 }
 } // namespace Common

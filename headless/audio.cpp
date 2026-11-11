@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <stdexcept>
-#include <vector>
+#include "audio_core/sink/null_sink.h"
 #include "common/logging.h"
 #include "native_audio.hpp"
 #include "audio_out_init.h"
@@ -12,21 +12,6 @@
 namespace Eden {
 using namespace AudioCore::Sink;
 using namespace ps5::native_audio;
-
-namespace {
-// Microphone input is not captured on the PS5. Upstream's NullSinkStreamImpl returns an empty
-// vector from ReleaseBuffer, and DeviceSession::ReleaseBuffer then copies buffer.size bytes from
-// its data(), a null pointer, into guest memory: any game that opens AudioIn (for voice
-// chat, for one) crashed on the AudioManager thread. Release silence of the requested length.
-class SilentInputStream final : public SinkStream {
-public:
-    explicit SilentInputStream(Core::System& system) : SinkStream{system, StreamType::In} {}
-    void AppendBuffer(SinkBuffer&, std::span<s16>) override {}
-    std::vector<s16> ReleaseBuffer(u64 num_samples) override {
-        return std::vector<s16>(num_samples, 0);
-    }
-};
-} // namespace
 
 AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& name_, StreamType type)
     : SinkStream{system, type} {
@@ -40,7 +25,7 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
     handle = sceAudioOutOpen(0xff, 0, 0, kAudioOutGrain, kAudioOutRate, kAudioOutStereoS16);
     if (handle < 0) throw std::runtime_error("sceAudioOutOpen failed");
     std::array<int, 8> volumes;
-    volumes.fill(AudioVolume(PreferencesFor(session_title.load())));
+    volumes.fill(AudioVolume(LoadPreferences()));
     if (sceAudioOutSetVolume(handle, 3, volumes.data()) < 0) {
         sceAudioOutClose(handle);
         handle = -1;
@@ -57,6 +42,16 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
                 in_flight = true;
                 lock.unlock();
                 const int result = sceAudioOutOutput(handle, block.data());
+                // Diagnostic-only PCM scan needs no access to stream state.
+                // Keep the producer-facing stream mutex free while inspecting
+                // the worker-owned output block. On failed output the block
+                // was never accepted and must not contribute to counters.
+                u64 nonzero_in_block = 0;
+                if (result >= 0) {
+                    for (std::size_t frame = 0; frame < kAudioOutGrain; ++frame)
+                        nonzero_in_block += block[frame * 2] != 0 ||
+                                            block[frame * 2 + 1] != 0;
+                }
                 lock.lock();
                 in_flight = false;
                 wake.notify_all();
@@ -67,8 +62,7 @@ AudioStream::AudioStream(Core::System& system, u32 channels, const std::string& 
                     break;
                 }
                 output_frames += kAudioOutGrain;
-                for (std::size_t frame = 0; frame < kAudioOutGrain; ++frame)
-                    nonzero_frames += block[frame * 2] != 0 || block[frame * 2 + 1] != 0;
+                nonzero_frames += nonzero_in_block;
             }
         });
     } catch (...) {
@@ -114,7 +108,7 @@ SinkStream* AudioSink::AcquireSinkStream(Core::System& system, u32 channels,
     system_channels = channels;
     // Microphone capture is outside this output adapter.
     SinkStreamPtr stream = type == StreamType::In ?
-        SinkStreamPtr{std::make_unique<SilentInputStream>(system)} :
+        SinkStreamPtr{std::make_unique<NullSinkStreamImpl>(system, type)} :
         SinkStreamPtr{std::make_unique<AudioStream>(system, channels, name, type)};
     stream->SetDeviceVolume(device_volume);
     stream->SetSystemVolume(system_volume);

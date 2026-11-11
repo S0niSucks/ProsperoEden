@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
+#include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cerrno>
@@ -11,22 +13,87 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <xbyak/xbyak.h>
+
+#ifdef EDEN_JIT_ALIAS_NATIVE
+#include "experimental_performance.h"
+#endif
+namespace Eden::Jit {
+class AliasPositiveCache {
+    struct Entry {
+        std::uint8_t* executable{};
+        std::uint8_t* writable{};
+    };
+    std::array<Entry, 8> entries{};
+    std::uint64_t generation{};
+    std::size_t next_slot{};
+    // Per-worker positive hint. The last active code arena is usually reused
+    // for many emitted blocks; repeated hits should probe only one RX key.
+    mutable std::size_t preferred_slot{};
+public:
+    std::uint8_t* Find(std::uint8_t* executable,
+                       std::uint64_t current_generation) const noexcept {
+        if (generation != current_generation) return nullptr;
+        const Entry& preferred = entries[preferred_slot];
+        if (preferred.executable == executable && preferred.executable)
+            return preferred.writable;
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            if (i == preferred_slot) continue; // already probed this key
+            const Entry& entry = entries[i];
+            // Remember fills the array sequentially after each epoch reset.
+            // The first empty slot ends a negative lookup, even with an
+            // occupied preferred slot later in the same contiguous prefix.
+            if (!entry.executable) return nullptr;
+            if (entry.executable == executable) {
+                // Two-arena alternation stays read-only; when three or more
+                // arenas are active, switch preference once per cold run.
+                if (entries[2].executable) preferred_slot = i;
+                return entry.writable;
+            }
+        }
+        return nullptr;
+    }
+
+    void Remember(std::uint8_t* executable, std::uint8_t* writable,
+                  std::uint64_t current_generation) noexcept {
+        if (generation != current_generation) {
+            entries = {};
+            generation = current_generation;
+            next_slot = 0;
+            preferred_slot = 0;
+        }
+        entries[next_slot] = {executable, writable};
+        preferred_slot = next_slot;
+        next_slot = (next_slot + 1) % entries.size();
+    }
+};
+} // namespace Eden::Jit
+
 namespace Common {
 void* AllocateMemoryPages(std::size_t) noexcept;
 void FreeMemoryPages(void*) noexcept;
 void* MapExecutableAlias(void*, std::size_t) noexcept;
-// A cache that takes its memory as it fills (src/memory_pages.cpp).
-void* ReserveCodeRange(std::size_t, void** executable) noexcept;
-bool CommitCodeRange(const void* executable, std::size_t bytes) noexcept;
-bool FreeCodeRange(void* executable) noexcept;
+#ifdef EDEN_JIT_ALIAS_NATIVE
+void CountDenseJitDirect(void*, bool acquire) noexcept;
+std::size_t ExecutableAliasSpan(void*) noexcept;
+#endif
+#ifdef EDEN_JIT_ALIAS_NATIVE
+void* ReserveSparseJitCode(std::size_t, void**) noexcept;
+bool CommitSparseJitCode(void*, std::size_t) noexcept;
+// DEV-only, after a quiesced whole-cache invalidation: return unused physical
+// direct chunks to PS5, keeping both virtual aliases stable.
+bool TrimSparseJitCode(void*, std::size_t live_code_end) noexcept;
+bool IsSparseJitCode(const void*) noexcept;
+void ReleaseSparseJitCode(void*) noexcept;
+#endif
 }
 // Separate RW/NX and RX views avoid changing page permissions per compiled block.
-// Unsupported native JIT allocation falls back to the qualified owned W^X path.
+// PS5 JIT exclusively uses the sparse RX/RW allocator; no dense production fallback.
 inline Xbyak::Allocator* EdenJitAllocator() {
     struct Allocator final : Xbyak::Allocator {
-        struct Mapping { void* writable; std::size_t size; bool grows; };
+        struct Mapping { void* writable; std::size_t size; bool sparse = false; };
         std::mutex mutex;
         std::unordered_map<std::uint8_t*, Mapping> mappings;
+        std::atomic<std::uint64_t> mapping_generation{1}; // retirement invalidates per-worker alias memo
         std::uint8_t* alloc(std::size_t size) override {
 #ifdef EDEN_JIT_ALIAS_NATIVE
             auto* diagnostics = stdout; // Native stdout is the separate heap log.
@@ -39,34 +106,53 @@ inline Xbyak::Allocator* EdenJitAllocator() {
             const auto span = (size + page - 1) & ~(std::size_t(page) - 1);
             void* executable = MAP_FAILED;
             void* writable = MAP_FAILED;
-            // A large cache is address space, and memory comes behind it as the JIT fills it
-            // (commit below). Its first step now: the code generator writes at once.
-            void* grown_executable = nullptr;
-            if (void* const grown = Common::ReserveCodeRange(size, &grown_executable)) {
-                bool kept = false;
-                if (Common::CommitCodeRange(grown_executable, 1)) {
+#ifdef EDEN_JIT_ALIAS_NATIVE
+            // Optional per-title path: stable RX/RW virtual ranges, commit only
+            // the pages requested by BlockOfCode::EnsureMemoryCommitted.
+            // The PS5 has ONE JIT allocation path: virtual RX/RW sparse
+            // reservation, demand-backed 2 MiB direct chunks. No dense retry.
+            {
+                // Xbyak may request an arena ending between two 2 MiB direct
+                // memory chunks. Reserve whole *virtual* chunks while keeping
+                // physical commits demand-backed; otherwise a valid uneven
+                // request fails ReserveSparseJitCode's alignment contract.
+                constexpr std::size_t kSparseChunk = 2u * 1024u * 1024u;
+                if (size > std::numeric_limits<std::size_t>::max() - (kSparseChunk - 1))
+                    return nullptr;
+                const std::size_t sparse_span =
+                    (size + kSparseChunk - 1) & ~(kSparseChunk - 1);
+                executable = Common::ReserveSparseJitCode(sparse_span, &writable);
+                if (executable) {
+                    auto* pointer = static_cast<std::uint8_t*>(executable);
                     try {
                         std::lock_guard lock(mutex);
-                        mappings.emplace(static_cast<std::uint8_t*>(grown_executable), Mapping{grown, size, true});
-                        kept = true;
+                        if (!mappings.emplace(pointer,
+                                              Mapping{writable, sparse_span, true}).second)
+                            std::abort(); // A live executable VA must be unique
+                        // Publishing a NEW RX/RW mapping cannot invalidate a
+                        // cached alias for another live arena. Only retirement
+                        // changes the generation and flushes worker TLS hints.
                     } catch (...) {
+                        Common::ReleaseSparseJitCode(executable);
+                        return nullptr;
                     }
+                    std::fprintf(diagnostics, "EDEN_JIT_ALIAS rx=%p rw=%p bytes=%zu active=1 sparse=1\n",
+                                 executable, writable, sparse_span);
+                    return pointer;
                 }
-                if (kept) {
-                    std::fprintf(diagnostics, "EDEN_JIT_ALIAS bytes=%zu active=1 code=%p grows=1\n", size,
-                                 grown_executable);
-                    return static_cast<std::uint8_t*>(grown_executable);
-                }
-                if (!Common::FreeCodeRange(grown_executable)) std::abort();
+                // Demand-backed JIT must NOT silently switch to a full
+                // physical dense allocation on virtual-range failure:
+                // that recreates the late-game RAM exhaustion observed on
+                // real FC27 hardware. Let the A64/A32 JIT constructor
+                // retry with a smaller stable VA arena. If even the
+                // baseline fails, surface startup failure instead of
+                // violating the explicitly selected sparse contract.
+                std::fprintf(diagnostics, "EDEN_JIT_SPARSE_RESERVE_FAILED bytes=%zu errno=%d fallback=smaller_virtual_arena\n",
+                             sparse_span, errno);
+                return nullptr;
             }
-#ifdef EDEN_JIT_ALIAS_NATIVE
-            writable = Common::AllocateMemoryPages(size);
-            if (!writable) return nullptr;
-            executable = Common::MapExecutableAlias(writable, size);
-            if (!executable) {
-                std::fprintf(diagnostics, "EDEN_JIT_ALIAS bytes=%zu active=0 errno=%d\n", span, errno);
-                return static_cast<std::uint8_t*>(writable);
-            }
+            // The return above on both success and reservation failure
+            // makes dense direct-memory allocation unreachable in PS5 builds.
 #else
             const int executable_fd = memfd_create("eden-jit", MFD_CLOEXEC);
             if (executable_fd >= 0 && ftruncate(executable_fd, span) == 0) {
@@ -77,25 +163,28 @@ inline Xbyak::Allocator* EdenJitAllocator() {
 #endif
             if (executable != MAP_FAILED && executable && writable != MAP_FAILED && writable && executable != writable) {
                 auto* pointer = static_cast<std::uint8_t*>(executable);
+                // The native direct mapping may round 3 MiB to a 4 MiB
+                // large-page alias. Keep the REAL RX mapping length so free()
+                // cannot leave an orphan executable tail after game exit.
+                std::size_t mapped_span = span;
                 try {
                     std::lock_guard lock(mutex);
-                    mappings.emplace(pointer, Mapping{writable, span, false});
-                    std::fprintf(diagnostics, "EDEN_JIT_ALIAS bytes=%zu active=1\n", span);
+                    if (!mappings.emplace(pointer, Mapping{writable, mapped_span}).second)
+                        std::abort(); // never alias two live code arenas at one RX VA
+                    // Insertion preserves all previously published aliases;
+                    // only free() must invalidate the per-worker memo.
+                    std::fprintf(diagnostics,
+                                 "EDEN_JIT_ALIAS rx=%p rw=%p bytes=%zu active=1\n",
+                                 static_cast<void*>(pointer), writable, mapped_span);
                     return pointer;
                 } catch (...) {
                     // Release both views before reporting allocation failure.
-                    if (munmap(executable, span) != 0) std::abort();
-#ifdef EDEN_JIT_ALIAS_NATIVE
-                    Common::FreeMemoryPages(writable);
-#else
+                    if (munmap(executable, mapped_span) != 0) std::abort();
                     if (munmap(writable, span) != 0) std::abort();
-#endif
                     return nullptr;
                 }
             }
-#ifdef EDEN_JIT_ALIAS_NATIVE
-            std::abort(); // Distinct views are required by the direct mapper.
-#else
+#ifndef EDEN_JIT_ALIAS_NATIVE
             if (executable != MAP_FAILED && executable && munmap(executable, span) != 0) std::abort();
             if (writable != MAP_FAILED && writable && writable != executable && munmap(writable, span) != 0) std::abort();
             std::fprintf(diagnostics, "EDEN_JIT_ALIAS bytes=%zu active=0 errno=%d\n", span, errno);
@@ -103,15 +192,24 @@ inline Xbyak::Allocator* EdenJitAllocator() {
 #endif
         }
         std::uint8_t* writableAddress(std::uint8_t* pointer) override {
-            std::lock_guard lock(mutex);
+            // Most emitted code reuses the same RX->RW alias many times.
+            // Hits need neither allocator mutex nor unordered_map lookup.
+            // The old direct-mapped hash lost its entry whenever two 16 MiB-
+            // aligned JIT arenas shared the same low hash bits. Interleaving
+            // A32/A64 guest code then acquired the global map mutex per block.
+            // Eight associative entries retain all live core aliases without
+            // address-dependent collisions; generation still guards reuse.
+            static thread_local ::Eden::Jit::AliasPositiveCache cache{};
+            const auto generation = mapping_generation.load(std::memory_order_acquire);
+            if (auto* writable = cache.Find(pointer, generation))
+                return writable;
+            const std::lock_guard lock(mutex);
             const auto entry = mappings.find(pointer);
-            return entry == mappings.end() ? pointer : static_cast<std::uint8_t*>(entry->second.writable);
-        }
-        // Memory behind the first `bytes` of a cache: asked before the JIT writes that far.
-        void commit(std::uint8_t* pointer, std::size_t bytes) override {
-            if (Common::CommitCodeRange(pointer, bytes)) return;
-            std::fputs("JIT code cache: the console has no memory for its next part\n", stderr);
-            std::abort();
+            if (entry == mappings.end()) return pointer;
+            const auto latest = mapping_generation.load(std::memory_order_relaxed);
+            auto* writable = static_cast<std::uint8_t*>(entry->second.writable);
+            cache.Remember(pointer, writable, latest);
+            return writable;
         }
         void free(std::uint8_t* pointer) override {
             {
@@ -119,22 +217,33 @@ inline Xbyak::Allocator* EdenJitAllocator() {
                 const auto entry = mappings.find(pointer);
                 if (entry != mappings.end()) {
                     const auto mapping = entry->second;
-                    if (mapping.grows) {
-                        if (!Common::FreeCodeRange(pointer)) std::abort();
+                    if (mapping.sparse) {
+#ifdef EDEN_JIT_ALIAS_NATIVE
+                        Common::ReleaseSparseJitCode(pointer);
+#else
+                        std::abort(); // Sparse only exists in native builds.
+#endif
                         mappings.erase(entry);
+                        mapping_generation.fetch_add(1, std::memory_order_release);
                         return;
                     }
-                    if (munmap(pointer, mapping.size) != 0) std::abort();
 #ifdef EDEN_JIT_ALIAS_NATIVE
-                    Common::FreeMemoryPages(mapping.writable);
+                    // Only native sparse mappings may reach this ownership map.
+                    std::abort();
 #else
+                    if (munmap(pointer, mapping.size) != 0) std::abort();
                     if (munmap(mapping.writable, mapping.size) != 0) std::abort();
 #endif
                     mappings.erase(entry);
+                    mapping_generation.fetch_add(1, std::memory_order_release);
                     return;
                 }
             }
+#ifdef EDEN_JIT_ALIAS_NATIVE
+            std::abort(); // No untracked dense JIT regions in the PS5 profile.
+#else
             Common::FreeMemoryPages(pointer);
+#endif
         }
         bool useProtect() const override { return false; }
     };

@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,tempfile
 r=Path(__file__).resolve().parents[1];cache=Path((r/'.local/headless-cache').read_text().strip())
-s=(cache/'native-local/headless/nvdrv_container.cpp').read_text()
+s=(r/'vendor/encore-active/eden-core/src/core/hle/service/nvdrv/core/container.cpp').read_text()
 opening=s[s.index('SessionId Container::OpenSession'):s.index('    // Optimization')]+ '    return SessionId{new_id};\n}\n'
 closing=s[s.index('void Container::CloseSession'):s.index('Session* Container::GetSession')]
 code=r'''
@@ -38,6 +38,6 @@ int main(){
 '''
 with tempfile.TemporaryDirectory() as d:
  p=Path(d);(p/'test.cpp').write_text(code)
- subprocess.run(['clang++-18','-std=c++20','-fsanitize=address,undefined','-g',str(p/'test.cpp'),'-o',str(p/'test')],check=True)
+ subprocess.run(['c++','-std=c++20','-fsanitize=address,undefined','-g',str(p/'test.cpp'),'-o',str(p/'test')],check=True)
  subprocess.run([str(p/'test')],check=True)
 print('Generated nvdrv session ownership: shared sessions, dead external owner, final unmap before release, ID reuse PASS')

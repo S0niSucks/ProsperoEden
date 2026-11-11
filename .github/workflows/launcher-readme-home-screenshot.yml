@@ -1,0 +1,153 @@
+name: Publish authentic Encore Home screenshot
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: encore-readme-home-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  native-home:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[preview-ready]') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout authentic launcher sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: true
+
+      - name: Install software renderer and screenshot dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential python3-pil libegl1-mesa-dev libgl1-mesa-dev libstb-dev nlohmann-json3-dev mesa-utils libgl1-mesa-dri ca-certificates git pkg-config
+
+      - name: Verify the original Eden Encore wallpaper is packaged
+        run: |
+          test -s assets/encore-background.jpg
+          test -s headless/prosperoeden/ui/art/backdrop.tga
+          test "$(stat -c %s headless/prosperoeden/ui/art/backdrop.tga)" -ge 1000000
+          grep -Fq 'load("art/backdrop.tga", &backdrop_)' headless/prosperoeden/pe/ui/textures.cpp
+          grep -Fq 'PE_PREVIEW_BRANDED_HOME' headless/prosperoeden/host/fake_services.cpp
+
+      - name: Create original fictional cover art for the host-only sample titles
+        run: |
+          python3 tools/launcher/render-demo-covers.py build/readme-home
+          test "$(find build/readme-home -maxdepth 1 -name 'cover-*.tga' | wc -l)" -eq 12
+          echo "ENCORE_FICTIONAL_SAMPLE_COVERS: PASS"
+
+      - name: Render the authentic Encore C++ and OpenGL home screen in English
+        env:
+          PE_LANG: en-US
+          PE_PREVIEW_BRANDED_HOME: "1"
+          PE_PREVIEW_HOME_ONLY: "1"
+          PE_PREVIEW_JOBS: "2"
+          PROSPEROEDEN_LAUNCHER_BUILD: ${{ runner.temp }}/encore-readme-home
+        run: |
+          bash tools/launcher/preview.sh build/readme-home 1920 1080
+          test -s build/readme-home/01-home.png
+          # The old screenshot retained synthetic sunset scenery after an
+          # async Game media scan even when Home::home() cleared the hero.
+          # Validate the source itself was never created for this render.
+          test ! -e build/readme-home/preview-hero.tga
+          echo "EDEN_ORIGINAL_WALLPAPER_PREVIEW_NO_SYNTHETIC_HERO: PASS"
+          # Independently prove the OpenGL texture came from the same
+          # user-supplied JPEG as the PS5 package, not the stale source TGA.
+          python3 - <<'PY'
+          from PIL import Image, ImageOps, ImageChops
+          with Image.open("assets/encore-background.jpg") as photo:
+              expected = ImageOps.fit(photo.convert("RGB"), (1920, 1080),
+                                      method=Image.Resampling.LANCZOS)
+          with Image.open("headless/prosperoeden/ui/art/backdrop.tga") as tga:
+              actual = tga.convert("RGB")
+          assert ImageChops.difference(expected, actual).getbbox() is None, (
+              "Host OpenGL backdrop is inverted or does not match the source JPEG")
+          print("ENCORE_HOST_WALLPAPER_MATCHES_PS5_SOURCE: PASS")
+          PY
+
+      - name: Verify the real screenshot and replace READMEs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageStat, ImageChops
+          import re
+          import shutil
+          # Brand image is the USER-SUPPLIED source: assets/encore-background.jpg
+          # -> packaged ui/art/backdrop.tga -> production Backdrop::draw().
+          # The host-only branded fixture removes synthetic hero overlays.
+          assert Path("assets/encore-background.jpg").stat().st_size > 100_000
+          assert Path("headless/prosperoeden/ui/art/backdrop.tga").stat().st_size > 1000000
+          screenshot = Path("build/readme-home/01-home.png")
+          with Image.open(screenshot) as raw:
+              assert raw.format == "PNG" and raw.size == (1920, 1080)
+              rgb = raw.convert("RGB")
+              assert max(ImageStat.Stat(rgb).stddev) > 22, "Unexpected blank Home capture"
+              assert rgb.getbbox()
+          # A new path also invalidates GitHub's CDN/browser cached preview.
+          # Compare against the old capture that user reported as wrong.
+          previous_capture = Path("assets/screenshots/encore-home.png")
+          prior_readme = Path("assets/screenshots/eden-encore-home-wallpaper-en.png")
+          # Cache-busting filename: GitHub can keep the older preview in its CDN.
+          published = Path("assets/screenshots/eden-encore-home-sample-art.png")
+          if previous_capture.exists():
+              with Image.open(previous_capture) as previous:
+                  old = previous.convert("RGB").resize((1920, 1080))
+                  # Compare the BACKGROUND region, not whole-frame text.
+                  # Earlier CI passed because English text changed while the
+                  # synthetic scenery behind it stayed effectively identical.
+                  viewport = (1100, 130, 1840, 750)
+                  changed = ImageStat.Stat(ImageChops.difference(
+                      rgb.crop(viewport), old.crop(viewport))).mean
+                  print("EDEN_WALLPAPER_BACKGROUND_REGION_CHANGE", changed)
+                  assert max(changed) > 9.0, (
+                      "Original Eden wallpaper still hidden by the synthetic Home hero",
+                      changed)
+          # Verify the actual visible artwork rail, not just the wallpaper.
+          for index in range(7):
+              card_x = round(76 + index * ((1770 - 16 * 6) / 7 + 16))
+              tile = rgb.crop((card_x + 24, 575, card_x + 200, 735))
+              contrast = max(ImageStat.Stat(tile).stddev)
+              print("ENCORE_RENDERED_CARD_CONTRAST", index, round(contrast, 1))
+              assert contrast > 16.0, ("Preview game tile appears blank", index, contrast)
+          if prior_readme.exists():
+              with Image.open(prior_readme) as previous:
+                  old = previous.convert("RGB").crop((76, 551, 1850, 765))
+                  new_cards = rgb.crop((76, 551, 1850, 765))
+                  print("ENCORE_SAMPLE_ART_REGION_CHANGE",
+                        ImageStat.Stat(ImageChops.difference(new_cards, old)).mean)
+          published.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(screenshot, published)
+          prior_readme.unlink(missing_ok=True)
+          alt = ("Eden Encore Home in English with the original wallpaper "
+                 "and fictional sample game artwork")
+          for filename in ("README.md", "README.fr.md"):
+              path = Path(filename)
+              source = path.read_text(encoding="utf-8")
+              pattern = (r'<p align="center"><img src="assets/'
+                         r'(?:encore-background\.jpg|screenshots/(?:encore-home|eden-encore-home-wallpaper-en|eden-encore-home-sample-art)\.png)"'
+                         r' alt="[^"]+" width="860"></p>')
+              new = ('<p align="center"><img src="assets/screenshots/eden-encore-home-sample-art.png"'
+                     f' alt="{alt}" width="860"></p>')
+              source, count = re.subn(pattern, lambda _: new, source)
+              assert count == 1, (filename, "expected exactly one known Encore Home preview", count)
+              path.write_text(source, encoding="utf-8")
+          print("REAL_EDEN_WALLPAPER_ENGLISH_HOME_SCREENSHOT_PREPARED")
+          PY
+
+      - name: Persist real Home capture and README links on the same branch
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          git add -A -- assets/screenshots/eden-encore-home-wallpaper-en.png assets/screenshots/eden-encore-home-sample-art.png README.md README.fr.md
+          if git diff --cached --quiet; then
+            echo "Native screenshot is unchanged."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "docs(ui): capture English Home with original Eden wallpaper [skip ci]"
+          git push origin HEAD:main

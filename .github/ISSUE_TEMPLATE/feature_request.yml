@@ -1,35 +1,33 @@
-name: "Feature request"
-description: "An idea or improvement for ProsperoEden"
+name: Feature request
+description: Suggest a focused improvement for Prospero.Eden Encore
 title: "[Feature] "
-labels: ["enhancement"]
+labels: []
 body:
-  - type: markdown
-    attributes:
-      value: |
-        **Before you post**
-
-        - Naming a game is fine; compatibility reports need it.
-        - Do not post or ask for links to games, keys, firmware or shader caches. Your own save data, attached to
-          your report so the problem can be reached, is welcome; do not ask others for theirs.
-        - Do not report on games that are not on sale yet, or on copies you did not dump yourself.
-        - Issues that break these rules are closed and may be deleted without a reply.
-        - Do not post Sony SDK files, firmware, decrypted system files, keys or links to them.
   - type: textarea
-    id: problem
+    id: need
     attributes:
-      label: "What would you like to do that you cannot do now?"
+      label: Problem / user need
+      description: What problem would this solve?
     validations:
       required: true
   - type: textarea
-    id: idea
+    id: proposal
     attributes:
-      label: "How could it work?"
+      label: Proposed behavior
+      description: Describe the smallest useful version of the feature.
     validations:
-      required: false
-  - type: checkboxes
-    id: confirm
+      required: true
+  - type: textarea
+    id: risk
     attributes:
-      label: "Checks"
+      label: Compatibility / security considerations
+      description: Note any 13.60, elevation, filesystem, renderer, save-data or performance implications.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
       options:
-        - label: "I searched the open and closed issues for this idea."
+        - label: This request is about Encore itself, not external FPKG/kstuff support.
+          required: true
+        - label: This request does not require distributing keys, firmware or copyrighted game data.
           required: true

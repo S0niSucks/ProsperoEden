@@ -3,72 +3,65 @@
 # keep UPPERCASE labels uppercase, and keep names (ProsperoEden, Eden, PS5, Vulkan, OpenGL,
 # AMD FSR, DLC, NSP, XCI, prod.keys, Ryujinx) unchanged.
 
-#: pe/ui/save_sync.cpp
-msgid "%Y-%m-%d %H:%M"
-msgstr "%d/%m/%Y %H:%M"
+#: settings_store.h
+msgid "0.25x (minimum)"
+msgstr "0,25x (tối thiểu)"
 
 #: settings_store.h
-msgid "0.5x (faster, softer)"
-msgstr "0,5x (nhanh hơn, kém nét hơn)"
+msgid "0.5x (fastest, softer)"
+msgstr "0,5x (nhanh nhất, mượt hơn)"
 
 #: settings_store.h
 msgid "0.75x (faster)"
 msgstr "0,75x (nhanh hơn)"
 
 #: settings_store.h
+msgid "1.25x (recommended)"
+msgstr "1,25x (đề xuất)"
+
+#: settings_store.h
 msgid "1.5x (sharper)"
 msgstr "1,5x (nét hơn)"
+
+#: pe/ui/settings.cpp
+msgid "100% is full DualSense rumble strength. Lower it if vibration feels too strong."
+msgstr "100% là sức mạnh ầm ầm của DualSense. Hạ thấp nó nếu cảm thấy rung động quá mạnh."
 
 #: settings_store.h
 msgid "1x (native)"
 msgstr "1x (gốc)"
 
 #: settings_store.h
-msgid "2x (sharpest)"
-msgstr "2x (nét nhất)"
+msgid "2x (high memory)"
+msgstr "2x (tốn nhiều bộ nhớ)"
 
 #: settings_store.h
-msgid "3x (slower)"
-msgstr "3x (chậm hơn)"
+msgid "3x (very high memory)"
+msgstr "3x (tốn rất nhiều bộ nhớ)"
 
 #: settings_store.h
-msgid "4x (slowest)"
-msgstr "4x (chậm nhất)"
+msgid "4x (extreme memory)"
+msgstr "4x (bộ nhớ cực cao)"
+
+#: pe/ui/settings.cpp
+msgid "60 Hz is recommended. 120 Hz changes display mode only; the game still needs to render above 60 FPS to benefit."
+msgstr "Khuyến khích sử dụng 60 Hz. 120 Hz chỉ thay đổi chế độ hiển thị; trò chơi vẫn cần hiển thị trên 60 FPS để được hưởng lợi."
+
+#: pe/ui/library.cpp
+msgid "60 Hz is the safe default. Use 120 Hz only with a compatible display or high-FPS patch."
+msgstr "60 Hz là mặc định an toàn. Chỉ sử dụng 120 Hz với màn hình tương thích hoặc bản vá FPS cao."
+
+#: pe/ui/settings.cpp
+msgid "8% is recommended. Increase it for stick drift; decrease it for more sensitive aiming."
+msgstr "8% được khuyến nghị. Tăng nó để trôi dạt; giảm nó để nhắm mục tiêu nhạy cảm hơn."
 
 #: eden_services.cpp
 msgid "A firmware NCA cannot be read. Reinstall the firmware dump."
 msgstr "Không đọc được một tệp NCA của firmware. Hãy cài đặt lại bản dump firmware."
 
-#: pe/ui/pairing.cpp
-msgid "A pairing is running already."
-msgstr "Đang có một lượt ghép đôi."
-
 #: pe/ui/browse.cpp
-msgid "ABOUT"
-msgstr "GIỚI THIỆU"
-
-#. The menu's last section: about this app (its credits, where its files go). One short word.
-#: pe/ui/shell.cpp
-msgid "About"
-msgstr "Giới thiệu"
-
-#: pe/ui/browse.cpp
-msgid "About ProsperoEden"
-msgstr "Giới thiệu về ProsperoEden"
-
-#. Time left while downloading; {0} is a number of minutes. Keep it short.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "About {0} min left"
-msgstr "Còn khoảng {0} phút"
-
-#. Time left while downloading; {0} is a number of seconds. Keep it short.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "About {0} s left"
-msgstr "Còn khoảng {0} giây"
-
-#: pe/ui/settings.cpp
-msgid "Above 100%, a game locked to 30 FPS can reach 60, and a game that counts its frames plays faster too."
-msgstr "Trên 100%, trò chơi bị khóa ở 30 FPS có thể đạt 60, và trò chơi đếm khung hình của nó cũng chạy nhanh hơn."
+msgid "About Eden Encore"
+msgstr "Giới thiệu về Eden Encore"
 
 #. Label: which folders the app can read.
 #: pe/ui/browse.cpp
@@ -80,21 +73,14 @@ msgstr "TRUY CẬP"
 msgid "Accessibility"
 msgstr "Trợ năng"
 
-#: pe/ui/profiles.cpp
-msgid "Add"
-msgstr "Thêm"
+#: pe/ui/settings.cpp
+msgid "ACCESSIBILITY"
+msgstr "TRỢ NĂNG"
 
-#: pe/ui/remote.cpp
-msgid "Added to the downloads. Settings, Downloads shows the queue."
-msgstr "Đã thêm vào mục tải xuống. Cài đặt, Tải xuống hiển thị hàng chờ."
-
-#: pe/ui/profiles.cpp
-msgid "Added. Cross plays as this profile; left and right change its name."
-msgstr "Đã thêm. Chéo để chơi bằng hồ sơ này; trái và phải đổi tên."
-
-#: pe/ui/library.cpp
-msgid "All cheats"
-msgstr "Tất cả mã gian lận"
+#. {0}: updates, DLC and mods of the game; {1}: the language it will use.
+#: pe/ui/home.cpp
+msgid "Add-ons: {0}  /  Language: {1}"
+msgstr "Bổ sung: {0}  /  Ngôn ngữ: {1}"
 
 #: pe/ui/browse.cpp
 msgid "All credit for the Eden emulator goes to its developers and contributors."
@@ -104,69 +90,38 @@ msgstr "Mọi công lao về trình giả lập Eden thuộc về các nhà phá
 msgid "AMD FSR"
 msgstr "AMD FSR"
 
-#: pe/ui/settings.cpp
-msgid "An image of your own behind this menu."
-msgstr "Một hình ảnh của riêng bạn phía sau menu này."
-
 #: eden_services.cpp
 msgid "Another language"
 msgstr "Ngôn ngữ khác"
 
-#: pe/ui/settings.cpp
-msgid "Appearance"
-msgstr "Giao diện"
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Anti-aliasing"
+msgstr "Khử răng cưa"
 
 #: pe/ui/settings.cpp
-msgid "Apply"
-msgstr "Áp dụng"
-
-#. The button mapping has not been changed.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "As usual"
-msgstr "Như thường lệ"
-
-#: pe/ui/pairing.cpp
-msgid "Asking the server for a code..."
-msgstr "Đang xin mã từ máy chủ..."
-
-#. Setting: how a game's textures in the ASTC format are held in graphics memory. ASTC is a format's name (unchanged).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "ASTC textures"
-msgstr "Texture ASTC"
-
-#. A switch. A shader is a small graphics program; keep the word the language's players use for it.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Asynchronous shaders"
-msgstr "Shader bất đồng bộ"
+msgid "ANTI-ALIASING"
+msgstr "KHỬ RĂNG CƯA"
 
 #: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Anti-aliasing smooths jagged edges. None is fastest; FXAA is light; SMAA prioritizes image quality."
+msgstr "Khử răng cưa làm mịn các cạnh lởm chởm. Không có gì là nhanh nhất; FXAA nhẹ; SMAA ưu tiên chất lượng hình ảnh."
+
+#: pe/ui/home.cpp, pe/ui/settings.cpp
 msgid "Audio"
 msgstr "Âm thanh"
+
+#: pe/ui/settings.cpp
+msgid "AUDIO"
+msgstr "ÂM THANH"
 
 #: eden_services.cpp
 msgid "Australia"
 msgstr "Úc"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Auto"
-msgstr "Tự động"
-
-#: pe/ui/game_options.cpp
-msgid "Automatic"
-msgstr "Tự động"
-
 #. Button hint: go back one screen.
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/profiles.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Back"
 msgstr "Quay lại"
-
-#: pe/ui/settings.cpp
-msgid "Backend"
-msgstr "Trình kết xuất"
-
-#: pe/ui/save_sync.cpp
-msgid "Backing up save data"
-msgstr "Đang sao lưu dữ liệu lưu"
 
 #. An upscaling filter.
 #: settings_store.h
@@ -178,83 +133,84 @@ msgstr "Bicubic"
 msgid "Bilinear"
 msgstr "Bilinear"
 
-#: pe/ui/game_options.cpp
-msgid "Bottom left"
-msgstr "Dưới trái"
+#: pe/ui/settings.cpp
+msgid "Bilinear is the lightest default. AMD FSR is most useful when rendering below the TV output size."
+msgstr "Song tuyến tính là mặc định nhẹ nhất. AMD FSR hữu ích nhất khi hiển thị dưới kích thước đầu ra của TV."
 
-#: pe/ui/game_options.cpp
-msgid "Bottom right"
-msgstr "Dưới phải"
+#: pe/ui/library.cpp
+msgid "Bilinear is the lightest default. AMD FSR is useful when rendering below the TV output size."
+msgstr "Song tuyến tính là mặc định nhẹ nhất. AMD FSR rất hữu ích khi hiển thị dưới kích thước đầu ra của TV."
 
 #. Button hint: move through the list.
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp
+#: pe/ui/browse.cpp
 msgid "Browse"
 msgstr "Duyệt"
 
-#: pe/ui/multiplayer.cpp
-msgid "Browse the public directory and choose a room."
-msgstr "Duyệt danh sách công khai và chọn một phòng."
+#: pe/ui/library.cpp
+msgid "Browse games"
+msgstr "Duyệt trò chơi"
 
-#. Which controller button presses each of the game's buttons.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
+msgid "Browse settings"
+msgstr "Duyệt cài đặt"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Button mapping"
-msgstr "Gán nút"
+msgstr "Gán nút điều khiển"
 
-#: pe/ui/pairing.cpp, pe/ui/update.cpp
+#: pe/ui/settings.cpp
+msgid "BUTTON MAPPING"
+msgstr "GÁN NÚT ĐIỀU KHIỂN"
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping reset to global settings."
+msgstr "Đặt lại ánh xạ nút về cài đặt chung."
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping reset to the active profile."
+msgstr "Đặt lại ánh xạ nút về cấu hình đang hoạt động."
+
+#: pe/ui/mapping.cpp
+msgid "Button mapping saved."
+msgstr "Đã lưu ánh xạ nút."
+
+#: pe/ui/settings.cpp
+msgid "BUTTON PROFILE"
+msgstr "HỒ SƠ NÚT"
+
+#: pe/ui/settings.cpp
+msgid "Button profile"
+msgstr "Cấu hình nút"
+
+#: pe/ui/home.cpp, pe/ui/settings.cpp
+msgid "CACHE"
+msgstr "BỘ NHỚ"
+
+#: pe/ui/settings.cpp
+msgid "Cache: {0}  |  Logs: {1}"
+msgstr "Bộ nhớ đệm: {0} |  Nhật ký: {1}"
+
+#: pe/ui/launcher.cpp
 msgid "Cancel"
 msgstr "Hủy"
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Cancel download"
-msgstr "Hủy tải xuống"
-
-#: pe/ui/update.cpp
-msgid "Cancelling"
-msgstr "Đang hủy"
 
 #: eden_services.cpp
 msgid "Cannot read firmware/ in {0}. Install extracted firmware NCAs."
 msgstr "Không đọc được firmware/ trong {0}. Hãy cài đặt các tệp NCA firmware đã trích xuất."
 
 #. Button hint: change the highlighted setting.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Change"
 msgstr "Thay đổi"
 
-#: pe/ui/library.cpp
-msgid "Change mode. Saved per game."
-msgstr "Đổi chế độ. Lưu theo từng trò chơi."
-
-#: pe/ui/save_sync.cpp
-msgid "Change nothing"
-msgstr "Không thay đổi gì"
-
-#. The button mapping has been changed.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Changed"
-msgstr "Đã đổi"
+#: pe/ui/launcher.cpp
+msgid "Change console mode for this game?"
+msgstr "Thay đổi chế độ bảng điều khiển cho trò chơi này?"
 
 #. What a mod is made of: cheat codes.
-#: eden_services.cpp, host/fake_services.cpp, pe/ui/library.cpp
+#: eden_services.cpp, host/fake_services.cpp
 msgid "Cheats"
 msgstr "Mã gian lận"
-
-#. Shown under a cheat that came from the game's cheats folder (not from a mod).
-#: pe/ui/library.cpp
-msgid "Cheats folder"
-msgstr "Thư mục mã gian lận"
-
-#: pe/ui/pairing.cpp
-msgid "Check that the code there is this one, and approve."
-msgstr "Kiểm tra mã ở đó trùng với mã này rồi chấp thuận."
-
-#: pe/ui/remote.cpp
-msgid "Checking the game files {0}"
-msgstr "Đang kiểm tra tệp trò chơi {0}"
-
-#: pe/ui/remote.cpp
-msgid "Checking {0}"
-msgstr "Đang kiểm tra {0}"
 
 #: eden_services.cpp
 msgid "China"
@@ -269,7 +225,7 @@ msgid "Chinese (Traditional)"
 msgstr "Tiếng Trung (Phồn thể)"
 
 #. Button hint: choose the highlighted language.
-#: pe/ui/browse.cpp, pe/ui/save_sync.cpp
+#: pe/ui/browse.cpp
 msgid "Choose"
 msgstr "Chọn"
 
@@ -277,74 +233,43 @@ msgstr "Chọn"
 msgid "Choose a game from your library."
 msgstr "Chọn một trò chơi từ thư viện của bạn."
 
-#: pe/ui/settings.cpp
-msgid "Choose a theme or change the launcher layout."
-msgstr "Chọn chủ đề hoặc đổi bố cục trình khởi chạy."
-
-#: pe/ui/settings.cpp
-msgid "Choose the colours and appearance of this menu."
-msgstr "Chọn màu sắc và giao diện cho menu này."
-
 #: pe/ui/browse.cpp
-msgid "Choose the folder that holds your keys, firmware and games"
-msgstr "Chọn thư mục chứa khóa, firmware và trò chơi của bạn"
+msgid "Choose one root for keys, firmware, games, updates and mods"
+msgstr "Chọn một gốc cho khóa, chương trình cơ sở, trò chơi, bản cập nhật và mod"
 
 #: pe/ui/browse.cpp
 msgid "Choose the language games use"
 msgstr "Chọn ngôn ngữ dùng trong trò chơi"
 
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Circle"
-msgstr "Tròn"
-
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "Close"
-msgstr "Đóng"
+msgstr "vòng tròn"
 
 #: pe/ui/settings.cpp
-msgid "Colour"
-msgstr "Màu"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Compact memory"
-msgstr "Bộ nhớ gọn"
-
-#. A switch: the program code a game used in earlier sessions is prepared (compiled) while the game starts. Keep it short.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Compile ahead"
-msgstr "Biên dịch trước"
+msgid "Clear"
+msgstr "Xóa"
 
 #: pe/ui/settings.cpp
-msgid "Compiles the code a game used before as it starts, so new areas stutter less."
-msgstr "Biên dịch mã trò chơi đã dùng trước đó khi khởi động, để khu vực mới ít bị giật hơn."
+msgid "Clear cache"
+msgstr "Xóa bộ nhớ đệm"
 
-#. A choice of 'ASTC textures': the textures are kept compressed (less memory). Keep it short.
-#: settings_store.h
-msgid "Compressed"
-msgstr "Nén"
+#: pe/ui/launcher.cpp
+msgid "Clear cache?"
+msgstr "Xóa bộ nhớ đệm?"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connect using a room address, port and password."
-msgstr "Kết nối bằng địa chỉ phòng, cổng và mật khẩu."
+#: eden_services.cpp
+msgid "Cleared {0} of cache."
+msgstr "Đã xóa {0} bộ nhớ đệm."
 
-#: pe/ui/home.cpp, pe/ui/multiplayer.cpp
-msgid "Connected"
-msgstr "Đã kết nối"
+#: pe/ui/launcher.cpp
+msgid "Confirm"
+msgstr "Xác nhận"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connecting..."
-msgstr "Đang kết nối..."
+#: pe/ui/launcher.cpp
+msgid "Confirm this action?"
+msgstr "Xác nhận hành động này?"
 
-#: pe/ui/multiplayer.cpp
-msgid "Connection failed"
-msgstr "Kết nối thất bại"
-
-#: pe/ui/multiplayer.cpp
-msgid "Connection problem"
-msgstr "Sự cố kết nối"
-
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/launcher.cpp, pe/ui/library.cpp
 msgid "Console mode"
 msgstr "Chế độ máy"
 
@@ -352,74 +277,57 @@ msgstr "Chế độ máy"
 msgid "CONTINUE PLAYING"
 msgstr "TIẾP TỤC CHƠI"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Controller shortcuts and supported features."
-msgstr "Lối tắt trên bộ điều khiển và các tính năng được hỗ trợ."
+#: pe/ui/home.cpp
+msgid "Controller mapping"
+msgstr "Ánh xạ bộ điều khiển"
 
-#: pe/ui/game_options.cpp
-msgid "Controller type"
-msgstr "Loại tay cầm"
+#: pe/ui/settings.cpp
+msgid "Controller profile: {0}"
+msgstr "Hồ sơ người điều khiển: {0}"
 
 #: pe/ui/home.cpp
 msgid "CONTROLLERS"
 msgstr "BỘ ĐIỀU KHIỂN"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp
+msgid "Controllers"
+msgstr "Tay cầm"
+
+#: pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Controls"
 msgstr "Điều khiển"
 
 #: pe/ui/settings.cpp
-msgid "Corner"
-msgstr "Góc"
-
-#: pe/ui/remote.cpp
-msgid "Could not cancel the download."
-msgstr "Không thể hủy tải xuống."
-
-#: pe/ui/pairing.cpp
-msgid "Could not change save-sync.json."
-msgstr "Không thể thay đổi save-sync.json."
+msgid "CONTROLS"
+msgstr "ĐIỀU KHIỂN"
 
 #: pe/ui/library.cpp
 msgid "Could not create the folder. Check that the game files folder can be written."
 msgstr "Không tạo được thư mục. Hãy kiểm tra xem có ghi được vào thư mục tệp trò chơi không."
 
 #: pe/ui/library.cpp
-msgid "Could not delete the game."
-msgstr "Không thể xóa trò chơi."
+msgid "Could not load game library. Reopen Encore to retry."
+msgstr "Không thể tải thư viện trò chơi. Mở lại Encore để thử lại."
 
-#: eden_services.cpp
-msgid "Could not delete {0}."
-msgstr "Không thể xóa {0}."
+#: pe/ui/library.cpp
+msgid "Could not load game list. Please try again."
+msgstr "Không thể tải danh sách trò chơi. Vui lòng thử lại."
 
 #: pe/ui/launcher.cpp
 msgid "Could not save settings. Please try again."
 msgstr "Không thể lưu cài đặt. Vui lòng thử lại."
 
 #: pe/ui/browse.cpp
-msgid "Could not save the folder. Please try again."
-msgstr "Không thể lưu thư mục. Vui lòng thử lại."
+msgid "Could not save the storage root. Please try again."
+msgstr "Không thể lưu root lưu trữ. Vui lòng thử lại."
 
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/profiles.cpp
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp
 msgid "Could not save. Please try again."
 msgstr "Không thể lưu. Vui lòng thử lại."
 
-#: pe/ui/multiplayer.cpp
-msgid "Could not start the connection or save its settings."
-msgstr "Không thể bắt đầu kết nối hoặc lưu thiết lập."
-
-#: pe/ui/settings.cpp
-msgid "CPU"
-msgstr "CPU"
-
-#: pe/ui/settings.cpp
-msgid "CPU by core"
-msgstr "CPU theo từng nhân"
-
-#. The DualSense button labelled CREATE: keep the label if the language's players do.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Create"
-msgstr "Create"
+msgstr "Tạo"
 
 #. Button hint: make the folder a game's mods go in.
 #: pe/ui/library.cpp
@@ -435,183 +343,128 @@ msgstr "Đã tạo {0}. Hãy chép thư mục của từng mod vào đó."
 msgid "Credits and setup"
 msgstr "Ghi công và thiết lập"
 
-#. A DualSense button (the X-shaped one). Name the shape, not the letter.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Cross"
-msgstr "Chéo"
+msgstr "chéo"
+
+#: pe/ui/settings.cpp, settings_store.h
+msgid "Custom"
+msgstr "Tùy chỉnh"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Custom PS5"
+msgstr "PS5 tùy chỉnh"
+
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Custom Switch"
+msgstr "Công tắc tùy chỉnh"
 
 #: pe/ui/settings.cpp
-msgid "Default"
-msgstr "Mặc định"
+msgid "Customize"
+msgstr "Tùy chỉnh"
+
+#: pe/ui/settings.cpp
+msgid "Customize every guest button. The profile automatically becomes Custom PS5 or Custom Switch."
+msgstr "Tùy chỉnh mọi nút của khách. Cấu hình tự động trở thành PS5 tùy chỉnh hoặc Switch tùy chỉnh."
+
+#: pe/ui/settings.cpp
+msgid "DATA"
+msgstr "DỮ LIỆU"
+
+#: pe/ui/settings.cpp
+msgid "Data: {0}"
+msgstr "Dữ liệu: {0}"
 
 #. A per-game setting that follows the general setting; {0} is its value.
-#: pe/ui/game_options.cpp
+#: pe/ui/library.cpp
 msgid "Default ({0})"
 msgstr "Mặc định ({0})"
 
-#: pe/ui/browse.cpp
-msgid "Default folder"
-msgstr "Thư mục mặc định"
-
-#: pe/ui/browse.cpp
-msgid "Default folder saved. Reopen ProsperoEden to use it."
-msgstr "Đã lưu thư mục mặc định. Hãy mở lại ProsperoEden để sử dụng."
-
-#: pe/ui/library.cpp
-msgid "Delete"
-msgstr "Xóa"
-
-#: pe/ui/library.cpp
-msgid "Delete from console"
-msgstr "Xóa khỏi máy"
-
-#: eden_services.cpp
-msgid "Deleted 1 file ({0}). Save data and settings are kept."
-msgstr "Đã xóa 1 tệp ({0}). Dữ liệu lưu và cài đặt được giữ lại."
-
-#: eden_services.cpp, host/fake_services.cpp
-msgid "Deleted {1} files ({0}). Save data and settings are kept."
-msgstr "Đã xóa {1} tệp ({0}). Dữ liệu lưu và cài đặt được giữ lại."
+#: pe/ui/settings.cpp
+msgid "DETAILED LOGGING"
+msgstr "GHI CHI TIẾT"
 
 #: pe/ui/settings.cpp
 msgid "Detailed logging"
 msgstr "Ghi nhật ký chi tiết"
 
 #: pe/ui/settings.cpp
-msgid "Detailed logs apply to the next game launch."
-msgstr "Nhật ký chi tiết áp dụng từ lần mở trò chơi tiếp theo."
-
-#: pe/ui/settings.cpp
 msgid "Detailed logs on"
 msgstr "Nhật ký chi tiết: Bật"
 
-#: pe/ui/settings.cpp
+#: pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Diagnostics"
 msgstr "Chẩn đoán"
 
+#: pe/ui/settings.cpp
+msgid "DIAGNOSTICS"
+msgstr "CHẨN ĐOÁN"
+
 #. Console mode: the console as if connected to a TV. Keep it short (about 9 letters).
-#: pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Docked"
 msgstr "TV"
 
-#: pe/ui/pairing.cpp
+#: pe/ui/library.cpp
+msgid "Docked can improve graphics but may cost performance; Handheld is lighter for demanding games."
+msgstr "Docked có thể cải thiện đồ họa nhưng có thể làm giảm hiệu suất; Thiết bị cầm tay nhẹ hơn cho các trò chơi đòi hỏi khắt khe."
+
+#: pe/ui/home.cpp
 msgid "Done"
 msgstr "Xong"
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Download"
-msgstr "Tải xuống"
-
-#: pe/ui/library.cpp
-msgid "Download and play"
-msgstr "Tải xuống và chơi"
-
-#: pe/ui/remote.cpp
-msgid "Download cancelled."
-msgstr "Đã hủy tải xuống."
-
-#: pe/ui/remote.cpp
-msgid "Download failed"
-msgstr "Tải xuống thất bại"
-
-#: pe/ui/remote.cpp
-msgid "Download from"
-msgstr "Tải xuống từ"
-
-#: pe/ui/remote.cpp
-msgid "Download in the background"
-msgstr "Tải xuống trong nền"
-
-#. {0} is a size such as 36.4 MB.
-#: pe/ui/update.cpp
-msgid "Download size: {0}"
-msgstr "Dung lượng tải xuống: {0}"
-
-#: pe/ui/library.cpp
-msgid "Download the game to change its settings."
-msgstr "Tải trò chơi xuống để thay đổi cài đặt của nó."
-
-#: pe/ui/update.cpp
-msgid "Downloading"
-msgstr "Đang tải xuống"
-
-#: pe/ui/remote.cpp
-msgid "Downloading {0}"
-msgstr "Đang tải xuống {0}"
-
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "Downloads"
-msgstr "Tải xuống"
-
-#: pe/ui/remote.cpp
-msgid "Downloads need an FTP server running on the console, on port {0}."
-msgstr "Tải xuống cần một máy chủ FTP chạy trên máy, ở cổng {0}."
-
-#: pe/ui/settings.cpp
-msgid "Draws an effect once its shader is ready instead of pausing. Things can be missing for a moment."
-msgstr "Vẽ hiệu ứng khi shader đã sẵn sàng thay vì tạm dừng. Một số thứ có thể thiếu trong chốc lát."
 
 #: pe/ui/settings.cpp
 msgid "Draws the menu's small text larger."
 msgstr "Hiển thị chữ nhỏ trong menu lớn hơn."
 
-#: pe/ui/game_options.cpp
-msgid "Dual Joy-Cons"
-msgstr "Hai Joy-Con"
+#: pe/ui/settings.cpp
+msgid "DualSense mapping, calibration, vibration and shortcuts."
+msgstr "Ánh xạ, hiệu chỉnh, rung và phím tắt DualSense."
 
 #: settings_store.h
 msgid "Dutch"
 msgstr "Tiếng Hà Lan"
 
-#: pe/ui/profiles.cpp
-msgid "Each profile keeps its own save data, settings and recent games."
-msgstr "Mỗi hồ sơ có dữ liệu lưu, cài đặt và trò chơi gần đây riêng."
+#: pe/ui/browse.cpp
+msgid "Eden Encore builds on the proven ProsperoEden 0.40 PS5 base for firmware 13.60, with the Eden core, safer recovery, and targeted compatibility, performance and TV-first UX improvements."
+msgstr "Eden Encore được xây dựng trên nền tảng ProsperoEden 0.40 PS5 đã được chứng minh dành cho chương trình cơ sở 13.60, với lõi Eden, khả năng khôi phục an toàn hơn cũng như các cải tiến về khả năng tương thích, hiệu suất và UX đầu tiên trên TV có mục tiêu."
 
-#: pe/ui/pairing.cpp
-msgid "Each profile keeps its save data on a server, as its own user there. Pair one with Cross: no typing, your phone does the signing in."
-msgstr "Mỗi hồ sơ giữ dữ liệu lưu trên một máy chủ, với người dùng riêng ở đó. Ghép đôi bằng Chéo: không cần gõ, điện thoại của bạn lo việc đăng nhập."
-
-#: pe/ui/settings.cpp
-msgid "Each profile's save data on a server of its own, synced before and after a game."
-msgstr "Dữ liệu lưu của mỗi hồ sơ trên máy chủ riêng, đồng bộ trước và sau khi chơi."
-
-#: pe/ui/settings.cpp
-msgid "Eden's debug messages in the logs of a game."
-msgstr "Thông báo gỡ lỗi của Eden trong nhật ký của trò chơi."
-
-#. A button hint: opens the keyboard to type a number. One short word, and not the word used for Change.
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "Edit"
-msgstr "Sửa"
+msgstr "Chỉnh sửa"
 
 #: pe/ui/settings.cpp
-msgid "Enable colors"
-msgstr "Bật màu"
+msgid "Edit custom mapping"
+msgstr "Chỉnh sửa ánh xạ tùy chỉnh"
 
+#: pe/ui/browse.cpp
+msgid "Encore uses the same keys, firmware, roms, updates and mods folders under every storage root."
+msgstr "Encore sử dụng cùng các thư mục khóa, chương trình cơ sở, rom, bản cập nhật và mod trong mọi thư mục gốc lưu trữ."
+
+#. Label of the shortcut that ends the running game.
 #: pe/ui/settings.cpp
-msgid "End the game and return to this menu"
-msgstr "Đóng trò chơi và quay lại menu này"
+msgid "END GAME"
+msgstr "ĐÓNG TRÒ CHƠI"
 
 #: settings_store.h
 msgid "English (UK)"
 msgstr "Tiếng Anh (Anh)"
 
-#: host/fake_services.cpp, settings_store.h
+#: settings_store.h
 msgid "English (US)"
 msgstr "Tiếng Anh (Mỹ)"
-
-#. Shown when what was typed for the RNG seed is not such a number.
-#: pe/ui/game_options.cpp
-msgid "Enter a number between 0 and 4294967295."
-msgstr "Nhập một số từ 0 đến 4294967295."
-
-#: pe/ui/multiplayer.cpp
-msgid "Enter a UDP port between 1 and 65535."
-msgstr "Nhập cổng UDP từ 1 đến 65535."
 
 #: eden_services.cpp
 msgid "Europe"
 msgstr "Châu Âu"
+
+#: pe/ui/launcher.cpp
+msgid "Exit Eden Encore"
+msgstr "Thoát khỏi Eden Encore"
+
+#: pe/ui/launcher.cpp
+msgid "Exit Eden Encore?"
+msgstr "Thoát khỏi Eden Encore?"
 
 #. Button hint: copy the game's save out to a folder.
 #: pe/ui/library.cpp
@@ -619,37 +472,26 @@ msgid "Export a copy"
 msgstr "Xuất bản sao"
 
 #: eden_services.cpp
-msgid "Export failed. Check that the game files folder can be written."
-msgstr "Xuất thất bại. Hãy kiểm tra xem có ghi được vào thư mục tệp trò chơi không."
+msgid "Export failed. Check that the storage root can be written."
+msgstr "Xuất không thành công. Kiểm tra xem gốc lưu trữ có thể được ghi hay không."
 
 #. {0} is a folder.
 #: eden_services.cpp, host/fake_services.hpp
 msgid "Exported to {0}."
 msgstr "Đã xuất ra {0}."
 
-#. A switch: the emulated processor's floating-point math is less exact and faster. CPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster CPU emulation"
-msgstr "Giả lập CPU nhanh hơn"
-
-#. A switch: memory transfers to the emulated graphics processor are less exact and faster. DMA is a name (unchanged).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster DMA"
-msgstr "DMA nhanh hơn"
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Faster games, at some cost in accuracy."
-msgstr "Trò chơi nhanh hơn, đổi lại kém chính xác hơn một chút."
-
-#. A switch: the emulated graphics processor is less exact and faster. GPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Faster GPU emulation"
-msgstr "Giả lập GPU nhanh hơn"
-
 #. What a mod is made of: files that replace the game's own.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Files"
 msgstr "Tệp"
+
+#: pe/ui/settings.cpp
+msgid "FILESYSTEM"
+msgstr "HỆ THỐNG TẬP TIN"
+
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Final app output size. Choose 1080p for lower memory use, 1440p for balance, or 2160p for maximum output detail."
+msgstr "Kích thước đầu ra ứng dụng cuối cùng. Chọn 1080p để sử dụng ít bộ nhớ hơn, 1440p để cân bằng hoặc 2160p để có chi tiết đầu ra tối đa."
 
 #: pe/ui/settings.cpp
 msgid "Fine-tune your experience"
@@ -671,60 +513,22 @@ msgstr "Firmware sẵn sàng"
 msgid "Firmware SystemVersion data is missing or unreadable. Install a complete firmware dump."
 msgstr "Dữ liệu SystemVersion của firmware bị thiếu hoặc không đọc được. Hãy cài đặt bản dump firmware đầy đủ."
 
+#: pe/ui/settings.cpp
+msgid "Fixed Encore folder structure"
+msgstr "Đã sửa cấu trúc thư mục Encore"
+
 #: pe/ui/browse.cpp
 msgid "FOLDERS"
 msgstr "THƯ MỤC"
 
-#. A kind of setting that this game takes from the launcher's Settings menu.
-#: pe/ui/library.cpp
-msgid "Follows Settings"
-msgstr "Theo Cài đặt"
-
-#: pe/ui/game_options.cpp
-msgid "For every controller. A game can have its own."
-msgstr "Cho mọi tay cầm. Mỗi trò chơi có thể có cách gán riêng."
+#. Label: the frames-per-second counter drawn over a game.
+#: pe/ui/settings.cpp
+msgid "FPS OVERLAY"
+msgstr "BỘ ĐẾM FPS"
 
 #: pe/ui/settings.cpp
-msgid "FPS"
-msgstr "FPS"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
 msgid "FPS overlay"
 msgstr "Bộ đếm FPS"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen method"
-msgstr "Phương pháp tạo khung hình"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen multiplier"
-msgstr "Hệ số tạo khung hình"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame gen target"
-msgstr "Mục tiêu tạo khung hình"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
-msgid "ROMs and updates"
-msgstr "ROM và bản cập nhật"
-
-msgid "Choose roms/ and updates/ without moving keys, firmware or saves."
-msgstr "Chọn roms/ và updates/ mà không di chuyển khóa, firmware hay dữ liệu lưu."
-
-msgid "Frame generation"
-msgstr "Tạo khung hình"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Frame generation needs Lossless.dll, from Lossless Scaling, in the lossless folder."
-msgstr "Tạo khung hình cần Lossless.dll của Lossless Scaling trong thư mục lossless."
-
-#: pe/ui/settings.cpp
-msgid "Frame generation needs MihawkGen weights (network.fgw)."
-msgstr "Tạo khung hình cần trọng số MihawkGen (network.fgw)."
-
-#: pe/ui/settings.cpp
-msgid "Frame time"
-msgstr "Thời gian khung hình"
 
 #: settings_store.h
 msgid "French"
@@ -734,27 +538,30 @@ msgstr "Tiếng Pháp"
 msgid "French (Canada)"
 msgstr "Tiếng Pháp (Canada)"
 
-#: pe/ui/remote.cpp
-msgid "From {0}"
-msgstr "Từ {0}"
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "FSR sharpness"
+msgstr "Độ sắc nét FSR"
+
+#: pe/ui/settings.cpp
+msgid "FSR SHARPNESS"
+msgstr "ĐỘ SẮC NÉT FSR"
+
+#: pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "FSR sharpness changes detail recovery only when AMD FSR is selected. Lower it if the picture looks grainy or over-sharpened."
+msgstr "Độ sắc nét của FSR chỉ thay đổi khả năng phục hồi chi tiết khi AMD FSR được chọn. Hãy hạ thấp nó xuống nếu hình ảnh trông có vẻ nổi hạt hoặc bị sắc nét quá mức."
 
 #. The app can read every folder of the console.
-#: pe/ui/browse.cpp
+#: eden_services.cpp, pe/ui/browse.cpp
 msgid "Full filesystem"
 msgstr "Toàn bộ hệ thống tệp"
 
-#. A choice of 'ASTC textures': the textures are kept uncompressed (more memory). Keep it short.
 #: settings_store.h
-msgid "Full quality"
-msgstr "Chất lượng đầy đủ"
+msgid "FXAA"
+msgstr "FXAA"
 
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Game audio; PS5 system-menu music is unchanged."
 msgstr "Âm thanh trò chơi; nhạc menu hệ thống PS5 không thay đổi."
-
-#: pe/ui/launcher.cpp
-msgid "Game cannot start now."
-msgstr "Không thể bắt đầu trò chơi lúc này."
 
 #. {0} is the reason, a sentence in English; {1} is a file.
 #: eden_services.cpp, host/fake_services.cpp
@@ -762,18 +569,34 @@ msgid "Game could not start: {0} Details: {1}"
 msgstr "Không thể mở trò chơi: {0} Chi tiết: {1}"
 
 #: pe/ui/library.cpp
-msgid "GAME DETAILS"
-msgstr "CHI TIẾT TRÒ CHƠI"
+msgid "Game library unavailable"
+msgstr "Thư viện trò chơi không có sẵn"
 
-#: pe/ui/browse.cpp, pe/ui/settings.cpp
-msgid "Game files"
-msgstr "Tệp trò chơi"
+#: pe/ui/library.cpp
+msgid "Game overrides reset to global defaults."
+msgstr "Game overrides reset to global defaults."
+
+#: pe/ui/settings.cpp
+msgid "Game render scale follows the selected profile. Lower it for performance or memory; raise it only when a game has headroom."
+msgstr "Tỷ lệ kết xuất trò chơi tuân theo cấu hình đã chọn. Hạ thấp nó để có hiệu suất hoặc bộ nhớ; chỉ nâng nó lên khi trò chơi có khoảng trống."
+
+#: pe/ui/settings.cpp
+msgid "GAME RESOLUTION"
+msgstr "ĐỘ PHÂN GIẢI TRÒ CHƠI"
+
+#: pe/ui/settings.cpp
+msgid "Game resolution"
+msgstr "Độ phân giải trò chơi"
 
 #: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Game settings"
 msgstr "Cài đặt trò chơi"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
+msgid "GAME VOLUME"
+msgstr "ÂM LƯỢNG TRÒ CHƠI"
+
+#: pe/ui/settings.cpp
 msgid "Game volume"
 msgstr "Âm lượng trò chơi"
 
@@ -785,9 +608,9 @@ msgstr "Âm lượng trò chơi và âm thanh của menu này."
 msgid "GAMES"
 msgstr "TRÒ CHƠI"
 
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "Games on your network, downloaded when you play them."
-msgstr "Trò chơi trên mạng của bạn, được tải xuống khi bạn chơi."
+#: pe/ui/home.cpp
+msgid "Games and cache"
+msgstr "Trò chơi và bộ nhớ đệm"
 
 #: pe/ui/browse.cpp
 msgid "Games use this language when they offer it, and their own default otherwise. It applies when a game starts."
@@ -805,17 +628,13 @@ msgstr "Tiếng Đức"
 msgid "GETTING STARTED"
 msgstr "BẮT ĐẦU"
 
-#: pe/ui/settings.cpp
-msgid "Gives back memory a game left empty, 16 KiB at a time. More free memory; a game that writes there again can stutter for a moment."
-msgstr "Trả lại bộ nhớ mà trò chơi để trống, mỗi lần 16 KiB. Nhiều bộ nhớ trống hơn; trò chơi ghi lại vào đó có thể khựng một chút."
+#: pe/ui/library.cpp, pe/ui/mapping.cpp
+msgid "Global ({0})"
+msgstr "Toàn cầu ({0})"
 
-#: pe/ui/multiplayer.cpp
-msgid "Go offline"
-msgstr "Ngoại tuyến"
-
-#: pe/ui/settings.cpp
-msgid "GPU"
-msgstr "GPU"
+#: pe/ui/mapping.cpp
+msgid "Global controller profile: {0}"
+msgstr "Hồ sơ bộ điều khiển toàn cầu: {0}"
 
 #: pe/ui/settings.cpp
 msgid "Graphics backend and how games are scaled to your TV."
@@ -826,27 +645,30 @@ msgid "Graphics backend initialization failed. Try another backend in Settings; 
 msgstr "Khởi tạo trình kết xuất đồ họa thất bại. Hãy thử trình kết xuất khác trong Cài đặt; xem stderr.log và eden_log.txt để biết chi tiết về driver."
 
 #. Console mode: the console as if held in the hands. Keep it short (about 9 letters).
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Handheld"
 msgstr "Cầm tay"
+
+#: pe/ui/settings.cpp
+msgid "Health and storage tools. Cache cleanup never removes saves, settings, keys or games."
+msgstr "Công cụ sức khỏe và lưu trữ. Dọn dẹp bộ nhớ đệm không bao giờ xóa các bản lưu, cài đặt, khóa hoặc trò chơi."
+
+#: settings_store.h
+msgid "High"
+msgstr "Cao"
+
+#: pe/ui/settings.cpp
+msgid "HIGH CONTRAST"
+msgstr "ĐỘ TƯƠNG PHẢN CAO"
 
 #. A switch: solid dark panels, brighter text.
 #: pe/ui/settings.cpp
 msgid "High contrast"
 msgstr "Độ tương phản cao"
 
-#. The menu's first section, its opening screen (not a house, and not the PS5's own home screen).
-#: pe/ui/shell.cpp
+#: pe/ui/launcher.cpp
 msgid "Home"
 msgstr "Trang chủ"
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "How games are drawn and scaled to your TV."
-msgstr "Cách trò chơi được kết xuất và co giãn theo TV của bạn."
-
-#: pe/ui/settings.cpp
-msgid "Images in this folder: {0}"
-msgstr "Hình ảnh trong thư mục này: {0}"
 
 #. Button hint: copy a save in.
 #: pe/ui/library.cpp
@@ -870,25 +692,13 @@ msgstr "Đã nhập. Bản lưu bị thay thế đã được sao lưu."
 msgid "IN USE"
 msgstr "ĐANG DÙNG"
 
-#: pe/ui/multiplayer.cpp
-msgid "Incompatible"
-msgstr "Không tương thích"
+#: pe/ui/browse.cpp
+msgid "Internal storage"
+msgstr "Bộ nhớ trong"
 
-#: pe/ui/save_sync.cpp
-msgid "It goes to the server."
-msgstr "Dữ liệu sẽ được gửi lên máy chủ."
-
-#: pe/ui/save_sync.cpp
-msgid "It is tried again when the menu opens next."
-msgstr "Sẽ thử lại khi menu được mở lần tới."
-
-#: pe/ui/save_sync.cpp
-msgid "It replaces this console's."
-msgstr "Dữ liệu sẽ thay cho của máy này."
-
-#: pe/ui/pairing.cpp
-msgid "It was declined on the server."
-msgstr "Yêu cầu đã bị từ chối trên máy chủ."
+#: pe/ui/browse.cpp
+msgid "Internal storage saved. Reopen Encore to use it."
+msgstr "Đã lưu bộ nhớ trong. Mở lại Encore để sử dụng."
 
 #: settings_store.h
 msgid "Italian"
@@ -901,35 +711,6 @@ msgstr "Nhật Bản"
 #: settings_store.h
 msgid "Japanese"
 msgstr "Tiếng Nhật"
-
-#: pe/ui/multiplayer.cpp
-msgid "Join a room before launching a game, then choose Local Wireless in the game."
-msgstr "Vào phòng trước khi mở trò chơi, rồi chọn chơi không dây cục bộ trong trò chơi."
-
-#: pe/ui/launcher.cpp
-msgid "Join a room successfully or leave it before starting a game."
-msgstr "Vào phòng hoặc rời phòng trước khi bắt đầu trò chơi."
-
-#: pe/ui/multiplayer.cpp
-msgid "Join room"
-msgstr "Vào phòng"
-
-#. keys, firmware and roms are folder names (unchanged). TRIANGLE is the controller's triangle button, in capitals.
-#: pe/ui/browse.cpp
-msgid "Keep keys, firmware and roms folders together. TRIANGLE uses the folder shown."
-msgstr "Hãy để các thư mục keys, firmware và roms cùng một chỗ. TAM GIÁC dùng thư mục đang hiển thị."
-
-#: pe/ui/save_sync.cpp
-msgid "Keep this console's"
-msgstr "Giữ của máy này"
-
-#: pe/ui/settings.cpp
-msgid "Keeps the last line before a crash, but games stutter. From the next start."
-msgstr "Giữ dòng cuối cùng trước khi lỗi, nhưng trò chơi bị giật. Từ lần mở tiếp theo."
-
-#: pe/ui/settings.cpp
-msgid "Keeps what a game reads back from the GPU exact. Off is faster, and some effects break."
-msgstr "Giữ chính xác những gì trò chơi đọc lại từ GPU. Tắt thì nhanh hơn, nhưng một số hiệu ứng bị hỏng."
 
 #. Label: the encryption keys file (prod.keys).
 #: pe/ui/browse.cpp
@@ -948,17 +729,21 @@ msgstr "Hàn Quốc"
 msgid "Korean"
 msgstr "Tiếng Hàn"
 
-#: pe/ui/browse.cpp, pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
 msgid "Language"
 msgstr "Ngôn ngữ"
+
+#: pe/ui/settings.cpp
+msgid "LANGUAGE"
+msgstr "NGÔN NGỮ"
 
 #: pe/ui/browse.cpp
 msgid "LANGUAGES"
 msgstr "NGÔN NGỮ"
 
-#: pe/ui/game_options.cpp
-msgid "Large"
-msgstr "Lớn"
+#: pe/ui/settings.cpp
+msgid "LARGER TEXT"
+msgstr "CHỮ LỚN HƠN"
 
 #. A switch: the menu's small text is drawn larger.
 #: pe/ui/settings.cpp
@@ -970,90 +755,65 @@ msgstr "Chữ lớn hơn"
 msgid "Last game opened"
 msgstr "Trò chơi mở gần nhất"
 
+#: pe/ui/library.cpp
+msgid "Launch game"
+msgstr "Mở trò chơi"
+
 #: pe/ui/settings.cpp
-msgid "Launcher"
-msgstr "Trình khởi chạy"
+msgid "LAYOUT"
+msgstr "BỐ CỤC"
 
-#: pe/ui/multiplayer.cpp
-msgid "Leave / cancel"
-msgstr "Rời / hủy"
-
-#: pe/ui/multiplayer.cpp
-msgid "Leave room"
-msgstr "Rời phòng"
-
-#: pe/ui/multiplayer.cpp
-msgid "Leave the room before changing connection details."
-msgstr "Rời phòng trước khi thay đổi thông tin kết nối."
-
-#: pe/ui/profiles.cpp
-msgid "Leaving the room. Select the profile again when disconnected."
-msgstr "Đang rời phòng. Chọn lại hồ sơ sau khi ngắt kết nối."
-
-#: pe/ui/multiplayer.cpp
-msgid "Leaving..."
-msgstr "Đang rời..."
-
-#: pe/ui/game_options.cpp
-msgid "Left Joy-Con"
-msgstr "Joy-Con trái"
-
-#. Pressing the left stick down like a button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Left stick press"
-msgstr "Nhấn cần trái"
-
-#: pe/ui/settings.cpp
-msgid "Less exact floating-point math: faster, and a few games misbehave."
-msgstr "Phép tính dấu phẩy động kém chính xác hơn: nhanh hơn, nhưng một vài trò chơi chạy sai."
-
-#: pe/ui/settings.cpp
-msgid "Less exact memory transfers to the GPU: faster, and a few games show wrong graphics."
-msgstr "Truyền bộ nhớ tới GPU kém chính xác hơn: nhanh hơn, nhưng một vài trò chơi hiển thị đồ họa sai."
+msgstr "Bấm phím trái"
 
 #: pe/ui/library.cpp
-msgid "LIBRARY"
-msgstr "THƯ VIỆN"
+msgid "Left/right: Global, PlayStation or Switch for this game; Cross: edit individual buttons."
+msgstr "Trái/phải: Global, PlayStation hoặc Switch cho trò chơi này; Cross: chỉnh sửa các nút riêng lẻ."
 
-#: pe/ui/library.cpp, pe/ui/shell.cpp
+#: pe/ui/launcher.cpp
 msgid "Library"
 msgstr "Thư viện"
 
-#: pe/ui/pairing.cpp
-msgid "Linked"
-msgstr "Đã liên kết"
+#: pe/ui/library.cpp
+msgid "Loading artwork"
+msgstr "Đang tải tác phẩm nghệ thuật"
 
-#: pe/ui/multiplayer.cpp
-msgid "Loading public rooms..."
-msgstr "Đang tải phòng công khai..."
+#: pe/ui/launcher.cpp
+msgid "Loading game library..."
+msgstr "Đang tải thư viện trò chơi..."
 
 #: pe/ui/settings.cpp
-msgid "Lowest GPU accuracy: faster in demanding games, and graphics can be wrong."
-msgstr "Độ chính xác GPU thấp nhất: nhanh hơn trong trò chơi nặng, nhưng đồ họa có thể bị sai."
+msgid "LOGS"
+msgstr "NHẬT KÝ"
 
 #: pe/ui/settings.cpp
 msgid "Make the menu easier to see and follow."
 msgstr "Giúp menu dễ nhìn và dễ theo dõi hơn."
 
-#: pe/ui/game_options.cpp
-msgid "Medium"
-msgstr "Vừa"
+#: pe/ui/home.cpp
+msgid "Max. players: {0}"
+msgstr "Tối đa. người chơi: {0}"
 
 #: pe/ui/settings.cpp
-msgid "Memory"
-msgstr "Bộ nhớ"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Menu keybinds"
-msgstr "Nút menu"
-
-#: pe/ui/browse.cpp
-msgid "Menu sound effects made with ElevenLabs."
-msgstr "Hiệu ứng âm thanh menu được tạo bằng ElevenLabs."
+msgid "MENU SOUNDS"
+msgstr "ÂM THANH MENU"
 
 #: pe/ui/settings.cpp
 msgid "Menu sounds"
 msgstr "Âm thanh menu"
+
+#: settings_store.h
+msgid "Minimum"
+msgstr "Tối thiểu"
+
+#: pe/ui/settings.cpp
+msgid "Minimum reduces GPU load and may use lower GPU accuracy for speed. Recommended balances quality and stability. High and Ultra raise image quality when the game has headroom."
+msgstr "Mức tối thiểu giúp giảm tải GPU và có thể sử dụng độ chính xác GPU thấp hơn để tăng tốc độ. Khuyến nghị cân bằng chất lượng và độ ổn định. High và Ultra nâng cao chất lượng hình ảnh khi game có khoảng trống."
+
+#: pe/ui/library.cpp
+msgid "Minimum, Recommended, High and Ultra apply the title-aware Encore profile. Manual changes become Custom for this game."
+msgstr "Tối thiểu, Khuyến nghị, Cao và Siêu áp dụng cấu hình Encore nhận biết tiêu đề. Những thay đổi thủ công sẽ trở thành Tùy chỉnh cho trò chơi này."
 
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Missing or empty keys/prod.keys in {0}."
@@ -1069,15 +829,11 @@ msgstr "MOD"
 msgid "Mods"
 msgstr "Mod"
 
-#: pe/ui/home.cpp, pe/ui/multiplayer.cpp, pe/ui/shell.cpp
-msgid "Multiplayer"
-msgstr "Nhiều người chơi"
+#: pe/ui/settings.cpp
+msgid "MUTE"
+msgstr "TẮT TIẾNG"
 
-#: pe/ui/multiplayer.cpp
-msgid "MULTIPLAYER"
-msgstr "NHIỀU NGƯỜI CHƠI"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Mute"
 msgstr "Tắt tiếng"
 
@@ -1086,7 +842,7 @@ msgid "Muted"
 msgstr "Đã tắt tiếng"
 
 #. Button hint: move the highlight.
-#: pe/ui/update.cpp
+#: pe/ui/home.cpp
 msgid "Navigate"
 msgstr "Di chuyển"
 
@@ -1095,47 +851,14 @@ msgstr "Di chuyển"
 msgid "Nearest"
 msgstr "Gần nhất"
 
-#: pe/ui/pairing.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Needs attention"
 msgstr "Cần chú ý"
-
-#: pe/ui/theme.cpp
-msgid "Neutral glass, clean and still."
-msgstr "Kính trung tính, gọn gàng và tĩnh lặng."
-
-#: pe/ui/profiles.cpp
-msgid "New profile"
-msgstr "Hồ sơ mới"
 
 #. {0} is the folder used the next time the app starts.
 #: pe/ui/browse.cpp
 msgid "Next launch: {0}"
 msgstr "Lần mở tới: {0}"
-
-#: pe/ui/multiplayer.cpp
-msgid "Nickname"
-msgstr "Biệt danh"
-
-#: pe/ui/multiplayer.cpp
-msgid "Nickname: {0}"
-msgstr "Biệt danh: {0}"
-
-#: pe/ui/library.cpp
-msgid "No cheats"
-msgstr "Không có mã gian lận"
-
-#. <build ID>.txt stays as it is: a cheat file is named after the game version's build ID. {0} is a folder such as roms/Game/cheats/.
-#: pe/ui/library.cpp
-msgid "No cheats for this game yet. Copy its cheat files (<build ID>.txt) to {0}."
-msgstr "Trò chơi này chưa có mã gian lận. Hãy chép các tệp mã gian lận của nó (<build ID>.txt) vào {0}."
-
-#: pe/ui/remote.cpp
-msgid "No download source is set up. Save a file named {0} that lists your sources, as this one does with a RomM server, then open this menu again. Downloads need an FTP server running on the console, on port {1}."
-msgstr "Chưa thiết lập nguồn tải xuống. Lưu một tệp tên {0} liệt kê các nguồn của bạn, như tệp này làm với một máy chủ RomM, rồi mở lại menu này. Tải xuống cần một máy chủ FTP chạy trên máy, ở cổng {1}."
-
-#: pe/ui/remote.cpp
-msgid "No downloads. In the Library, Square puts a game from a source in the queue."
-msgstr "Không có lượt tải xuống nào. Trong Thư viện, Vuông đưa trò chơi từ một nguồn vào hàng chờ."
 
 #: pe/ui/browse.cpp
 msgid "No firmware folder"
@@ -1154,66 +877,27 @@ msgstr "Không có thư mục nào."
 msgid "No mods"
 msgstr "Không có mod"
 
+#. {0} is a folder; roms/ is a folder name (unchanged).
 #: pe/ui/library.cpp
-msgid "No mods for this game yet. Copy each mod's folder to {0}."
-msgstr "Trò chơi này chưa có mod. Hãy chép thư mục của từng mod vào {0}."
-
-#: pe/ui/multiplayer.cpp
-msgid "No public rooms are available."
-msgstr "Không có phòng công khai nào."
+msgid "No mods for this game yet. Copy each mod's folder to {0}, next to roms/."
+msgstr "Trò chơi này chưa có mod. Hãy chép thư mục của từng mod vào {0}, cạnh roms/."
 
 #: pe/ui/library.cpp
 msgid "No ROM files found."
 msgstr "Không tìm thấy tệp ROM."
 
-#: pe/ui/library.cpp
-msgid "No ROM selected"
-msgstr "Chưa chọn ROM"
-
 #: pe/ui/browse.cpp
 msgid "No roms folder"
 msgstr "Không có thư mục roms"
 
-#: pe/ui/pairing.cpp
-msgid "No server to pair with: add a RomM server to sources.json, or set save-sync.json up over FTP."
-msgstr "Không có máy chủ để ghép đôi: thêm máy chủ RomM vào sources.json hoặc thiết lập save-sync.json qua FTP."
-
-#: pe/ui/pairing.cpp
-msgid "Nobody approved the code in time."
-msgstr "Không ai chấp thuận mã kịp thời."
+#: pe/ui/library.cpp
+msgid "No screenshots available"
+msgstr "Không có ảnh chụp màn hình"
 
 #. No add-ons (updates or DLC).
-#: pe/ui/library.cpp
+#: pe/ui/library.cpp, settings_store.h
 msgid "None"
 msgstr "Không có"
-
-#: pe/ui/remote.cpp
-msgid "Not connected yet"
-msgstr "Chưa kết nối"
-
-#: pe/ui/pairing.cpp
-msgid "Not linked"
-msgstr "Chưa liên kết"
-
-#: pe/ui/pairing.cpp
-msgid "Not linked: its save data stays on the console"
-msgstr "Chưa liên kết: dữ liệu lưu vẫn ở trên máy"
-
-#: pe/ui/library.cpp
-msgid "Not on the console"
-msgstr "Không có trên máy"
-
-#: pe/ui/pairing.cpp
-msgid "Not paired"
-msgstr "Chưa ghép đôi"
-
-#: pe/ui/remote.cpp
-msgid "Not reachable"
-msgstr "Không kết nối được"
-
-#: pe/ui/settings.cpp
-msgid "Not set up"
-msgstr "Chưa thiết lập"
 
 #. Short status at the right of the Save data row.
 #: pe/ui/library.cpp
@@ -1221,18 +905,18 @@ msgid "Nothing to import"
 msgstr "Không có gì để nhập"
 
 #. A setting that is switched off.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Off"
 msgstr "Tắt"
 
-#: pe/ui/multiplayer.cpp
-msgid "Offline"
-msgstr "Ngoại tuyến"
-
 #. A setting that is switched on.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "On"
 msgstr "Bật"
+
+#: pe/ui/settings.cpp
+msgid "One root for keys, firmware, games, updates, mods and transfers."
+msgstr "Một gốc cho các phím, chương trình cơ sở, trò chơi, bản cập nhật, mod và chuyển giao."
 
 #. Short tag on a folder row.
 #: pe/ui/browse.cpp
@@ -1244,119 +928,55 @@ msgstr "MỞ"
 msgid "Open"
 msgstr "Mở"
 
-#: pe/ui/update.cpp
-msgid "Open it again to use version {0}."
-msgstr "Mở lại để dùng phiên bản {0}."
-
 #: pe/ui/home.cpp
 msgid "Open library"
 msgstr "Mở thư viện"
 
-#. The DualSense button labelled OPTIONS: keep the label if the language's players do.
-#: pe/ui/game_options.cpp
+#: pe/ui/home.cpp
+msgid "Open quick settings"
+msgstr "Mở cài đặt nhanh"
+
+#: pe/ui/home.cpp
+msgid "Open settings"
+msgstr "Mở cài đặt"
+
+#: pe/ui/home.cpp
+msgid "Open storage"
+msgstr "Mở kho lưu trữ"
+
+#: pe/ui/library.cpp
+msgid "Open the per-game DualSense mapping. Global uses Settings > Controls; Custom overrides it only for this game."
+msgstr "Mở bản đồ DualSense cho mỗi trò chơi. Toàn cầu sử dụng Cài đặt > Điều khiển; Tùy chỉnh ghi đè nó chỉ dành cho trò chơi này."
+
+#: pe/ui/mapping.cpp
 msgid "Options"
-msgstr "Options"
-
-#. Setting: the size of the picture sent to the TV (1080p, 1440p or 2160p). Not the same as 'Resolution', which scales the game's own picture (1x, 2x...).
-#: pe/ui/settings.cpp
-msgid "Output resolution"
-msgstr "Độ phân giải đầu ra"
-
-#: pe/ui/game_options.cpp
-msgid "Overlay corner"
-msgstr "Góc bộ đếm"
-
-#: pe/ui/settings.cpp
-msgid "Overlay options"
-msgstr "Tùy chọn bộ đếm"
-
-#: pe/ui/game_options.cpp
-msgid "Overlay size"
-msgstr "Kích thước bộ đếm"
+msgstr "Tùy chọn"
 
 #. Button hint: jump a page of the list (L1 / R1).
-#: pe/ui/browse.cpp, pe/ui/multiplayer.cpp, pe/ui/update.cpp
+#: pe/ui/browse.cpp
 msgid "Page"
 msgstr "Trang"
-
-#: pe/ui/pairing.cpp
-msgid "Pair"
-msgstr "Ghép đôi"
-
-#: pe/ui/pairing.cpp
-msgid "Pair again"
-msgstr "Ghép đôi lại"
-
-#: pe/ui/pairing.cpp
-msgid "Pair {0}"
-msgstr "Ghép đôi {0}"
-
-#: pe/ui/pairing.cpp
-msgid "Pair {0} with"
-msgstr "Ghép đôi {0} với"
-
-#: pe/ui/pairing.cpp
-msgid "Paired"
-msgstr "Đã ghép đôi"
-
-#: pe/ui/pairing.cpp
-msgid "Paired. The profile's save data syncs from now on."
-msgstr "Đã ghép đôi. Dữ liệu lưu của hồ sơ được đồng bộ từ bây giờ."
 
 #: pe/ui/browse.cpp
 msgid "Parent folder"
 msgstr "Thư mục cha"
-
-#: pe/ui/multiplayer.cpp
-msgid "Password"
-msgstr "Mật khẩu"
 
 #. What a mod is made of: a change to the game's program (not a game update).
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Patch"
 msgstr "Bản vá"
 
-#. A settings category: options that make games run faster, at some cost in accuracy.
-#: pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Performance"
-msgstr "Hiệu năng"
-
-#: pe/ui/settings.cpp
-msgid "Ping"
-msgstr "Ping"
-
-#. Button and button hint: start the game shown. Keep it to one short word.
-#: pe/ui/home.cpp, pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "Play"
 msgstr "Chơi"
 
-#: pe/ui/save_sync.cpp
-msgid "Play anyway"
-msgstr "Vẫn chơi"
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "PlayStation"
+msgstr "PlayStation"
 
-#: pe/ui/profiles.cpp
-msgid "Play as"
-msgstr "Chơi bằng"
-
-#: pe/ui/library.cpp
-msgid "Play when downloaded"
-msgstr "Chơi khi tải xong"
-
-#: pe/ui/save_sync.cpp
-msgid "Play with this console's; you are asked again next time."
-msgstr "Chơi với dữ liệu của máy này; lần sau bạn sẽ được hỏi lại."
-
-#: pe/ui/pairing.cpp
-msgid "playing"
-msgstr "đang chơi"
-
-#: pe/ui/profiles.cpp
-msgid "Playing"
-msgstr "Đang chơi"
-
-#: pe/ui/profiles.cpp
-msgid "Playing as {0}"
-msgstr "Đang chơi: {0}"
+#: pe/ui/settings.cpp
+msgid "PlayStation Auto keeps Cross/Circle menu semantics while adapting gameplay to physical Switch positions. Switch stays fixed; editing any button creates a custom profile."
+msgstr "PlayStation Auto giữ lại ngữ nghĩa của menu Cross/Circle trong khi điều chỉnh lối chơi cho phù hợp với các vị trí Switch vật lý. Công tắc vẫn cố định; chỉnh sửa bất kỳ nút nào sẽ tạo ra một hồ sơ tùy chỉnh."
 
 #: settings_store.h
 msgid "Polish"
@@ -1370,40 +990,19 @@ msgstr "Tiếng Bồ Đào Nha"
 msgid "Portuguese (Brazil)"
 msgstr "Tiếng Bồ Đào Nha (Brazil)"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Post-processing"
-msgstr "Hậu kỳ"
-
 #. Eden is the emulator's name (unchanged).
 #: pe/ui/browse.cpp
 msgid "Powered by Eden"
 msgstr "Chạy trên nền Eden"
 
-#. Update dialog headline while the download starts.
-#: pe/ui/remote.cpp, pe/ui/update.cpp
-msgid "Preparing"
-msgstr "Đang chuẩn bị"
-
-#: pe/ui/library.cpp
-msgid "Press again to delete the game and its updates and DLC from the console. Save data and settings are kept."
-msgstr "Nhấn lần nữa để xóa trò chơi cùng các bản cập nhật và DLC khỏi máy. Dữ liệu lưu và cài đặt được giữ lại."
+#: pe/ui/settings.cpp
+msgid "Preset"
+msgstr "Thiết lập sẵn"
 
 #. Asked before a save is imported over the one in use.
 #: pe/ui/library.cpp
 msgid "Press again to replace this game's save. The current one is backed up."
 msgstr "Nhấn lần nữa để thay bản lưu của trò chơi này. Bản lưu hiện tại sẽ được sao lưu."
-
-#: pe/ui/multiplayer.cpp
-msgid "Private room"
-msgstr "Phòng riêng"
-
-#: pe/ui/multiplayer.cpp
-msgid "PRIVATE ROOM"
-msgstr "PHÒNG RIÊNG"
-
-#: pe/ui/game_options.cpp
-msgid "Pro Controller"
-msgstr "Pro Controller"
 
 #: eden_services.cpp
 msgid "prod.keys could not supply an NCA header key. Replace it with a valid key dump."
@@ -1417,168 +1016,138 @@ msgstr "Đã tìm thấy prod.keys"
 msgid "prod.keys missing"
 msgstr "Thiếu prod.keys"
 
-#: pe/ui/save_sync.cpp
-msgid "Profile {0}"
-msgstr "Hồ sơ {0}"
-
-#: pe/ui/profiles.cpp, pe/ui/settings.cpp
-msgid "Profiles"
-msgstr "Hồ sơ"
-
 #: pe/ui/browse.cpp
 msgid "PROJECT CREDITS"
 msgstr "GHI CÔNG DỰ ÁN"
-
-#: pe/ui/update.cpp
-msgid "ProsperoEden closes now."
-msgstr "ProsperoEden sẽ đóng ngay."
-
-#: pe/ui/update.cpp
-msgid "ProsperoEden closes to finish the update."
-msgstr "ProsperoEden sẽ đóng để hoàn tất cập nhật."
-
-#: eden_services.cpp
-msgid "ProsperoEden could not get access to the console's storage, so it cannot read your settings, saves and games. Nothing was changed. Close ProsperoEden and open it again. (Code {0})"
-msgstr "ProsperoEden không truy cập được bộ nhớ của máy nên không thể đọc cài đặt, dữ liệu lưu và trò chơi của bạn. Không có gì bị thay đổi. Hãy đóng ProsperoEden rồi mở lại. (Mã {0})"
-
-#: pe/ui/browse.cpp
-msgid "ProsperoEden is an unofficial PS5 port brought to you by BlackBearReloaded."
-msgstr "ProsperoEden là bản port PS5 không chính thức do BlackBearReloaded mang đến cho bạn."
 
 #. Shown on the home screen after the app crashed and started again; {0} is a file.
 #: eden_services.cpp, host/fake_services.cpp
 msgid "ProsperoEden stopped because of an error. A report was saved to {0}."
 msgstr "ProsperoEden đã dừng do xảy ra lỗi. Báo cáo đã được lưu tại {0}."
 
-#: pe/ui/update.cpp
-msgid "ProsperoEden was not changed."
-msgstr "ProsperoEden không bị thay đổi."
+#: pe/ui/browse.cpp
+msgid "PS5 13.60 FORK"
+msgstr "PS5 13.60 NGƯỢC"
 
 #. Why a game did not start.
 #: eden_services.cpp
 msgid "PS5 controller initialization failed"
 msgstr "Khởi tạo bộ điều khiển PS5 thất bại"
 
-#: pe/ui/browse.cpp
-msgid "PS5 EDITION"
-msgstr "PHIÊN BẢN PS5"
+#: pe/ui/home.cpp
+msgid "QUICK SETTINGS"
+msgstr "CÀI ĐẶT NHANH"
 
-#: pe/ui/multiplayer.cpp
-msgid "Public rooms"
-msgstr "Phòng công khai"
+#: pe/ui/home.cpp
+msgid "Quick settings"
+msgstr "Cài đặt nhanh"
 
-#: pe/ui/multiplayer.cpp
-msgid "PUBLIC ROOMS"
-msgstr "PHÒNG CÔNG KHAI"
-
-#: pe/ui/settings.cpp
-msgid "Put images in the wallpapers folder to show them here."
-msgstr "Đặt hình ảnh vào thư mục wallpapers để hiện ở đây."
-
-#: pe/ui/remote.cpp
-msgid "Queued"
-msgstr "Đang chờ"
-
-#: pe/ui/remote.cpp
-msgid "Queued, from {0}"
-msgstr "Đang chờ, từ {0}"
-
-#. The usual value of RNG seed: no fixed seed, a new random one at every start of the game.
-#: pe/ui/game_options.cpp
-msgid "Random"
-msgstr "Ngẫu nhiên"
-
-#. A switch, on by default: what a game reads back from the graphics processor is kept exact. Keep the term the language's emulator players use, or translate it plainly.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Reactive flushing"
-msgstr "Xả phản ứng"
-
-#: pe/ui/remote.cpp
-msgid "Read the lists again"
-msgstr "Đọc lại danh sách"
-
-#: pe/ui/remote.cpp
-msgid "Reading the game lists..."
-msgstr "Đang đọc danh sách trò chơi..."
-
-#: pe/ui/library.cpp, pe/ui/remote.cpp
-msgid "Reading..."
-msgstr "Đang đọc..."
+#: pe/ui/home.cpp
+msgid "Quit"
+msgstr "Thoát"
 
 #: pe/ui/settings.cpp
 msgid "Ready"
 msgstr "Sẵn sàng"
 
+#: pe/ui/launcher.cpp
+msgid "Recent"
+msgstr "Gần đây"
+
 #: pe/ui/home.cpp
 msgid "RECENTLY PLAYED"
 msgstr "ĐÃ CHƠI GẦN ĐÂY"
+
+#: settings_store.h
+msgid "Recommended"
+msgstr "Đề xuất"
+
+#: pe/ui/settings.cpp
+msgid "Recommended defaults restored."
+msgstr "Recommended defaults restored."
+
+#: pe/ui/settings.cpp
+msgid "REDUCE MOTION"
+msgstr "GIẢM CHUYỂN ĐỘNG"
 
 #. A switch: no drifting, sliding or zooming on screen.
 #: pe/ui/settings.cpp
 msgid "Reduce motion"
 msgstr "Giảm chuyển động"
 
-#: pe/ui/multiplayer.cpp
-msgid "Refresh"
-msgstr "Làm mới"
-
 #. Setting: how many times a second the TV picture is refreshed while a game runs (60 or 120 Hz).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Refresh rate"
 msgstr "Tần số quét"
 
-#: pe/ui/browse.cpp
+#. Label: see 'Refresh rate'.
+#: pe/ui/settings.cpp
+msgid "REFRESH RATE"
+msgstr "TẦN SỐ QUÉT"
+
+#: pe/ui/browse.cpp, pe/ui/settings.cpp
 msgid "REGION"
 msgstr "KHU VỰC"
 
-#: pe/ui/game_options.cpp
-msgid "Regular"
-msgstr "Thường"
-
-#: pe/ui/profiles.cpp
-msgid "Remove"
-msgstr "Bỏ"
-
-#: pe/ui/profiles.cpp
-msgid "Rename"
-msgstr "Đổi tên"
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Renderer"
 msgstr "Trình kết xuất"
 
-#: pe/ui/game_options.cpp
+#: pe/ui/settings.cpp
+msgid "RENDERER"
+msgstr "TRÌNH KẾT XUẤT"
+
+#: pe/ui/mapping.cpp
 msgid "Reset"
 msgstr "Đặt lại"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/launcher.cpp
+msgid "Reset controller mapping?"
+msgstr "Đặt lại ánh xạ bộ điều khiển?"
+
+#: pe/ui/library.cpp
+msgid "Reset overrides"
+msgstr "Reset overrides"
+
+#: pe/ui/launcher.cpp
+msgid "Reset this game's custom settings?"
+msgstr "Đặt lại cài đặt tùy chỉnh của trò chơi này?"
+
+#: pe/ui/home.cpp, pe/ui/library.cpp
 msgid "Resolution"
 msgstr "Độ phân giải"
 
-#: pe/ui/game_options.cpp
-msgid "Right Joy-Con"
-msgstr "Joy-Con phải"
+#: pe/ui/library.cpp
+msgid "Resolution follows the selected title-aware profile. Lower it for performance or memory; raise it only when the title has headroom."
+msgstr "Độ phân giải tuân theo hồ sơ nhận biết tiêu đề đã chọn. Hạ thấp nó để có hiệu suất hoặc bộ nhớ; chỉ nâng cao nó khi tiêu đề có khoảng trống."
 
-#: pe/ui/game_options.cpp
+#: pe/ui/launcher.cpp
+msgid "Restore default settings?"
+msgstr "Khôi phục cài đặt mặc định?"
+
+#: pe/ui/settings.cpp
+msgid "Restore defaults"
+msgstr "Restore defaults"
+
+#: pe/ui/mapping.cpp
 msgid "Right stick press"
-msgstr "Nhấn cần phải"
+msgstr "Bấm phím phải"
 
-#. A game setting. RNG is a random number generator and the seed is the number it starts from. A game with a seed is loaded at the same place in memory at every start, which some mods need. Keep it short; RNG and seed may stay in English where players say them so.
-#: pe/ui/game_options.cpp
-msgid "RNG seed"
-msgstr "Seed RNG"
-
-#: eden_services.cpp, pe/ui/launcher.cpp
+#: pe/ui/launcher.cpp, pe/ui/library.cpp
 msgid "ROM missing from the game files folder"
 msgstr "Không có ROM trong thư mục tệp trò chơi"
 
-#: pe/ui/multiplayer.cpp
-msgid "Room address"
-msgstr "Địa chỉ phòng"
+#: eden_services.cpp
+msgid "ROM missing from the storage root"
+msgstr "ROM bị thiếu trong thư mục gốc lưu trữ"
 
-#: pe/ui/multiplayer.cpp
-msgid "Room {0} of {1}"
-msgstr "Phòng {0} trên {1}"
+#: pe/ui/settings.cpp
+msgid "ROOT"
+msgstr "GỐC"
+
+#: pe/ui/settings.cpp
+msgid "Runtime health, storage and recovery tools."
+msgstr "Các công cụ phục hồi, lưu trữ và sức khỏe thời gian chạy."
 
 #: settings_store.h
 msgid "Russian"
@@ -1588,6 +1157,18 @@ msgstr "Tiếng Nga"
 #: pe/ui/library.cpp
 msgid "Ryujinx save found"
 msgstr "Đã tìm thấy bản lưu Ryujinx"
+
+#: pe/ui/library.cpp
+msgid "Safe launch"
+msgstr "Khởi động an toàn"
+
+#: pe/ui/library.cpp
+msgid "Safe launch: OpenGL, Handheld, 1x, 60 Hz, 1080p and mods off for this launch only."
+msgstr "Safe launch: OpenGL, Handheld, 1x, 60 Hz, 1080p and mods off for this launch only."
+
+#: eden_services.cpp, pe/ui/browse.cpp
+msgid "Sandbox only"
+msgstr "Chỉ hộp cát"
 
 #. The app can read only its own folder; {0} is a number.
 #: pe/ui/browse.cpp
@@ -1599,196 +1180,91 @@ msgstr "Bị giới hạn (mã {0}): chỉ thư mục ứng dụng"
 msgid "Save data"
 msgstr "Dữ liệu đã lưu"
 
-#: pe/ui/save_sync.cpp
-msgid "Save data backed up"
-msgstr "Đã sao lưu dữ liệu lưu"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data changed on both sides"
-msgstr "Dữ liệu lưu đã thay đổi ở cả hai bên"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data from the server"
-msgstr "Dữ liệu lưu từ máy chủ"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data left as it was"
-msgstr "Dữ liệu lưu được giữ nguyên"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data not backed up"
-msgstr "Dữ liệu lưu chưa được sao lưu"
-
-#: pe/ui/save_sync.cpp
-msgid "Save data not synced"
-msgstr "Dữ liệu lưu chưa được đồng bộ"
-
 #. Short status at the right of the Save data row: a folder with a save to import.
 #: pe/ui/library.cpp
 msgid "Save folder found"
 msgstr "Đã tìm thấy thư mục lưu"
 
-#: pe/ui/pairing.cpp, pe/ui/settings.cpp
-msgid "Save sync"
-msgstr "Đồng bộ dữ liệu lưu"
-
-#: pe/ui/pairing.cpp
-msgid "save-sync.json cannot be read ({0}). Nothing syncs until it is corrected over FTP."
-msgstr "Không đọc được save-sync.json ({0}). Không có gì được đồng bộ cho đến khi tệp được sửa qua FTP."
-
-#: pe/ui/pairing.cpp
-msgid "save-sync.json cannot be read: correct it over FTP first."
-msgstr "Không đọc được save-sync.json: hãy sửa tệp qua FTP trước."
-
-#: pe/ui/game_options.cpp, pe/ui/library.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp
 msgid "Saved for this game. Applies on next launch."
 msgstr "Đã lưu cho trò chơi này. Áp dụng từ lần mở tới."
 
-#: pe/ui/save_sync.cpp
-msgid "Saved {0}. It goes to the server."
-msgstr "Lưu lúc {0}. Dữ liệu sẽ được gửi lên máy chủ."
-
-#: pe/ui/save_sync.cpp
-msgid "Saved {0}. It replaces this console's."
-msgstr "Lưu lúc {0}. Dữ liệu sẽ thay cho của máy này."
-
 #. Shown after choosing 120 Hz.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Saved. A display that cannot show 120 Hz stays at 60 Hz."
 msgstr "Đã lưu. Màn hình không hỗ trợ 120 Hz sẽ giữ ở 60 Hz."
 
-#: pe/ui/settings.cpp
-msgid "Saved. Applies the next time ProsperoEden opens."
-msgstr "Đã lưu. Có hiệu lực từ lần mở ProsperoEden tiếp theo."
-
-#: pe/ui/browse.cpp, pe/ui/launcher.cpp
+#: pe/ui/launcher.cpp
 msgid "Saved. Applies when a game starts."
 msgstr "Đã lưu. Áp dụng khi mở trò chơi."
 
-#. Shown after choosing 'Full quality' for 'ASTC textures'. 1x is a resolution scale (unchanged). It has two lines: keep it short.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Saved. Full quality uses four times the graphics memory for these textures and can run out above 1x."
-msgstr "Đã lưu. Chất lượng đầy đủ dùng gấp bốn lần bộ nhớ đồ họa cho các texture này và có thể hết bộ nhớ khi trên 1x."
-
-#: pe/ui/settings.cpp
-msgid "Saved. Post-processing needs the Vulkan renderer."
-msgstr "Đã lưu. Hậu kỳ cần trình kết xuất Vulkan."
-
-#: pe/ui/browse.cpp
-msgid "Saved. Reopen ProsperoEden to use this folder."
-msgstr "Đã lưu. Hãy mở lại ProsperoEden để dùng thư mục này."
-
-#. About the Update notices switch; homebrew.page is a site's name and stays as it is; About is the menu's last section (use its translation).
-#: pe/ui/settings.cpp
-msgid "Says when homebrew.page has a newer version. Off, only About names it."
-msgstr "Báo khi homebrew.page có phiên bản mới hơn. Khi tắt, chỉ mục Giới thiệu nhắc đến."
-
-#: pe/ui/pairing.cpp
-msgid "Scan the code with your phone, or open the address below."
-msgstr "Quét mã bằng điện thoại hoặc mở địa chỉ bên dưới."
-
-#. Button hint: move through a long text (Up/Down).
-#: pe/ui/update.cpp
-msgid "Scroll"
-msgstr "Cuộn"
-
-#: pe/ui/game_options.cpp
-msgid "Secondary"
-msgstr "Phụ"
-
-#. Button hint beside L1 and R1: they move between the menu's sections (Home, Library, Multiplayer, Settings, About).
-#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/settings.cpp
-msgid "Sections"
-msgstr "Mục"
-
 #. Button hint: choose the highlighted item (not the Select button).
-#: pe/ui/game_options.cpp, pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/multiplayer.cpp, pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
 msgid "Select"
 msgstr "Chọn"
+
+#: pe/ui/library.cpp
+msgid "Select a game"
+msgstr "Chọn một trò chơi"
+
+#: pe/ui/library.cpp
+msgid "Select a game to begin"
+msgstr "Chọn một trò chơi để bắt đầu"
 
 #. Heading: the language highlighted in the list.
 #: pe/ui/browse.cpp
 msgid "SELECTED"
 msgstr "ĐANG CHỌN"
 
+#: pe/ui/home.cpp
+msgid "SELECTED GAME"
+msgstr "TRÒ CHƠI ĐÃ CHỌN"
+
 #. Why a game did not start (the file is gone).
 #: eden_services.cpp
 msgid "Selected ROM is no longer available"
 msgstr "ROM đã chọn không còn khả dụng"
 
-#: pe/ui/save_sync.cpp
-msgid "Server too old for save sync"
-msgstr "Máy chủ quá cũ để đồng bộ dữ liệu lưu"
-
-#: pe/ui/home.cpp, pe/ui/settings.cpp, pe/ui/shell.cpp
+#: pe/ui/home.cpp, pe/ui/launcher.cpp, pe/ui/settings.cpp
 msgid "Settings"
 msgstr "Cài đặt"
 
+#. Label: whether keys and firmware are in place.
 #: pe/ui/settings.cpp
-msgid "SETTINGS"
-msgstr "CÀI ĐẶT"
+msgid "SETUP"
+msgstr "THIẾT LẬP"
 
 #: eden_services.cpp, host/fake_services.cpp
 msgid "Setup required"
 msgstr "Cần thiết lập"
 
-#: eden_services.cpp, host/fake_services.cpp
+#: host/fake_services.cpp
 msgid "Setup required: {0} Open Settings, Game files to choose the folder that holds your keys, firmware and roms folders (or add the files to {1}), then reopen ProsperoEden."
 msgstr "Cần thiết lập: {0} Hãy mở Cài đặt, Tệp trò chơi để chọn thư mục chứa các thư mục keys, firmware và roms của bạn (hoặc thêm các tệp vào {1}), rồi mở lại ProsperoEden."
 
-#: pe/ui/settings.cpp
-msgid "Setup status and detailed logs."
-msgstr "Trạng thái thiết lập và nhật ký chi tiết."
+#: eden_services.cpp
+msgid "Setup required: {0} Open Settings, Storage to choose the root that holds the standard keys, firmware and roms folders (or add the files to {1}), then reopen Encore."
+msgstr "Yêu cầu thiết lập: {0} Mở Cài đặt, Bộ nhớ để chọn thư mục gốc chứa các thư mục khóa, chương trình cơ sở và rom tiêu chuẩn (hoặc thêm tệp vào {1}), sau đó mở lại Encore."
 
 #: eden_services.cpp
 msgid "Setup validation failed. Check that firmware and key files are readable and valid."
 msgstr "Xác thực thiết lập thất bại. Hãy kiểm tra xem các tệp firmware và khóa có đọc được và hợp lệ không."
 
-#: pe/ui/pairing.cpp
-msgid "Several servers can keep the save data. Which one should this profile use?"
-msgstr "Nhiều máy chủ có thể giữ dữ liệu lưu. Hồ sơ này nên dùng máy chủ nào?"
-
-#: pe/ui/remote.cpp
-msgid "Several sources have this game. Which one should it come from?"
-msgstr "Nhiều nguồn có trò chơi này. Nên lấy từ nguồn nào?"
-
 #: pe/ui/settings.cpp
-msgid "Show an image of your own behind the menu."
-msgstr "Hiện hình ảnh của riêng bạn phía sau menu."
+msgid "Shows live FPS while playing. Off is cleaner for normal use; Touchpad + R1 toggles it at any time."
+msgstr "Hiển thị FPS trực tiếp trong khi chơi. Tắt sẽ sạch hơn khi sử dụng bình thường; Touchpad + R1 chuyển đổi nó bất cứ lúc nào."
 
-#: pe/ui/settings.cpp
-msgid "Show or hide the FPS overlay"
-msgstr "Hiện hoặc ẩn bộ đếm FPS"
-
-#: pe/ui/multiplayer.cpp
-msgid "Showing the previous list."
-msgstr "Đang hiển thị danh sách trước đó."
-
-#: pe/ui/pairing.cpp
-msgid "Sign in to {0} as the user this profile's save data belongs to."
-msgstr "Đăng nhập vào {0} bằng người dùng sở hữu dữ liệu lưu của hồ sơ này."
-
-#: pe/ui/settings.cpp
-msgid "Size"
-msgstr "Kích thước"
-
-#. Button and hint: not now (the dialog shows again the next time the app opens).
-#: pe/ui/update.cpp
-msgid "Skip"
-msgstr "Bỏ qua"
-
-#. A switch: fewer checks when a game changes memory the graphics processor uses. CPU stays.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Skip CPU invalidation"
-msgstr "Bỏ qua vô hiệu hóa CPU"
-
-#: pe/ui/settings.cpp
-msgid "Skips some checks when a game changes memory the GPU uses: faster, and textures can be stale."
-msgstr "Bỏ qua một số kiểm tra khi trò chơi thay đổi bộ nhớ GPU đang dùng: nhanh hơn, nhưng texture có thể bị cũ."
+#: settings_store.h
+msgid "SMAA"
+msgstr "SMAA"
 
 #: pe/ui/settings.cpp
 msgid "Solid panels, brighter text and an outlined highlight."
 msgstr "Bảng nền đặc, chữ sáng hơn và vùng chọn có viền."
+
+#: eden_services.cpp
+msgid "Some cache files could not be removed."
+msgstr "Không thể xóa một số tệp bộ nhớ đệm."
 
 #: settings_store.h
 msgid "Spanish"
@@ -1798,27 +1274,9 @@ msgstr "Tiếng Tây Ban Nha"
 msgid "Spanish (Latin America)"
 msgstr "Tiếng Tây Ban Nha (Mỹ Latinh)"
 
-#: pe/ui/settings.cpp
-msgid "Speed"
-msgstr "Tốc độ"
-
-#. Settings > Performance: how fast a game may run, as a percentage of the console it was made for.
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Speed limit"
-msgstr "Giới hạn tốc độ"
-
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Square"
-msgstr "Vuông"
-
-#: pe/ui/profiles.cpp
-msgid "Square again takes {0} off the list. Its save data stays on the console."
-msgstr "Vuông lần nữa sẽ bỏ {0} khỏi danh sách. Dữ liệu lưu vẫn ở trên máy."
-
-#: pe/ui/pairing.cpp
-msgid "Square again unlinks {0}. Its save data stays on the console and on the server."
-msgstr "Vuông lần nữa sẽ hủy liên kết {0}. Dữ liệu lưu vẫn ở trên máy và trên máy chủ."
+msgstr "hình vuông"
 
 #. The app creates its user the first time a game runs.
 #: eden_services.cpp
@@ -1831,37 +1289,56 @@ msgid "STARTING"
 msgstr "ĐANG MỞ"
 
 #: pe/ui/settings.cpp
+msgid "STICK DEADZONE"
+msgstr "VÙNG CHẾT CẦN ĐIỀU KHIỂN"
+
+#: pe/ui/settings.cpp
+msgid "Stick deadzone"
+msgstr "Vùng chết cần điều khiển"
+
+#: pe/ui/settings.cpp
 msgid "Stops the background drifting and the screens sliding, here and on the loading screen."
 msgstr "Dừng hiệu ứng nền trôi và màn hình trượt, tại đây và trên màn hình tải."
+
+#: pe/ui/browse.cpp, pe/ui/home.cpp, pe/ui/settings.cpp
+msgid "Storage"
+msgstr "Lưu trữ"
+
+#: pe/ui/settings.cpp
+msgid "STORAGE"
+msgstr "LƯU TRỮ"
+
+#: pe/ui/home.cpp
+msgid "Storage not configured"
+msgstr "Bộ nhớ chưa được định cấu hình"
+
+#: pe/ui/home.cpp
+msgid "Storage ready"
+msgstr "Đã sẵn sàng lưu trữ"
+
+#: pe/ui/browse.cpp
+msgid "Storage root saved. Reopen Encore to use it."
+msgstr "Đã lưu root lưu trữ. Mở lại Encore để sử dụng."
 
 #: pe/ui/browse.cpp
 msgid "Supply your own files"
 msgstr "Tự chuẩn bị tệp của bạn"
 
-#: pe/ui/save_sync.cpp
-msgid "Sync the save data once more."
-msgstr "Đồng bộ dữ liệu lưu thêm một lần."
+#: pe/ui/library.cpp, pe/ui/mapping.cpp, pe/ui/settings.cpp
+msgid "Switch"
+msgstr "Chuyển đổi"
 
-#: pe/ui/save_sync.cpp
-msgid "Syncing save data"
-msgstr "Đang đồng bộ dữ liệu lưu"
+#: pe/ui/home.cpp
+msgid "Switch card"
+msgstr "Chuyển đổi thẻ"
 
-#. A category of a game's settings: how the emulated console itself behaves.
-#: pe/ui/library.cpp
+#: pe/ui/home.cpp
 msgid "System"
 msgstr "Hệ thống"
 
 #: eden_services.cpp
 msgid "Taiwan"
 msgstr "Đài Loan"
-
-#: pe/ui/save_sync.cpp
-msgid "Take the server's"
-msgstr "Lấy của máy chủ"
-
-#: pe/ui/profiles.cpp
-msgid "Taken off the list. Its save data stays on the console."
-msgstr "Đã bỏ khỏi danh sách. Dữ liệu lưu vẫn ở trên máy."
 
 #: settings_store.h
 msgid "Thai"
@@ -1873,125 +1350,25 @@ msgid "THANKS"
 msgstr "LỜI CẢM ƠN"
 
 #: pe/ui/browse.cpp
-msgid "Thanks to the whole PS5 homebrew community and to every developer whose drivers, tools and libraries make ProsperoEden possible."
-msgstr "Cảm ơn toàn thể cộng đồng homebrew PS5 và mọi nhà phát triển có driver, công cụ và thư viện giúp ProsperoEden thành hiện thực."
+msgid "Thanks to the whole PS5 homebrew community and to every developer whose drivers, tools and libraries make Eden Encore possible."
+msgstr "Cảm ơn toàn bộ cộng đồng homebrew PS5 và mọi nhà phát triển có trình điều khiển, công cụ và thư viện giúp Eden Encore trở nên khả thi."
 
-#: pe/ui/settings.cpp
-msgid "The accent colour of the current theme."
-msgstr "Màu nhấn của chủ đề hiện tại."
-
-#: pe/ui/remote.cpp
-msgid "The download stopped"
-msgstr "Quá trình tải xuống đã dừng"
-
-#: pe/ui/settings.cpp
-msgid "The folder that holds your keys, firmware and games."
-msgstr "Thư mục chứa khóa, firmware và trò chơi của bạn."
-
-#: pe/ui/save_sync.cpp
-msgid "The game does not start."
-msgstr "Trò chơi không bắt đầu."
-
-#: pe/ui/remote.cpp
-msgid "The game list of {0} could not be read."
-msgstr "Không đọc được danh sách trò chơi của {0}."
-
-#: pe/ui/remote.cpp
-msgid "The game lists are read: {0} game."
-msgstr "Đã đọc danh sách trò chơi: {0} trò chơi."
-
-#: pe/ui/remote.cpp
-msgid "The game lists are read: {0} games."
-msgstr "Đã đọc danh sách trò chơi: {0} trò chơi."
+#: eden_services.cpp
+msgid "The game could not allocate PS5 memory. Close Eden Encore completely before retrying to release memory retained between games."
+msgstr "Trò chơi không thể phân bổ bộ nhớ PS5. Đóng hoàn toàn Eden Encore trước khi thử giải phóng bộ nhớ còn lại giữa các trò chơi."
 
 #. Why a game stopped. 'Settings, Video' is the menu path; 'the game's own settings' is the Game settings dialog of the Library.
 #: eden_services.cpp
 msgid "The game ran out of graphics memory. Lower the resolution in Settings, Video (or in the game's own settings) and start it again."
 msgstr "Trò chơi đã hết bộ nhớ đồ họa. Hãy giảm độ phân giải trong Cài đặt, Video (hoặc trong cài đặt riêng của trò chơi) rồi mở lại trò chơi."
 
-#: pe/ui/save_sync.cpp
-msgid "The game starts when its save data is in step."
-msgstr "Trò chơi sẽ bắt đầu khi dữ liệu lưu đã đồng bộ."
-
-#: pe/ui/remote.cpp
-msgid "The game starts when the download is done."
-msgstr "Trò chơi sẽ bắt đầu khi tải xong."
-
-#: pe/ui/game_options.cpp, pe/ui/multiplayer.cpp
-msgid "The keyboard could not be opened."
-msgstr "Không mở được bàn phím."
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "The language games use when they offer it."
 msgstr "Ngôn ngữ trò chơi sẽ dùng nếu có hỗ trợ."
-
-#. Under the title Theme: what a theme changes.
-#: pe/ui/settings.cpp
-msgid "The look of this menu."
-msgstr "Giao diện của menu này."
-
-#: pe/ui/pairing.cpp
-msgid "The profile or the server is no longer there."
-msgstr "Hồ sơ hoặc máy chủ không còn nữa."
-
-#: pe/ui/profiles.cpp
-msgid "The profile that is playing stays. Choose another one first."
-msgstr "Hồ sơ đang chơi được giữ lại. Hãy chọn hồ sơ khác trước."
-
-#: pe/ui/pairing.cpp
-msgid "The profile's save data syncs as {0} from now on."
-msgstr "Dữ liệu lưu của hồ sơ được đồng bộ dưới tên {0} từ bây giờ."
-
-#: pe/ui/pairing.cpp
-msgid "The profile's save data syncs with the server from now on."
-msgstr "Dữ liệu lưu của hồ sơ được đồng bộ với máy chủ từ bây giờ."
-
-#. Shown at the end of release notes that were cut short; homebrew.page is a site's name and stays as it is.
-#: pe/ui/update.cpp
-msgid "The rest is on the app's page on homebrew.page."
-msgstr "Phần còn lại có trên trang của ứng dụng tại homebrew.page."
-
-#: pe/ui/save_sync.cpp
-msgid "The server does not have {0}."
-msgstr "Máy chủ không có {0}."
-
-#: pe/ui/save_sync.cpp
-msgid "The server runs RomM {0}; the save sync needs RomM {1} or newer. Update the server: until then no save data is synced with it."
-msgstr "Máy chủ đang chạy RomM {0}; đồng bộ dữ liệu lưu cần RomM {1} trở lên. Hãy cập nhật máy chủ: cho đến lúc đó, không có dữ liệu lưu nào được đồng bộ với nó."
-
-#: pe/ui/remote.cpp
-msgid "The source no longer has this game."
-msgstr "Nguồn không còn trò chơi này."
-
-#: pe/ui/update.cpp
-msgid "The update could not finish"
-msgstr "Không thể hoàn tất cập nhật"
-
-#. A tile of Settings and its dialog's title: the look of this menu (its colours and artwork).
-#: pe/ui/settings.cpp
-msgid "Theme"
-msgstr "Giao diện"
-
-#: pe/ui/settings.cpp
-msgid "Theme and launcher settings."
-msgstr "Cài đặt chủ đề và trình khởi chạy."
-
-#: pe/ui/save_sync.cpp
-msgid "This console and the server both have save data the other does not know. Which one should stay? The other is kept as a backup."
-msgstr "Máy này và máy chủ đều có dữ liệu lưu mà bên kia không biết. Nên giữ bên nào? Bên còn lại được giữ làm bản sao lưu."
-
-#: pe/ui/browse.cpp
-msgid "THIS FOLDER"
-msgstr "THƯ MỤC NÀY"
 
 #: pe/ui/browse.cpp
 msgid "This folder cannot be opened."
 msgstr "Không thể mở thư mục này."
-
-#. The game has a button mapping of its own.
-#: pe/ui/game_options.cpp
-msgid "This game"
-msgstr "Trò chơi này"
 
 #: eden_services.cpp
 msgid "This game has no save to export yet."
@@ -2001,104 +1378,52 @@ msgstr "Trò chơi này chưa có bản lưu để xuất."
 msgid "This game's settings cannot be saved (no title ID)."
 msgstr "Không thể lưu cài đặt cho trò chơi này (thiếu ID trò chơi)."
 
-#: pe/ui/multiplayer.cpp
-msgid "This room uses a different protocol version."
-msgstr "Phòng này dùng phiên bản giao thức khác."
+#: pe/ui/browse.cpp
+msgid "THIS ROOT"
+msgstr "GỐC NÀY"
 
 #. ryujinx/, save-import/ and roms/ are folder names (unchanged); {0} is the game's ID.
 #: eden_services.cpp
 msgid "To import, copy a Ryujinx folder to ryujinx/ or a save to save-import/{0}/, next to roms/."
 msgstr "Để nhập, hãy sao chép thư mục Ryujinx vào ryujinx/ hoặc bản lưu vào save-import/{0}/, cạnh roms/."
 
-#: pe/ui/game_options.cpp
-msgid "Top left"
-msgstr "Trên trái"
-
-#: pe/ui/game_options.cpp
-msgid "Top right"
-msgstr "Trên phải"
-
-#. The DualSense controller's touch pad, pressed as a button. Use the name players know.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Touchpad"
-msgstr "Bàn di cảm ứng"
+msgstr "Bàn di chuột"
 
-#. A DualSense button.
-#: pe/ui/game_options.cpp
+#: pe/ui/mapping.cpp
 msgid "Triangle"
 msgstr "Tam giác"
-
-#. One line about the theme named Canopy: its artwork is a tropical sunset, its panels are dark green glass, its accent colour is lime green.
-#: pe/ui/theme.cpp
-msgid "Tropical dusk, dark green glass and lime."
-msgstr "Hoàng hôn nhiệt đới, kính xanh lục đậm và xanh chanh."
-
-#: pe/ui/pairing.cpp, pe/ui/remote.cpp, pe/ui/save_sync.cpp, pe/ui/update.cpp
-msgid "Try again"
-msgstr "Thử lại"
-
-#: pe/ui/remote.cpp
-msgid "Trying again."
-msgstr "Đang thử lại."
 
 #. Button hint: switch the highlighted mod on or off.
 #: pe/ui/library.cpp
 msgid "Turn on or off"
 msgstr "Bật hoặc tắt"
 
-#: pe/ui/multiplayer.cpp
-msgid "UDP port"
-msgstr "Cổng UDP"
+#: pe/ui/settings.cpp
+msgid "Turns DualSense vibration on or off for games."
+msgstr "Bật hoặc tắt rung DualSense khi chơi game."
 
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
-msgid "Unavailable"
-msgstr "Không khả dụng"
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "TV output"
+msgstr "Xuất hình ra TV"
 
-#: pe/ui/save_sync.cpp
-msgid "Understood"
-msgstr "Đã hiểu"
+#: pe/ui/settings.cpp
+msgid "TV OUTPUT"
+msgstr "XUẤT HÌNH RA TV"
 
-#. A Speed limit choice: no limit at all (as fast as the console can).
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
-msgid "Unlimited"
-msgstr "Không giới hạn"
+#: settings_store.h
+msgid "Ultra"
+msgstr "Siêu cao"
 
-#: pe/ui/pairing.cpp
-msgid "Unlink"
-msgstr "Hủy liên kết"
-
-#: pe/ui/pairing.cpp
-msgid "Unlinked. Its save data is no longer synced."
-msgstr "Đã hủy liên kết. Dữ liệu lưu không còn được đồng bộ."
-
-#. Update dialog headline while the downloaded release is extracted.
-#: pe/ui/update.cpp
-msgid "Unpacking"
-msgstr "Đang giải nén"
+#: pe/ui/home.cpp, pe/ui/library.cpp
+msgid "Unknown"
+msgstr "Không xác định"
 
 #. Short tag on the 'Parent folder' row.
 #: pe/ui/browse.cpp
 msgid "UP"
 msgstr "LÊN"
-
-#. Notification title: a newer release of this app is listed (not a game update).
-#: pe/ui/launcher.cpp, pe/ui/update.cpp
-msgid "Update available"
-msgstr "Có bản cập nhật"
-
-#. Settings switch: whether the app says at its start that a newer release of this app is listed (not game updates).
-#: pe/ui/settings.cpp
-msgid "Update notices"
-msgstr "Thông báo cập nhật"
-
-#. Button: download and install the newer release of this app now.
-#: pe/ui/update.cpp
-msgid "Update now"
-msgstr "Cập nhật ngay"
-
-#: pe/ui/update.cpp
-msgid "Update ready"
-msgstr "Bản cập nhật đã sẵn sàng"
 
 #. A game update; {0} is its version, for example 1.2.0.
 #: eden_services.cpp, host/fake_services.cpp
@@ -2109,154 +1434,79 @@ msgstr "Cập nhật {0}"
 msgid "UPDATES, DLC"
 msgstr "CẬP NHẬT, DLC"
 
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "Upscaling filter"
 msgstr "Bộ lọc phóng to"
+
+#: pe/ui/settings.cpp
+msgid "UPSCALING FILTER"
+msgstr "BỘ LỌC PHÓNG TO"
 
 #: eden_services.cpp
 msgid "USA"
 msgstr "Mỹ"
 
+#: pe/ui/browse.cpp
+msgid "Use extracted firmware NCA files. Choose the root in Settings, Storage; restart the app after changing it."
+msgstr "Sử dụng các tập tin NCA phần sụn được giải nén. Chọn gốc trong Cài đặt, Lưu trữ; khởi động lại ứng dụng sau khi thay đổi nó."
+
+#: pe/ui/browse.cpp
+msgid "Use this root"
+msgstr "Dùng gốc này"
+
 #: pe/ui/settings.cpp
-msgid "Use another home screen, library and menu layout."
-msgstr "Dùng bố cục khác cho màn hình chính, thư viện và menu."
+msgid "VIBRATION"
+msgstr "RUNG"
 
-#: pe/ui/browse.cpp
-msgid "Use extracted firmware NCA files. Choose the folder in Settings, Game files; restart the app after changing it."
-msgstr "Hãy dùng các tệp NCA firmware đã trích xuất. Chọn thư mục trong Cài đặt, Tệp trò chơi; khởi động lại ứng dụng sau khi thay đổi."
-
-#: pe/ui/browse.cpp
-msgid "Use this folder"
-msgstr "Dùng thư mục này"
-
-#. {0} is the app's new version number, for example 1.000.060.
-#: pe/ui/update.cpp
-msgid "Version {0}"
-msgstr "Phiên bản {0}"
-
-#. {0}: the newer release's number, for example 1.000.050; homebrew.page is a site's name and stays as it is.
-#: pe/ui/browse.cpp, pe/ui/launcher.cpp
-msgid "Version {0} is on homebrew.page"
-msgstr "Phiên bản {0} có trên homebrew.page"
-
-#. Update dialog: a newer release of this app; {0} is its number, for example 1.000.060.
-#: pe/ui/update.cpp
-msgid "Version {0} is ready to install."
-msgstr "Phiên bản {0} đã sẵn sàng để cài đặt."
-
-#: pe/ui/game_options.cpp, pe/ui/settings.cpp
+#: pe/ui/settings.cpp
 msgid "Vibration"
 msgstr "Rung"
 
 #: pe/ui/settings.cpp
-msgid "Vibration off"
-msgstr "Rung: Tắt"
-
-#: pe/ui/settings.cpp
-msgid "Vibration on"
-msgstr "Rung: Bật"
+msgid "VIBRATION STRENGTH"
+msgstr "CƯỜNG ĐỘ RUNG"
 
 #: pe/ui/settings.cpp
 msgid "Vibration strength"
 msgstr "Cường độ rung"
 
-#: pe/ui/settings.cpp
-msgid "Vibration, button mapping and the shortcuts during a game."
-msgstr "Rung, gán nút và phím tắt khi đang chơi."
-
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/home.cpp, pe/ui/settings.cpp
 msgid "Video"
 msgstr "Video"
 
-#: pe/ui/home.cpp
-msgid "VIEW ALL GAMES"
-msgstr "XEM TẤT CẢ TRÒ CHƠI"
+#: pe/ui/settings.cpp
+msgid "VIDEO"
+msgstr "VIDEO"
+
+#: pe/ui/home.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+msgid "Video preset"
+msgstr "Cấu hình video"
+
+#: pe/ui/settings.cpp
+msgid "VIDEO PRESET"
+msgstr "CẤU HÌNH VIDEO"
 
 #. Vulkan is a name (unchanged).
 #: pe/ui/settings.cpp
 msgid "Vulkan (recommended)"
 msgstr "Vulkan (khuyên dùng)"
 
-#: pe/ui/pairing.cpp
-msgid "Waiting for the approval  ·  the code works {0} more"
-msgstr "Đang chờ chấp thuận  ·  mã còn hiệu lực {0}"
-
-#: pe/ui/remote.cpp
-msgid "Waiting for {0}"
-msgstr "Đang chờ {0}"
-
-#: pe/ui/remote.cpp
-msgid "Waiting to download"
-msgstr "Đang chờ tải xuống"
-
 #: pe/ui/settings.cpp
-msgid "Wallpaper"
-msgstr "Hình nền"
+msgid "Vulkan is recommended on PS5. Use OpenGL only as a fallback for a game with Vulkan issues."
+msgstr "Vulkan được khuyên dùng trên PS5. Chỉ sử dụng OpenGL làm phương án dự phòng cho trò chơi có vấn đề về Vulkan."
 
-#: pe/ui/settings.cpp
-msgid "What the FPS overlay's line says, and how the chip is drawn."
-msgstr "Dòng của bộ đếm FPS hiển thị gì và được vẽ ra sao."
+#: pe/ui/library.cpp
+msgid "Vulkan is recommended on PS5. Use OpenGL only as a fallback for a title with Vulkan issues."
+msgstr "Vulkan được khuyên dùng trên PS5. Chỉ sử dụng OpenGL làm phương án dự phòng cho tiêu đề có vấn đề về Vulkan."
 
-#. Button on the update dialog: opens the new release's notes (what changes in it). Keep it short.
-#: pe/ui/update.cpp
-msgid "What's new"
-msgstr "Có gì mới"
-
-#. Title of the release notes view; {0} is the new version, for example 1.000.080.
-#: pe/ui/update.cpp
-msgid "What's new in version {0}"
-msgstr "Có gì mới trong phiên bản {0}"
-
-#: pe/ui/game_options.cpp
-msgid "Which face button does what in the menu."
-msgstr "Nút hành động nào làm gì trong menu."
-
-#: pe/ui/settings.cpp
-msgid "Who is playing. Each profile keeps its own save data and settings."
-msgstr "Ai đang chơi. Mỗi hồ sơ có dữ liệu lưu và cài đặt riêng."
-
-#: pe/ui/save_sync.cpp
-msgid "With this console's save data; it is not synced."
-msgstr "Với dữ liệu lưu của máy này; không được đồng bộ."
-
-#: pe/ui/save_sync.cpp
-msgid "With this console's save data; it is synced after the game."
-msgstr "Với dữ liệu lưu của máy này; sẽ được đồng bộ sau khi chơi."
-
-#: pe/ui/pairing.cpp
-msgid "with {0}"
-msgstr "với {0}"
-
-#: pe/ui/settings.cpp
-msgid "Write logs at once"
-msgstr "Ghi nhật ký ngay"
-
-#: pe/ui/save_sync.cpp
-msgid "You are asked again next time."
-msgstr "Lần sau bạn sẽ được hỏi lại."
-
-#: pe/ui/save_sync.cpp
-msgid "You are told again at the next sync."
-msgstr "Bạn sẽ được báo lại ở lần đồng bộ tới."
-
-#. Update dialog: installing the new app version keeps the player's files.
-#: pe/ui/update.cpp
-msgid "Your games, saves and settings are kept."
-msgstr "Trò chơi, dữ liệu lưu và cài đặt của bạn được giữ nguyên."
+#: pe/ui/library.cpp
+msgid "Your games"
+msgstr "Trò chơi của bạn"
 
 #. Headline when no game has been played yet.
 #: pe/ui/home.cpp
 msgid "Your next adventure"
 msgstr "Cuộc phiêu lưu tiếp theo"
-
-#: pe/ui/save_sync.cpp
-msgid "Your save data is checked against the server's."
-msgstr "Dữ liệu lưu của bạn được đối chiếu với máy chủ."
-
-#. How many settings of a kind this game has of its own; {0} is a number.
-#: pe/ui/library.cpp
-msgid "{0} changed"
-msgstr "Đã đổi {0}"
 
 #. {0} is how many DLC (add-on content) a game has installed.
 #: eden_services.cpp, host/fake_services.cpp
@@ -2264,7 +1514,7 @@ msgid "{0} DLC"
 msgstr "{0} DLC"
 
 #. Exactly one game. In a language with more than two plural forms, word it so that it reads well with any number (Games: {0}).
-#: pe/ui/browse.cpp, pe/ui/remote.cpp
+#: pe/ui/browse.cpp
 msgid "{0} game"
 msgstr "{0} trò chơi"
 
@@ -2273,12 +1523,8 @@ msgstr "{0} trò chơi"
 msgid "{0} game installed"
 msgstr "{0} trò chơi đã cài đặt"
 
-#: pe/ui/remote.cpp
-msgid "{0} game lists could not be read."
-msgstr "Không đọc được {0} danh sách trò chơi."
-
 #. Any number of games other than one (also 0). See '{0} game'.
-#: pe/ui/browse.cpp, pe/ui/library.cpp, pe/ui/remote.cpp
+#: pe/ui/browse.cpp
 msgid "{0} games"
 msgstr "{0} trò chơi"
 
@@ -2288,7 +1534,7 @@ msgid "{0} games installed"
 msgstr "{0} trò chơi đã cài đặt"
 
 #. {0} is 60 or 120 (hertz).
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp
 msgid "{0} Hz"
 msgstr "{0} Hz"
 
@@ -2328,32 +1574,12 @@ msgid "{0} of {1} mods on"
 msgstr "Bật {0}/{1} mod"
 
 #. How many of a game's mods are switched on: 2 of 3 on.
-#: pe/ui/library.cpp, pe/ui/settings.cpp
+#: pe/ui/library.cpp
 msgid "{0} of {1} on"
 msgstr "Bật {0}/{1}"
 
-#: pe/ui/settings.cpp
-msgid "{0} of {1} profiles"
-msgstr "{0} trên {1} hồ sơ"
-
-#: pe/ui/save_sync.cpp
-msgid "{0} on {1}"
-msgstr "{0} trên {1}"
-
-#: pe/ui/multiplayer.cpp
-msgid "{0} public rooms"
-msgstr "{0} phòng công khai"
-
-#: pe/ui/remote.cpp, pe/ui/settings.cpp
-msgid "{0} sources"
-msgstr "{0} nguồn"
-
-#: pe/ui/save_sync.cpp
-msgid "{0} · Profile {1}"
-msgstr "{0} · Hồ sơ {1}"
-
 #. A percentage (a volume): write it as the language does, for example with a space before the sign.
-#: pe/ui/game_options.cpp, pe/ui/library.cpp, pe/ui/remote.cpp, pe/ui/settings.cpp, pe/ui/update.cpp
+#: pe/ui/library.cpp, pe/ui/settings.cpp
 msgid "{0}%"
 msgstr "{0}%"
 
@@ -2367,730 +1593,170 @@ msgstr "{0}/ (NSP hoặc XCI)"
 msgid "{0}/ (one folder per game ID)"
 msgstr "{0}/ (mỗi ID trò chơi một thư mục)"
 
-#: pe/ui/settings.cpp
-msgid "Crash reports (FTP): {0}\nAttach crash-*.txt and its matching logs to your issue."
-msgstr "Báo cáo sự cố (FTP): {0}\nĐính kèm crash-*.txt và nhật ký tương ứng vào báo cáo lỗi."
+#: pe/ui/library.cpp
+msgid "GB"
+msgstr "GB"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Finish or cancel the cheat request before starting a game."
-msgstr "Hoàn tất hoặc hủy tìm mã gian lận trước khi chạy trò chơi."
+#: pe/ui/library.cpp
+msgid "Enlarge cover"
+msgstr "Phóng to bìa"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check online for cheats"
-msgstr "Tìm mã gian lận trực tuyến"
+#: pe/ui/library.cpp
+msgid "Close"
+msgstr "Đóng"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Use offline cheat cache"
-msgstr "Dùng bộ nhớ đệm mã ngoại tuyến"
+#: pe/ui/library.cpp
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Install checked cheats (off)"
-msgstr "Cài mã đã kiểm tra (tắt)"
+#: pe/ui/library.cpp
+msgid "Zoom out"
+msgstr "Thu nhỏ"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check first, then install. Downloads stay off until you select a cheat. Back up saves before using codes."
-msgstr "Kiểm tra trước khi cài. Mã tải về vẫn tắt cho đến khi bạn chọn một mã. Sao lưu dữ liệu lưu trước khi dùng mã."
+#: pe/ui/library.cpp
+msgid "Zoom in"
+msgstr "Phóng to"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Checking effective game build"
-msgstr "Đang kiểm tra bản dựng thực tế của trò chơi"
+#: pe/ui/library.cpp
+msgid "Move cover"
+msgstr "Di chuyển bìa"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Downloading cheat catalog"
-msgstr "Đang tải danh mục mã gian lận"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Appearance"
+msgstr "Giao diện"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Installing cheats, disabled"
-msgstr "Đang cài mã ở trạng thái tắt"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "APPEARANCE"
+msgstr "GIAO DIỆN"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Installed. Select cheats below to enable them."
-msgstr "Đã cài. Chọn mã bên dưới để bật."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "THEME"
+msgstr "CHỦ ĐỀ"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cheats checked. Ready to install, disabled."
-msgstr "Đã kiểm tra mã. Sẵn sàng cài ở trạng thái tắt."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Theme"
+msgstr "Chủ đề"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "No cheats match this exact build."
-msgstr "Không có mã khớp chính xác bản dựng này."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "DEFAULT"
+msgstr "MẶC ĐỊNH"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cancelled"
-msgstr "Đã hủy"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "PREVIEW"
+msgstr "XEM TRƯỚC"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Could not complete the cheat request."
-msgstr "Không thể hoàn tất tìm mã gian lận."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "System Settings"
+msgstr "Cài đặt hệ thống"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "{0} compatible cheats"
-msgstr "{0} mã tương thích"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "All Software"
+msgstr "Tất cả phần mềm"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Offline cache (not a fresh download)"
-msgstr "Bộ nhớ đệm ngoại tuyến (không phải bản tải mới)"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Active"
+msgstr "Đang dùng"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Cancelling cheat request..."
-msgstr "Đang hủy tìm mã gian lận..."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Configure"
+msgstr "Thiết lập"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Check online or load a matching offline cache first."
-msgstr "Trước tiên hãy tìm trực tuyến hoặc nạp bộ nhớ đệm ngoại tuyến phù hợp."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Keys found"
+msgstr "Đã tìm thấy khóa"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Press Cross again to install these cheats, disabled. Existing files are kept."
-msgstr "Nhấn X lần nữa để cài các mã này ở trạng thái tắt. Các tệp hiện có được giữ nguyên."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Keys missing"
+msgstr "Thiếu khóa"
 
-#. Cheat database: explicit opt-in; installed codes stay disabled until selected.
-msgid "Could not start the cheat request. Choose a local game and try again."
-msgstr "Không thể bắt đầu tìm. Chọn trò chơi cục bộ rồi thử lại."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Games found"
+msgstr "Đã tìm thấy trò chơi"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Library view"
-msgstr "Chế độ xem thư viện"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "No games found"
+msgstr "Không tìm thấy trò chơi"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Cover Flow"
-msgstr "Cover Flow"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Game files"
+msgstr "Duyệt thư mục · phần mềm"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Grid"
-msgstr "Lưới"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Back to HOME"
+msgstr "Quay lại · Trang chủ"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Browse covers in a grid or in perspective with Cover Flow."
-msgstr "Duyệt ảnh bìa theo lưới hoặc theo phối cảnh bằng Cover Flow."
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose your preferred language"
+msgstr "Chọn · ngôn ngữ"
 
-#. Library Cover Flow: keep the presentation name Cover Flow unchanged.
-msgid "Cover unavailable"
-msgstr "Không có ảnh bìa"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Select a settings category"
+msgstr "Chọn · danh mục"
 
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
 
-#: pe/ui/settings.cpp, pe/ui/usb_backup.cpp
-msgid "USB backup"
-msgstr "Sao lưu USB"
-
-#: pe/ui/settings.cpp
-msgid "Back up or restore app data"
-msgstr "Sao lưu hoặc khôi phục dữ liệu ứng dụng"
-
-#: pe/ui/settings.cpp
-msgid "Settings, profiles and all saves on a USB drive. ROMs and caches are left out."
-msgstr "Cài đặt, hồ sơ và mọi bản lưu trò chơi vào ổ USB. Không gồm ROM và bộ nhớ đệm."
-
-#: pe/ui/usb_backup.cpp
-msgid "USB backup needs storage access and no game starting."
-msgstr "Sao lưu USB cần quyền truy cập bộ nhớ và không có trò chơi đang khởi chạy."
-
-#: pe/ui/usb_backup.cpp
-msgid "Settings, profiles and all saves. ROMs, logs and caches are excluded."
-msgstr "Cài đặt, hồ sơ và mọi bản lưu trò chơi. Không gồm ROM, nhật ký và bộ nhớ đệm."
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore staged and verified. Close ProsperoEden, then reopen it."
-msgstr "Đã chuẩn bị và xác minh dữ liệu khôi phục. Đóng ProsperoEden rồi mở lại."
-
-#: pe/ui/usb_backup.cpp
-msgid "Do not change app data over FTP. Restore applies before the next startup. Existing files will be kept here:"
-msgstr "Không sửa dữ liệu ứng dụng qua FTP. Khôi phục được áp dụng trước lần khởi động kế tiếp. Các tệp hiện có sẽ được giữ tại đây:"
-
-#: pe/ui/usb_backup.cpp
-msgid "Validating copied data..."
-msgstr "Đang xác minh dữ liệu đã chép..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Copying app data..."
-msgstr "Đang chép dữ liệu ứng dụng..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Preparing and checking data..."
-msgstr "Đang chuẩn bị và kiểm tra dữ liệu..."
-
-#: pe/ui/usb_backup.cpp
-msgid "Cancel stops this job. Keep the USB drive connected until this finishes."
-msgstr "Hủy sẽ dừng tác vụ này. Giữ ổ USB kết nối cho đến khi hoàn tất."
-
-#: pe/ui/usb_backup.cpp
-msgid "Back up app data"
-msgstr "Sao lưu dữ liệu ứng dụng"
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore from a backup"
-msgstr "Khôi phục từ bản sao lưu"
-
-#: pe/ui/usb_backup.cpp
-msgid "Storage jobs pause here. Do not change app data over FTP."
-msgstr "Tác vụ lưu trữ tạm dừng tại đây. Không sửa dữ liệu ứng dụng qua FTP."
-
-#: pe/ui/usb_backup.cpp
-msgid "Choose a USB drive"
-msgstr "Chọn ổ USB"
-
-#: pe/ui/usb_backup.cpp
-msgid "Choose a completed backup"
-msgstr "Chọn bản sao lưu hoàn chỉnh"
-
-#: pe/ui/usb_backup.cpp
-msgid "No completed backups or accessible drives found. Cancel goes back."
-msgstr "Không tìm thấy bản sao lưu hoàn chỉnh hay ổ có thể truy cập. Hủy để quay lại."
-
-#: pe/ui/usb_backup.cpp
-msgid "Data: {0} in {1} files"
-msgstr "Dữ liệu: {0} trong {1} tệp"
-
-#: pe/ui/usb_backup.cpp
-msgid "Required (with reserve): {0} / Available: {1}"
-msgstr "Cần (gồm dự phòng): {0} / Khả dụng: {1}"
-
-#: pe/ui/usb_backup.cpp
-msgid "Restore merges backup files at the next startup. Existing files are preserved in a recovery folder. Files absent from the backup stay untouched."
-msgstr "Khôi phục gộp các tệp sao lưu vào lần khởi động kế tiếp. Các tệp hiện có được giữ trong thư mục phục hồi. Tệp không có trong bản sao lưu sẽ không bị thay đổi."
-
-#: pe/ui/usb_backup.cpp
-msgid "A new dated folder is created. Existing backups are never overwritten. Keep this drive private: backups may contain personal data and service tokens."
-msgstr "Một thư mục mới có ngày được tạo. Không bao giờ ghi đè bản sao lưu hiện có. Giữ ổ này riêng tư: bản sao lưu có thể chứa dữ liệu cá nhân và mã thông báo truy cập dịch vụ."
-
-#: pe/ui/usb_backup.cpp
-msgid "Not enough space"
-msgstr "Không đủ dung lượng"
-
-#: pe/ui/usb_backup.cpp
-msgid "Stage restore"
-msgstr "Chuẩn bị khôi phục"
-
-#: pe/ui/usb_backup.cpp
-msgid "Create backup"
-msgstr "Tạo bản sao lưu"
-
-#: pe/ui/usb_backup.cpp
-msgid "Backup complete and verified."
-msgstr "Đã sao lưu và xác minh xong."
-
-#: pe/ui/usb_backup.cpp
-msgid "Operation stopped. Existing data was kept."
-msgstr "Đã dừng thao tác. Dữ liệu hiện có được giữ nguyên."
-
-#: pe/ui/amiibo_ui.inc, pe/ui/settings.cpp
-msgid "Amiibo"
-msgstr "Amiibo"
-
-#: pe/ui/settings.cpp
-msgid "Optional catalog and photos"
-msgstr "Danh mục và ảnh tùy chọn"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Cancelling Amiibo request..."
-msgstr "Đang hủy yêu cầu Amiibo..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Amiibo sync could not start. Check storage access and try again."
-msgstr "Không thể bắt đầu đồng bộ Amiibo. Kiểm tra quyền truy cập bộ nhớ rồi thử lại."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Public names and optional photos. No tags or keys are read, sent or downloaded."
-msgstr "Tên công khai và ảnh tùy chọn. Không đọc, gửi hay tải xuống dữ liệu thẻ hoặc khóa."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download the public catalog?"
-msgstr "Tải danh mục công khai?"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download this model's photo?"
-msgstr "Tải ảnh của mẫu này?"
-
-#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
-msgid "Connects to amiiboapi.org; selected photos come from raw.githubusercontent.com. Artwork may have third-party rights. Existing local names, dumps and pictures are kept."
-msgstr "Kết nối tới amiiboapi.org; ảnh đã chọn lấy từ raw.githubusercontent.com. Hình ảnh có thể chịu quyền của bên thứ ba. Tên cục bộ, bản kết xuất bộ nhớ và ảnh hiện có được giữ nguyên."
-
-#: pe/ui/amiibo_ui.inc, pe/ui/runtime_amiibo_view.inc
-msgid "Confirm download"
-msgstr "Xác nhận tải xuống"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Downloading public catalog..."
-msgstr "Đang tải danh mục công khai..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Downloading selected photo..."
-msgstr "Đang tải ảnh đã chọn..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Saving validated cache..."
-msgstr "Đang lưu bộ nhớ đệm đã xác minh..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Checking local catalog..."
-msgstr "Đang kiểm tra danh mục cục bộ..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Cancellation keeps local data. A file already saved stays available offline."
-msgstr "Hủy vẫn giữ dữ liệu cục bộ. Tệp đã lưu vẫn dùng được ngoại tuyến."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Download / refresh public catalog..."
-msgstr "Tải / cập nhật danh mục công khai..."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Use offline catalog"
-msgstr "Dùng danh mục ngoại tuyến"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Select to fetch photo; existing art is kept."
-msgstr "Chọn để tải ảnh; hình ảnh hiện có được giữ nguyên."
-
-#: pe/ui/amiibo_ui.inc
-msgid "{0} public models available offline"
-msgstr "Mẫu công khai có sẵn ngoại tuyến: {0}"
-
-#: pe/ui/amiibo_ui.inc
-msgid "Request failed. Use offline catalog or retry."
-msgstr "Yêu cầu thất bại. Dùng danh mục ngoại tuyến hoặc thử lại."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Request cancelled. Local data was kept."
-msgstr "Đã hủy yêu cầu. Dữ liệu cục bộ được giữ nguyên."
-
-#: pe/ui/amiibo_ui.inc
-msgid "Catalog ready. Photos are fetched only when selected."
-msgstr "Danh mục đã sẵn sàng. Chỉ tải ảnh khi được chọn."
-
-#: pe/ui/amiibo_ui.inc
-msgid "No network activity until you confirm a download."
-msgstr "Không có hoạt động mạng cho đến khi xác nhận tải xuống."
-
-#: pe/ui/launcher.cpp
-msgid "Finish or cancel the Amiibo request before starting a game."
-msgstr "Hoàn tất hoặc hủy yêu cầu Amiibo trước khi khởi chạy trò chơi."
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "Amiibo download confirmation"
-msgstr "Xác nhận tải Amiibo"
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "This launcher requests public names and optional photos. No tags or keys are read, sent or downloaded."
-msgstr "Trình khởi chạy này yêu cầu tên công khai và ảnh tùy chọn. Không đọc, gửi hay tải xuống dữ liệu thẻ hoặc khóa."
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "Public catalog only"
-msgstr "Chỉ danh mục công khai"
-
-#: pe/ui/runtime_amiibo_view.inc
-msgid "{0} explicitly selected model photos"
-msgstr "Ảnh các mẫu được chọn rõ ràng: {0}"
-
-#: pe/ui/usb_backup.cpp
-msgid "{0} of {1}"
-msgstr "{0} trên {1}"
-
-
-#: pe/ui/multiplayer.cpp, pe/ui/nextendo.inc
-msgid "Nextendo (experimental)"
-msgstr "Nextendo (thử nghiệm)"
-
-#: pe/ui/multiplayer.cpp
-msgid "Link a community account. Separate from local rooms; off by default."
-msgstr "Liên kết tài khoản cộng đồng. Tách biệt với phòng cục bộ; mặc định tắt."
-
-#: pe/ui/nextendo.inc
-msgid "Service routing on"
-msgstr "Định tuyến dịch vụ bật"
-
-#: pe/ui/nextendo.inc
-msgid "Service routing off"
-msgstr "Định tuyến dịch vụ tắt"
-
-#: pe/ui/nextendo.inc
-msgid "Account linked to this profile"
-msgstr "Tài khoản đã liên kết với hồ sơ này"
-
-#: pe/ui/nextendo.inc
-msgid "No account linked"
-msgstr "Chưa liên kết tài khoản"
-
-#: pe/ui/nextendo.inc
-msgid "Community services, not local rooms. Game sign-in and PS5 online play are not yet verified."
-msgstr "Dịch vụ cộng đồng, không phải phòng cục bộ. Đăng nhập trong trò chơi và chơi trực tuyến trên PS5 chưa được xác minh."
-
-#: pe/ui/nextendo.inc
-msgid "Confirm replace"
-msgstr "Xác nhận thay thế"
-
-#: pe/ui/nextendo.inc
-msgid "Replace linked session"
-msgstr "Thay phiên đã liên kết"
-
-#: pe/ui/nextendo.inc
-msgid "Import my session"
-msgstr "Nhập phiên của tôi"
-
-#: pe/ui/nextendo.inc
-msgid "Turn routing off"
-msgstr "Tắt định tuyến"
-
-#: pe/ui/nextendo.inc
-msgid "Turn routing on"
-msgstr "Bật định tuyến"
-
-#: pe/ui/nextendo.inc
-msgid "Check account"
-msgstr "Kiểm tra tài khoản"
-
-#: pe/ui/nextendo.inc
-msgid "Confirm unlink"
-msgstr "Xác nhận hủy liên kết"
-
-#: pe/ui/nextendo.inc
-msgid "Unlink account"
-msgstr "Hủy liên kết tài khoản"
-
-#: pe/ui/nextendo.inc
-msgid "Link in this PS5's browser"
-msgstr "Liên kết trong trình duyệt của PS5 này"
-
-#: pe/ui/nextendo.inc
-msgid "Browser linking needs your registered client in nextendo/oauth.json (0600). Or import your own session as nextendo/import.txt. Linking keeps routing off. Verified routes are required before enabling. See docs/features/NEXTENDO.md."
-msgstr "Liên kết qua trình duyệt cần ứng dụng khách đã đăng ký của bạn trong nextendo/oauth.json (0600). Hoặc nhập phiên của chính bạn dưới dạng nextendo/import.txt. Liên kết vẫn giữ định tuyến ở trạng thái tắt. Cần các tuyến đã xác minh trước khi bật. Xem docs/features/NEXTENDO.md."
-
-#: pe/ui/nextendo.inc
-msgid "Working... Circle cancels."
-msgstr "Đang xử lý... Nút Tròn để hủy."
-
-#: pe/ui/nextendo.inc
-msgid "Account accepted. This is not a game connection test."
-msgstr "Tài khoản được chấp nhận. Đây không phải kiểm tra kết nối trò chơi."
-
-#: pe/ui/nextendo.inc
-msgid "Use a browser on this PS5 while ProsperoEden keeps running. A phone or another device cannot reach this loopback callback."
-msgstr "Dùng trình duyệt trên PS5 này trong khi vẫn chạy ProsperoEden. Điện thoại hoặc thiết bị khác không thể truy cập địa chỉ gọi lại vòng lặp cục bộ này."
-
-#: pe/ui/nextendo.inc
-msgid "Open on THIS PS5 (expires in five minutes; Circle cancels):"
-msgstr "Mở trên CHÍNH PS5 NÀY (hết hạn sau năm phút; nút Tròn để hủy):"
-
-#: pe/ui/nextendo.inc
-msgid "Keep ProsperoEden running. Do not open this on a phone or another device."
-msgstr "Giữ ProsperoEden đang chạy. Không mở trên điện thoại hoặc thiết bị khác."
-
-#: pe/ui/nextendo.inc
-msgid "Back / cancel"
-msgstr "Quay lại / hủy"
-
-msgid "Network"
-msgstr "Mạng"
-
-msgid "Read-only network game. Saves, mods and caches stay local."
-msgstr "Trò chơi trên mạng ở chế độ chỉ đọc. Dữ liệu lưu, bản mod và bộ nhớ đệm vẫn nằm trên máy."
-
-msgid "Location name"
-msgstr "Tên vị trí"
-
-msgid "Protocol"
-msgstr "Giao thức"
-
-msgid "Server IPv4"
-msgstr "IPv4 máy chủ"
-
-msgid "Share / export"
-msgstr "Tên chia sẻ / đường dẫn xuất"
-
-msgid "Games folder"
-msgstr "Thư mục trò chơi"
-
-msgid "Updates / DLC folder"
-msgstr "Thư mục cập nhật / DLC"
-
-msgid "Enabled"
-msgstr "Bật"
-
-msgid "Server port"
-msgstr "Cổng máy chủ"
-
-msgid "SMB user"
-msgstr "Người dùng SMB"
-
-msgid "SMB password"
-msgstr "Mật khẩu SMB"
-
-msgid "SMB domain"
-msgstr "Miền SMB"
-
-msgid "SMB encryption"
-msgstr "Mã hóa SMB"
-
-msgid "NFS UID"
-msgstr "NFS UID"
-
-msgid "NFS GID"
-msgstr "NFS GID"
-
-msgid "NFS mount port"
-msgstr "Cổng gắn kết NFS"
-
-msgid "Timeout (ms)"
-msgstr "Thời gian chờ (ms)"
-
-msgid "Cache (MiB)"
-msgstr "Bộ nhớ đệm (MiB)"
-
-msgid "SMB2/3 or NFS v3 over TCP. Changing protocol clears the share and SMB credentials in this draft."
-msgstr "SMB2/3 hoặc NFS v3 qua TCP. Đổi giao thức sẽ xóa thiết lập chia sẻ và thông tin xác thực SMB trong bản nháp này."
-
-msgid "Numeric IPv4 only. No server is contacted while you edit."
-msgstr "Chỉ dùng địa chỉ IPv4 dạng số. Không liên hệ máy chủ trong lúc bạn chỉnh sửa."
-
-msgid "SMB: share name only. NFS: absolute export path, for example /games."
-msgstr "SMB: chỉ nhập tên chia sẻ. NFS: nhập đường dẫn xuất tuyệt đối, ví dụ /games."
-
-msgid "Relative to the share / export. Leave empty to use its root. No links or .. components."
-msgstr "Đường dẫn tương đối tính từ thư mục chia sẻ / xuất. Để trống để dùng thư mục gốc đó. Không dùng liên kết hoặc thành phần đường dẫn '..'."
-
-msgid "Optional, relative to Games folder. Scans this folder and one child level for matching updates / DLC."
-msgstr "Không bắt buộc, tương đối với thư mục trò chơi. Quét thư mục này và một cấp thư mục con để tìm bản cập nhật / DLC phù hợp."
-
-msgid "Enter replaces the password in a masked system keyboard. Square clears it; Triangle restores the saved password."
-msgstr "Nhấn xác nhận để thay mật khẩu bằng bàn phím hệ thống có che nội dung nhập. Nút Vuông xóa mật khẩu; nút Tam giác khôi phục mật khẩu đã lưu."
-
-msgid "Empty user selects SMB2 guest. Clear password, domain and encryption too. Signed sign-in requires a user."
-msgstr "Để trống người dùng để dùng chế độ khách SMB2. Hãy xóa cả mật khẩu, miền và thiết lập mã hóa. Đăng nhập có chữ ký yêu cầu tên người dùng."
-
-msgid "Required encryption needs SMB3 and a user. Unsupported servers fail; there is no silent downgrade."
-msgstr "Mã hóa bắt buộc cần SMB3 và người dùng. Kết nối sẽ thất bại nếu máy chủ không hỗ trợ; không tự ý hạ mức bảo mật mà không thông báo."
-
-msgid "NFS v3 AUTH_SYS numeric identity (0–2147483647). Configure read-only access on your server."
-msgstr "Định danh dạng số NFS v3 AUTH_SYS (0–2147483647). Hãy cấu hình quyền truy cập chỉ đọc trên máy chủ."
-
-msgid "0 asks the server portmapper for mountd. Otherwise use a fixed TCP mount port (1–65535)."
-msgstr "Giá trị 0 sẽ hỏi portmapper của máy chủ về cổng mountd. Nếu không, dùng cổng gắn kết TCP cố định (1–65535)."
-
-msgid "Per-operation timeout, 250–15000 milliseconds. Scans also have their own bounded read budget."
-msgstr "Thời gian chờ cho mỗi thao tác là 250–15000 mili giây. Quá trình quét còn có giới hạn đọc riêng."
-
-msgid "Read-only cache, 1–32 MiB per connected location. No whole-game downloads."
-msgstr "Bộ nhớ đệm chỉ đọc, 1–32 MiB cho mỗi vị trí đang kết nối. Không tải toàn bộ trò chơi."
-
-msgid "Changes stay in this draft until Save. Cancel leaves the saved configuration unchanged."
-msgstr "Thay đổi chỉ nằm trong bản nháp này cho đến khi lưu. Hủy sẽ giữ nguyên cấu hình đã lưu."
-
-msgid "Network settings saved."
-msgstr "Đã lưu cài đặt mạng."
-
-msgid "Edit network location"
-msgstr "Sửa vị trí mạng"
-
-msgid "Add network location"
-msgstr "Thêm vị trí mạng"
-
-msgid "Network shares"
-msgstr "Thư mục chia sẻ trên mạng"
-
-msgid "Read-only SMB / NFS · Up to four locations · Built-in private keyboard"
-msgstr "SMB / NFS chỉ đọc · Tối đa bốn vị trí · Bàn phím nhập riêng tư tích hợp"
-
-msgid "Remove this network location?"
-msgstr "Xóa vị trí mạng này?"
-
-msgid "Discard unsaved changes?"
-msgstr "Bỏ các thay đổi chưa lưu?"
-
-msgid "Only its saved connection settings are removed. Files on the server and local saves are not deleted."
-msgstr "Chỉ xóa cài đặt kết nối đã lưu. Không xóa tệp trên máy chủ hay dữ liệu lưu trên máy."
-
-msgid "The saved network configuration will not change."
-msgstr "Cấu hình mạng đã lưu sẽ không thay đổi."
-
-msgid "Confirm"
-msgstr "Xác nhận"
-
-msgid "Keep editing / back"
-msgstr "Tiếp tục sửa / quay lại"
-
-msgid "Working… Circle cancels before save is committed."
-msgstr "Đang xử lý… Có thể nhấn nút Tròn để hủy trước khi việc lưu có hiệu lực."
-
-msgid "Not set"
-msgstr "Chưa đặt"
-
-msgid "Connecting and scanning…"
-msgstr "Đang kết nối và quét…"
-
-msgid "Connected · {0} games"
-msgstr "Đã kết nối · {0} trò chơi"
-
-msgid "Disconnected"
-msgstr "Chưa kết nối"
-
-msgid "Save (no connection)"
-msgstr "Lưu (không kết nối)"
-
-msgid "Save and reconnect"
-msgstr "Lưu và kết nối lại"
-
-msgid "Cancel editing"
-msgstr "Hủy chỉnh sửa"
-
-msgid "Reconnect saved locations"
-msgstr "Kết nối lại các vị trí đã lưu"
-
-msgid "Disconnect / cancel"
-msgstr "Ngắt kết nối / hủy"
-
-msgid "{0} / {1} · L1 / R1 to page"
-msgstr "{0} / {1} · L1 / R1 để chuyển trang"
-
-msgid "Save never contacts a server. Save and reconnect explicitly reloads and connects enabled locations."
-msgstr "Lưu không bao giờ liên hệ máy chủ. Chỉ khi chọn Lưu và kết nối lại, ứng dụng mới tải lại cấu hình và kết nối các vị trí đang bật."
-
-msgid "Choose a location to edit, or Add network location. Square removes the selected location after confirmation."
-msgstr "Chọn vị trí để sửa hoặc chọn Thêm vị trí mạng. Nút Vuông xóa vị trí đang chọn sau khi xác nhận."
-
-msgid "Credentials are private plaintext in config/network-shares.json (0600), not encrypted. Do not share this file or staged copies."
-msgstr "Thông tin xác thực được lưu riêng tư dưới dạng văn bản thuần trong config/network-shares.json (0600), không được mã hóa. Không chia sẻ tệp này hoặc các bản sao tạm chờ lưu."
-
-msgid "Edit / select"
-msgstr "Sửa / chọn"
-
-msgid "Replace"
-msgstr "Thay thế"
-
-msgid "Clear"
-msgstr "Xóa"
-
-msgid "Keep saved"
-msgstr "Giữ giá trị đã lưu"
-
-msgid "Link a Nextendo game session? Share your identity and allow game matchmaking (identity, game.matchmaking). No friends, presence or profile editing permission is requested. Game routing stays off until you enable it separately."
-msgstr "Liên kết phiên trò chơi Nextendo? Thao tác này chia sẻ thông tin định danh của bạn và cho phép ghép trận (identity, game.matchmaking). Không yêu cầu quyền về bạn bè, trạng thái trực tuyến hay chỉnh sửa hồ sơ. Định tuyến trò chơi vẫn tắt cho đến khi bạn bật riêng."
-
-msgid "Confirm identity and game matchmaking permission before linking a Nextendo game session."
-msgstr "Xác nhận quyền chia sẻ thông tin định danh và ghép trận trước khi liên kết phiên trò chơi Nextendo."
-
-msgid "Remote checks are unavailable for game-only Nextendo sessions. Link again to obtain a fresh game session; the saved session has not been removed."
-msgstr "Không thể kiểm tra từ xa với phiên Nextendo chỉ dành cho trò chơi. Hãy liên kết lại để lấy phiên trò chơi mới; phiên đã lưu chưa bị xóa."
-
-msgid "The Nextendo game session has expired or the clock is incorrect. Link again before enabling or launching."
-msgstr "Phiên trò chơi Nextendo đã hết hạn hoặc đồng hồ không đúng. Hãy liên kết lại trước khi bật hoặc khởi chạy trò chơi."
-
-msgid "Nextendo game linking failed. Check registration, consent, connectivity and trusted certificates."
-msgstr "Liên kết trò chơi Nextendo thất bại. Kiểm tra đăng ký, sự đồng ý cấp quyền, kết nối và chứng chỉ đáng tin cậy."
-
-msgid "Invalid oauth.json. Supply your registered client_id and HTTP 127.0.0.1 redirect_uri (port >= 1024 or {port}); app is optional."
-msgstr "oauth.json không hợp lệ. Cung cấp client_id đã đăng ký và redirect_uri HTTP 127.0.0.1 (cổng >= 1024 hoặc {port}); app là tùy chọn."
-
-msgid "Nextendo action cancelled."
-msgstr "Đã hủy thao tác Nextendo."
-
-msgid "Nextendo action failed. Retry or unlink the session."
-msgstr "Thao tác Nextendo thất bại. Thử lại hoặc hủy liên kết phiên."
-
-msgid "Play read-only SMB or NFS games without downloading them."
-msgstr "Chơi trò chơi SMB hoặc NFS ở chế độ chỉ đọc mà không cần tải xuống."
-
-msgid "Invalid network share settings. Fix the imported JSON before editing; the file was not replaced."
-msgstr "Cài đặt chia sẻ mạng không hợp lệ. Sửa JSON đã nhập trước khi chỉnh sửa; tệp chưa bị thay thế."
-
-msgid "Network settings must be a regular file with link-free parent directories (at most 64 KiB)."
-msgstr "Cài đặt mạng phải là tệp thông thường (tối đa 64 KiB), với các thư mục cha không phải là liên kết."
-
-msgid "Network settings changed outside this editor. Reopen the editor; nothing was overwritten."
-msgstr "Cài đặt mạng đã bị thay đổi bên ngoài trình chỉnh sửa này. Hãy mở lại trình chỉnh sửa; chưa ghi đè gì."
-
-msgid "Cancelled. The saved network settings were not changed."
-msgstr "Đã hủy. Cài đặt mạng đã lưu không thay đổi."
-
-msgid "Saved, but directory sync could not be confirmed."
-msgstr "Đã lưu nhưng không xác nhận được việc đồng bộ thư mục."
-
-msgid "Could not save network settings. The previous file was preserved."
-msgstr "Không lưu được cài đặt mạng. Tệp cũ được giữ nguyên."
-
-msgid "The network settings keyboard is unavailable."
-msgstr "Không dùng được bàn phím cài đặt mạng."
-
-msgid "Invalid value. Use numeric IPv4, safe paths, valid ports, timeout 250–15000 ms and cache 1–32 MiB. SMB credentials require a user."
-msgstr "Giá trị không hợp lệ. Dùng IPv4 dạng số, đường dẫn an toàn, cổng hợp lệ, thời gian chờ 250–15000 ms và bộ nhớ đệm 1–32 MiB. Thông tin xác thực SMB yêu cầu người dùng."
-
-msgid "Server IPv4 and share / export are required. Enter them before saving."
-msgstr "Bắt buộc nhập IPv4 máy chủ và tên chia sẻ / đường dẫn xuất. Hãy nhập trước khi lưu."
-
-msgid "This network location already exists. Edit it instead."
-msgstr "Vị trí mạng này đã tồn tại. Hãy sửa vị trí hiện có."
-
-msgid "At most four network locations can be saved."
-msgstr "Có thể lưu tối đa bốn vị trí mạng."
-
-msgid "Network settings are unavailable while another protected job or a game is starting."
-msgstr "Không thể dùng cài đặt mạng khi tác vụ được bảo vệ khác đang chạy hoặc khi trò chơi đang khởi động."
-
-msgid "Reopen the network location before editing."
-msgstr "Mở lại vị trí mạng trước khi chỉnh sửa."
-
-msgid "Network location"
-msgstr "Vị trí mạng"
-
-msgid "SMB"
-msgstr "SMB"
-
-msgid "NFS v3 / AUTH_SYS"
-msgstr "NFS v3 / AUTH_SYS"
-
-msgid "Required (SMB3)"
-msgstr "Bắt buộc (SMB3)"
-
-msgid "Off (signing required with a user)"
-msgstr "Tắt (bắt buộc ký khi có người dùng)"
-
-msgid "Replacement set"
-msgstr "Đã đặt giá trị thay thế"
-
-msgid "Set / keep existing"
-msgstr "Đã đặt / giữ giá trị hiện có"
-
-msgid "Network location name"
-msgstr "Tên vị trí mạng"
-
-msgid "Network server IPv4"
-msgstr "IPv4 máy chủ mạng"
-
-msgid "Network share / export"
-msgstr "Tên chia sẻ / đường dẫn xuất trên mạng"
-
-msgid "Network games folder (relative)"
-msgstr "Thư mục trò chơi trên mạng (tương đối)"
-
-msgid "Network updates / DLC folder (relative)"
-msgstr "Thư mục cập nhật / DLC trên mạng (tương đối)"
-
-msgid "SMB user (empty = guest)"
-msgstr "Người dùng SMB (trống = khách)"
-
-msgid "SMB password (private replacement)"
-msgstr "Mật khẩu SMB (thay thế riêng tư)"
-
-msgid "SMB domain (optional)"
-msgstr "Miền SMB (không bắt buộc)"
-
-msgid "NFS AUTH_SYS UID"
-msgstr "NFS AUTH_SYS UID"
-
-msgid "NFS AUTH_SYS GID"
-msgstr "NFS AUTH_SYS GID"
-
-msgid "NFS mount port (0 = portmapper)"
-msgstr "Cổng gắn kết NFS (0 = portmapper)"
-
-msgid "Network server TCP port"
-msgstr "Cổng TCP máy chủ mạng"
-
-msgid "Network cache (1-32 MiB)"
-msgstr "Bộ nhớ đệm mạng (1-32 MiB)"
-
-msgid "Network timeout (250-15000 ms)"
-msgstr "Thời gian chờ mạng (250-15000 ms)"
-
-msgid "Enter a replacement; Cancel keeps the current password"
-msgstr "Nhập mật khẩu thay thế; Hủy để giữ mật khẩu hiện tại"
-
-msgid "Confirm to use this value; Cancel keeps the previous value"
-msgstr "Xác nhận để dùng giá trị này; Hủy để giữ giá trị trước"
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Software options: Triangle"
+msgstr "phần mềm · Triangle"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Browse folders: D-pad / Open: A"
+msgstr "Duyệt thư mục · D-pad / A"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Encore home screen"
+msgstr "Trang chủ · Encore"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Switch home screen"
+msgstr "Trang chủ · Switch"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Original Encore interface"
+msgstr "giao diện · Encore"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Switch-style interface"
+msgstr "giao diện · Switch"
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose Encore or Switch. Your games and control mapping stay unchanged."
+msgstr "Chọn · Encore / Switch. phần mềm / Điều khiển — không đổi."
+
+#: pe/ui/switch_theme.cpp, pe/ui/settings.cpp
+msgid "Choose the launcher interface without changing game or controller settings."
+msgstr "Chọn · giao diện. phần mềm / Điều khiển — không đổi."
+
+#: pe/ui/switch_theme.cpp
+msgid "About"
+msgstr "Giới thiệu"
+
+#: pe/ui/switch_theme.cpp
+msgid "Multiplayer"
+msgstr "Nhiều người chơi"
+
+#: pe/ui/switch_theme.cpp
+msgid "Volume"
+msgstr "Âm lượng"
+
+#: pe/ui/switch_theme.cpp
+msgid "Controller profile"
+msgstr "Hồ sơ tay cầm"
+
+#: pe/ui/switch_theme.cpp
+msgid "Cache"
+msgstr "Bộ nhớ đệm"
+
+#: pe/ui/switch_theme.cpp
+msgid "Manage"
+msgstr "Quản lý"
+
+#: pe/ui/switch_theme.cpp
+msgid "Open folders"
+msgstr "Mở thư mục"
+
+#: pe/ui/switch_theme.cpp
+msgid "Filter"
+msgstr "Bộ lọc"
+
+#: pe/ui/switch_theme.cpp
+msgid "Eden Encore"
+msgstr "Eden Encore"

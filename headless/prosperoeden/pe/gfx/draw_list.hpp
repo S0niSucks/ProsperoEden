@@ -20,7 +20,7 @@ struct Color
     float b = 0.0f;
     float a = 1.0f;
 
-    static constexpr Color rgb(std::uint32_t hex, float alpha = 1.0f)
+    static Color rgb(std::uint32_t hex, float alpha = 1.0f)
     {
         return {static_cast<float>((hex >> 16) & 0xff) / 255.0f,
                 static_cast<float>((hex >> 8) & 0xff) / 255.0f,
@@ -46,15 +46,6 @@ struct Rect
     float h = 0.0f;
 };
 
-// Screen-space projection of a plane rotated about its vertical axis. w is camera
-// distance / focal length, retained for perspective-correct texture interpolation.
-struct PerspectiveQuad
-{
-    float left_x, left_top, left_bottom;
-    float right_x, right_top, right_bottom;
-    float left_w, right_w;
-};
-
 // Shape modes understood by the batch shader (keep in sync with gl_batch.cpp).
 enum class Shape : std::uint8_t
 {
@@ -66,8 +57,13 @@ enum class Shape : std::uint8_t
     triangle = 5,       // isosceles triangle pointing up inside the rect
     rounded_rect_h = 7, // rounded_rect with a left-to-right gradient
     rounded_image = 8,  // image clipped to a rounded rect
-    perspective_image = 9,
-    perspective_fill = 10,
+    case_face = 9,      // perspective-projected front/back of a retail case
+    case_spine = 10,    // matching projected plastic case side
+    case_plastic = 11,  // transparent molded edge over the printed face
+    case_cap = 12,      // top or bottom of a solid case with real depth
+    case_corner = 13,   // segmented curved plastic corners extruded in Z
+    case_spine_image = 14,
+    case_spine_blank = 15, // clean title-free default with vector manufacturing marks // optional original FLAT printed side scan
 };
 
 // One instanced quad; field order matches the vertex attributes.
@@ -109,7 +105,6 @@ class DrawList
 {
   public:
     void clear();
-    void reset_state(); // Retain recorded geometry, reset clip/transform/opacity stacks.
 
     // ---- shapes ----
     void rounded_rect(const Rect &r, float radius, Color fill);
@@ -128,8 +123,23 @@ class DrawList
     // The image clipped to a rounded rectangle (covers, frosted panels).
     void rounded_image(std::uint32_t texture, const Rect &r, const Rect &uv, float radius,
                        Color tint);
-    // texture == 0 draws an opaque/tinted fallback plane, without sampling a texture.
-    void perspective_image(std::uint32_t texture, const PerspectiveQuad &quad, Color tint);
+    // Retail case on a shared 3D pivot: GPU perspective, correct back-face UV
+    // winding and a real-thickness projected side. Available for every game.
+    void case_face(std::uint32_t texture, const Rect &r, float angle,
+                   bool back, Color tint, const Rect &uv = {0.0f, 0.0f, 1.0f, 1.0f});
+    void case_spine(const Rect &r, float angle, float thickness,
+                    Color front_edge, Color rear_edge, float depth_offset = 0.0f,
+                    int side = 0); // -1: red left hinge, +1: clear right edge
+    // Translucent rounded white plastic shell, projected with the SAME pivot
+    // and perspective as the printed image, on both front and back.
+    void case_plastic(const Rect &r, float angle, bool back, Color plastic);
+    void case_cap(const Rect &r, float angle, bool bottom, float depth,
+                  Color near, Color far);
+    void case_corner(const Rect &r, float angle, float radius, float depth,
+                     int quadrant, int segment, Color near, Color far);
+    void case_spine_image(std::uint32_t texture, const Rect &r,
+                          float angle, float depth, Color tint);
+    void case_spine_blank(const Rect &r, float angle, float depth, Color tint);
 
     // ---- text ----
     // font_texture is the GL texture holding font's atlas. Returns the advance.

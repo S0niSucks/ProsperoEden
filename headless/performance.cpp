@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "performance.h"
+#include "frame_metrics.h"
+#include "ps5_cpu_topology.h"
+#include "direct_pool_accounting.h"
+#include "direct_pool_probe_policy.h"
+#include "direct_pool_region_scan.h"
+#include "hle_counters.h"
+#include "gpu_fault_rate_limit.h"
 #include "crash_report.h"
 #include "stall_watchdog.h"
 #include "../src/fastmem.h"
@@ -10,7 +17,6 @@
 #include <set>
 #include <cerrno>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <cpuid.h>
 #include <cstring>
@@ -25,14 +31,13 @@
 #include <vector>
 #include <latch>
 #include <time.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#ifdef EDEN_DEV_PROFILE
+#if defined(EDEN_DEV_PROFILE) || defined(PS5_NATIVE)
 #include <signal.h>
 #endif
 #ifdef PS5_NATIVE
 #include <sys/param.h>
 #include <sys/cpuset.h>
+#include <sys/sysctl.h>
 #endif
 
 // dynarmic A64 dispatch-path counters (headless/dynarmic/jit_group_support.inc).
@@ -40,6 +45,11 @@ extern "C" void eden_jit_path_counters(unsigned core, unsigned long long* out) _
 namespace Common {
 // Address space Eden's sparse tables span and the memory they hold (src/memory_pages.cpp).
 void SparseUsage(std::size_t* reserved, std::size_t* committed) noexcept;
+#ifdef PS5_NATIVE
+void SparseJitUsage(std::size_t* reserved, std::size_t* committed) noexcept;
+void SparseJitUsageFast(std::size_t* reserved, std::size_t* committed) noexcept;
+std::size_t DenseJitDirectBytes() noexcept;
+#endif
 } // namespace Common
 
 namespace Eden::Performance {
@@ -56,30 +66,55 @@ struct Worker {
 };
 std::mutex workers_mutex;
 std::array<Worker, names.size()> workers;
+// Periodic native GPU and optional host-thread capture must not concurrently
+// consume the same PC sample cursors. Keep this lock DISTINCT from the
+// owner-written worker mutex so costly diagnostic maps/hex never stop cores
+// from publishing CPU samples or frontends from polling development PCs.
+std::mutex snapshot_mutex;
+// A GPU/guest worker is normally created again for the next title inside
+// the same process. Registration is NOT a permanent OS thread identity:
+// clear it on owner-thread exit before a later profiler tries to signal a
+// recycled pthread_t. Thread-local declaration is touched before starting
+// the optional fast sampler, so the fast sampler's jthread is joined FIRST.
+struct WorkerRegistration {
+    unsigned index = unsigned(names.size());
+    pthread_t owner{};
+    ~WorkerRegistration() {
+        if (index >= names.size()) return;
+        const std::lock_guard lock(workers_mutex);
+        auto& entry = workers[index];
+        if (entry.registered && pthread_equal(entry.thread, owner))
+            entry.registered = false;
+    }
+};
+thread_local WorkerRegistration owned_worker;
 #ifdef EDEN_DEV_PROFILE
 static_assert(std::atomic<uintptr_t>::is_always_lock_free);
-std::array<uintptr_t, 8192> sampled_pcs{};
+// Lock-free signal-handler samples: use ring slots so the 500 Hz fast
+// sampler does not silently stop after 8192 (~16 seconds) GPU samples.
+std::array<std::atomic<uintptr_t>, 8192> sampled_pcs{};
 std::atomic<unsigned> pc_count{};
 // Guest core 0 host PCs (JIT code, HLE, memory callbacks), sampled with the GPU thread.
-std::array<uintptr_t, 65536> sampled_core_pcs{};
+std::array<std::atomic<uintptr_t>, 65536> sampled_core_pcs{};
 std::atomic<unsigned> core_pc_count{};
 unsigned core_pc_reported{};
 pthread_t core_sample_thread{};
 std::atomic<bool> core_sample_ready{};
 unsigned pc_reported{};
+// Unlike a detached 500 Hz sampler, this thread-local worker registration
+// clears readiness at guest-core exit. Do not signal a stale pthread_t after
+// return to the library, nor leave detached samplers across title launches.
+struct PcCoreRegistration {
+    ~PcCoreRegistration() { if (active) core_sample_ready.store(false, std::memory_order_release); }
+    bool active = false;
+};
+thread_local PcCoreRegistration pc_core_registration;
 bool pc_sampling{};
 #if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
 // Same firmware6.02 register offsets qualified by the C46 caller sampler.
 constexpr size_t runtime_rsp_offset = 248, runtime_rbp_offset = 136;
 using CallerChain = std::array<uintptr_t, 8>;
 std::array<CallerChain, 8192> sampled_callers{};
-// Core0 keeps a chain only for PCs outside our own code: the eboot and the JIT caches name
-// themselves by address, and the rest measured at a tenth of its samples, so a bounded array
-// covers the run without a 4 MB one.
-std::array<CallerChain, 4096> sampled_core_callers{};
-std::array<uintptr_t, 4096> core_caller_pcs{};
-std::atomic<unsigned> core_caller_count{};
-unsigned core_caller_reported{};
 
 CallerChain CaptureCallerChain(uintptr_t rsp, uintptr_t frame, uintptr_t handler_stack) {
     CallerChain callers{};
@@ -113,93 +148,45 @@ void PcSignal(int, siginfo_t*, void* context) {
     if (core_sample_ready.load(std::memory_order_acquire) &&
         pthread_equal(pthread_self(), core_sample_thread)) {
         const unsigned core_index = core_pc_count.load(std::memory_order_relaxed);
-        if (core_index < sampled_core_pcs.size()) {
-            sampled_core_pcs[core_index] = static_cast<const uintptr_t*>(context)[224 / sizeof(uintptr_t)];
-            core_pc_count.store(core_index + 1, std::memory_order_release);
-#if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
-            const uintptr_t pc = sampled_core_pcs[core_index];
-            const unsigned caller_index = core_caller_count.load(std::memory_order_relaxed);
-            // Library PCs only: eboot and the JIT caches identify themselves by address.
-            if (caller_index < core_caller_pcs.size() &&
-                (pc < 0x400000 || pc > 0x28c2b30) &&
-                (pc < 0x1200000000 || pc >= 0x1300000000)) {
-                const auto* words = static_cast<const uintptr_t*>(context);
-                char handler_stack_marker;
-                sampled_core_callers[caller_index] = CaptureCallerChain(
-                    words[runtime_rsp_offset / sizeof(uintptr_t)],
-                    words[runtime_rbp_offset / sizeof(uintptr_t)],
-                    reinterpret_cast<uintptr_t>(&handler_stack_marker));
-                core_caller_pcs[caller_index] = pc;
-                core_caller_count.store(caller_index + 1, std::memory_order_release);
-            }
-#endif
-        }
+        sampled_core_pcs[core_index % sampled_core_pcs.size()].store(
+            static_cast<const uintptr_t*>(context)[224 / sizeof(uintptr_t)],
+            std::memory_order_relaxed);
+        core_pc_count.store(core_index + 1, std::memory_order_release);
         return;
     }
     const unsigned index = pc_count.load(std::memory_order_relaxed);
+#if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
+    // Caller-chain slots contain eight non-atomic words. Keep this special
+    // firmware oracle bounded until its lifetime and concurrency are proven:
+    // only the normal GPU/core PC-only samplers are cyclic.
     if (index >= sampled_pcs.size()) return;
+#endif
+    const unsigned slot = index % sampled_pcs.size();
     // Native firmware 6.02 ABI, qualified by the standalone PC-sampling oracle.
     // SDK FreeBSD ucontext.mc_rip points at the wrong field on this firmware.
-    sampled_pcs[index] = static_cast<const uintptr_t*>(context)[224 / sizeof(uintptr_t)];
+    sampled_pcs[slot].store(static_cast<const uintptr_t*>(context)[224 / sizeof(uintptr_t)],
+                            std::memory_order_relaxed);
 #if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
     const auto* words = static_cast<const uintptr_t*>(context);
     char handler_stack_marker;
-    sampled_callers[index] = CaptureCallerChain(words[runtime_rsp_offset / sizeof(uintptr_t)],
+    sampled_callers[slot] = CaptureCallerChain(words[runtime_rsp_offset / sizeof(uintptr_t)],
         words[runtime_rbp_offset / sizeof(uintptr_t)], reinterpret_cast<uintptr_t>(&handler_stack_marker));
 #endif
     pc_count.store(index + 1, std::memory_order_release);
 }
 #endif
 #ifdef PS5_NATIVE
-// Whether logical CPUs 0 and 1 are one physical core, by timing. Four multiply chains on each of
-// two CPUs at once: siblings take the core's one multiplier in turns and need about twice as long
-// as two CPUs of different cores. The shortest of three runs of each pair, for whatever else runs
-// meanwhile. (CheckWorkerTopology asks this where CPUID does not tell the cores apart.)
-long long PairLoopNs(unsigned cpu_a, unsigned cpu_b) {
-    std::atomic<int> ready{0};
-    std::atomic<bool> go{false};
-    std::array<long long, 2> elapsed{-1, -1};
-    const auto body = [&](unsigned cpu, unsigned slot) {
-        cpuset_t one{};
-        CPU_SET(cpu, &one);
-        const bool placed = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &one) == 0;
-        sched_yield();
-        ready.fetch_add(1, std::memory_order_release);
-        if (!placed) return;
-        // Bounded: threads of one priority are not time-sliced here.
-        for (unsigned spins = 0; !go.load(std::memory_order_acquire) && spins < 200'000'000; ++spins) {}
-        const long long begin = NowNs();
-        unsigned long long a = cpu + 1, b = 3, c = 5, d = 7;
-        for (unsigned i = 0; i < 1'500'000; ++i) {
-            a = a * 6364136223846793005ULL + 1;
-            b = b * 2862933555777941757ULL + 3;
-            c = c * 3202034522624059733ULL + 5;
-            d = d * 1442695040888963407ULL + 7;
-        }
-        volatile unsigned long long sink = a ^ b ^ c ^ d;
-        (void)sink;
-        elapsed[slot] = NowNs() - begin;
-    };
-    std::thread first(body, cpu_a, 0u), second(body, cpu_b, 1u);
-    while (ready.load(std::memory_order_acquire) < 2) std::this_thread::yield();
-    go.store(true, std::memory_order_release);
-    first.join();
-    second.join();
-    return elapsed[0] < 0 || elapsed[1] < 0 ? -1 : std::max(elapsed[0], elapsed[1]);
-}
-bool AdjacentCpusShareCore() {
-    long long together = -1, apart = -1;
-    for (int run = 0; run < 3; ++run) {
-        const long long pair = PairLoopNs(0, 1), others = PairLoopNs(0, 2);
-        if (pair > 0 && (together < 0 || pair < together)) together = pair;
-        if (others > 0 && (apart < 0 || others < apart)) apart = others;
-    }
-    const bool share = together > 0 && apart > 0 && together * 4 >= apart * 5;
-    std::printf("EDEN_WORKER_SMT cpus_0_1_ns=%lld cpus_0_2_ns=%lld share=%d\n", together, apart, share);
-    return share;
-}
 std::array<unsigned, 5> worker_cpus{};
 bool worker_topology_ready = false;
+// Published as ONE atomic snapshot only after a physically verified probe.
+// Shader-pool setup must never read worker_cpus while the next title is
+// rebuilding the mutable topology, nor mistake logical-only placement
+// (physical_verified=0) for measured cores.
+std::atomic<std::uint64_t> verified_physical_worker_mask{0};
+// Only published after SetSecondaryPlacement(true) confirms exact OS
+// affinity. An explicit logical-only A/B split can use its own nonoverlap
+// evidence without pretending that CPUID physical topology was verified.
+std::atomic<std::uint64_t> verified_secondary_placement_mask{0};
 // Physical core (x2APIC above the SMT shift) of each allowed CPU, -1 if unknown.
 std::array<int, 64> cpu_core = [] { std::array<int, 64> c{}; c.fill(-1); return c; }();
 // CPUs outside guest cores 0-2 and their SMT siblings, and not the GPU thread CPU.
@@ -210,39 +197,149 @@ bool topology_allowed_valid = false;
 std::atomic<bool> placement_secondary{false};
 std::atomic<unsigned> secondary_reports{};
 void CheckWorkerTopology() {
-    // Probe once per process. Later games start from a launcher thread that the first game's
-    // placement left on the secondary CPUs, where the probe finds too few cores.
+    // A later game may start from a launcher thread with a narrower inherited CPU set.
+    // Preserve the process-wide physically verified layout, rather than probing that subset.
     if (worker_topology_ready) {
         std::printf("EDEN_WORKER_TOPOLOGY ready=1 cached=1 cpus=%u,%u,%u,%u,%u\n",
             worker_cpus[0], worker_cpus[1], worker_cpus[2], worker_cpus[3], worker_cpus[4]);
         return;
     }
+    // A new title/firmware check may fail before CPUID probing begins.
+    // Never reuse a previous game's affinity decision in that case.
+    verified_physical_worker_mask.store(0, std::memory_order_release);
+    verified_secondary_placement_mask.store(0, std::memory_order_release);
+    worker_topology_ready = false;
+    secondary_cpus = 0;
+    worker_cpus.fill(0);
+    cpu_core.fill(-1);
+    topology_allowed = {};
+    topology_allowed_valid = false;
     cpuset_t original{};
-    if (__get_cpuid_max(0, nullptr) < 0xb ||
-        cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &original)) return;
-    std::array<unsigned, 5> cores{};
-    unsigned count = 0;
-    bool changed = false, refused = false, measured = false;
+    if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &original)) {
+        std::printf("EDEN_WORKER_TOPOLOGY ready=0 reason=affinity_unavailable errno=%d\n", errno);
+        return;
+    }
+    // This is the probe thread's permitted set, not the number of hardware
+    // threads on the PS5. Shader workers can inherit a narrower affinity.
+    std::uint64_t allowed_mask = 0;
+    unsigned allowed_count = 0;
+    for (unsigned cpu = 0; cpu < 64; ++cpu) {
+        if (CPU_ISSET(cpu, &original)) {
+            allowed_mask |= std::uint64_t{1} << cpu;
+            ++allowed_count;
+        }
+    }
+    std::printf("EDEN_PS5_CPU_ACCESS hardware_reported=%u affinity_allowed=%u allowed_mask=0x%llx scope=probe_thread\n",
+                std::thread::hardware_concurrency(), allowed_count,
+                static_cast<unsigned long long>(allowed_mask));
+    // AMD family 17h+ can expose physical topology via the extended leaf
+    // even if x2APIC leaf 0xB is missing/unusable on this firmware.
+    unsigned va{}, vb{}, vc{}, vd{};
+    __cpuid(0, va, vb, vc, vd);
+    const bool amd_vendor = vb == 0x68747541u &&
+        vd == 0x69746e65u && vc == 0x444d4163u;
+    const bool has_x2apic = __get_cpuid_max(0, nullptr) >= 0xbu;
+    bool has_amd_topology = false;
+    if (amd_vendor && __get_cpuid_max(0x80000000u, nullptr) >= 0x8000001eu) {
+        __cpuid(1, va, vb, vc, vd);
+        const unsigned base_family = (va >> 8) & 15u;
+        const unsigned family = base_family == 15u ?
+            base_family + ((va >> 20) & 255u) : base_family;
+        __cpuid(0x80000001u, va, vb, vc, vd);
+        has_amd_topology = family >= 0x17u && (vc & (1u << 22)) != 0;
+    }
+    // Even when CPUID is unusable retain a valid OS affinity mask for
+    // the explicit *logical-only* trial; that trial is not physical proof.
+    topology_allowed = original;
+    topology_allowed_valid = true;
+    if (!has_x2apic && !has_amd_topology) {
+        // This is not yet a failure: the kernel may still expose authoritative
+        // SMT groups even when neither architectural CPUID leaf is usable.
+        std::printf("EDEN_PS5_CPU_CPUID unavailable=1 trying_kernel_topology=1\n");
+    }
+    // The PS5's FreeBSD scheduler may expose genuine SMT sibling groups
+    // even when CPUID per-affinity yields bogus 13-core/one-core readings.
+    // Probe is read-only and bounded; failure preserves the existing fallback.
+    std::array<int, 64> os_cpu_core{};
+    os_cpu_core.fill(-1);
+    bool os_topology_valid = false;
+    // kern.sched.topology_spec is available on older FreeBSD. ULE exposed
+    // kern.sched.ule.topology_spec while reworking scheduler sysctls in
+    // January 2026; the original alias was later reintroduced upstream.
+    // Sony's fork may expose neither. Probe both READ-ONLY without creating
+    // an artificial SMT map if the scheduler hides sibling relationships.
+    size_t topology_length = 0;
+    int os_topology_errno = 0;
+    // A single errno for both probes hid which sysctl the Sony kernel
+    // actually exports. Keep the historical fields and add per-OID errors.
+    std::array<int, 2> oid_errno{};
+    const char* os_topology_source = "none";
+    constexpr std::array oids{"kern.sched.topology_spec",
+                              "kern.sched.ule.topology_spec"};
+    for (size_t index = 0; index < oids.size(); ++index) {
+        const char* oid = oids[index];
+        size_t length = 0;
+        if (sysctlbyname(oid, nullptr, &length, nullptr, 0) != 0) {
+            oid_errno[index] = os_topology_errno = errno;
+            continue;
+        }
+        if (length == 0 || length > 65536) {
+            oid_errno[index] = os_topology_errno = EOVERFLOW;
+            continue;
+        }
+        std::string topology_xml(length, '\0');
+        if (sysctlbyname(oid, topology_xml.data(), &length, nullptr, 0) != 0 ||
+            length > topology_xml.size()) {
+            oid_errno[index] = os_topology_errno = errno ? errno : EOVERFLOW;
+            continue;
+        }
+        topology_length = length;
+        if (::Eden::CpuTopology::ParseSmtGroups(
+                std::string_view{topology_xml.data(), length}, allowed_mask, os_cpu_core)) {
+            os_topology_valid = true;
+            os_topology_source = oid;
+            os_topology_errno = 0;
+            break;
+        }
+        // A present but invalid scheduler map cannot justify SMT pinning.
+        // A second, independent ULE OID may still provide a valid map.
+        oid_errno[index] = os_topology_errno = EINVAL;
+    }
+    std::printf("EDEN_PS5_CPU_OS_TOPOLOGY available=%u bytes=%zu errno=%d "
+                "source=%s legacy_errno=%d ule_errno=%d\n",
+                unsigned(os_topology_valid), topology_length, os_topology_errno,
+                os_topology_source, oid_errno[0], oid_errno[1]);
+    std::array<int, 64> amd_cpu_core{}, x2_cpu_core{};
+    amd_cpu_core.fill(-1);
+    x2_cpu_core.fill(-1);
+    bool changed = false;
     for (unsigned cpu = 0; cpu < 64; ++cpu) {
         if (!CPU_ISSET(cpu, &original)) continue;
         cpuset_t one{};
         CPU_SET(cpu, &one);
-        if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &one)) {
-            refused = true;
-            break;
-        }
+        if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &one)) break;
         changed = true;
-        unsigned a, b, c, d;
-        __cpuid_count(0xb, 0, a, b, c, d);
-        // Architectural SMT level: x2APIC ID above the SMT shift identifies
-        // the physical core. Do not assume OS CPU numbering matches APIC IDs.
-        if (!b || ((c >> 8) & 0xff) != 1 || (a & 31) >= 16) break;
-        const unsigned core = d >> (a & 31);
-        cpu_core[cpu] = static_cast<int>(core);
-        if (count == cores.size() ||
-            std::find(cores.begin(), cores.begin() + count, core) != cores.begin() + count) continue;
-        cores[count] = core;
-        worker_cpus[count++] = cpu;
+        // Affinity changes may take effect only after a scheduling point.
+        sched_yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        cpuset_t verified{};
+        if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &verified) ||
+            std::memcmp(&one, &verified, 8)) break;
+        unsigned a{}, b{}, c{}, d{};
+        // Probe both CPUID representations on the pinned logical CPU.
+        // PS5 13.60 reports AMD CoreIds distinct for all 13 logical CPUs
+        // despite advertising SMT: reject those impossible physical groups.
+        if (has_amd_topology) {
+            __cpuid_count(0x8000001eu, 0, a, b, c, d);
+            const unsigned threads_per_core = ((b >> 8) & 255u) + 1u;
+            if (threads_per_core >= 1u && threads_per_core <= 8u)
+                amd_cpu_core[cpu] = static_cast<int>(((c & 255u) << 8) | (b & 255u));
+        }
+        if (has_x2apic) {
+            __cpuid_count(0xb, 0, a, b, c, d);
+            if (b && ((c >> 8) & 255u) == 1u && (a & 31u) < 16u)
+                x2_cpu_core[cpu] = static_cast<int>(d >> (a & 31u));
+        }
     }
     if (changed) {
         cpuset_t restored{};
@@ -251,44 +348,151 @@ void CheckWorkerTopology() {
             std::memcmp(&original, &restored, 8))
             throw std::runtime_error("Cannot restore topology-probe thread affinity");
     }
-    // CPUID did not tell five physical cores apart: newer system software gives one answer for
-    // every CPU (a console with it ran every thread unpinned: a large open-world game at 20
-    // frames a second where a console with pinned threads made 26 to 29). Where CPUID does
-    // answer, logical CPUs 2n and 2n+1 are one core; a timing of two pairs says whether that
-    // holds here (AdjacentCpusShareCore), and then the same five CPUs are used.
-    if (!refused && count != cores.size()) {
-        unsigned even = 0;
-        for (unsigned cpu = 0; cpu < 64; cpu += 2) even += CPU_ISSET(cpu, &original) ? 1 : 0;
-        if (even >= cores.size() && CPU_ISSET(1, &original) && AdjacentCpusShareCore()) {
-            count = 0;
-            cpu_core.fill(-1);
-            for (unsigned cpu = 0; cpu < 64; ++cpu) {
-                if (!CPU_ISSET(cpu, &original)) continue;
-                cpu_core[cpu] = static_cast<int>(cpu / 2);
-                if ((cpu & 1) == 0 && count < cores.size()) {
-                    cores[count] = cpu / 2;
-                    worker_cpus[count++] = cpu;
-                }
-            }
-            measured = true;
+    // A valid physical grouping must classify EVERY allowed CPU and identify
+    // between five and eight distinct real cores on this Zen 2 PS5. Never
+    // choose whichever CPUID leaf looks fastest or assume logical IDs are
+    // physical cores. Only use the x2APIC fallback when AMD is implausible.
+    const auto summarize = [&](const std::array<int, 64>& ids) {
+        std::array<int, 64> distinct{};
+        unsigned classified = 0, count = 0;
+        for (unsigned cpu = 0; cpu < 64; ++cpu) {
+            if (!CPU_ISSET(cpu, &original) || ids[cpu] < 0) continue;
+            ++classified;
+            if (std::find(distinct.begin(), distinct.begin() + count, ids[cpu]) ==
+                distinct.begin() + count)
+                distinct[count++] = ids[cpu];
+        }
+        return std::pair{classified, count};
+    };
+    const auto [amd_classified, amd_distinct] = summarize(amd_cpu_core);
+    const auto [x2_classified, x2_distinct] = summarize(x2_cpu_core);
+    const bool amd_plausible = has_amd_topology && amd_classified == allowed_count &&
+                               amd_distinct >= 5 && amd_distinct <= 8;
+    const bool x2_plausible = has_x2apic && x2_classified == allowed_count &&
+                              x2_distinct >= 5 && x2_distinct <= 8;
+    const std::array<int, 64>* physical_source = nullptr;
+    const char* source_name = "none";
+    if (os_topology_valid) {
+        physical_source = &os_cpu_core;
+        source_name = "freebsd_sched";
+    } else if (amd_plausible) {
+        physical_source = &amd_cpu_core;
+        source_name = "amd_ext";
+    } else if (x2_plausible) {
+        physical_source = &x2_cpu_core;
+        source_name = has_amd_topology ? "x2apic_fallback" : "x2apic";
+    }
+    std::printf("EDEN_PS5_CPU_TOPOLOGY_SOURCES amd=%u/%u x2apic=%u/%u selected=%s\n",
+                amd_classified, amd_distinct, x2_classified, x2_distinct, source_name);
+    if (!physical_source) {
+        const unsigned observed = has_amd_topology ? amd_distinct : x2_distinct;
+        const unsigned classified = has_amd_topology ? amd_classified : x2_classified;
+        if (observed > 8)
+            std::printf("EDEN_PS5_CPU_TOPOLOGY_REJECT reason=more_than_8_physical_ids observed=%u\n",
+                        observed);
+        std::printf("EDEN_PS5_CPU_PHYSICAL_SUMMARY classified=%u of=%u distinct_physical=%u valid=0\n",
+                    classified, allowed_count, observed);
+        std::printf("EDEN_WORKER_TOPOLOGY ready=0 distinct_cores=0 cpus=0,0,0,0,0 amd_ext=%u x2apic=%u\n",
+                    unsigned(has_amd_topology), unsigned(has_x2apic));
+        return;
+    }
+    std::array<unsigned, 5> cores{};
+    unsigned count = 0;
+    for (unsigned cpu = 0; cpu < 64; ++cpu) {
+        if (!CPU_ISSET(cpu, &original)) continue;
+        const int core = (*physical_source)[cpu];
+        if (core < 0) continue;
+        cpu_core[cpu] = core;
+        if (count < cores.size() &&
+            std::find(cores.begin(), cores.begin() + count,
+                      static_cast<unsigned>(core)) == cores.begin() + count) {
+            cores[count] = static_cast<unsigned>(core);
+            worker_cpus[count++] = cpu;
         }
     }
-    worker_topology_ready = count == cores.size();
-    topology_allowed = original;
-    topology_allowed_valid = true;
+    std::array<int, 64> physical_ids{};
+    std::array<std::uint64_t, 64> physical_masks{};
+    unsigned physical_count = 0, classified = 0;
+    for (unsigned cpu = 0; cpu < 64; ++cpu) {
+        if (!CPU_ISSET(cpu, &original) || cpu_core[cpu] < 0) continue;
+        ++classified;
+        unsigned group = 0;
+        while (group < physical_count && physical_ids[group] != cpu_core[cpu]) ++group;
+        if (group == physical_count) physical_ids[physical_count++] = cpu_core[cpu];
+        physical_masks[group] |= std::uint64_t{1} << cpu;
+    }
+    const bool physical_ids_plausible = physical_count >= 5 && physical_count <= 8 &&
+                                       classified == allowed_count;
+    worker_topology_ready = count == cores.size() && physical_ids_plausible;
+    std::printf("EDEN_PS5_CPU_PHYSICAL_SUMMARY classified=%u of=%u distinct_physical=%u valid=%u\n",
+                classified, allowed_count, physical_count, unsigned(physical_ids_plausible));
     if (worker_topology_ready) {
+        for (unsigned group = 0; group < physical_count; ++group)
+            std::printf("EDEN_PS5_CPU_PHYSICAL core_id=%d logical_mask=0x%llx\n",
+                        physical_ids[group], static_cast<unsigned long long>(physical_masks[group]));
         for (unsigned cpu = 0; cpu < 64; ++cpu) {
             if (!CPU_ISSET(cpu, &original) || cpu_core[cpu] < 0) continue;
-            const bool guest_core = cpu_core[cpu] == static_cast<int>(cores[0]) ||
-                cpu_core[cpu] == static_cast<int>(cores[1]) || cpu_core[cpu] == static_cast<int>(cores[2]);
-            if (!guest_core && cpu != worker_cpus[3] && cpu != worker_cpus[4]) secondary_cpus |= 1ULL << cpu;
+            // Four guest CPU owners AND the GPU owner each need an entire
+            // physical core, not merely one SMT thread. Previous code excluded
+            // only the first three guest cores, admitting siblings of the
+            // fourth guest core and GPU to secondary shader/IO workers.
+            const bool primary_core =
+                std::find(cores.begin(), cores.end(), static_cast<unsigned>(cpu_core[cpu])) != cores.end();
+            if (!primary_core) secondary_cpus |= 1ULL << cpu;
         }
         std::printf("EDEN_WORKER_SECONDARY mask=%llx\n", secondary_cpus);
+        // Publish only after all CPU IDs and affinity/topology checks complete.
+        // Logical-only experimental placement deliberately never publishes
+        // this snapshot: a logical CPU ID is not physical-core evidence.
+        std::uint64_t verified_mask = 0;
+        for (unsigned cpu : worker_cpus)
+            if (cpu < 64) verified_mask |= std::uint64_t{1} << cpu;
+        verified_physical_worker_mask.store(verified_mask, std::memory_order_release);
+        // CPU slots withheld from the shader pool are NOT necessarily OS
+        // reserved: protect hot guest JIT cores from SMT sibling contention.
+        const std::uint64_t excluded = allowed_mask & ~(verified_mask | secondary_cpus);
+        std::uint64_t guest_smt_protected = 0;
+        for (unsigned cpu = 0; cpu < 64; ++cpu) {
+            if (!(excluded & (std::uint64_t{1} << cpu))) continue;
+            // Preserve the legacy log key but protect SMT siblings of all
+            // five hot owners, including CPUCore_3 and the GPU worker.
+            const bool primary_sibling =
+                std::find(cores.begin(), cores.end(), static_cast<unsigned>(cpu_core[cpu])) != cores.end();
+            if (primary_sibling) guest_smt_protected |= std::uint64_t{1} << cpu;
+        }
+        std::printf("EDEN_PS5_CPU_SPLIT allowed=0x%llx primary=0x%llx secondary=0x%llx "
+                    "guest_smt_protected=0x%llx other_allowed=0x%llx\n",
+                    static_cast<unsigned long long>(allowed_mask),
+                    static_cast<unsigned long long>(verified_mask),
+                    secondary_cpus,
+                    static_cast<unsigned long long>(guest_smt_protected),
+                    static_cast<unsigned long long>(excluded & ~guest_smt_protected));
     }
-    std::printf("EDEN_WORKER_TOPOLOGY ready=%d distinct_cores=%u cpus=%u,%u,%u,%u,%u measured=%d\n",
-        worker_topology_ready, count, worker_cpus[0], worker_cpus[1], worker_cpus[2], worker_cpus[3], worker_cpus[4],
-        static_cast<int>(measured));
+    std::printf("EDEN_WORKER_TOPOLOGY ready=%d distinct_cores=%u cpus=%u,%u,%u,%u,%u amd_ext=%u x2apic=%u\n",
+        worker_topology_ready, count, worker_cpus[0], worker_cpus[1], worker_cpus[2],
+        worker_cpus[3], worker_cpus[4], unsigned(has_amd_topology), unsigned(has_x2apic));
 }
+// Explicit logical-CPU A/B trial when x2APIC topology is unverifiable.
+// Different OS logical CPU IDs do NOT establish distinct physical cores.
+void EnableExperimentalLogicalPlacementImpl() {
+    // No OS scheduler SMT groups and no trustworthy physical topology:
+    // leave all 13 permitted logical processors available to the kernel
+    // scheduler. Isolating guests on guessed SMT pairs previously restricted
+    // all renderer, audio, filesystem and service workers to only three CPUs.
+    // A successful cpuset pin is not evidence of an independent physical core.
+    // Do not pin anything until physical siblings can be proven.
+    std::uint64_t allowed_mask = 0;
+    if (topology_allowed_valid) {
+        for (unsigned cpu = 0; cpu < 64; ++cpu)
+            if (CPU_ISSET(cpu, &topology_allowed))
+                allowed_mask |= std::uint64_t{1} << cpu;
+    }
+    std::printf("EDEN_EXPERIMENT_CPU result=skipped reason=%s allowed_mask=0x%llx physical_verified=0\n",
+                worker_topology_ready ? "physical_topology_already_available" :
+                topology_allowed_valid ? "physical_topology_unverified" : "affinity_unavailable",
+                static_cast<unsigned long long>(allowed_mask));
+}
+
 void PlaceSecondary(const char* name) {
     if (!placement_secondary.load(std::memory_order_relaxed) || !secondary_cpus) return;
     cpuset_t mask{};
@@ -318,11 +522,6 @@ void PinWorker(unsigned index, cpuset_t& affinity) {
 }
 #endif
 bool cpu_clocks_valid = false;
-// getrusage(RUSAGE_SELF) counted a spinning thread and stayed still through a sleep, so the
-// overlay's CPU share may be read from it. The console's CLOCK_PROCESS_CPUTIME_ID may not: it
-// counts the wall clock (CheckCpuClocks), which would pin that share at 1.0 and the percentage
-// at round(100 / hardware_concurrency()) for ever.
-std::atomic<bool> process_usage_valid{false};
 bool owner_cpu_clock_valid = false;
 std::atomic<unsigned> sample_epoch{};
 struct CpuSample {
@@ -331,8 +530,6 @@ struct CpuSample {
     unsigned long long thread = 0, pc = 0;
     unsigned svc = ~0u, fpcr = 0;
     unsigned long long compilations = 0, compile_ns = 0;
-    // The core's idle polling so far (IdleSpinNs), read with cpu_ns so the two stay in step.
-    unsigned long long idle_spin_ns = 0;
 };
 std::array<CpuSample, 4> cpu_samples;
 // Read/written only by the worker owning this core; samples use workers_mutex.
@@ -352,15 +549,6 @@ long long ClockNs(clockid_t clock) {
     timespec time{};
     if (clock_gettime(clock, &time) != 0) return -errno;
     return static_cast<long long>(time.tv_sec) * 1'000'000'000 + time.tv_nsec;
-}
-// This process's CPU time as the kernel accounts it, in nanoseconds, or -1.
-long long ProcessUsageNs() {
-    rusage usage{};
-    if (getrusage(RUSAGE_SELF, &usage) != 0) return -1;
-    const auto us = [](const timeval& time) {
-        return static_cast<long long>(time.tv_sec) * 1'000'000 + time.tv_usec;
-    };
-    return (us(usage.ru_utime) + us(usage.ru_stime)) * 1000;
 }
 void CheckCpuClocks() {
     clockid_t worker_clock{};
@@ -382,16 +570,13 @@ void CheckCpuClocks() {
     });
     ready.acquire();
     const auto cpu_begin = worker_error ? -1 : ClockNs(worker_clock);
-    const auto usage_begin = ProcessUsageNs();
     proceed.release();
     ready.acquire();
-    const auto cpu_busy = ClockNs(worker_clock);
+    const auto cpu_busy = worker_error ? -1 : ClockNs(worker_clock);
     const auto process_idle = process_error ? -1 : ClockNs(process_clock);
-    const auto usage_mid = ProcessUsageNs();
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    const auto cpu_idle = ClockNs(worker_clock);
+    const auto cpu_idle = worker_error ? -1 : ClockNs(worker_clock);
     const auto process_end = process_error ? -1 : ClockNs(process_clock);
-    const auto usage_end = ProcessUsageNs();
     proceed.release();
     worker.join();
     const auto own_busy = owner_busy - owner_begin;
@@ -410,23 +595,97 @@ void CheckCpuClocks() {
                 "worker_clock=%d process_clock=%d busy_ns=%lld idle_ns=%lld process_sleep_ns=%lld\n",
                 cpu_clocks_valid, worker_error, process_error, int(worker_clock), int(process_clock),
                 busy, idle, process_sleep);
-    // getrusage has to do both halves: charge most of the twenty milliseconds the probe worker
-    // spun (a reading that never moves would leave the overlay's share at 0) and hold still
-    // through the twenty that follow, where this thread sleeps and the worker is blocked (a
-    // reading of the wall clock would not). A core has not been constructed yet, so the second
-    // window has almost nothing else to charge.
-    const long long usage_busy = usage_mid - usage_begin;
-    const long long usage_sleep = usage_end - usage_mid;
-    process_usage_valid.store(usage_begin >= 0 && usage_mid >= usage_begin &&
-        usage_end >= usage_mid && usage_busy >= 5'000'000 && usage_sleep < 10'000'000,
-        std::memory_order_relaxed);
-    std::printf("EDEN_PERF_PROCESS_USAGE_CHECK valid=%d busy_ns=%lld sleep_ns=%lld\n",
-                process_usage_valid.load(std::memory_order_relaxed), usage_busy, usage_sleep);
 }
+}
+
+void EnableExperimentalLogicalPlacement() {
+#ifdef PS5_NATIVE
+    EnableExperimentalLogicalPlacementImpl();
+#endif
+}
+
+std::uint64_t PinnedWorkerMask() noexcept {
+#ifdef PS5_NATIVE
+    // Atomic generation snapshot: PS5 pipeline workers are constructed on
+    // different threads, sometimes as the previous title is shutting down.
+    // Unknown / logical-only topology returns zero and keeps admission
+    // conservative, rather than double-counting unverified host cores.
+    return verified_physical_worker_mask.load(std::memory_order_acquire);
+#else
+    return 0;
+#endif
+}
+
+std::uint64_t VerifiedSecondaryPlacementMask() noexcept {
+#ifdef PS5_NATIVE
+    return verified_secondary_placement_mask.load(std::memory_order_acquire);
+#else
+    return 0;
+#endif
+}
+
+void ProbeSchedulerOnce(const char* role) noexcept {
+#ifdef PS5_NATIVE
+    // Console evidence shows equal-priority FIFO workers in the release;
+    // one always-runnable native worker can starve same-priority peers.
+    // Request RR for both native release and diagnostic builds, keeping
+    // priority 700, affinity and a fail-open FIFO fallback on refusal.
+    // One attempt per OS thread; never call scheduler syscalls per frame.
+    static thread_local bool reported = false;
+    if (reported) return;
+    reported = true;
+    int policy = -1;
+    sched_param priority{};
+    const int sched_error = pthread_getschedparam(pthread_self(), &policy, &priority);
+    const int original_policy = policy;
+    int rr_attempted = 0;
+    int rr_error = 0;
+    int rr_verified = 0;
+    if (!sched_error && policy == SCHED_FIFO && priority.sched_priority == 700) {
+        rr_attempted = 1;
+        // Keep the native priority and all affinity masks intact.
+        rr_error = pthread_setschedparam(pthread_self(), SCHED_RR, &priority);
+        if (!rr_error) {
+            sched_param observed_priority{};
+            int observed_policy = -1;
+            const int readback_error = pthread_getschedparam(
+                pthread_self(), &observed_policy, &observed_priority);
+            rr_verified = readback_error == 0 && observed_policy == SCHED_RR &&
+                          observed_priority.sched_priority == priority.sched_priority;
+            rr_error = readback_error;
+            if (!readback_error) {
+                policy = observed_policy;
+                priority = observed_priority;
+            }
+        }
+    }
+    cpuset_t allowed{};
+    const int affinity_rc = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
+                                              sizeof(unsigned long long), &allowed);
+    const int affinity_error = affinity_rc ? errno : 0;
+    unsigned long long mask = 0;
+    if (!affinity_rc) {
+        for (unsigned cpu = 0; cpu < 64; ++cpu)
+            if (CPU_ISSET(cpu, &allowed)) mask |= 1ULL << cpu;
+    }
+    const char* const policy_name =
+        sched_error ? "unknown" : policy == SCHED_FIFO ? "FIFO" :
+        policy == SCHED_RR ? "RR" : "OTHER";
+    std::printf("EDEN_PS5_THREAD_SCHED role=%s sched_error=%d policy=%s(%d) priority=%d "
+                "affinity_error=%d allowed_mask=0x%llx original_policy=%d "
+                "rr_attempted=%d rr_error=%d rr_verified=%d\n",
+                role, sched_error, policy_name, policy, priority.sched_priority,
+                affinity_error, mask, original_policy, rr_attempted, rr_error, rr_verified);
+#else
+    (void)role;
+#endif
 }
 
 void SetSecondaryPlacement(bool enabled) {
 #ifdef PS5_NATIVE
+    // Clear previous title/placement evidence BEFORE trying to repin. A
+    // success return from setaffinity alone is not a verified OS mask.
+    verified_secondary_placement_mask.store(0, std::memory_order_release);
     placement_secondary.store(enabled, std::memory_order_relaxed);
     if (!secondary_cpus || !topology_allowed_valid) return;
     cpuset_t mask{};
@@ -437,8 +696,14 @@ void SetSecondaryPlacement(bool enabled) {
         mask = topology_allowed;
     }
     const int result = cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &mask);
-    std::printf("EDEN_WORKER_INHERIT enabled=%d mask=%llx error=%d\n", enabled,
-                enabled ? secondary_cpus : 0ULL, result ? errno : 0);
+    cpuset_t actual{};
+    const bool verified = enabled && result == 0 &&
+        cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, 8, &actual) == 0 &&
+        std::memcmp(&mask, &actual, 8) == 0;
+    if (verified)
+        verified_secondary_placement_mask.store(secondary_cpus, std::memory_order_release);
+    std::printf("EDEN_WORKER_INHERIT enabled=%d mask=%llx error=%d verified=%u\n", enabled,
+                enabled ? secondary_cpus : 0ULL, result ? errno : 0, unsigned(verified));
 #else
     (void)enabled;
 #endif
@@ -453,7 +718,9 @@ void SampleGpuFrame(unsigned frame) {
 extern "C" void ps5_opengl_heap_snapshot(const char* phase, unsigned iteration);
 extern "C" unsigned eden_heap_arenas_created(void) __attribute__((weak));
 extern "C" std::size_t eden_heap_committed(void) __attribute__((weak));
+extern "C" std::size_t eden_heap_tcache_held(void) __attribute__((weak));
 extern "C" std::size_t eden_heap_large_held(unsigned* blocks) __attribute__((weak));
+extern "C" std::size_t eden_heap_large_physical_held(void) __attribute__((weak));
 #ifdef PS5_NATIVE
 extern "C" std::int64_t sceKernelGetDirectMemorySize();
 extern "C" std::int32_t sceKernelAvailableDirectMemorySize(std::int64_t, std::int64_t, std::size_t, std::int64_t*,
@@ -463,22 +730,138 @@ struct DirectMemoryRegion { std::int64_t start; std::int64_t end; std::int32_t t
 extern "C" std::int32_t sceKernelDirectMemoryQuery(std::int64_t, int, DirectMemoryRegion*, std::size_t);
 #endif
 
+// Query the actual contiguous direct-memory headroom available at guest
+// launch. Fail closed (no expanded JIT) when firmware cannot report it.
+bool QueryLargestDirectMemoryBlock(std::size_t* largest) noexcept {
+    if (!largest) return false;
+    *largest = 0;
 #ifdef PS5_NATIVE
-// The largest free block of direct memory is what the next graphics allocation needs. Looked at
-// again every 100 ms; called on the GPU thread by the texture collector (KeepDirtyTextures).
+    const std::int64_t total = sceKernelGetDirectMemorySize();
+    if (total <= 0) return false;
+    std::int64_t start = -1;
+    std::size_t observed = 0;
+    if (sceKernelAvailableDirectMemorySize(0, total, 0x4000,
+                                           &start, &observed) != 0 ||
+        !::Eden::DirectPool::IsKernelFreeSpanValid(total, start, observed))
+        return false;
+    *largest = observed;
+    return true;
+#else
+    return false;
+#endif
+}
+
+#ifdef PS5_NATIVE
+// Native process-global observations must be reset between games: the next
+// title can reserve a completely different amount of physical GPU memory.
 static std::atomic<unsigned long long> largest_free_block{0};
+static std::atomic<long long> checked_ns{0};
+static std::atomic<bool> query_in_flight{false};
+static std::atomic<unsigned> consecutive_failures{0};
+static std::atomic<bool> has_valid_sample{false};
+#endif
+
+void ResetDirectMemoryProbeForTitle() noexcept {
+#ifdef PS5_NATIVE
+    // The caller must have joined all GPU/renderer workers. Refuse to erase
+    // a still-running kernel probe, which could publish stale data afterward.
+    if (query_in_flight.load(std::memory_order_acquire)) std::abort();
+    has_valid_sample.store(false, std::memory_order_release);
+    consecutive_failures.store(0, std::memory_order_relaxed);
+    largest_free_block.store(0, std::memory_order_relaxed);
+    graphics_memory_short.store(true, std::memory_order_relaxed);
+    // Zero timestamp forces the new title's first probe immediately, rather
+    // than reusing the prior title's result for up to 100 ms.
+    checked_ns.store(0, std::memory_order_release);
+#endif
+}
+
+#ifdef PS5_NATIVE
+// The largest free block of direct memory is what the next graphics allocation needs.
+// 100 ms minimum (250 ms only with >=4 GiB confirmed free);
+// called on the GPU thread by the texture collector.
 static void RefreshFreeMemory() {
-    static std::atomic<long long> checked_ns{0};
     const long long now = NowNs();
-    if (const long long last = checked_ns.load(std::memory_order_relaxed); last != 0 && now - last < 100'000'000)
+    long long last = checked_ns.load(std::memory_order_relaxed);
+    if (last != 0 && (now <= last || now - last < 100'000'000))
         return;
-    checked_ns.store(now, std::memory_order_relaxed);
+    // Do not add any new atomics to the common per-frame fast-return path.
+    // At most once per 100 ms, a confirmed >=4-GiB contiguous free block
+    // permits 250-ms polling instead of blocking the GPU owner every 100 ms.
+    // Low memory, first probe, or an error retains the original fast cadence.
+    if (last != 0 &&
+        now - last < ::Eden::DirectPool::ProbeIntervalNs(
+            has_valid_sample.load(std::memory_order_acquire),
+            consecutive_failures.load(std::memory_order_relaxed),
+            largest_free_block.load(std::memory_order_relaxed)))
+        return;
+    // Two GPU/cache clients can hit this on the same refresh boundary.
+    // The old separate load/store let BOTH perform a synchronous kernel
+    // largest-free-range query, and counted two concurrent errors as two
+    // consecutive misses. Elect exactly one refresh owner every >=100ms.
+    if (!checked_ns.compare_exchange_strong(last, now, std::memory_order_acq_rel,
+                                            std::memory_order_relaxed))
+        return;
+    // If a kernel query itself takes >100 ms, a later timestamp claimant
+    // must not overtake it and publish a newer measurement before the older
+    // query eventually returns. One in-flight query at a time, without
+    // blocking any renderer caller on the query owner's kernel syscall.
+    if (query_in_flight.exchange(true, std::memory_order_acq_rel))
+        return;
+#if defined(EDEN_DEV_PROFILE)
+    const long long query_start_ns = ClockNs(CLOCK_MONOTONIC);
+#endif
     std::int64_t start = 0;
     std::size_t largest = 0;
-    const std::int64_t total = sceKernelGetDirectMemorySize();
-    const bool known = total > 0 && sceKernelAvailableDirectMemorySize(0, total, 0x4000, &start, &largest) == 0;
-    largest_free_block.store(known ? largest : 0, std::memory_order_relaxed);
-    graphics_memory_short.store(!known || largest < kShortMemory, std::memory_order_relaxed);
+    // The physical direct-memory address-space bound is constant for this
+    // PS5 process. Re-reading it at each 100 ms GPU pressure check wastes
+    // an independent kernel call. Only cache a successful positive result:
+    // startup errors still retry and remain fail-closed as before.
+    // This variable is accessed exclusively by the elected single-flight
+    // query owner above; all other renderer callers return before it.
+    static std::int64_t cached_direct_total = 0;
+    if (cached_direct_total <= 0) {
+        const std::int64_t observed_total = sceKernelGetDirectMemorySize();
+        if (observed_total > 0) cached_direct_total = observed_total;
+    }
+    const bool known = cached_direct_total > 0 &&
+        sceKernelAvailableDirectMemorySize(0, cached_direct_total, 0x4000, &start, &largest) == 0 &&
+        ::Eden::DirectPool::IsKernelFreeSpanValid(cached_direct_total, start, largest);
+    // Unknown is not the same as an observed low-memory condition. A single
+    // transient failed query previously flipped memory_short to true and
+    // immediately enabled expensive dirty-texture download/eviction. Keep
+    // the last kernel-confirmed headroom for ONE missed 100ms refresh only.
+    // First-ever failure and consecutive failures fail safely to "short".
+    if (known) {
+        largest_free_block.store(largest, std::memory_order_relaxed);
+        graphics_memory_short.store(largest < kShortMemory, std::memory_order_relaxed);
+        consecutive_failures.store(0, std::memory_order_relaxed);
+        has_valid_sample.store(true, std::memory_order_release);
+    } else {
+        const unsigned failed = consecutive_failures.fetch_add(1, std::memory_order_relaxed) + 1;
+        if (!has_valid_sample.load(std::memory_order_acquire) || failed >= 2) {
+            largest_free_block.store(0, std::memory_order_relaxed);
+            graphics_memory_short.store(true, std::memory_order_relaxed);
+        }
+        // Only two lines per failure streak, no per-frame or allocator logging.
+        static std::atomic<unsigned> reported{0};
+        if ((failed == 1 || failed == 2) &&
+            reported.fetch_add(1, std::memory_order_relaxed) < 16)
+            std::printf("EDEN_PS5_DMEM_PROBE_FAILED consecutive=%u fallback=%s\n", failed,
+                        failed == 1 && has_valid_sample.load(std::memory_order_relaxed)
+                            ? "last_confirmed" : "conservative");
+    }
+#if defined(EDEN_DEV_PROFILE)
+    const long long query_end_ns = ClockNs(CLOCK_MONOTONIC);
+    if (query_start_ns > 0 && query_end_ns > query_start_ns &&
+        query_end_ns - query_start_ns >= 2'000'000) {
+        static std::atomic<unsigned> slow_queries_logged{0};
+        if (slow_queries_logged.fetch_add(1, std::memory_order_relaxed) < 16)
+            std::printf("EDEN_PS5_DMEM_PROBE_SLOW latency_ns=%lld known=%u\n",
+                        query_end_ns - query_start_ns, unsigned(known));
+    }
+#endif
+    query_in_flight.store(false, std::memory_order_release);
 }
 static bool GraphicsMemoryShort() {
     RefreshFreeMemory();
@@ -494,232 +877,291 @@ static unsigned long long GraphicsMemoryFree() {
      graphics_memory_free.store(&GraphicsMemoryFree, std::memory_order_relaxed), true);
 #endif
 
+#ifdef EDEN_DEV_PROFILE
 namespace {
-// How much of the time since the last reading a counter has taken, against the wall clock. Read
-// every frame but worked out only every quarter of a second: two clock reads then cost nothing,
-// and one slow frame does not swing the number. Until a full quarter has gone by there is no
-// reading, and this returns -1.
-struct Rate {
-    long long wall = 0;
-    long long work = 0;
-    double shown = -1.0;
-};
-double SampleRate(Rate& state, long long work, long long wall) {
-    if (wall <= 0) return -1.0;
-    if (state.wall == 0) {
-        state.wall = wall;
-        state.work = work;
-        return -1.0;
-    }
-    const long long wall_step = wall - state.wall;
-    if (wall_step < 250'000'000) return state.shown;
-    const long long work_step = work - state.work;
-    state.wall = wall;
-    state.work = work;
-    state.shown = wall_step > 0 ? static_cast<double>(work_step) / static_cast<double>(wall_step) : -1.0;
-    return state.shown;
-}
-long long MonotonicNs() {
-    timespec time{};
-    if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) return 0;
-    return static_cast<long long>(time.tv_sec) * 1'000'000'000 + time.tv_nsec;
-}
-// A fraction as a whole percentage, 0 to 100.
-unsigned Percent(double share) {
-    if (share <= 0.0) return 0;
-    if (share >= 1.0) return 100;
-    return static_cast<unsigned>(share * 100.0 + 0.5);
-}
+// Fixed-size, owned-name counters: no per-request allocator/mutex contention
+// between the four guest CPUs during the development all-on profiling pass.
+// Shipping neither constructs nor retains this ~400 KiB profiling table.
+HleCounters hle_calls;
 } // namespace
-
-unsigned HostCpuPercent() {
-    // The process's own CPU time against the wall clock, as a share of every core there is: what
-    // a single core would say is 100% as soon as one core is busy, which says nothing. Read from
-    // getrusage, which CheckCpuClocks qualified against both failure modes; the console's own
-    // process clock reads the wall clock and would hold this share at 1.0 (and so the displayed
-    // percentage at round(100 / hardware_concurrency())) for the whole run. Nothing usable to
-    // read is an overlay "--", never a number that only looks like one.
-    static thread_local Rate state;
-    static const unsigned cores = std::max(1u, std::thread::hardware_concurrency());
-    static std::atomic<bool> reported{false};
-    const auto note = [&](const char* detail) {
-        if (!reported.exchange(true, std::memory_order_relaxed))
-            std::printf("EDEN_PERF_HOST_CPU cores=%u %s\n", cores, detail);
-    };
-    if (!process_usage_valid.load(std::memory_order_relaxed)) {
-        note("source=none");
-        return ~0u;
-    }
-    const long long work = ProcessUsageNs();
-    if (work < 0) {
-        const int error = errno;
-        process_usage_valid.store(false, std::memory_order_relaxed);
-        char detail[64]{};
-        std::snprintf(detail, sizeof(detail), "source=none error=%d", error);
-        note(detail);
-        return ~0u;
-    }
-    const double share = SampleRate(state, work, MonotonicNs());
-    if (share < 0.0) return ~0u;
-    char detail[64]{};
-    std::snprintf(detail, sizeof(detail), "source=getrusage share=%.4f", share);
-    note(detail);
-    return Percent(share / static_cast<double>(cores));
-}
-
-void GuestCoreLoads(unsigned loads[4]) {
-    // A thread's CPU time can only be read by the thread itself on the console, so each core
-    // writes its own when it next leaves the guest's code after being asked (SampleCpu); here
-    // the last two readings of a core are set against the time between them. A core that wrote
-    // nothing since the last look was asleep, which is no load; when it wakes, its next reading
-    // covers the whole stretch. The time the core spent polling its interrupt flag while idle
-    // (PhysicalCore::Idle) is CPU time spent waiting, not working, and is left out: a game that
-    // waits ~13,000 times a second for ~27 us each (Kirby and the Forgotten Land's main thread,
-    // Swordpdf/ProsperoEden#275) kept its core polling and read 95-97% busy at ~60% work.
-    struct Core {
-        long long mono = 0, cpu = 0;
-        unsigned shown = ~0u;
-    };
-    static thread_local Core cores[4];
-    static thread_local long long asked = 0;
-    const long long now = MonotonicNs();
-    if (now != 0 && (asked == 0 || now - asked >= 250'000'000)) {
-        asked = now;
-        std::array<CpuSample, 4> samples;
-        {
-            std::lock_guard lock(workers_mutex);
-            samples = cpu_samples;
-        }
-        for (unsigned i = 0; i < 4; ++i) {
-            const CpuSample& sample = samples[i];
-            Core& core = cores[i];
-            if (sample.epoch == ~0u || sample.cpu_ns < 0) {
-                core = {};
-            } else if (core.mono == 0) {
-                core.mono = sample.mono_ns;
-                core.cpu = sample.cpu_ns - static_cast<long long>(sample.idle_spin_ns);
-            } else if (sample.mono_ns > core.mono) {
-                const long long busy = sample.cpu_ns - static_cast<long long>(sample.idle_spin_ns);
-                core.shown = Percent(static_cast<double>(busy - core.cpu) /
-                                     static_cast<double>(sample.mono_ns - core.mono));
-                core.mono = sample.mono_ns;
-                core.cpu = busy;
-            } else if (core.shown != ~0u) {
-                core.shown = 0;
-            }
-        }
-        sample_epoch.fetch_add(1, std::memory_order_relaxed);  // the next readings, please
-    }
-    for (unsigned i = 0; i < 4; ++i) loads[i] = cores[i].shown;
-}
-
-unsigned GpuBusyPercent() {
-    // The GPU's own time against the wall clock: the Vulkan scheduler stamps the start and the end
-    // of every command buffer on the GPU, and what lies between them is time the GPU spent on the
-    // game's pictures. Gaps inside one command buffer count as busy, so the share can read a
-    // little high, never low. Without timestamps (the OpenGL renderer, a driver that refuses
-    // them, or before the first results) there is nothing to show: "--".
-    static thread_local Rate state;
-    if (gpu_time_failed.load(std::memory_order_relaxed) ||
-        gpu_time_results.load(std::memory_order_relaxed) == 0)
-        return ~0u;
-    const double share = SampleRate(
-        state, static_cast<long long>(gpu_time_busy_ns.load(std::memory_order_relaxed)), MonotonicNs());
-    if (share < 0.0) return ~0u;
-    return Percent(share);
-}
-
-void MemoryPool(unsigned long long* free_bytes, unsigned long long* total_bytes) {
-    // The pool the guest, the JIT and the graphics driver all draw on: direct memory on the
-    // console, where each of them has to fit, and the machine's own RAM in a PC build, where
-    // that is the closest thing. Looked at once a second.
-    static long long checked = 0;
-    static unsigned long long free_pool = 0, total_pool = 0;
-    const long long now = MonotonicNs();
-    if (checked != 0 && now - checked < 1'000'000'000) {
-        *free_bytes = free_pool;
-        *total_bytes = total_pool;
-        return;
-    }
-    checked = now;
-#ifdef PS5_NATIVE
-    const std::int64_t total = sceKernelGetDirectMemorySize();
-    std::int64_t taken = 0, offset = 0;
-    DirectMemoryRegion region{};
-    unsigned regions = 0;
-    while (total > 0 && offset < total && regions < 8192 &&
-           sceKernelDirectMemoryQuery(offset, 1, &region, sizeof(region)) == 0 && region.end > offset) {
-        taken += region.end - region.start;
-        offset = region.end;
-        ++regions;
-    }
-    // No region at all means the walk could not be read, not that nothing is taken.
-    total_pool = regions != 0 ? static_cast<unsigned long long>(total) : 0;
-    free_pool = regions != 0 ? static_cast<unsigned long long>(total - taken) : 0;
-#else
-    std::FILE* meminfo = std::fopen("/proc/meminfo", "r");
-    unsigned long long total = 0, available = 0;
-    if (meminfo != nullptr) {
-        char line[128];
-        while (std::fgets(line, sizeof(line), meminfo) != nullptr) {
-            if (std::strncmp(line, "MemTotal:", 9) == 0)
-                total = std::strtoull(line + 9, nullptr, 10) * 1024;
-            else if (std::strncmp(line, "MemAvailable:", 13) == 0)
-                available = std::strtoull(line + 13, nullptr, 10) * 1024;
-        }
-        std::fclose(meminfo);
-    }
-    total_pool = total;
-    free_pool = total != 0 ? available : 0;
 #endif
-    *free_bytes = free_pool;
-    *total_bytes = total_pool;
-}
-
-namespace {
-std::mutex hle_mutex;
-// Keyed by the service's name pointer (one per service object) and command id.
-std::map<std::pair<const char*, unsigned>, std::pair<unsigned long long, unsigned long long>> hle_calls;
-} // namespace
 
 void RecordHle(const char* service, unsigned command, long long ns) {
-    std::lock_guard lock(hle_mutex);
-    auto& entry = hle_calls[{service, command}];
-    ++entry.first;
-    entry.second += static_cast<unsigned long long>(ns > 0 ? ns : 0);
-}
-
-void ReportSessionMemory(const char* phase, unsigned session) {
-    unsigned large_blocks = 0;
-    const std::size_t large = eden_heap_large_held ? eden_heap_large_held(&large_blocks) : 0;
-    std::size_t table_span = 0, table_held = 0;
-    ::Common::SparseUsage(&table_span, &table_held);
-    long long total = 0, free_bytes = -1;
-    std::size_t largest = 0;
-    unsigned regions = 0;
-#ifdef PS5_NATIVE
-    total = sceKernelGetDirectMemorySize();
-    if (total > 0) {
-        std::int64_t start = 0, taken = 0, offset = 0;
-        (void)sceKernelAvailableDirectMemorySize(0, total, 0x4000, &start, &largest);
-        DirectMemoryRegion region{};
-        while (offset < total && regions < 8192 &&
-               sceKernelDirectMemoryQuery(offset, 1, &region, sizeof(region)) == 0 && region.end > offset) {
-            taken += region.end - region.start;
-            offset = region.end;
-            ++regions;
-        }
-        if (regions != 0) free_bytes = total - taken;
-    }
+#ifdef EDEN_DEV_PROFILE
+    hle_calls.Record(service, command, ns);
+#else
+    (void)service;
+    (void)command;
+    (void)ns;
 #endif
-    std::printf("EDEN_SESSION_MEMORY phase=%s session=%u total=%lld free=%lld largest_free=%zu regions=%u "
-                "heap_pieces=%zu heap_large=%zu large_blocks=%u tables=%zu\n",
-                phase, session, total, free_bytes, largest, regions,
-                eden_heap_committed ? eden_heap_committed() : std::size_t{0}, large, large_blocks, table_held);
-    std::fflush(stdout);
 }
 
+// Report true JIT ownership once at meaningful lifecycle stages; this
+// does not enumerate all kernel direct-memory ranges or run on a frame.
+void ReportJitCodeState(const char* phase) {
+#ifdef PS5_NATIVE
+    std::size_t reserved = 0, committed = 0;
+    ::Common::SparseJitUsage(&reserved, &committed);
+    std::printf("EDEN_JIT_MEMORY phase=%s sparse_reserved=%zu sparse_committed=%zu dense_direct=%zu\n",
+                phase, reserved, committed, ::Common::DenseJitDirectBytes());
+#else
+    (void)phase;
+#endif
+}
+
+// A Sony region enumeration may cost up to 8192 synchronous kernel calls.
+// Do not make every menu -> game -> menu cycle pay for developer diagnostics.
+// Explicit opt-in is checked once at title launch; never from a frame callback.
+static std::atomic<bool> direct_region_scan_enabled{false};
+void SetDirectMemoryRegionScanEnabled(bool enabled) noexcept {
+    direct_region_scan_enabled.store(enabled, std::memory_order_release);
+}
+// GPU frame reports never enumerate kernel direct-memory regions.
+void ReportDirectMemoryState(const char* phase) {
+#ifdef PS5_NATIVE
+    const std::int64_t total = sceKernelGetDirectMemorySize();
+    if (total <= 0) {
+        std::printf("EDEN_MEMORY_LAYOUT phase=%s status=unavailable\n", phase);
+        return;
+    }
+    std::int64_t largest_start = -1;
+    std::size_t largest = 0;
+    const int largest_rc = sceKernelAvailableDirectMemorySize(
+        0, total, 0x4000, &largest_start, &largest);
+    const bool largest_valid = largest_rc == 0 &&
+        ::Eden::DirectPool::IsKernelFreeSpanValid(total, largest_start, largest);
+
+    // An early kernel stop can mean EOF or error; never equate structurally
+    // valid records with a complete scan. Even a valid free_upper is only
+    // an upper bound, NOT allocatable RAM or a GPU/JIT admission value.
+    ::Eden::DirectPool::RegionScan scan{total};
+    int query_rc = 0;
+    const bool scan_requested = direct_region_scan_enabled.load(std::memory_order_acquire);
+    // 4=disabled by default; owner ledger and largest free are still reported.
+    unsigned scan_stop = scan_requested ? 0u : 4u;
+    if (scan_requested) {
+        // 0=end-of-extent, 1=query-stop, 2=invalid, 3=record-cap.
+        while (scan.cursor < total && scan.regions < 8192) {
+            DirectMemoryRegion region{};
+            query_rc = sceKernelDirectMemoryQuery(scan.cursor, 1, &region, sizeof(region));
+            if (query_rc != 0) {
+                scan_stop = 1;
+                break;
+            }
+            if (!scan.Include(region.start, region.end)) {
+                scan_stop = 2;
+                break;
+            }
+        }
+        if (!scan_stop && !scan.ReachedExtent()) scan_stop = 3;
+    }
+    const long long free_upper = scan_requested
+        ? static_cast<long long>(scan.FreeUpperBound()) : -1LL;
+    std::size_t jit_reserved = 0, jit_committed = 0;
+    ::Common::SparseJitUsage(&jit_reserved, &jit_committed);
+    // Native GPU/guest/CPU use the SAME kernel-exposed direct pool (12 GiB
+    // observed on FW 13.60, not the full installed 16 GiB GDDR6). Report
+    // physical owners, not uncommitted virtual VA reservations. The Sony
+    // system's own reservation must never be counted as an Encore heap.
+    unsigned large_blocks = 0;
+    const std::size_t heap_large = eden_heap_large_held ? eden_heap_large_held(&large_blocks) : 0;
+    const bool heap_large_physical_known = eden_heap_large_physical_held != nullptr;
+    const std::size_t heap_large_physical =
+        heap_large_physical_known ? eden_heap_large_physical_held() : 0;
+    std::printf("EDEN_HEAP_LIFETIME phase=%s pieces=%zu large=%zu large_blocks=%u tcache=%zu large_physical=%zu physical_known=%u\n",
+                phase, eden_heap_committed ? eden_heap_committed() : std::size_t{0},
+                heap_large, large_blocks, eden_heap_tcache_held ? eden_heap_tcache_held() : std::size_t{0},
+                heap_large_physical, unsigned(heap_large_physical_known));
+    std::printf("EDEN_JIT_SPARSE_MEMORY phase=%s reserved=%zu committed=%zu\n",
+                phase, jit_reserved, jit_committed);
+    const std::size_t jit_dense = ::Common::DenseJitDirectBytes();
+    std::printf("EDEN_JIT_DENSE_MEMORY phase=%s physically_owned=%zu\n",
+                phase, jit_dense);
+    std::size_t sparse_virtual = 0, sparse_physical = 0;
+    ::Common::SparseUsage(&sparse_virtual, &sparse_physical);
+    const std::size_t heap_roots = eden_heap_committed ? eden_heap_committed() : std::size_t{0};
+    const auto account = ::Eden::DirectPool::Summarize(total, {
+        .heap_roots = heap_roots,
+        .heap_large = heap_large_physical,
+        .sparse_tables = sparse_physical,
+        .jit_sparse = jit_committed,
+        .jit_dense = jit_dense,
+    });
+    // These five tracked owner sets are distinct direct-memory allocations.
+    // Untracked is NOT free: the renderer, guest and firmware may own it.
+    // The largest contiguous free block comes exclusively from a kernel query.
+    // Lifecycle checkpoints only: no per-frame region enumeration or logging.
+    std::printf("EDEN_DIRECT_POOL_OWNERS phase=%s extent=%llu heap_roots=%zu "
+                "heap_large=%zu heap_large_requested=%zu large_owner_known=%u sparse_tables=%zu jit_sparse=%zu jit_dense=%zu "
+                "tracked=%llu unclassified=%llu tracked_within_extent=%u "
+                "largest_free_known=%u largest_free=%zu\n",
+                phase, static_cast<unsigned long long>(account.extent_bytes),
+                heap_roots, heap_large_physical, heap_large, unsigned(heap_large_physical_known),
+                sparse_physical, jit_committed, jit_dense,
+                static_cast<unsigned long long>(account.tracked_bytes),
+                static_cast<unsigned long long>(account.not_tracked_bytes),
+                unsigned(account.within_extent), unsigned(largest_valid),
+                largest_valid ? largest : std::size_t{0});
+    std::printf("EDEN_MEMORY_LAYOUT phase=%s largest_rc=%d total=%lld largest=%zu "
+                "largest_start=%lld largest_valid=%u free_upper=%lld scanned_regions=%u scan_valid=%d "
+                "scan_reached_extent=%u scan_stop=%u query_rc=%d short=%d\n",
+                phase, largest_rc, static_cast<long long>(total),
+                largest_valid ? largest : size_t{0},
+                static_cast<long long>(largest_start), unsigned(largest_valid), free_upper,
+                scan.regions, int(scan_requested && scan.valid),
+                unsigned(scan_requested && scan.ReachedExtent()),
+                scan_stop, query_rc, int(graphics_memory_short.load(std::memory_order_relaxed)));
+#else
+    (void)phase;
+#endif
+}
+
+// Live gameplay progress is published ONLY by the GPU owner and read by the
+// independent pad heartbeat. A stalled GPU owner can no longer silently stop
+// its own diagnostic report while the controller worker stays alive.
+std::atomic<unsigned long long> latest_gpu_report_ns{0};
+std::atomic<unsigned> latest_gpu_report_frame{0};
+// This heartbeat is needed in shipping builds too: the GPU may stop
+// reporting while the native controller/pad thread remains responsive.
+std::atomic<unsigned long long> last_gpu_stall_warn_ns{0};
+void ResetGpuReportForTitle() noexcept {
+    latest_gpu_report_ns.store(0, std::memory_order_release);
+    latest_gpu_report_frame.store(0, std::memory_order_relaxed);
+    last_gpu_stall_warn_ns.store(0, std::memory_order_relaxed);
+}
+// Read the native guest-worker CPU clocks only after a confirmed stale
+// rendering report. Never sample CPU clocks in the frame or pad poll hot paths.
+// A running host clock is NOT proof that emulated guest instructions advance.
+void ReportGpuStallWorkerClocks(unsigned long long age_ms, long long epoch_ms, long long mono_ns) {
+    std::array<Worker, names.size()> snapshot{};
+    {
+        // A wedged worker cannot make the input heartbeat block on this lock.
+        std::unique_lock<std::mutex> lock(workers_mutex, std::try_to_lock);
+        if (!lock.owns_lock()) {
+            std::fprintf(stderr,
+                "EDEN_GPU_STALL_WORKERS age_ms=%llu state=lock_busy cpu_progress=not_measured "
+                "epoch_ms=%lld mono_ns=%lld\n",
+                age_ms, epoch_ms, mono_ns);
+            return;
+        }
+        snapshot = workers;
+    }
+    for (unsigned i = 0; i < snapshot.size(); ++i) {
+        const auto& worker = snapshot[i];
+        if (!worker.registered) continue;
+        timespec usage{};
+        int cpu_clock_error = worker.clock_error;
+        if (!cpu_clock_error && clock_gettime(worker.clock, &usage) != 0)
+            cpu_clock_error = errno;
+        const long long cpu_ns = cpu_clock_error ?
+            -1 : static_cast<long long>(usage.tv_sec) * 1000000000LL + usage.tv_nsec;
+        std::fprintf(stderr,
+            "EDEN_GPU_STALL_WORKER role=%s age_ms=%llu cpu_ns=%lld clock_error=%d "
+            "cpu_progress=not_measured epoch_ms=%lld mono_ns=%lld\n",
+            names[i], age_ms, cpu_ns, cpu_clock_error, epoch_ms, mono_ns);
+    }
+}
+bool GpuReportStale(unsigned long long now_ns, unsigned long long progress_ns) noexcept {
+    constexpr unsigned long long kStallNs = 20'000'000'000ULL;
+    return progress_ns != 0 && now_ns > progress_ns &&
+           now_ns - progress_ns >= kStallNs;
+}
+void ReportInputThreadGpuLiveness() {
+    // Invoked once per 1250 pad polls, including in the release. No clock
+    // query or logging at all until the first GPU report is published.
+    const auto progress_ns = latest_gpu_report_ns.load(std::memory_order_acquire);
+    if (progress_ns == 0) return;
+    const auto now = static_cast<unsigned long long>(Common::g_wall_clock.GetTimeNS().count());
+    if (!GpuReportStale(now, progress_ns)) return;
+    // Only the independent input worker invokes this, once per heartbeat
+    // (~5 seconds); throttle warnings to at most once per 30 seconds.
+    const auto last_warn_ns = last_gpu_stall_warn_ns.load(std::memory_order_relaxed);
+    if (last_warn_ns != 0 && now >= last_warn_ns &&
+        now - last_warn_ns < 30'000'000'000ULL) return;
+    last_gpu_stall_warn_ns.store(now, std::memory_order_relaxed);
+    const auto age_ms = (now - progress_ns) / 1'000'000ULL;
+    // Correlate the GPU stall, controller and worker clocks on the same
+    // absolute and monotonic anchor, also with a detailed profile enabled.
+    const long long epoch_ms = ClockNs(CLOCK_REALTIME) / 1000000LL;
+    const long long mono_ns = ClockNs(CLOCK_MONOTONIC);
+    // Release counters below are disabled by design. Never misrepresent
+    // their zeros as evidence that CPU/GPU work or IPC stopped.
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        std::fprintf(stderr,
+            "EDEN_GPU_REPORT_STALLED age_ms=%llu frame=%u detail=not_measured "
+            "epoch_ms=%lld mono_ns=%lld\n",
+            age_ms, latest_gpu_report_frame.load(std::memory_order_relaxed),
+            epoch_ms, mono_ns);
+        ReportGpuStallWorkerClocks(age_ms, epoch_ms, mono_ns);
+        return;
+    }
+    std::fprintf(stderr,
+        "EDEN_GPU_REPORT_STALLED age_ms=%llu frame=%u gpu_ticks=%llu "
+        "draws=%llu guest_writes=%llu guest_reads=%llu "
+        "guest_dequeues=%llu guest_ipc=%llu cache_collisions=%llu "
+        "dequeue_blocked=%u dma_active_ms=%llu puller_active_ms=%llu "
+        "epoch_ms=%lld mono_ns=%lld\n",
+        age_ms,
+        latest_gpu_report_frame.load(std::memory_order_relaxed),
+        gpu_command_tick.calls.load(std::memory_order_relaxed),
+        rasterizer_draw.calls.load(std::memory_order_relaxed),
+        guest_cpu_write.calls.load(std::memory_order_relaxed),
+        guest_cpu_read.calls.load(std::memory_order_relaxed),
+        guest_dequeue_wait.calls.load(std::memory_order_relaxed),
+        guest_ipc_wait.calls.load(std::memory_order_relaxed),
+        cache_lock_contended.load(std::memory_order_relaxed),
+        guest_dequeue_blocked.load(std::memory_order_acquire),
+        ActiveDiagnosticWaitNs(gpu_dma_sync_active_since_ns) / 1'000'000ULL,
+        ActiveDiagnosticWaitNs(gpu_puller_semaphore_active_since_ns) / 1'000'000ULL,
+        epoch_ms, mono_ns);
+    ReportGpuStallWorkerClocks(age_ms, epoch_ms, mono_ns);
+}
 void ReportGpuThread(unsigned frame) {
+    // Exactly one atomic GPU-owner heartbeat and clock read per report window.
+    // Do not gate it behind the diagnostic profile: releases must also reveal
+    // a frozen renderer while the independent input thread remains alive.
+    latest_gpu_report_frame.store(frame, std::memory_order_relaxed);
+    latest_gpu_report_ns.store(
+        static_cast<unsigned long long>(Common::g_wall_clock.GetTimeNS().count()),
+        std::memory_order_release);
+    // Publish the low-cost heartbeat regardless of logging. This is the only
+    // release-side signal the independent input watchdog needs to detect a
+    // stalled GPU worker; full snapshots can require expensive memory scans,
+    // clock queries and synchronous printing every report window.
+    if (!detailed_gpu_profile.load(std::memory_order_relaxed)) return;
+    // R01: CPU-observed Vulkan callbacks, not guest FPS or physical scanout.
+    // Sample only on the existing opt-in five-second report window.
+    const auto frame_sample_ns = static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+    const auto frame_window = ::Eden::FrameMetrics::Sample(frame_sample_ns);
+    if (frame_window.valid) {
+        std::printf(
+            "EDEN_R01_FRAME_METRICS frame=%u interval_ns=%llu "
+            "source_composites=%llu real_queued=%llu generated_queued=%llu "
+            "source_skipped=%llu loading_queued=%llu present_returned=%llu "
+            "source_callback_fps=%.3f real_queue_fps=%.3f generated_queue_fps=%.3f "
+            "present_return_fps=%.3f scope=cpu_observed_not_guest_fps_not_scanout_not_latency\n",
+            frame, static_cast<unsigned long long>(frame_window.interval_ns),
+            static_cast<unsigned long long>(frame_window.source_composites),
+            static_cast<unsigned long long>(frame_window.real_frames_queued),
+            static_cast<unsigned long long>(frame_window.generated_frames_queued),
+            static_cast<unsigned long long>(frame_window.skipped_source_frames),
+            static_cast<unsigned long long>(frame_window.loading_frames_queued),
+            static_cast<unsigned long long>(frame_window.present_calls_returned),
+            ::Eden::FrameMetrics::Rate(frame_window.source_composites, frame_window.interval_ns),
+            ::Eden::FrameMetrics::Rate(frame_window.real_frames_queued, frame_window.interval_ns),
+            ::Eden::FrameMetrics::Rate(frame_window.generated_frames_queued, frame_window.interval_ns),
+            ::Eden::FrameMetrics::Rate(frame_window.present_calls_returned, frame_window.interval_ns));
+    }
+    if (detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        // Fresh UTC/monotonic correlation every sampled five-second frame
+        // window, even when the session-start segment has already rotated.
+        // No per-draw timing, and only two clock queries per report.
+        std::printf("EDEN_TIME_ANCHOR epoch_ms=%lld mono_ns=%lld phase=frame_report frame=%u\n",
+                    ClockNs(CLOCK_REALTIME) / 1000000LL,
+                    ClockNs(CLOCK_MONOTONIC), frame);
+    }
     // Heap growth and arena use over the run (allocation failures abort the title).
     ps5_opengl_heap_snapshot("vulkan_report", frame);
     {
@@ -730,42 +1172,94 @@ void ReportGpuThread(unsigned frame) {
         const std::size_t large = eden_heap_large_held ? eden_heap_large_held(&large_blocks) : 0;
         std::size_t table_span = 0, table_held = 0;
         ::Common::SparseUsage(&table_span, &table_held);
-        std::printf("EDEN_PERF_HEAP arenas=%u pieces=%zu large=%zu large_blocks=%u tables=%zu table_span=%zu\n",
+        std::printf("EDEN_PERF_HEAP arenas=%u pieces=%zu large=%zu large_blocks=%u tables=%zu table_span=%zu tcache_bytes=%zu\n",
                     eden_heap_arenas_created ? eden_heap_arenas_created() : 1u,
                     eden_heap_committed ? eden_heap_committed() : std::size_t{0}, large, large_blocks, table_held,
-                    table_span);
+                    table_span, eden_heap_tcache_held ? eden_heap_tcache_held() : std::size_t{0});
     }
-    {
-        // Cumulative HLE handling time of every service command that has cost at least 1 ms.
-        std::lock_guard lock(hle_mutex);
-        for (const auto& [key, value] : hle_calls)
-            if (value.second >= 1'000'000)
-                std::printf("EDEN_DEV_HLE service=%s cmd=%u calls=%llu ns=%llu\n", key.first ? key.first : "?",
-                            key.second, value.first, value.second);
-    }
-#ifdef PS5_NATIVE
-    // Direct memory headroom (guest RAM, JIT, RADV and the caches share the pool).
-    if (const std::int64_t total = sceKernelGetDirectMemorySize(); total > 0) {
-        std::int64_t start = 0;
-        std::size_t largest = 0;
-        if (sceKernelAvailableDirectMemorySize(0, total, 0x4000, &start, &largest) == 0) {
-            // All that is free, against the largest block: how far apart they are tells how much
-            // of the pool is holes between allocations. -1: the regions could not be read.
-            std::int64_t taken = 0, offset = 0;
-            unsigned regions = 0;
-            DirectMemoryRegion region{};
-            while (offset < total && regions < 8192 &&
-                   sceKernelDirectMemoryQuery(offset, 1, &region, sizeof(region)) == 0 && region.end > offset) {
-                taken += region.end - region.start;
-                offset = region.end;
-                ++regions;
-            }
-            std::printf("EDEN_PERF_DIRECT total=%lld largest_free=%zu free=%lld regions=%u short=%d\n",
-                        static_cast<long long>(total), largest,
-                        regions != 0 ? static_cast<long long>(total - taken) : -1LL, regions,
-                        int(graphics_memory_short.load(std::memory_order_relaxed)));
+#ifdef EDEN_DEV_PROFILE
+    // A game can use thousands of distinct service/command pairs.
+    // Printing one line per pair ON THE GPU THREAD every five seconds
+    // creates another avoidable frame hitch even without an HLE mutex.
+    // Scan the atomic counters without locks or allocations, but report
+    // only the 32 heaviest cumulative service commands plus totals.
+    struct HleReportRow {
+        const char* name{};
+        unsigned command{};
+        std::uint64_t calls{};
+        std::uint64_t ns{};
+        std::uint64_t ge20ms{}, ge100ms{}, max_ns{};
+    };
+    std::array<HleReportRow, 32> heaviest{};
+    std::size_t heavy_count = 0;
+    std::size_t active_keys = 0;
+    std::uint64_t total_hle_calls = 0, total_hle_ns = 0;
+    hle_calls.ForEachLatency([&](const char* name, unsigned command, std::uint64_t calls,
+                                 std::uint64_t ns, std::uint64_t ge20ms,
+                                 std::uint64_t ge100ms, std::uint64_t max_ns) {
+        ++active_keys;
+        total_hle_calls += calls;
+        total_hle_ns += ns;
+        if (ns < 1'000'000) return;
+        const HleReportRow candidate{name, command, calls, ns, ge20ms, ge100ms, max_ns};
+        if (heavy_count < heaviest.size()) {
+            heaviest[heavy_count++] = candidate;
+            return;
         }
+        std::size_t least = 0;
+        for (std::size_t i = 1; i < heaviest.size(); ++i)
+            if (heaviest[i].ns < heaviest[least].ns) least = i;
+        if (candidate.ns > heaviest[least].ns)
+            heaviest[least] = candidate;
+    });
+    std::sort(heaviest.begin(), heaviest.begin() + heavy_count,
+              [](const HleReportRow& a, const HleReportRow& b) {
+                  return a.ns > b.ns;
+              });
+    for (std::size_t i = 0; i < heavy_count; ++i) {
+        const auto& row = heaviest[i];
+        std::printf("EDEN_DEV_HLE service=%s cmd=%u calls=%llu ns=%llu\n",
+                    row.name, row.command,
+                    static_cast<unsigned long long>(row.calls),
+                    static_cast<unsigned long long>(row.ns));
     }
+    // Distinguish slow individual HLE calls from large cumulative totals.
+    // Snapshot only eight rows on the five-second GPU-owner report path.
+    unsigned tail_reported = 0;
+    for (std::size_t i = 0; i < heavy_count && tail_reported < 8; ++i) {
+        const auto& row = heaviest[i];
+        if (!row.ge20ms) continue;
+        std::printf("EDEN_DEV_HLE_TAIL service=%s cmd=%u ge20ms=%llu ge100ms=%llu max_ns=%llu\n",
+                    row.name, row.command,
+                    static_cast<unsigned long long>(row.ge20ms),
+                    static_cast<unsigned long long>(row.ge100ms),
+                    static_cast<unsigned long long>(row.max_ns));
+        ++tail_reported;
+    }
+    std::printf("EDEN_DEV_HLE_SUMMARY keys=%zu reported=%zu calls=%llu ns=%llu\n",
+                active_keys, heavy_count,
+                static_cast<unsigned long long>(total_hle_calls),
+                static_cast<unsigned long long>(total_hle_ns));
+    if (const auto overflow = hle_calls.OverflowCalls(); overflow)
+        std::printf("EDEN_DEV_HLE_OVERFLOW calls=%llu ns=%llu\n",
+                    static_cast<unsigned long long>(overflow),
+                    static_cast<unsigned long long>(hle_calls.OverflowNs()));
+#endif
+#ifdef PS5_NATIVE
+    // Called on the native GPU thread inside its periodic frame-report branch.
+    // A complete sceKernelDirectMemoryQuery region walk (up to 8192 syscalls)
+    // here stalls actual rendering and can imitate the FC27 hitch under study.
+    // The 100ms collector already publishes the confirmed largest free block;
+    // reading its atomics requires ZERO additional firmware syscalls.
+    std::printf("EDEN_MEMORY_LIVE frame=%u largest_last_confirmed=%llu short=%u\n",
+                frame, largest_free_block.load(std::memory_order_relaxed),
+                unsigned(graphics_memory_short.load(std::memory_order_relaxed)));
+    // Preserve the existing five-second parser's sparse JIT time series
+    // without reintroducing a contended mutex or 8192 kernel queries.
+    std::size_t jit_reserved_live = 0, jit_committed_live = 0;
+    ::Common::SparseJitUsageFast(&jit_reserved_live, &jit_committed_live);
+    std::printf("EDEN_JIT_SPARSE_MEMORY phase=dev-profile reserved=%zu committed=%zu\n",
+                jit_reserved_live, jit_committed_live);
 #endif
     const auto load = [](const Totals& totals, bool calls) {
         return (calls ? totals.calls : totals.nanoseconds).load(std::memory_order_relaxed);
@@ -773,116 +1267,55 @@ void ReportGpuThread(unsigned frame) {
     // Cumulative totals; the analyzer takes deltas between consecutive reports.
     std::printf("EDEN_DEV_GPU frame=%u mono_ns=%lld cpu_ns=%lld idle_ns=%llu dispatch_calls=%llu "
                 "dispatch_ns=%llu drain_calls=%llu drain_ns=%llu present_calls=%llu present_ns=%llu "
-                "full_calls=%llu full_ns=%llu draws=%llu dma_runs=%llu dma_run_words=%llu dma_words=%llu\n", frame, ClockNs(CLOCK_MONOTONIC),
+                "full_calls=%llu full_ns=%llu draws=%llu\n", frame, ClockNs(CLOCK_MONOTONIC),
                 owner_cpu_clock_valid ? ClockNs(CLOCK_THREAD_CPUTIME_ID) : -static_cast<long long>(ENOTSUP),
                 load(gpu_queue_wait, false), load(gpu_dispatch, true), load(gpu_dispatch, false),
                 load(gpu_fence_drain, true), load(gpu_fence_drain, false),
                 load(gpu_present_wait, true), load(gpu_present_wait, false),
-                load(gpu_queue_full, true), load(gpu_queue_full, false), load(rasterizer_draw, true),
-                dma_batch_runs.load(std::memory_order_relaxed), dma_batch_words.load(std::memory_order_relaxed),
-                dma_single_words.load(std::memory_order_relaxed));
-    // What the dispatch is made of: the draw path itself (RasterizerVulkan::PrepareDraw - both
-    // cache locks, pipeline configure, dynamic state, the record) against the guest method
-    // decoding that surrounds it, plus the dispatch's own three phases. A draw whose
-    // EDEN_DEV_DRAW ns is close to EDEN_GPU dispatch_ns is being charged to the rasterizer; one
-    // far below it is being charged to the dma pusher.
-    std::printf("EDEN_DEV_DRAW calls=%llu ns=%llu\n", load(rasterizer_draw, true),
-                load(rasterizer_draw, false));
-    std::printf("EDEN_DEV_PUSH lock_ns=%llu push_ns=%llu dispatch_ns=%llu\n",
-                load(gpu_sched_lock, false), load(gpu_dma_push, false),
-                load(gpu_dma_dispatch, false));
-    // Where that draw time went, in order. flush is FlushWork plus the memory flush; pipeline is
-    // taking the current pipeline; lock_wait is the wait for both cache mutexes (the hold is what
-    // the later phases measure); config is SetEngine plus Configure; state is UpdateDynamicStates
-    // and the query, transform-feedback and counter calls; record is draw_func. unattributed is
-    // the early-return tails the outer Timer charged but no phase marked, so it should be small,
-    // and the _calls columns say how often each phase ran - record below flush is draws that bailed.
-    std::printf("EDEN_DEV_RAST flush_ns=%llu pipeline_ns=%llu lock_wait_ns=%llu config_ns=%llu "
-                "state_ns=%llu record_ns=%llu unattributed_ns=%llu flush_calls=%llu "
-                "pipeline_calls=%llu lock_wait_calls=%llu config_calls=%llu state_calls=%llu "
-                "record_calls=%llu\n",
-                load(draw_flush, false), load(draw_pipeline, false),
-                load(draw_lock_wait, false), load(draw_config, false), load(draw_state, false),
-                load(draw_record, false),
-                load(rasterizer_draw, false) - (load(draw_flush, false) + load(draw_pipeline, false) +
-                                                load(draw_lock_wait, false) +
-                                                load(draw_config, false) + load(draw_state, false) +
-                                                load(draw_record, false)),
-                load(draw_flush, true), load(draw_pipeline, true), load(draw_lock_wait, true),
-                load(draw_config, true), load(draw_state, true), load(draw_record, true));
-    // Where config's time went. sync is the sampler and image table sync plus the uniform-buffer
-    // state; read is the guest-memory handle reads and the view fill; bind is the buffer binds;
-    // desc is the descriptor queue, the pushes and the upload barrier; rt is render targets and
-    // feedback; draw is ConfigureDraw's compare-and-record. These nest inside config, so
-    // unattributed (config less their sum) is the entry clock, SetEngine, the configure_func
-    // pointer call and any early return that left the tail unmarked - a negative value means the
-    // marks themselves cost more than that.
-    std::printf("EDEN_DEV_CFG sync_ns=%llu read_ns=%llu bind_ns=%llu desc_ns=%llu rt_ns=%llu "
-                "draw_ns=%llu unattributed_ns=%llu sync_calls=%llu read_calls=%llu "
-                "bind_calls=%llu desc_calls=%llu rt_calls=%llu draw_calls=%llu\n",
-                load(cfg_sync, false), load(cfg_read, false), load(cfg_bind, false),
-                load(cfg_desc, false), load(cfg_rt, false), load(cfg_draw, false),
-                load(draw_config, false) - (load(cfg_sync, false) + load(cfg_read, false) +
-                                            load(cfg_bind, false) + load(cfg_desc, false) +
-                                            load(cfg_rt, false) + load(cfg_draw, false)),
-                load(cfg_sync, true), load(cfg_read, true), load(cfg_bind, true),
-                load(cfg_desc, true), load(cfg_rt, true), load(cfg_draw, true));
-    // Where cfg_bind's time went: tbo is the texture-buffer loop over the enabled stages, update
-    // is the index, vertex, transform-feedback and per-stage buffer updates, geometry is the host
-    // binds after them. They nest inside cfg_bind, so unattributed (cfg_bind less their sum) is
-    // the transform-feedback check, the two pointer-store statements and the clock itself.
-    std::printf("EDEN_DEV_BIND tbo_ns=%llu update_ns=%llu geometry_ns=%llu "
-                "unattributed_ns=%llu tbo_calls=%llu update_calls=%llu geometry_calls=%llu\n",
-                load(bind_tbo, false), load(bind_update, false), load(bind_geometry, false),
-                load(cfg_bind, false) - (load(bind_tbo, false) + load(bind_update, false) +
-                                         load(bind_geometry, false)),
-                load(bind_tbo, true), load(bind_update, true), load(bind_geometry, true));
-    // The four calls inside cfg_bind's geometry phase: the index buffer (or the quad substitute),
-    // the vertex buffers, transform feedback, and the indirect draw buffers when there is one.
-    // They nest inside cfg_bind's geometry, so unattributed is the clock and the two pointer
-    // stores around it - not the SynchronizeBuffer calls, which are inside the phases themselves.
-    std::printf("EDEN_DEV_GEO index_ns=%llu vertex_ns=%llu xf_ns=%llu indirect_ns=%llu "
-                "unattributed_ns=%llu index_calls=%llu vertex_calls=%llu xf_calls=%llu "
-                "indirect_calls=%llu\n",
-                load(geo_index, false), load(geo_vertex, false), load(geo_xf, false),
-                load(geo_indirect, false),
-                load(bind_geometry, false) - (load(geo_index, false) + load(geo_vertex, false) +
-                                              load(geo_xf, false) + load(geo_indirect, false)),
-                load(geo_index, true), load(geo_vertex, true), load(geo_xf, true),
-                load(geo_indirect, true));
-    // The three inside cfg_bind's update phase: index, vertex and transform-feedback updates; the
-    // six-stage uniform, storage and texture loop; and the indirect update when there is one.
-    std::printf("EDEN_DEV_UPD state_ns=%llu stage_ns=%llu indirect_ns=%llu unattributed_ns=%llu "
-                "state_calls=%llu stage_calls=%llu indirect_calls=%llu\n",
-                load(upd_state, false), load(upd_stage, false), load(upd_indirect, false),
-                load(bind_update, false) - (load(upd_state, false) + load(upd_stage, false) +
-                                            load(upd_indirect, false)),
-                load(upd_state, true), load(upd_stage, true), load(upd_indirect, true));
-    // Texture-cache GC GPU drains since the last report. The fix these counters watch is the
-    // prefetch lookahead (vulkan_gc_downloads.inc): batched drains should cover many images and
-    // unbatched ones should be rare, as each unbatched drain is a full pipeline wait on the GPU
-    // thread for one eviction.
-    std::printf("EDEN_DEV_GC_DRAIN batched_calls=%llu batched_ns=%llu batched_images=%llu "
-                "unbatched_calls=%llu unbatched_ns=%llu\n",
-                load(gc_batched_drain, true), load(gc_batched_drain, false),
-                gc_batched_drain.requested_bytes.load(std::memory_order_relaxed),
-                load(gc_unbatched_drain, true), load(gc_unbatched_drain, false));
+                load(gpu_queue_full, true), load(gpu_queue_full, false), load(rasterizer_draw, true));
+    // R424: distinguish FIFO backpressure from GPU fence completion.
+    // The existing EDEN_DEV_GPU.present_* cumulative counter is unchanged.
+    std::printf("EDEN_PRESENT_WAIT_PHASE frame=%u free_calls=%llu free_ns=%llu "
+                "fence_calls=%llu fence_ns=%llu\n", frame,
+                load(gpu_present_free_wait, true), load(gpu_present_free_wait, false),
+                load(gpu_present_fence_wait, true), load(gpu_present_fence_wait, false));
+    // Breakdown of GPU-owner command types. In the R293 quiet path no clocks
+    // or counters are touched; this runs only inside ReportGpuThread's opt-in
+    // five-second diagnostic callback. Values are cumulative, not FPS.
+    std::printf("EDEN_GPU_COMMANDS frame=%u tick_calls=%llu tick_ns=%llu "
+                "flush_calls=%llu flush_ns=%llu invalidate_calls=%llu invalidate_ns=%llu\n",
+                frame, load(gpu_command_tick, true), load(gpu_command_tick, false),
+                load(gpu_command_flush, true), load(gpu_command_flush, false),
+                load(gpu_command_invalidate, true), load(gpu_command_invalidate, false));
+    // R405: completed fence waits are a subset of scheduler.Push time, not
+    // the GPU's busy time. This is reported only in the detailed five-second path.
+    std::printf("EDEN_GPU_DMA_SYNC frame=%u calls=%llu ns=%llu active_ns=%llu\n",
+                frame, load(gpu_dma_sync_wait, true), load(gpu_dma_sync_wait, false),
+                ActiveDiagnosticWaitNs(gpu_dma_sync_active_since_ns));
+    // R406: GPU puller semaphore equality loop is a different blocking path.
+    // Snapshot in-flight waits, not only completed calls, to retain evidence
+    // even when the game never reaches the RAII destructor.
+    std::printf("EDEN_GPU_PULLER_SEMAPHORE frame=%u calls=%llu ns=%llu active_ns=%llu\n",
+                frame, load(gpu_puller_semaphore_wait, true),
+                load(gpu_puller_semaphore_wait, false),
+                ActiveDiagnosticWaitNs(gpu_puller_semaphore_active_since_ns));
+    // R384: confirm that R382's prelock FIFO dispatch optimization actually
+    // fired on the PS5. A zero counter is meaningful: do not attribute an
+    // FPS gain to a preflight that never ran.
+    std::printf("EDEN_SCHEDULER_PREFLIGHT frame=%u dispatched=%llu\n",
+                frame, scheduler_preflight_dispatches.load(std::memory_order_relaxed));
     std::printf("EDEN_DEV_GUEST cpu_write_calls=%llu cpu_write_ns=%llu cpu_read_calls=%llu cpu_read_ns=%llu "
                 "sync_calls=%llu sync_ns=%llu dequeue_calls=%llu dequeue_ns=%llu",
                 load(guest_cpu_write, true), load(guest_cpu_write, false),
                 load(guest_cpu_read, true), load(guest_cpu_read, false),
                 load(guest_sync_wait, true), load(guest_sync_wait, false),
                 load(guest_dequeue_wait, true), load(guest_dequeue_wait, false));
+    std::printf(" dequeue_blocked=%u", guest_dequeue_blocked.load(std::memory_order_acquire));
     std::printf(" ipc_calls=%llu ipc_ns=%llu", load(guest_ipc_wait, true), load(guest_ipc_wait, false));
-    std::printf(" write_deferred=%llu dirty_replays=%llu read_skipped=%llu",
-                cpu_write_deferred.load(std::memory_order_relaxed), gpu_dirty_replays.load(std::memory_order_relaxed),
-                cpu_read_skipped.load(std::memory_order_relaxed));
-    std::printf(" tex_partial=%llu tex_partial_bytes=%llu tex_partial_checks=%llu tex_partial_mismatches=%llu",
-                tex_partial_uploads.load(std::memory_order_relaxed), tex_partial_bytes.load(std::memory_order_relaxed),
-                tex_partial_checks.load(std::memory_order_relaxed),
-                tex_partial_mismatches.load(std::memory_order_relaxed));
-    std::printf(" cache_lock_contended=%llu cache_lock_blocked=%llu",
-                cache_lock_contended.load(std::memory_order_relaxed), cache_lock_blocked.load(std::memory_order_relaxed));
+    std::printf(" cache_lock_contended=%llu cache_lock_blocked=%llu cache_lock_wait_ns=%llu",
+                cache_lock_contended.load(std::memory_order_relaxed),
+                cache_lock_blocked.load(std::memory_order_relaxed),
+                cache_lock_wait_ns.load(std::memory_order_relaxed));
     std::printf(" fs_file_calls=%llu fs_file_ns=%llu fs_file_bytes=%llu fs_storage_calls=%llu fs_storage_ns=%llu "
                 "fs_storage_bytes=%llu",
                 load(guest_fs_file, true), load(guest_fs_file, false),
@@ -901,100 +1334,208 @@ void ReportGpuThread(unsigned frame) {
     for (unsigned slot = 0; slot < render_conditions.size(); ++slot)
         std::printf("%s%llu", slot ? "," : "", render_conditions[slot].load(std::memory_order_relaxed));
     std::printf("\n");
-    for (unsigned slot = 0; slot < ipc_threads.size(); ++slot) {
-        const auto calls = ipc_threads[slot].calls.load(std::memory_order_relaxed);
-        if (calls == 0) continue;
-        std::printf("EDEN_DEV_IPC_THREAD slot=%u tid=%llu name=%.23s calls=%llu ns=%llu\n", slot,
-                    ipc_threads[slot].tid.load(std::memory_order_relaxed), ipc_threads[slot].name, calls,
-                    ipc_threads[slot].ns.load(std::memory_order_relaxed));
-    }
-    for (unsigned slot = 0; slot < wait_threads.size(); ++slot) {
-        const auto calls = wait_threads[slot].calls.load(std::memory_order_relaxed);
-        if (calls == 0) continue;
-        const auto tid = wait_threads[slot].tid.load(std::memory_order_relaxed);
-        const char* name = "";
-        for (unsigned islot = 0; islot < ipc_thread_slots; ++islot)
-            if (ipc_threads[islot].tid.load(std::memory_order_relaxed) == tid) {
-                name = ipc_threads[islot].name;
-                break;
+#ifdef EDEN_DEV_PROFILE
+    if (detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        // R393: only report the 12 largest cumulative IPC waits at 5s intervals.
+        // This is not a call stack and does not say that a thread is currently stuck.
+        struct IpcRow {
+            unsigned long long tid{}, calls{}, ns{}, max_ns{};
+        };
+        std::array<IpcRow, 12> ipc_heaviest{};
+        unsigned ipc_used = 0;
+        for (const auto& source : guest_ipc_threads) {
+            const auto calls = source.calls.load(std::memory_order_relaxed);
+            if (calls == 0) continue;
+            const IpcRow item{source.tid.load(std::memory_order_relaxed), calls,
+                              source.ns.load(std::memory_order_relaxed),
+                              source.max_ns.load(std::memory_order_relaxed)};
+            if (ipc_used < ipc_heaviest.size()) {
+                ipc_heaviest[ipc_used++] = item;
+                continue;
             }
-        // rsn= is this slot's own wait_ns per ThreadWaitReasonForDebugging, same index order as
-        // the histogram line, so a thread's split reads without joining anything by hand.
-        std::printf("EDEN_DEV_WAIT_THREAD tid=%llu name=%.23s calls=%llu ns=%llu waker=%llu rsn=", tid,
-                    name, calls, wait_threads[slot].ns.load(std::memory_order_relaxed),
-                    wait_threads[slot].waker.load(std::memory_order_relaxed));
-        for (unsigned reason = 0; reason < wait_reason_slots; ++reason)
-            std::printf("%s%llu", reason ? "," : "",
-                        wait_threads[slot].reason_ns[reason].load(std::memory_order_relaxed));
-        std::printf("\n");
-    }
-    // tid is the slot index here (performance.h indexes the dispatch table directly by tid).
-    for (unsigned tid = 0; tid < dispatch_slots; ++tid) {
-        const auto dcalls = dispatch_calls[tid].load(std::memory_order_relaxed);
-        if (dcalls == 0) continue;
-        std::printf("EDEN_DEV_DISPATCH tid=%u calls=%llu ns=%llu\n", tid, dcalls,
-                    dispatch_ns[tid].load(std::memory_order_relaxed));
-    }
-    std::printf("EDEN_DEV_DISPATCH overflow_calls=%llu\n",
-                dispatch_overflow_calls.load(std::memory_order_relaxed));
-    // Reason indices are ThreadWaitReasonForDebugging (k_thread.h); named here so a log reads
-    // without the source.
-    std::printf("EDEN_DEV_WAIT reasons=none,sleep,ipc,sync,condvar,arbitration,suspended,other "
-                "overflow_calls=%llu calls=",
-                wait_overflow_calls.load(std::memory_order_relaxed));
-    for (unsigned reason = 0; reason < wait_reason_slots; ++reason)
-        std::printf("%s%llu", reason ? "," : "", wait_reason_calls[reason].load(std::memory_order_relaxed));
-    std::printf(" ns=");
-    for (unsigned reason = 0; reason < wait_reason_slots; ++reason)
-        std::printf("%s%llu", reason ? "," : "", wait_reason_ns[reason].load(std::memory_order_relaxed));
-    std::printf("\n");
-    std::printf("EDEN_DEV_IPCHIST lt50us=%llu lt500us=%llu lt5ms=%llu ge5ms=%llu overflow_calls=%llu "
-                "overflow_ns=%llu\n",
-                ipc_hist[0].load(std::memory_order_relaxed), ipc_hist[1].load(std::memory_order_relaxed),
-                ipc_hist[2].load(std::memory_order_relaxed), ipc_hist[3].load(std::memory_order_relaxed),
-                load(ipc_thread_overflow, true), load(ipc_thread_overflow, false));
-    if (cpu_write_detail.load(std::memory_order_relaxed)) {
-        // Cumulative per guest core (3 = other threads); performance.h CpuWriteDetail.
-        std::printf("EDEN_DEV_CPUWRITE hold_calls=%llu hold_ns=%llu hold_max_ns=%llu hold_long=%llu",
-                    load(draw_cache_hold, true), load(draw_cache_hold, false),
-                    draw_cache_hold_max.exchange(0, std::memory_order_relaxed),
-                    draw_cache_hold_long.load(std::memory_order_relaxed));
-        for (unsigned core = 0; core < cpu_write_stats.size(); ++core) {
-            const auto& stats = cpu_write_stats[core];
-            const auto get = [](const std::atomic<unsigned long long>& value) {
-                return value.load(std::memory_order_relaxed);
-            };
-            std::printf(" c%u=%llu/%llu/%llu/%llu/%llu sizes%u=%llu/%llu/%llu/%llu out%u=%llu/%llu/%llu"
-                        " ns%u=%llu/%llu/%llu/%llu/%llu ahead%u=%llu/%llu",
-                        core, get(stats.tracked), get(stats.tracked_ns), get(stats.passed), get(stats.same_page),
-                        get(stats.still_tracked), core, get(stats.sizes[0]), get(stats.sizes[1]),
-                        get(stats.sizes[2]), get(stats.sizes[3]), core, get(stats.unregistered),
-                        get(stats.gpu_modified), get(stats.cpu_modified), core, get(stats.buffer_wait_ns),
-                        get(stats.buffer_ns), get(stats.texture_wait_ns), get(stats.texture_ns),
-                        get(stats.shader_ns), core, get(stats.next_page), get(stats.ahead_pages));
+            unsigned least = 0;
+            for (unsigned i = 1; i < ipc_heaviest.size(); ++i)
+                if (ipc_heaviest[i].ns < ipc_heaviest[least].ns) least = i;
+            if (item.ns > ipc_heaviest[least].ns)
+                ipc_heaviest[least] = item;
         }
-        std::printf("\n");
+        std::sort(ipc_heaviest.begin(), ipc_heaviest.begin() + ipc_used,
+                  [](const IpcRow& a, const IpcRow& b) { return a.ns > b.ns; });
+        for (unsigned i = 0; i < ipc_used; ++i) {
+            const auto& row = ipc_heaviest[i];
+            std::printf("EDEN_DEV_IPC_THREAD tid=%llu calls=%llu ns=%llu max_ns=%llu\n",
+                        row.tid, row.calls, row.ns, row.max_ns);
+        }
+        // Completed calls cannot reveal an IPC waiting indefinitely. Read the
+        // lock-free per-thread pending timestamp without touching guest IPC.
+        // Top eight active calls over 500 ms; a long call is a suspect, not
+        // proof of a deadlock (normal services can legitimately wait).
+        struct ActiveIpcRow {
+            unsigned long long tid{};
+            long long started{}, age_ns{};
+        };
+        std::array<ActiveIpcRow, 8> pending{};
+        unsigned pending_used = 0;
+        const auto observed_ns = NowNs();
+        for (const auto& source : guest_ipc_threads) {
+            const auto started = source.active_since_ns.load(std::memory_order_acquire);
+            if (started <= 0 || observed_ns <= started ||
+                observed_ns - started < 500'000'000) continue;
+            const auto tid = source.tid.load(std::memory_order_relaxed);
+            if (!tid) continue;
+            const ActiveIpcRow item{tid, started, observed_ns - started};
+            if (pending_used < pending.size()) {
+                pending[pending_used++] = item;
+                continue;
+            }
+            unsigned shortest = 0;
+            for (unsigned i = 1; i < pending.size(); ++i)
+                if (pending[i].age_ns < pending[shortest].age_ns) shortest = i;
+            if (item.age_ns > pending[shortest].age_ns)
+                pending[shortest] = item;
+        }
+        std::sort(pending.begin(), pending.begin() + pending_used,
+                  [](const ActiveIpcRow& a, const ActiveIpcRow& b) {
+                      return a.age_ns > b.age_ns;
+                  });
+        for (unsigned i = 0; i < pending_used; ++i)
+            std::printf("EDEN_DEV_IPC_ACTIVE tid=%llu age_ms=%.3f\n",
+                        pending[i].tid, pending[i].age_ns / 1'000'000.0);
+        std::printf("EDEN_DEV_IPCHIST lt50us=%llu lt500us=%llu lt5ms=%llu ge5ms=%llu "
+                    "overflow_calls=%llu\n",
+                    guest_ipc_hist[0].load(std::memory_order_relaxed),
+                    guest_ipc_hist[1].load(std::memory_order_relaxed),
+                    guest_ipc_hist[2].load(std::memory_order_relaxed),
+                    guest_ipc_hist[3].load(std::memory_order_relaxed),
+                    guest_ipc_overflow_calls.load(std::memory_order_relaxed));
+    }
+#endif
+    // These are 1-in-16 GPU draw/frame and 1-in-64 guest-write SAMPLES, not
+    // full totals. Each phase reports its own sample count and window cost.
+    // Never issue a kernel query or print per-draw logging while the locks live.
+    if (detailed_gpu_profile.load(std::memory_order_relaxed)) {
+        constexpr const char* cache_phase_names[] = {
+            "pair_wait", "pair_held", "pipeline_configure", "descriptor_sync",
+            "fill_views", "graphics_buffers", "descriptor_acquire",
+            "dynamic_states", "query_draw",
+            "texture_cpu_refresh", "texture_alias_scan", "texture_alias_copy",
+            "stage_texture_handles", "bind_texture_buffers", "bind_stage_descriptors",
+            "stage_host_buffers", "stage_image_descriptors",
+            "refresh_render_targets", "check_feedback_loop", "commit_graphics_draw",
+            "descriptor_ring_finish", "descriptor_ring_preflight",
+            "guest_write_buffer_wait", "guest_write_buffer_work",
+            "guest_write_texture_wait", "guest_write_texture_work",
+            "guest_write_shader_invalidate",
+            "graphics_pipeline_create", "compute_pipeline_create", "graphics_shader_environment", "shader_pool_reset", "shader_cfg",
+            "shader_ir", "shader_spirv", "shader_module",
+            "graphics_pipeline_wait", "compute_pipeline_wait", "texture_upload_staging",
+            "texture_upload_contents", "texture_upload_barrier",
+            "compute_pair_wait", "compute_pair_held", "compute_configure",
+            "frame_texture_wait", "frame_texture_held", "frame_buffer_wait", "frame_buffer_held",
+            "texture_budget_query", "texture_gc_collect", "texture_async_tick", "texture_runtime_tick"
+        };
+        static_assert(std::size(cache_phase_names) == cache_phase_totals.size());
+        constexpr const char* drop_names[] = {
+            "no_pipeline", "configure_rejected", "built_pipeline_failed", "descriptor_buffer_full",
+            "worker_pipeline_failed"
+        };
+        static_assert(std::size(drop_names) == graphics_draw_drop_totals.size());
+        static std::array<unsigned long long, graphics_draw_drop_totals.size()> last_drops{};
+        for (unsigned type = 0; type < graphics_draw_drop_totals.size(); ++type) {
+            const auto total = graphics_draw_drop_totals[type].load(std::memory_order_relaxed);
+            // Title reset is also supported: counters can decrease between games.
+            const auto window = total >= last_drops[type] ? total - last_drops[type] : total;
+            last_drops[type] = total;
+            std::printf("EDEN_GPU_DRAW_DROP frame=%u reason=%s total=%llu window=%llu\n",
+                        frame, drop_names[type], total, window);
+        }
+        // Keep the established lifetime totals for existing parsers, and also
+        // publish exact per-snapshot deltas. Summing cumulative values across
+        // snapshots multiplies the apparent cache-lock and pipeline costs.
+        // Only the GPU owner records these samples; no per-draw work is added.
+        static std::array<unsigned long long, cache_phase_totals.size()> last_samples{};
+        static std::array<unsigned long long, cache_phase_totals.size()> last_total_ns{};
+        for (unsigned phase = 0; phase < cache_phase_totals.size(); ++phase) {
+            auto& entry = cache_phase_totals[phase];
+            const auto samples = entry.samples.load(std::memory_order_relaxed);
+            const auto total_ns = entry.total_ns.load(std::memory_order_relaxed);
+            // ResetCachePhases() runs between titles in the same PS5 process.
+            const auto window_samples =
+                samples >= last_samples[phase] ? samples - last_samples[phase] : samples;
+            const auto window_ns =
+                total_ns >= last_total_ns[phase] ? total_ns - last_total_ns[phase] : total_ns;
+            last_samples[phase] = samples;
+            last_total_ns[phase] = total_ns;
+            std::printf("EDEN_GPU_CACHE_PHASE frame=%u phase=%s samples=%llu total_ns=%llu window_samples=%llu window_ns=%llu max_ns=%llu\n",
+                        frame, cache_phase_names[phase],
+                        samples, total_ns, window_samples, window_ns,
+                        entry.max_ns.exchange(0, std::memory_order_relaxed));
+        }
+        // Guest CPU callback contention, split by actual cache ownership.
+        // Only 2 x 3 atomic loads/5s; no snapshot locking or output on a draw.
+        constexpr const char* guest_cache_domains[] = {"buffer", "texture"};
+        static std::array<std::array<unsigned long long, 3>, 2> previous_cache_domains{};
+        for (unsigned d = 0; d < guest_cache_domain_totals.size(); ++d) {
+            auto& stat = guest_cache_domain_totals[d];
+            const unsigned long long totals[] = {
+                stat.contended.load(std::memory_order_relaxed),
+                stat.blocked.load(std::memory_order_relaxed),
+                stat.wait_ns.load(std::memory_order_relaxed)
+            };
+            unsigned long long changes[3]{};
+            for (unsigned type = 0; type < 3; ++type) {
+                const auto last = previous_cache_domains[d][type];
+                changes[type] = totals[type] >= last ? totals[type] - last : totals[type];
+                previous_cache_domains[d][type] = totals[type];
+            }
+            std::printf("EDEN_GUEST_CACHE_DOMAIN frame=%u domain=%s "
+                        "contended=%llu blocked=%llu wait_ns=%llu "
+                        "window_contended=%llu window_blocked=%llu window_wait_ns=%llu\n",
+                        frame, guest_cache_domains[d],
+                        totals[0], totals[1], totals[2],
+                        changes[0], changes[1], changes[2]);
+            // High-threshold tails distinguish many brief cache waits from
+            // a single frame-scale lock hold. Never infer frame causality.
+            static std::array<std::array<unsigned long long, 2>, 2> previous_slow_waits{};
+            const unsigned long long slow_totals[] = {
+                stat.waited_ge1ms.load(std::memory_order_relaxed),
+                stat.waited_ge10ms.load(std::memory_order_relaxed)
+            };
+            unsigned long long slow_window[2]{};
+            for (unsigned t = 0; t < 2; ++t) {
+                const auto prev = previous_slow_waits[d][t];
+                slow_window[t] = slow_totals[t] >= prev ? slow_totals[t] - prev : slow_totals[t];
+                previous_slow_waits[d][t] = slow_totals[t];
+            }
+            std::printf("EDEN_GUEST_CACHE_LOCK_TAIL frame=%u domain=%s "
+                        "wait_ge1ms=%llu wait_ge10ms=%llu max_wait_ns=%llu\n",
+                        frame, guest_cache_domains[d], slow_window[0], slow_window[1],
+                        stat.max_wait_ns.exchange(0, std::memory_order_relaxed));
+        }
     }
     const auto window = Eden::Fastmem::WindowStats();
     std::printf("EDEN_FASTMEM window=%llx pages=%llu chunks=%llu direct_reads=%llu direct_writes=%llu "
-                "faults=%llu demotions=%llu maps=%llu unmaps=%llu protects=%llu kernel_calls=%llu kernel_ns=%llu failures=%llu large=%llu\n",
+                "faults=%llu maps=%llu unmaps=%llu protects=%llu kernel_calls=%llu kernel_ns=%llu failures=%llu\n",
                 static_cast<unsigned long long>(window.window), static_cast<unsigned long long>(window.mapped_pages),
                 static_cast<unsigned long long>(window.aliased_chunks),
                 static_cast<unsigned long long>(window.direct_reads),
                 static_cast<unsigned long long>(window.direct_writes),
                 static_cast<unsigned long long>(Eden::Fastmem::Faults()),
-                static_cast<unsigned long long>(Eden::Fastmem::Demotions()),
                 static_cast<unsigned long long>(window.map_calls), static_cast<unsigned long long>(window.unmap_calls),
                 static_cast<unsigned long long>(window.protect_calls),
                 static_cast<unsigned long long>(window.kernel_calls), static_cast<unsigned long long>(window.kernel_ns),
-                static_cast<unsigned long long>(window.failures),
-                static_cast<unsigned long long>(window.large_blocks));
+                static_cast<unsigned long long>(window.failures));
     // Guest cores record their owner CPU clocks at their next JIT exit.
     Snapshot();
 }
 
 void RegisterWorker(const char* name) {
     Eden::Crash::NameThread(name);  // a crash report names the thread
+#ifdef PS5_NATIVE
+    // CPU and GPU owners compete with service and pipeline threads.
+    // Diagnose and qualify fair scheduling before guest work starts.
+    ProbeSchedulerOnce(name);
+#endif
 #if defined(EDEN_DEV_PROFILE) && defined(PS5_NATIVE)
     Eden::Stall::NoteThread(name);
 #endif
@@ -1002,6 +1543,10 @@ void RegisterWorker(const char* name) {
         if (std::strcmp(name, names[i])) continue;
         Worker worker;
         worker.thread = pthread_self();
+        // Construct this thread's exit hook BEFORE pc_core_registration and
+        // the optional jthread sampler. TLS destruction will therefore stop
+        // the producer, clear core readiness, and finally unregister worker.
+        owned_worker.owner = worker.thread;
 #ifdef EDEN_DEV_PROFILE
         if (pc_sampling && (i == 4 || i == pc_sample_core.load())) {
             sigset_t mask;
@@ -1011,17 +1556,25 @@ void RegisterWorker(const char* name) {
                 throw std::runtime_error("Cannot enable development PC sampler");
             if (i == pc_sample_core.load()) {
                 core_sample_thread = pthread_self();
+                pc_core_registration.active = true;
                 core_sample_ready.store(true, std::memory_order_release);
-                // dev-settings pc_fast=on: ~500 Hz from 45 s after registration instead of the
-                // frontend's 20 Hz polls (from 90 s), for compilation bursts at load. Signals during
-                // the boot's first seconds hung it (run radv-zb5-20260930-015220).
+                // dev-settings pc_fast=on: 500 Hz from 45s after registration.
+                // Unlike detached threads, a thread-local jthread requests
+                // stop and joins when its owning guest CPU worker exits. Bound
+                // the boot delay in 200ms stop-aware steps, so game teardown
+                // never waits another 45 seconds for an abandoned sampler.
                 if (pc_fast.load()) {
-                    std::thread([] {
-                        std::this_thread::sleep_for(std::chrono::seconds(45));
-                        while (core_pc_count.load() < sampled_core_pcs.size() &&
-                               pthread_kill(core_sample_thread, SIGUSR2) == 0)
+                    static thread_local std::jthread fast_sampler;
+                    const pthread_t target = pthread_self();
+                    fast_sampler = std::jthread([target](std::stop_token stop) {
+#ifdef PS5_NATIVE
+                        PlaceSecondary("pc_sampler");
+#endif
+                        for (unsigned tick = 0; tick < 225 && !stop.stop_requested(); ++tick)
+                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        while (!stop.stop_requested() && pthread_kill(target, SIGUSR2) == 0)
                             std::this_thread::sleep_for(std::chrono::milliseconds(2));
-                    }).detach();
+                    });
                 }
             }
         }
@@ -1049,8 +1602,11 @@ void RegisterWorker(const char* name) {
             }
         }
         worker.registered = true;
-        std::lock_guard lock(workers_mutex);
-        workers[i] = worker;
+        {
+            const std::lock_guard lock(workers_mutex);
+            workers[i] = worker;
+        }
+        owned_worker.index = i;
         return;
     }
 #ifdef PS5_NATIVE
@@ -1058,20 +1614,9 @@ void RegisterWorker(const char* name) {
 #endif
 }
 
-void SampleCoreCpu(unsigned core) {
-    if (core >= cpu_samples.size()) return;
-    const auto epoch = sample_epoch.load(std::memory_order_relaxed);
-    if (sampled_epoch[core] == epoch) return;
-    sampled_epoch[core] = epoch;
-    CpuSample sample;
-    sample.epoch = epoch;
-    sample.mono_ns = ClockNs(CLOCK_MONOTONIC);
-    sample.cpu_ns = owner_cpu_clock_valid ? ClockNs(CLOCK_THREAD_CPUTIME_ID) : -ENOTSUP;
-    sample.idle_spin_ns = IdleSpinNs(core);
-    std::lock_guard lock(workers_mutex);
-    cpu_samples[core] = sample;
+bool CpuSampleDue(unsigned core) noexcept {
+    return sampled_epoch[core] != sample_epoch.load(std::memory_order_relaxed);
 }
-
 void SampleCpu(unsigned core, unsigned long long thread, unsigned long long pc, unsigned svc, unsigned fpcr) {
     const auto epoch = sample_epoch.load(std::memory_order_relaxed);
     if (sampled_epoch.at(core) == epoch) return;
@@ -1079,12 +1624,15 @@ void SampleCpu(unsigned core, unsigned long long thread, unsigned long long pc, 
     const CpuSample sample{epoch, ClockNs(CLOCK_MONOTONIC),
         owner_cpu_clock_valid ? ClockNs(CLOCK_THREAD_CPUTIME_ID) : -ENOTSUP, thread, pc, svc, fpcr,
         compilation[core].calls.load(std::memory_order_relaxed),
-        compilation[core].nanoseconds.load(std::memory_order_relaxed), IdleSpinNs(core)};
+        compilation[core].nanoseconds.load(std::memory_order_relaxed)};
     std::lock_guard lock(workers_mutex);
     cpu_samples[core] = sample;
 }
 
 void Snapshot() {
+    // PC sample cursors and one-shot block dumps require serialized consumers,
+    // but MUST NOT hold workers_mutex while formatting a large snapshot.
+    const std::lock_guard snapshot_guard(snapshot_mutex);
     // Request a fresh owner-written sample; report the last completed sample with
     // its own timestamp. An idle core may remain stale; never infer zero CPU use.
     sample_epoch.fetch_add(1, std::memory_order_relaxed);
@@ -1092,19 +1640,26 @@ void Snapshot() {
     std::printf("EDEN_PERF_SAMPLE mono_ns=%lld process_cpu_ns=%lld wall_ns=%lld\n",
                 mono, cpu_clocks_valid ? ClockNs(process_clock) : -static_cast<long long>(ENOTSUP),
                 static_cast<long long>(Common::g_wall_clock.GetTimeNS().count()));
-    std::lock_guard lock(workers_mutex);
 #ifdef EDEN_DEV_PROFILE
     std::map<uintptr_t, unsigned> counts;
     const unsigned end = pc_count.load(std::memory_order_acquire);
+    if (end < pc_reported) pc_reported = end; // wrap/reset safety
+    if (end - pc_reported > sampled_pcs.size()) {
+        const unsigned lost = end - pc_reported - static_cast<unsigned>(sampled_pcs.size());
+        pc_reported = end - sampled_pcs.size();
+        std::printf("EDEN_PERF_PC_SAMPLES_LOST source=gpu count=%u\n", lost);
+    }
 #if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
     std::map<std::array<uintptr_t, 9>, unsigned> caller_counts;
 #endif
     while (pc_reported < end) {
         const unsigned index = pc_reported++;
-        ++counts[sampled_pcs[index]];
+        ++counts[sampled_pcs[index % sampled_pcs.size()].load(std::memory_order_relaxed)];
 #if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
-        std::array<uintptr_t, 9> key{sampled_pcs[index]};
-        std::copy(sampled_callers[index].begin(), sampled_callers[index].end(), key.begin() + 1);
+        std::array<uintptr_t, 9> key{
+            sampled_pcs[index % sampled_pcs.size()].load(std::memory_order_relaxed)};
+        std::copy(sampled_callers[index % sampled_callers.size()].begin(),
+                  sampled_callers[index % sampled_callers.size()].end(), key.begin() + 1);
         ++caller_counts[key];
 #endif
     }
@@ -1122,28 +1677,19 @@ void Snapshot() {
                     static_cast<unsigned long long>(pc), count);
     std::map<uintptr_t, unsigned> core_counts;
     const unsigned core_end = core_pc_count.load(std::memory_order_acquire);
-    while (core_pc_reported < core_end) ++core_counts[sampled_core_pcs[core_pc_reported++]];
+    if (core_end < core_pc_reported) core_pc_reported = core_end;
+    if (core_end - core_pc_reported > sampled_core_pcs.size()) {
+        const unsigned lost = core_end - core_pc_reported - static_cast<unsigned>(sampled_core_pcs.size());
+        core_pc_reported = core_end - sampled_core_pcs.size();
+        std::printf("EDEN_PERF_PC_SAMPLES_LOST source=guest count=%u\n", lost);
+    }
+    while (core_pc_reported < core_end) {
+        const auto index = core_pc_reported++;
+        ++core_counts[sampled_core_pcs[index % sampled_core_pcs.size()].load(std::memory_order_relaxed)];
+    }
     for (const auto& [pc, count] : core_counts)
         std::printf("EDEN_PERF_CORE_PC mono_ns=%lld pc=%llx count=%u\n", mono,
                     static_cast<unsigned long long>(pc), count);
-#if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
-    std::map<std::array<unsigned long long, 9>, unsigned> core_caller_counts;
-    const unsigned core_caller_end = core_caller_count.load(std::memory_order_acquire);
-    while (core_caller_reported < core_caller_end) {
-        const unsigned index = core_caller_reported++;
-        std::array<unsigned long long, 9> key{static_cast<unsigned long long>(core_caller_pcs[index])};
-        for (unsigned i = 0; i < 8; ++i)
-            key[i + 1] = static_cast<unsigned long long>(sampled_core_callers[index][i]);
-        ++core_caller_counts[key];
-    }
-    for (const auto& [chain, count] : core_caller_counts) {
-        std::printf("EDEN_PERF_CORE_CALLERS mono_ns=%lld pc=%llx count=%u callers=", mono,
-                    chain[0], count);
-        for (unsigned i = 1; i < chain.size(); ++i)
-            std::printf("%s%llx", i == 1 ? "" : ",", chain[i]);
-        std::printf("\n");
-    }
-#endif
     // The same samples by guest block: location (A32 PC in the low word), block offset, count.
     if (const std::size_t blocks = core0_blocks ? core0_block_count.load(std::memory_order_acquire) : 0) {
         std::map<std::pair<unsigned long long, unsigned long long>, unsigned> guest_counts;
@@ -1173,32 +1719,66 @@ void Snapshot() {
             const JitBlock* block = nullptr;
             for (std::size_t i = blocks; i-- > 0;)
                 if (core0_blocks[i].location == location) { block = &core0_blocks[i]; break; }
-            std::string guest;
+            // A report runs on the native GPU render thread. Formatting
+            // each 4 KiB code block with 4096 separate snprintf calls and
+            // growing std::strings could visibly stall FC27 every five
+            // seconds. Use bounded stack buffers and direct hex digits:
+            // byte-for-byte identical guest/host diagnostic log format.
+            constexpr char hex[] = "0123456789abcdef";
+            std::array<char, 64 * 8 + 1> guest{};
+            std::size_t guest_written = 0;
             const unsigned long long pc = location & 0xffffffffull;
             for (unsigned long long at = pc; at < pc + 256 && guest_read32; at += 4) {
                 unsigned word = 0;
                 if (!guest_read32(at, word)) break;
-                char text[12];
-                std::snprintf(text, sizeof(text), "%08x", word);
-                guest += text;
+                for (int nibble = 7; nibble >= 0; --nibble)
+                    guest[guest_written++] = hex[(word >> (nibble * 4)) & 0xfu];
             }
-            std::printf("EDEN_PERF_BLOCK_GUEST location=%llx count=%u words=%s\n", location, count, guest.c_str());
+            guest[guest_written] = '\0';
+            std::printf("EDEN_PERF_BLOCK_GUEST location=%llx count=%u words=%s\n",
+                        location, count, guest.data());
             if (block) {
-                std::string host;
+                std::array<char, 4096 * 2 + 1> host{};
                 const auto* bytes = reinterpret_cast<const unsigned char*>(block->entry);
-                for (unsigned long long i = 0; i < block->size && i < 4096; ++i) {
-                    char text[4];
-                    std::snprintf(text, sizeof(text), "%02x", bytes[i]);
-                    host += text;
+                const auto byte_count = std::min<unsigned long long>(block->size, 4096);
+                for (unsigned long long i = 0; i < byte_count; ++i) {
+                    const unsigned char value = bytes[i];
+                    host[2 * i] = hex[value >> 4];
+                    host[2 * i + 1] = hex[value & 0xfu];
                 }
-                std::printf("EDEN_PERF_BLOCK_HOST location=%llx entry=%llx size=%llu bytes=%s\n", location,
-                            static_cast<unsigned long long>(block->entry), block->size, host.c_str());
+                host[2 * byte_count] = '\0';
+                std::printf("EDEN_PERF_BLOCK_HOST location=%llx entry=%llx size=%llu bytes=%s\n",
+                            location, static_cast<unsigned long long>(block->entry),
+                            block->size, host.data());
             }
         }
     }
 #endif
-    for (unsigned i = 0; i < workers.size(); ++i) {
-        const auto& worker = workers[i];
+    std::printf("EDEN_GPU_UNMAPPED_COUNTERS read=%llu write=%llu guest_map_zero=%llu guest_null_mapped=%llu guest_alias_mapped=%llu guest_alias_access=%llu remap_replaced=%llu remap_mismatch=%llu bad_map_range=%llu bad_unmap_range=%llu bad_physical=%llu remap_cache_evictions=%llu\n",
+                static_cast<unsigned long long>(::Eden::GpuFault::reads.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::writes.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::guest_map_zero.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::guest_null_mapped.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::guest_alias_mapped.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::guest_alias_access.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::remap_replaced.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::remap_mismatch.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::bad_map_range.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::bad_unmap_range.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::bad_physical.load(std::memory_order_relaxed)),
+                static_cast<unsigned long long>(::Eden::GpuFault::remap_cache_evictions.load(std::memory_order_relaxed)));
+    // Take an immutable owner-written copy; priority/CPU-clock syscalls,
+    // formatting, and stdout flushes must NOT hold workers_mutex. Otherwise
+    // all guest CPU workers can block in SampleCpu() on this GPU report.
+    std::array<Worker, names.size()> worker_snapshot{};
+    std::array<CpuSample, 4> cpu_snapshot{};
+    {
+        const std::lock_guard worker_guard(workers_mutex);
+        worker_snapshot = workers;
+        cpu_snapshot = cpu_samples;
+    }
+    for (unsigned i = 0; i < worker_snapshot.size(); ++i) {
+        const auto& worker = worker_snapshot[i];
         sched_param priority{};
         int policy = -1;
         const int priority_error = worker.registered ?
@@ -1212,7 +1792,7 @@ void Snapshot() {
                     mono, names[i], cpu, int(worker.clock), worker.affinity_error, worker.allowed, worker.mask,
                     priority_error, policy, priority.sched_priority, worker.wall_ns, worker.mono_ns);
         if (i < compilation.size()) {
-            const auto& sample = cpu_samples[i];
+            const auto& sample = cpu_snapshot[i];
             std::printf("EDEN_PERF_CPU_POINT core=%u phase=%u epoch=%u mono_ns=%lld cpu_ns=%lld thread=%llu pc=%llx svc=%x fpcr=%u compilations=%llu compile_ns=%llu\n",
                         i, unsigned(cpu_state[i].phase.load(std::memory_order_relaxed)), sample.epoch,
                         sample.mono_ns, sample.cpu_ns, sample.thread, sample.pc, sample.svc, sample.fpcr,
@@ -1225,6 +1805,10 @@ void Snapshot() {
                         dups[2].load(std::memory_order_relaxed), dups[3].load(std::memory_order_relaxed),
                         dups[4].load(std::memory_order_relaxed), dups[5].load(std::memory_order_relaxed),
                         dups[6].load(std::memory_order_relaxed), dups[7].load(std::memory_order_relaxed));
+            const auto& cache_events = jit_cache_events[i];
+            std::printf("EDEN_PERF_JIT_CACHE mono_ns=%lld core=%u flush_all=%llu flush_ranges=%llu scope=standard_a64_applied\n",
+                        mono, i, cache_events[0].load(std::memory_order_relaxed),
+                        cache_events[1].load(std::memory_order_relaxed));
             if (eden_jit_path_counters) {
                 unsigned long long path[8]{};
                 eden_jit_path_counters(i, path);
@@ -1248,6 +1832,14 @@ void Snapshot() {
         }
     }
     std::fflush(stdout);
+#ifdef EDEN_DEV_PROFILE
+    // A late diagnostic cost measurement is not included in the reported
+    // game's five-second frame interval; make this observer effect explicit.
+    const long long snapshot_end = ClockNs(CLOCK_MONOTONIC);
+    if (mono > 0 && snapshot_end >= mono)
+        std::printf("EDEN_DEV_SNAPSHOT_COST mono_ns=%lld elapsed_ns=%lld\n",
+                    mono, snapshot_end - mono);
+#endif
 }
 
 #ifndef EDEN_DEV_PROFILE
@@ -1291,25 +1883,31 @@ void BeginPcSampling() {
     std::printf("EDEN_PERF_LIBC memcpy=%p memset=%p memmove=%p memcmp=%p\n",
                 reinterpret_cast<void*>(&std::memcpy), reinterpret_cast<void*>(&std::memset),
                 reinterpret_cast<void*>(&std::memmove), reinterpret_cast<void*>(&std::memcmp));
-    // Anchors for a sampled PC that falls in a library we hold no symbols for: these bracket
-    // the wait primitives the guest cores and the render thread block in.
-    std::printf("EDEN_PERF_LIBC2 mutex_lock=%p mutex_unlock=%p cond_wait=%p cond_timedwait=%p "
-                "cond_signal=%p cond_broadcast=%p nanosleep=%p clock_gettime=%p sched_yield=%p\n",
-                reinterpret_cast<void*>(&pthread_mutex_lock), reinterpret_cast<void*>(&pthread_mutex_unlock),
-                reinterpret_cast<void*>(&pthread_cond_wait), reinterpret_cast<void*>(&pthread_cond_timedwait),
-                reinterpret_cast<void*>(&pthread_cond_signal), reinterpret_cast<void*>(&pthread_cond_broadcast),
-                reinterpret_cast<void*>(&nanosleep), reinterpret_cast<void*>(&clock_gettime),
-                reinterpret_cast<void*>(&sched_yield));
 }
 
 void PollGpuPc() {
-    std::lock_guard lock(workers_mutex);
-    if (pc_sampling && workers[4].registered && pc_count.load() < sampled_pcs.size()) {
-        const int error = pthread_kill(workers[4].thread, SIGUSR2);
-        if (error) throw std::runtime_error("Cannot sample development render thread");
+    if (!pc_sampling) return;
+#if defined(EDEN_DEV_WAIT_CALLERS) && defined(PS5_NATIVE)
+    const bool gpu_capacity = pc_count.load(std::memory_order_acquire) < sampled_pcs.size();
+#else
+    const bool gpu_capacity = true; // bounded ring; retain recent samples
+#endif
+    // SampleCpu() needs workers_mutex to publish guest progress. Do not hold
+    // it across a possibly blocking pthread_kill kernel call at 20 Hz.
+    // The already-existing worker registration is process-lifetime; the
+    // snapshot lock only protects copying its pthread_t, not OS liveness.
+    pthread_t gpu_target{};
+    bool gpu_ready = false;
+    if (gpu_capacity) {
+        const std::lock_guard lock(workers_mutex);
+        if (workers[4].registered) {
+            gpu_target = workers[4].thread;
+            gpu_ready = true;
+        }
     }
-    if (pc_sampling && core_sample_ready.load(std::memory_order_acquire) &&
-        core_pc_count.load() < sampled_core_pcs.size())
+    if (gpu_ready && pthread_kill(gpu_target, SIGUSR2))
+        throw std::runtime_error("Cannot sample development render thread");
+    if (core_sample_ready.load(std::memory_order_acquire))
         pthread_kill(core_sample_thread, SIGUSR2);
 }
 #endif
@@ -1429,6 +2027,98 @@ extern "C" void eden_jit_evacuation(unsigned core) {
         Eden::Performance::evacuations[core].fetch_add(1, std::memory_order_relaxed);
 }
 #ifdef EDEN_DEV_PROFILE
+namespace Eden::Performance {
+
+class JitDuplicateHistory final {
+public:
+    // The first call alone reserves diagnostic storage; a non-opted-in
+    // session never allocates the large block-location map.
+    unsigned Record(unsigned core, std::uint64_t location, long long now_ns) {
+        std::lock_guard lock{mutex_};
+        if (!reserved_) {
+            // A diagnostic title must not precommit two million hash buckets
+            // (~16 MiB on 64-bit hosts) before its first recorded block.
+            // Rehash naturally if explicit profiling actually needs more.
+            compiled_.reserve(1u << 14);
+            reserved_ = true;
+        }
+        auto [it, inserted] = compiled_.try_emplace(location, First{1u << core, now_ns});
+        if (inserted) {
+            return 0;
+        }
+        if (it->second.cores & (1u << core)) {
+            return 1;
+        }
+        it->second.cores |= 1u << core;
+        const long long lead = now_ns - it->second.ns;
+        unsigned index = 2;
+        for (long long bound = 1'000'000; index < 7 && lead >= bound; bound *= 10) {
+            ++index;
+        }
+        return index;
+    }
+
+    // Call only at the launch boundary after the previous guest CPU/JIT
+    // workers have joined. The lock also serializes any diagnostic call.
+    void Reset() noexcept {
+        std::lock_guard lock{mutex_};
+        // Release both nodes and the bucket array between titles. clear()
+        // alone keeps the peak number of buckets resident for the next game.
+        decltype(compiled_) empty;
+        compiled_.swap(empty);
+        reserved_ = false;
+    }
+
+#if defined(EDEN_JIT_DUP_HISTORY_HOST_TEST)
+    std::size_t BucketsForHostTest() {
+        std::lock_guard lock{mutex_};
+        return compiled_.bucket_count();
+    }
+#endif
+
+private:
+    struct First {
+        unsigned cores;
+        long long ns;
+    };
+    std::mutex mutex_;
+    std::unordered_map<std::uint64_t, First> compiled_;
+    bool reserved_ = false;
+};
+} // namespace Eden::Performance
+
+namespace {
+Eden::Performance::JitDuplicateHistory& JitHistory() {
+    // Preserve the prior diagnostic history's process-lifetime ownership:
+    // avoid static destruction racing with late thread teardown.
+    static auto* history = new Eden::Performance::JitDuplicateHistory;
+    return *history;
+}
+} // namespace
+
+void Eden::Performance::ResetJitDuplicateTrackingForTitle() noexcept {
+    // The previous guest CPU/JIT workers have joined at this launch boundary.
+    JitHistory().Reset();
+    for (auto& core : jit_duplicates) {
+        for (auto& bucket : core) {
+            bucket.store(0, std::memory_order_relaxed);
+        }
+    }
+    for (auto& core : jit_cache_events) {
+        for (auto& event : core) {
+            event.store(0, std::memory_order_relaxed);
+        }
+    }
+}
+
+// The default A64 JIT records actual applied full/range invalidations only
+// when detailed logging is enabled at the call site.
+extern "C" void eden_jit_cache_event(unsigned core, unsigned kind) {
+    if (core < Eden::Performance::jit_cache_events.size() && kind < 2)
+        Eden::Performance::jit_cache_events[core][kind].fetch_add(
+            1, std::memory_order_relaxed);
+}
+
 // Development builds only (the per-phase and duplicate counters exist there).
 extern "C" void eden_jit_phases(unsigned core, unsigned long long translate, unsigned long long optimize,
                                 unsigned long long emit, unsigned long long location) {
@@ -1438,30 +2128,9 @@ extern "C" void eden_jit_phases(unsigned core, unsigned long long translate, uns
     phases[1].fetch_add(optimize, std::memory_order_relaxed);
     phases[2].fetch_add(emit, std::memory_order_relaxed);
     if (!Eden::Performance::jit_duplicate_tracking.load(std::memory_order_relaxed)) return;
-    // Which cores compiled each location, and when the first one did.
-    struct First { unsigned cores; long long ns; };
-    static std::mutex mutex;
-    static auto* compiled = [] {
-        auto* map = new std::unordered_map<unsigned long long, First>;
-        map->reserve(1u << 21);
-        return map;
-    }();
-    const long long now = Common::g_wall_clock.GetTimeNS().count();
-    unsigned index = 0;
-    {
-        std::lock_guard lock{mutex};
-        auto [it, inserted] = compiled->try_emplace(location, First{1u << core, now});
-        if (!inserted) {
-            if (it->second.cores & (1u << core)) {
-                index = 1;
-            } else {
-                it->second.cores |= 1u << core;
-                const long long lead = now - it->second.ns;
-                index = 2;
-                for (long long bound = 1'000'000; index < 7 && lead >= bound; bound *= 10) ++index;
-            }
-        }
-    }
+    // Track duplicates per title; never classify another game's same address.
+    const unsigned index = JitHistory().Record(core, location,
+                                               Common::g_wall_clock.GetTimeNS().count());
     Eden::Performance::jit_duplicates[core][index].fetch_add(1, std::memory_order_relaxed);
 }
 extern "C" void eden_jit_ranges(unsigned core, unsigned long long ns) {

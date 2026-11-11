@@ -2,24 +2,23 @@
 # ProsperoEden - Launcher art from the source images (run by tools/launcher/assets.sh).
 # Copyright (C) 2026 BlackBearReloaded
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Writes headless/prosperoeden/ui/art:
+"""Writes the Prospero.Eden Encore launcher's baked art.
 
-  backdrop.tga       the dusk artwork behind every screen, darkened towards the left where the
-                     text sits, 2048x1152 (larger than the 1920x1080 screen: it drifts slowly)
-  backdrop-blur.tga  the same picture heavily blurred and small: what frosted panels show
-  brand.tga          the app icon, for the header and for games without cover art
-  controller.tga     a controller in white on transparent, tinted by the home screen: 144x100,
-                     twice the size it is drawn at
+  brand.tga       Prospero.Eden Encore logo, for the header and games without cover art.
+  controller.tga  a controller in white on transparent, tinted by the home screen.
 
-render-art.py [name...] renders only the named pictures (backdrop, brand, controller,
-                     slate-backdrop).
+The launcher preview generates the same wallpaper source used by the native PS5
+package: assets/encore-background.jpg, not the obsolete upstream scenery.
+render-art.py [name...] renders only the explicitly requested pictures.
 """
 
 import sys
+import base64
+from io import BytesIO
 
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+from PIL import Image, ImageDraw, ImageOps
 
 ROOT = Path(__file__).resolve().parents[2]
 ART = ROOT / "headless/prosperoeden/ui/art"
@@ -28,44 +27,6 @@ ART = ROOT / "headless/prosperoeden/ui/art"
 def save_tga(image, name):
     image.convert("RGBA").save(ART / name, orientation=1)
     print(f"{name}: {image.size[0]}x{image.size[1]}")
-
-
-def backdrop(source):
-    size = (2048, 1152)
-    art = source.resize(size, Image.Resampling.LANCZOS)
-    art = ImageEnhance.Color(art).enhance(0.82)
-    art = ImageEnhance.Brightness(art).enhance(0.72)
-    art = art.filter(ImageFilter.GaussianBlur(6)).convert("RGBA")
-    # Dark on the left, where titles and lists sit; the picture opens to the right.
-    overlay = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(overlay)
-    stops = ((0, .97), (.26, .94), (.48, .70), (.72, .28), (1, .05))
-    for x in range(size[0]):
-        fraction = x / (size[0] - 1)
-        for (a, first), (b, second) in zip(stops, stops[1:]):
-            if fraction <= b:
-                opacity = first + (second - first) * (fraction - a) / (b - a)
-                break
-        draw.line((x, 0, x, size[1]), fill=(6, 9, 10, round(opacity * 255)))
-    art.alpha_composite(overlay)
-    # And towards the bottom, under the hint line.
-    fade = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(fade)
-    for y in range(size[1]):
-        opacity = max(0, (y / size[1] - .68) / .32) * .65
-        draw.line((0, y, size[0], y), fill=(3, 7, 7, round(opacity * 255)))
-    art.alpha_composite(fade)
-    return art
-
-
-def grain(image, strength):
-    """Fine noise, so the dark gradients do not band on a TV."""
-    noise = Image.effect_noise(image.size, 12).point(lambda value: 255 if value > 128 else 0)
-    layer = Image.new("RGBA", image.size, (220, 230, 216, 0))
-    layer.putalpha(noise.point(lambda value: round(value * strength)))
-    result = image.copy()
-    result.alpha_composite(layer)
-    return result
 
 
 def controller():
@@ -112,61 +73,76 @@ def controller():
     return icon
 
 
-def slate_backdrop():
-    """A procedural dark neutral gradient: no source photo, just darkness and grain."""
-    size = (2048, 1152)
-    base = (16, 16, 18)
-    art = Image.new("RGBA", size, (*base, 255))
-    # A faint lighter band right of centre, so the backdrop is not perfectly flat.
-    overlay = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(overlay)
-    for x in range(size[0]):
-        fraction = x / (size[0] - 1)
-        lift = max(0.0, 1.0 - abs(fraction - 0.62) / 0.35) * 0.06
-        draw.line((x, 0, x, size[1]), fill=(180, 178, 174, round(lift * 255)))
-    art.alpha_composite(overlay)
-    # Dark on the left (same stop pattern as Canopy, neutral colour).
-    overlay = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(overlay)
-    stops = ((0, .97), (.26, .94), (.48, .70), (.72, .28), (1, .05))
-    for x in range(size[0]):
-        fraction = x / (size[0] - 1)
-        for (a, first), (b, second) in zip(stops, stops[1:]):
-            if fraction <= b:
-                opacity = first + (second - first) * (fraction - a) / (b - a)
-                break
-        draw.line((x, 0, x, size[1]), fill=(*base, round(opacity * 255)))
-    art.alpha_composite(overlay)
-    # Subtle bottom fade.
-    fade = Image.new("RGBA", size)
-    draw = ImageDraw.Draw(fade)
-    for y in range(size[1]):
-        opacity = max(0, (y / size[1] - .68) / .32) * .65
-        draw.line((0, y, size[0], y), fill=(*base, round(opacity * 255)))
-    art.alpha_composite(fade)
-    return art
+def fixed():
+    """Decode user's immutable packaging panels for missing retail faces only.
+
+    No image generation, web request or redraw: these are byte-for-byte
+    encoded source templates and a deterministic PNG -> native TGA conversion.
+    """
+    for stem in ("switch-logo", "switch-rear-footer"):
+        source = ART / f"{stem}.png.b64"
+        raw = base64.b64decode(source.read_text().strip(), validate=True)
+        with Image.open(BytesIO(raw)) as packed:
+            packed.load()
+            artwork = packed.convert("RGBA")
+            if stem == "switch-rear-footer":
+                # Restore the original reference's gold approval seal. The
+                # source is a compact 1-bit print to keep install size low;
+                # only the historic seal's fixed ink region is recoloured.
+                ink = artwork.load()
+                for y in range(195, 275):
+                    for x in range(182, 264):
+                        r, g, b, alpha = ink[x, y]
+                        if r == 0 and g == 0 and b == 0:
+                            ink[x, y] = (175, 136, 76, alpha)
+            save_tga(artwork, f"{stem}.tga")
+
+
+
+
+def backdrop():
+    """Host preview: use the PS5 package's canonical Encore JPEG wallpaper.
+
+    The native package creates a 1920x1080 centre-cropped TGA with an
+    original top-to-bottom pixel order. The TGA decoder already normalizes
+    rows, and the launcher samples its textures using top-left UI UVs.
+    The checked-in legacy TGA must NEVER be trusted as a preview source.
+    """
+    source = ROOT / "assets/encore-background.jpg"
+    with Image.open(source) as original:
+        wallpaper = ImageOps.fit(original.convert("RGB"), (1920, 1080),
+                                  method=Image.Resampling.LANCZOS)
+    # Do not vertically flip: the 2D launcher samples UV(0,0) at screen top.
+    target = ART / "backdrop.tga"
+    wallpaper.save(target, format="TGA")
+    # Pillow appends an optional 26-byte TGA footer. The native packager
+    # requires exactly the 18-byte header followed by uncompressed RGB.
+    length = 18 + 1920 * 1080 * 3
+    data = target.read_bytes()
+    if (len(data) < length or data[1] != 0 or data[2] != 2
+            or data[16] != 24 or data[12:16] != bytes((128, 7, 56, 4))):
+        raise RuntimeError("Encore canonical wallpaper TGA is malformed")
+    target.write_bytes(data[:length])
+    print(f"backdrop.tga: 1920x1080 from {source.relative_to(ROOT)}")
 
 
 def main():
     ART.mkdir(parents=True, exist_ok=True)
-    wanted = set(sys.argv[1:]) or {"backdrop", "brand", "controller"}
+    wanted = set(sys.argv[1:]) or {"brand", "controller", "fixed", "backdrop"}
+    unknown = wanted - {"brand", "controller", "fixed", "backdrop"}
+    if unknown:
+        raise SystemExit("unknown Encore launcher art: " + ", ".join(sorted(unknown)))
     if "backdrop" in wanted:
-        source = Image.open(ROOT / "sce_sys/background-source.png").convert("RGB")
-        art = backdrop(source)
-        save_tga(grain(art, .025), "backdrop.tga")
-        # A quarter of the size, blurred until only light and colour remain.
-        small = art.resize((512, 288), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(9))
-        save_tga(small, "backdrop-blur.tga")
-    if "slate-backdrop" in wanted:
-        art = slate_backdrop()
-        save_tga(grain(art, .02), "slate-backdrop.tga")
-        small = art.resize((512, 288), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(9))
-        save_tga(small, "slate-backdrop-blur.tga")
+        backdrop()
     if "brand" in wanted:
-        icon = Image.open(ROOT / "sce_sys/icon-source.png").convert("RGBA")
-        save_tga(icon.resize((384, 384), Image.Resampling.LANCZOS), "brand.tga")
+        source = ROOT / "assets/icon0.png"
+        icon = Image.open(source).convert("RGBA")
+        icon = icon.resize((384, 384), Image.Resampling.LANCZOS)
+        save_tga(icon, "brand.tga")
     if "controller" in wanted:
         save_tga(controller(), "controller.tga")
+    if "fixed" in wanted:
+        fixed()
 
 
 if __name__ == "__main__":
