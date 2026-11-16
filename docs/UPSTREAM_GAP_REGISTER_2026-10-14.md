@@ -76,14 +76,14 @@ The native build previously inherited a boilerplate `param.json` without the opt
 <!-- BEGIN AUTO-UPSTREAM-COMPARISON -->
 ### Automated comparison (daily + manual)
 
-Checked in UTC: **2026-11-15 12:44 UTC**. Changes are commits relative to pins, not proven missing fixes.
+Checked in UTC: **2026-11-16 13:37 UTC**. Changes are commits relative to pins, not proven missing fixes.
 This workflow never imports source patches, modifies dependencies, or reads console data.
 
 | Dependency | Source | Pinned revision | Ahead / behind | Status |
 |---|---|---|---:|---|
-| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +171 / -0 | upstream ahead |
-| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +5973 / -0 | upstream ahead |
-| fmt | [fmtlib/fmt](https://github.com/fmtlib/fmt) | 12.1.0 | +413 / -0 | upstream ahead |
+| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +174 / -0 | upstream ahead |
+| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +6013 / -0 | upstream ahead |
+| fmt | [fmtlib/fmt](https://github.com/fmtlib/fmt) | 12.1.0 | +415 / -0 | upstream ahead |
 | zbic | [kinnay/zbic](https://github.com/kinnay/zbic) | 11b08f271226 | +0 / -0 | identical |
 | compiler-rt | frozen archive / binary | — | — | not comparable |
 | pacbrew | frozen archive / binary | — | — | not comparable |
