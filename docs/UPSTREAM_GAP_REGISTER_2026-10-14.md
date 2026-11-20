@@ -76,13 +76,13 @@ The native build previously inherited a boilerplate `param.json` without the opt
 <!-- BEGIN AUTO-UPSTREAM-COMPARISON -->
 ### Automated comparison (daily + manual)
 
-Checked in UTC: **2026-11-19 14:25 UTC**. Changes are commits relative to pins, not proven missing fixes.
+Checked in UTC: **2026-11-20 14:00 UTC**. Changes are commits relative to pins, not proven missing fixes.
 This workflow never imports source patches, modifies dependencies, or reads console data.
 
 | Dependency | Source | Pinned revision | Ahead / behind | Status |
 |---|---|---|---:|---|
-| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +176 / -0 | upstream ahead |
-| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +6191 / -0 | upstream ahead |
+| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +178 / -0 | upstream ahead |
+| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +6208 / -0 | upstream ahead |
 | fmt | [fmtlib/fmt](https://github.com/fmtlib/fmt) | 12.1.0 | +421 / -0 | upstream ahead |
 | zbic | [kinnay/zbic](https://github.com/kinnay/zbic) | 11b08f271226 | +0 / -0 | identical |
 | compiler-rt | frozen archive / binary | — | — | not comparable |
@@ -97,7 +97,7 @@ This workflow never imports source patches, modifies dependencies, or reads cons
 | opengl-opengnm-psbc | [PS4-OpenGNM/opengnm-psbc](https://github.com/PS4-OpenGNM/opengnm-psbc) | a92a1228ea3a | +4 / -0 | upstream ahead |
 | opengl-opengnm | [PS4-OpenGNM/opengnm](https://github.com/PS4-OpenGNM/opengnm) | 4b295ca54c82 | +0 / -0 | identical |
 | opengl-spirv-headers | [KhronosGroup/SPIRV-Headers](https://github.com/KhronosGroup/SPIRV-Headers) | 0d25db97cb9b | +18 / -0 | upstream ahead |
-| opengl-vulkan-headers | [KhronosGroup/Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | b51f6b865c18 | +12 / -0 | upstream ahead |
+| opengl-vulkan-headers | [KhronosGroup/Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | b51f6b865c18 | +13 / -0 | upstream ahead |
 | opengl-imgui | [ocornut/imgui](https://github.com/ocornut/imgui) | f5befd2d29e6 | +1577 / -0 | upstream ahead |
 | opengl-nanovg | [memononen/nanovg](https://github.com/memononen/nanovg) | ce3bf745eb2d | +0 / -0 | identical |
 | opengl-sokol | [floooh/sokol](https://github.com/floooh/sokol) | 48c85905aeaa | +366 / -0 | upstream ahead |
@@ -244,7 +244,6 @@ These are upstream commit titles, not validated Encore integrations.
 - [86f980c731e6](https://github.com/KhronosGroup/SPIRV-Headers/commit/86f980c731e6) — clean up SPV_INTEL_memory_access_aliasing (#637)
 
 **opengl-vulkan-headers**
-- [6802bb4733b6](https://github.com/KhronosGroup/Vulkan-Headers/commit/6802bb4733b6) — Update for Vulkan-Docs 1.4.363
 - [b0c3dd6851e2](https://github.com/KhronosGroup/Vulkan-Headers/commit/b0c3dd6851e2) — Update for Vulkan-Docs 1.4.364
 - [3c65a01745e4](https://github.com/KhronosGroup/Vulkan-Headers/commit/3c65a01745e4) — Add vulkan_ubm.h to build.gn
 - [c46850864f46](https://github.com/KhronosGroup/Vulkan-Headers/commit/c46850864f46) — Update for Vulkan-Docs 1.4.365
@@ -252,6 +251,7 @@ These are upstream commit titles, not validated Encore integrations.
 - [9fbc2a782ee3](https://github.com/KhronosGroup/Vulkan-Headers/commit/9fbc2a782ee3) — Update for Vulkan-Docs 1.4.367
 - [88487f687f31](https://github.com/KhronosGroup/Vulkan-Headers/commit/88487f687f31) — Update for Vulkan-Docs 1.4.368
 - [b26454f3ccd6](https://github.com/KhronosGroup/Vulkan-Headers/commit/b26454f3ccd6) — Fix typos in comments
+- [d277a0a3cda9](https://github.com/KhronosGroup/Vulkan-Headers/commit/d277a0a3cda9) — Update for Vulkan-Docs 1.4.369
 
 **opengl-imgui** (history excerpt; some commits omitted)
 - [1387d356aab8](https://github.com/ocornut/imgui/commit/1387d356aab8) — stb_textedit: subsequent fixes for next/prev word impl (not used by imgui) + PageUp/Home/End (no side effect but mo
