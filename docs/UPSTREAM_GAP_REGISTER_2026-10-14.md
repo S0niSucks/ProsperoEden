@@ -76,13 +76,13 @@ The native build previously inherited a boilerplate `param.json` without the opt
 <!-- BEGIN AUTO-UPSTREAM-COMPARISON -->
 ### Automated comparison (daily + manual)
 
-Checked in UTC: **2026-11-21 13:27 UTC**. Changes are commits relative to pins, not proven missing fixes.
+Checked in UTC: **2026-11-22 13:19 UTC**. Changes are commits relative to pins, not proven missing fixes.
 This workflow never imports source patches, modifies dependencies, or reads console data.
 
 | Dependency | Source | Pinned revision | Ahead / behind | Status |
 |---|---|---|---:|---|
-| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +182 / -0 | upstream ahead |
-| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +6224 / -0 | upstream ahead |
+| eden | [eden-emulator/mirror](https://github.com/eden-emulator/mirror) | 5f142c7926d0 | +184 / -0 | upstream ahead |
+| ffmpeg | [FFmpeg/FFmpeg](https://github.com/FFmpeg/FFmpeg) | c7b5f1537d9c | +6277 / -0 | upstream ahead |
 | fmt | [fmtlib/fmt](https://github.com/fmtlib/fmt) | 12.1.0 | +421 / -0 | upstream ahead |
 | zbic | [kinnay/zbic](https://github.com/kinnay/zbic) | 11b08f271226 | +0 / -0 | identical |
 | compiler-rt | frozen archive / binary | — | — | not comparable |
@@ -100,7 +100,7 @@ This workflow never imports source patches, modifies dependencies, or reads cons
 | opengl-vulkan-headers | [KhronosGroup/Vulkan-Headers](https://github.com/KhronosGroup/Vulkan-Headers) | b51f6b865c18 | +13 / -0 | upstream ahead |
 | opengl-imgui | [ocornut/imgui](https://github.com/ocornut/imgui) | f5befd2d29e6 | +1577 / -0 | upstream ahead |
 | opengl-nanovg | [memononen/nanovg](https://github.com/memononen/nanovg) | ce3bf745eb2d | +0 / -0 | identical |
-| opengl-sokol | [floooh/sokol](https://github.com/floooh/sokol) | 48c85905aeaa | +366 / -0 | upstream ahead |
+| opengl-sokol | [floooh/sokol](https://github.com/floooh/sokol) | 48c85905aeaa | +418 / -0 | upstream ahead |
 | opengl-native-boilerplate | [blackbearreloaded/ps5-native-app-boilerplate](https://github.com/blackbearreloaded/ps5-native-app-boilerplate) | 4f531c4b517f | — | repository unavailable |
 | opengl-mesa-26-2 | frozen archive / binary | — | — | not comparable |
 
